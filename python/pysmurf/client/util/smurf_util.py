@@ -324,15 +324,6 @@ class SmurfUtilMixin(SmurfBase):
         sol = root_scalar(lambda fc_hz : alpha_float-self.compute_exp_avg_alpha(fc_hz,fs_hz), bracket=[0, fs_hz/2.])
         return sol.root
 
-    # the JesdWatchdog will check if an instance of the JesdWatchdog is already
-    # running and kill itself if there is
-    def start_jesd_watchdog(self):
-        import pysmurf.client.watchdog.JesdWatchdog as JesdWatchdog
-        import subprocess
-        import sys
-        subprocess.Popen([sys.executable,JesdWatchdog.__file__])
-
-    # Shawn needs to make this better and add documentation.
     @set_action()
     def estimate_phase_delay(self, band, nsamp=2**19, make_plot=True,
             show_plot=True, save_plot=True, save_data=True, n_scan=5,
@@ -2295,38 +2286,6 @@ class SmurfUtilMixin(SmurfBase):
             raise ValueError(which_jesd_down)
 
 
-    def jesd_decorator(decorated):
-        def jesd_decorator_function(self):
-            # check JESDs
-            (jesd_tx_ok0, jesd_rx_ok0, jesd_status) = self.check_jesd(silent_if_valid=True)
-
-            # if either JESD is down, try to fix
-            if not (jesd_rx_ok0 and jesd_tx_ok0):
-                which_jesd_down0='Jesd Rx and Tx are both down'
-                if (jesd_rx_ok0 or jesd_tx_ok0):
-                    which_jesd_down0 = ('Jesd Rx is down' if
-                        jesd_tx_ok0 else 'Jesd Tx is down')
-
-                self.log(f'{which_jesd_down0} ... will attempt to recover.',
-                         self.LOG_ERROR)
-
-                # attempt to recover ; if it fails it will assert
-                self.recover_jesd(recover_jesd_rx=(not jesd_rx_ok0),
-                    recover_jesd_tx=(not jesd_tx_ok0))
-
-                # rely on recover to assert if it failed
-                self.log('Successfully recovered Jesd but may need to redo' +
-                    ' some setup ... rerun command at your own risk.',
-                    self.LOG_USER)
-
-            # don't continue running the desired command by default.
-            # just because Jesds are back doesn't mean we're in a sane
-            # state.  User may need to relock/etc.
-            if (jesd_rx_ok0 and jesd_tx_ok0):
-                decorated()
-
-        return jesd_decorator_function
-
     def check_jesd(self, bay, silent_if_valid=False, max_timeout_sec=60):
         """Checks JESD status for requested bay.
 
@@ -2733,8 +2692,19 @@ class SmurfUtilMixin(SmurfBase):
         return subband_chans
 
     def iq_to_phase(self, i, q):
-        """
-        Changes IQ to phase
+        """Converts I/Q data to unwrapped phase.
+
+        Args
+        ----
+        i : array-like
+            In-phase component.
+        q : array-like
+            Quadrature component.
+
+        Returns
+        -------
+        numpy.ndarray
+            Unwrapped phase in radians.
         """
         return np.unwrap(np.arctan2(q, i))
 
@@ -2899,9 +2869,18 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def set_tes_bias_off(self, **kwargs):
-        """
-        Turns off all of the DACs assigned to a TES bias group in the
-        pysmurf configuration file.
+        r"""Sets all TES bias groups to zero volts.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to
+            :func:`set_tes_bias_bipolar_array`.
+
+        See Also
+        --------
+        :func:`set_tes_bias_bipolar_array` : Set individual group voltages.
+        :func:`all_off` : Turn off biases, tones, and flux ramp.
         """
         self.set_tes_bias_bipolar_array(np.zeros(self._n_bias_groups), **kwargs)
 
@@ -3791,8 +3770,15 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def all_off(self):
-        """
-        Turns off everything. Does band off, flux ramp off, then TES bias off.
+        """Turns off all output: tones, flux ramp, and TES biases.
+
+        Calls :func:`band_off` for each band, :func:`flux_ramp_off`,
+        then :func:`set_tes_bias_off`.
+
+        See Also
+        --------
+        :func:`set_tes_bias_off` : Zero TES biases only.
+        :func:`flux_ramp_off` : Disable flux ramp only.
         """
         self.log('Turning off tones')
         bands = self._bands

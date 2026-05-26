@@ -672,16 +672,35 @@ class SmurfCommandMixin(SmurfBase):
             return None
 
     def set_read_all(self, **kwargs):
-        """
-        ReadAll sends a command to read all register to the pyrogue server
-        Registers must updated in order to PVs to update.
-        This call is necessary to read register with pollIntervale=0.
+        r"""Reads all registers from hardware into the rogue server cache.
+
+        Necessary to update registers that have pollInterval=0
+        (no automatic polling).  Blocks for 20 seconds after issuing
+        the command to allow the read to complete.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
         """
         self._caput('AMCc.ReadAll', 1, **kwargs)
         self.log('ReadAll sent', self.LOG_INFO)
 
-    def run_pwr_up_sys_ref(self,bay, **kwargs):
-        """
+    def run_pwr_up_sys_ref(self, bay, **kwargs):
+        r"""Powers up the SYSREF signal on the LMK clock chip.
+
+        Restores the SYSREF output on the LMK048xx clock generator
+        after power-down. SYSREF is required for JESD204b
+        synchronization. Waits 5 seconds after issuing the command.
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
         """
         triggerPV=self.lmk.format(bay) + 'PwrUpSysRef'
         self._caput(triggerPV, 1, wait_after=5, **kwargs)
@@ -690,7 +709,29 @@ class SmurfCommandMixin(SmurfBase):
     _eta_scan_in_progress_reg = 'etaScanInProgress'
 
     def get_eta_scan_in_progress(self, band, **kwargs):
-        """
+        r"""Gets whether an eta scan or gradient descent is running.
+
+        Returns the status flag indicating if a serial eta scan
+        or serial gradient descent is in progress for the
+        specified band.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            1 if a scan is in progress, 0 if idle.
+
+        See Also
+        --------
+        :func:`run_serial_eta_scan` : Runs the serial eta scan.
+        :func:`run_serial_gradient_descent` : Runs the gradient descent.
         """
         return self._caget(self._cryo_root(band) + self._eta_scan_in_progress_reg,
                     **kwargs)
@@ -698,7 +739,26 @@ class SmurfCommandMixin(SmurfBase):
     _gradient_descent_max_iters_reg = 'gradientDescentMaxIters'
 
     def set_gradient_descent_max_iters(self, band, val, **kwargs):
-        """
+        r"""Sets the maximum iterations for serial gradient descent.
+
+        The gradient descent will stop after this many iterations
+        even if it has not converged.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            Maximum number of iterations per channel.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_gradient_descent_max_iters` : Gets the current value.
+        :func:`run_serial_gradient_descent` : Runs the gradient descent.
+        :func:`set_gradient_descent_converge_hz` : Sets the convergence threshold.
         """
         self._caput(
             self._cryo_root(band) +
@@ -706,7 +766,24 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_gradient_descent_max_iters(self, band, **kwargs):
-        """
+        r"""Gets the maximum iterations for serial gradient descent.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Maximum number of iterations per channel.
+
+        See Also
+        --------
+        :func:`set_gradient_descent_max_iters` : Sets the value.
         """
         return self._caget(
             self._cryo_root(band) +
@@ -716,7 +793,28 @@ class SmurfCommandMixin(SmurfBase):
     _gradient_descent_averages_reg = 'gradientDescentAverages'
 
     def set_gradient_descent_averages(self, band, val, **kwargs):
-        """
+        r"""Sets the number of averages for gradient estimation.
+
+        The gradient descent estimates the gradient by measuring
+        frequency error at +/- an offset frequency. This sets how
+        many measurements are averaged at each point to reduce
+        noise.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            Number of frequency error measurements to average
+            per gradient sample.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_gradient_descent_averages` : Gets the current value.
+        :func:`run_serial_gradient_descent` : Runs the gradient descent.
         """
         self._caput(
             self._cryo_root(band) +
@@ -724,7 +822,24 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_gradient_descent_averages(self, band, **kwargs):
-        """
+        r"""Gets the number of averages for gradient estimation.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Number of measurements averaged per gradient sample.
+
+        See Also
+        --------
+        :func:`set_gradient_descent_averages` : Sets the value.
         """
         return self._caget(
             self._cryo_root(band) +
@@ -734,7 +849,28 @@ class SmurfCommandMixin(SmurfBase):
     _gradient_descent_gain_reg = 'gradientDescentGain'
 
     def set_gradient_descent_gain(self, band, val, **kwargs):
-        """
+        r"""Sets the gain (learning rate) for serial gradient descent.
+
+        Scales the gradient before applying it as a frequency
+        correction step. Larger values converge faster but risk
+        overshooting. In momentum mode:
+        v = beta*v + (1-beta)*gain*dx.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : float
+            Gain multiplier (no firmware-enforced limits).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_gradient_descent_gain` : Gets the current value.
+        :func:`set_gradient_descent_beta` : Sets the decay rate.
+        :func:`run_serial_gradient_descent` : Runs the gradient descent.
         """
         self._caput(
             self._cryo_root(band) +
@@ -742,7 +878,24 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_gradient_descent_gain(self, band, **kwargs):
-        """
+        r"""Gets the gain (learning rate) for serial gradient descent.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : float
+            Gain multiplier.
+
+        See Also
+        --------
+        :func:`set_gradient_descent_gain` : Sets the value.
         """
         return self._caget(
             self._cryo_root(band) +
@@ -752,7 +905,26 @@ class SmurfCommandMixin(SmurfBase):
     _gradient_descent_converge_hz_reg = 'gradientDescentConvergeHz'
 
     def set_gradient_descent_converge_hz(self, band, val, **kwargs):
-        """
+        r"""Sets the convergence threshold for serial gradient descent.
+
+        The gradient descent stops when the frequency step size
+        falls below this threshold, indicating convergence.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : float
+            Convergence threshold in Hz.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_gradient_descent_converge_hz` : Gets the current value.
+        :func:`run_serial_gradient_descent` : Runs the gradient descent.
+        :func:`set_gradient_descent_max_iters` : Sets the max iterations.
         """
         self._caput(
             self._cryo_root(band) +
@@ -760,7 +932,24 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_gradient_descent_converge_hz(self, band, **kwargs):
-        """
+        r"""Gets the convergence threshold for serial gradient descent.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : float
+            Convergence threshold in Hz.
+
+        See Also
+        --------
+        :func:`set_gradient_descent_converge_hz` : Sets the value.
         """
         return self._caget(
             self._cryo_root(band) +
@@ -770,8 +959,25 @@ class SmurfCommandMixin(SmurfBase):
     _gradient_descent_step_hz_reg = 'gradientDescentStepHz'
 
     def set_gradient_descent_step_hz(self, band, val, **kwargs):
-        """
-        Sets the step size of the gradient descent in units of Hz
+        r"""Sets the offset frequency for gradient estimation.
+
+        The gradient is estimated by measuring frequency error at
+        +/- this offset from the current center frequency.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : float
+            Offset frequency in Hz for gradient estimation.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_gradient_descent_step_hz` : Gets the current value.
+        :func:`run_serial_gradient_descent` : Runs the gradient descent.
         """
         self._caput(
             self._cryo_root(band) +
@@ -779,7 +985,24 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_gradient_descent_step_hz(self, band, **kwargs):
-        """
+        r"""Gets the offset frequency for gradient estimation.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : float
+            Offset frequency in Hz.
+
+        See Also
+        --------
+        :func:`set_gradient_descent_step_hz` : Sets the value.
         """
         return self._caget(
             self._cryo_root(band) +
@@ -789,8 +1012,28 @@ class SmurfCommandMixin(SmurfBase):
     _gradient_descent_momentum_reg = 'gradientDescentMomentum'
 
     def set_gradient_descent_momentum(self, band, val, **kwargs):
-        """
-        Sets the momentum term of the gradient descent
+        r"""Sets the optimizer mode for serial gradient descent.
+
+        When set to 1, uses momentum (exponential moving average
+        of gradients for smoother convergence). When set to 0,
+        uses an adaptive step size that scales inversely with
+        the history of past gradients.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            1 for momentum mode, 0 for adaptive mode.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_gradient_descent_momentum` : Gets the current value.
+        :func:`set_gradient_descent_beta` : Sets the decay rate for both modes.
+        :func:`run_serial_gradient_descent` : Runs the gradient descent.
         """
         self._caput(
             self._cryo_root(band) +
@@ -798,7 +1041,24 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_gradient_descent_momentum(self, band, **kwargs):
-        """
+        r"""Gets the optimizer mode for serial gradient descent.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            1 for momentum mode, 0 for adaptive mode.
+
+        See Also
+        --------
+        :func:`set_gradient_descent_momentum` : Sets the value.
         """
         return self._caget(
             self._cryo_root(band) +
@@ -808,7 +1068,34 @@ class SmurfCommandMixin(SmurfBase):
     _gradient_descent_beta_reg = 'gradientDescentBeta'
 
     def set_gradient_descent_beta(self, band, val, **kwargs):
-        """
+        r"""Sets the decay rate for serial gradient descent.
+
+        Controls the exponential decay rate for the running
+        averages in both optimizer modes (where ``gain`` is set
+        by :func:`set_gradient_descent_gain`):
+
+        - Momentum mode: v = beta*v + (1-beta)*gain*dx
+        - Adaptive mode: cache = beta*cache + (1-beta)*dx^2
+
+        Values closer to 1.0 give more smoothing (longer memory),
+        values closer to 0.0 give less smoothing.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : float
+            Decay rate (0.0 to 1.0).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_gradient_descent_beta` : Gets the current value.
+        :func:`set_gradient_descent_gain` : Sets the gain multiplier.
+        :func:`set_gradient_descent_momentum` : Sets the optimizer mode.
+        :func:`run_serial_gradient_descent` : Runs the gradient descent.
         """
         self._caput(
             self._cryo_root(band) +
@@ -816,25 +1103,29 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_gradient_descent_beta(self, band, **kwargs):
-        """
+        r"""Gets the decay rate for serial gradient descent.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : float
+            Decay rate (0.0 to 1.0).
+
+        See Also
+        --------
+        :func:`set_gradient_descent_beta` : Sets the value.
         """
         return self._caget(
             self._cryo_root(band) +
             self._gradient_descent_beta_reg,
             **kwargs)
-
-    def run_parallel_eta_scan(self, band, **kwargs):
-        """
-        runParallelScan
-        """
-        triggerPV=self._cryo_root(band) + 'runParallelEtaScan'
-        monitorPV=(
-            self._cryo_root(band) + self._eta_scan_in_progress_reg)
-
-        self._caput(triggerPV, 1, **kwargs)
-        self.log(f'{triggerPV} sent', self.LOG_USER)
-        self._wait_for(monitorPV, lambda x: x == 0)
-        self.log('parallel etaScan complete', self.LOG_USER)
 
     _run_serial_eta_scan_reg = 'runSerialEtaScan'
 
@@ -857,29 +1148,6 @@ class SmurfCommandMixin(SmurfBase):
 
         triggerPV = self._cryo_root(band) + self._run_serial_eta_scan_reg
         monitorPV = self._cryo_root(band) + self._eta_scan_in_progress_reg
-
-        self._caput(triggerPV, 1, **kwargs)
-        self._wait_for(monitorPV, lambda x: x == 0, timeout=timeout)
-
-
-    _run_serial_min_search_reg = 'runSerialMinSearch'
-
-    def run_serial_min_search(self, band, timeout=240, **kwargs):
-        """
-        Does a brute force search for the resonator minima. Starts at
-        the currently set frequency.
-
-        Args
-        ----
-        band : int
-            The band the min search.
-        timeout : float, optional, default 240
-            The maximum amount of time to wait for the PV.
-        """
-        triggerPV = (
-            self._cryo_root(band) + self._run_serial_min_search_reg)
-        monitorPV = (
-            self._cryo_root(band) + self._eta_scan_in_progress_reg)
 
         self._caput(triggerPV, 1, **kwargs)
         self._wait_for(monitorPV, lambda x: x == 0, timeout=timeout)
@@ -1043,14 +1311,51 @@ class SmurfCommandMixin(SmurfBase):
     _tune_file_path_reg = 'tuneFilePath'
 
     def set_tune_file_path(self, val, **kwargs):
-        """
+        r"""Sets the path to the tune file for PyRogue loading.
+
+        Sets the file path that the PyRogue ``loadTuneFile``
+        command will read from. The tune file contains per-channel
+        eta, center frequency, and amplitude parameters. When
+        triggered, PyRogue reads the file on the server CPU and
+        writes the parameters to firmware registers. Most users
+        should use higher-level functions like :func:`load_tune`
+        instead of setting this directly.
+
+        Args
+        ----
+        val : str
+            Path to the tune file (.npy format).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_tune_file_path` : Gets the current path.
+        :func:`set_load_tune_file` : Triggers loading the tune file.
+        :func:`load_tune` : Higher-level tune loading function.
         """
         self._caput(
             self.sysgencryo + self._tune_file_path_reg,
             val, **kwargs)
 
     def get_tune_file_path(self, **kwargs):
-        """
+        r"""Gets the path to the tune file.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : str
+            Path to the tune file.
+
+        See Also
+        --------
+        :func:`set_tune_file_path` : Sets the path.
         """
         return self._caget(
             self.sysgencryo + self._tune_file_path_reg,
@@ -1059,18 +1364,32 @@ class SmurfCommandMixin(SmurfBase):
     _load_tune_file_reg = 'loadTuneFile'
 
     def set_load_tune_file(self, band, val, **kwargs):
-        """
+        r"""Triggers loading the tune file into firmware registers.
+
+        When set to 1, PyRogue reads the tune file (set by
+        :func:`set_tune_file_path`) and writes the per-channel
+        eta, center frequency, amplitude, and feedback enable
+        parameters to firmware BRAM for the specified band.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            1 to trigger loading.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`set_tune_file_path` : Sets the tune file path.
+        :func:`load_tune` : Higher-level tune loading function.
         """
         self._caput(
             self._cryo_root(band) + self._load_tune_file_reg,
             val, **kwargs)
 
-    def get_load_tune_file(self, band, **kwargs):
-        """
-        """
-        return self._caget(
-            self._cryo_root(band) + self._load_tune_file_reg,
-            **kwargs)
 
     _eta_scan_del_f_reg = 'etaScanDelF'
 
@@ -1140,15 +1459,35 @@ class SmurfCommandMixin(SmurfBase):
     _eta_scan_freqs_reg = 'etaScanFreqs'
 
     def set_eta_scan_freq(self, band, val, **kwargs):
-        """
-        Sets the frequency to do the eta scan
+        r"""Sets the frequency array for find-freq or single-channel eta scan.
+
+        Writes an array of scan frequencies in MHz (relative to subband
+        center) into the rogue etaScanFreqs variable.  How the array is
+        interpreted depends on which scan is triggered:
+
+        - :func:`set_run_serial_find_freq`: reshapes to
+          (n_channels × scan_points_per_channel), sweeping each channel
+          through its row.  Channels with all-identical entries are
+          skipped.
+        - :func:`set_run_eta_scan`: uses the array as a flat 1D sweep
+          applied to the single channel selected by
+          :func:`set_eta_scan_channel`.
 
         Args
         ----
         band : int
-            The band to count.
-        val : int
-            The frequency to scan.
+            Which band.
+        val : numpy.ndarray
+            Array of scan frequencies in MHz.  For serial find-freq,
+            flatten a (n_channels, n_scan_points) array before passing.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`set_run_serial_find_freq` : Triggers multi-channel sweep.
+        :func:`set_run_eta_scan` : Triggers single-channel sweep.
         """
         self._caput(
             self._cryo_root(band) + self._eta_scan_freqs_reg,
@@ -1156,18 +1495,25 @@ class SmurfCommandMixin(SmurfBase):
 
 
     def get_eta_scan_freq(self, band, **kwargs):
-        """
-        No description
+        r"""Gets the frequency array for find-freq or single-channel eta scan.
 
         Args
         ----
         band : int
-            The band to count.
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
 
         Returns
         -------
-        freq : int
-            The frequency of the scan.
+        numpy.ndarray
+            Array of scan frequencies in MHz previously set by
+            :func:`set_eta_scan_freq`.
+
+        See Also
+        --------
+        :func:`set_eta_scan_freq` : Sets this array.
         """
         return self._caget(
             self._cryo_root(band) + self._eta_scan_freqs_reg,
@@ -1176,33 +1522,56 @@ class SmurfCommandMixin(SmurfBase):
     _eta_scan_amplitude_reg = 'etaScanAmplitude'
 
     def set_eta_scan_amplitude(self, band, val, **kwargs):
-        """
-        Sets the amplitude of the eta scan.
+        r"""Sets the tone amplitude used during eta scan or find-freq.
+
+        This value is written to each channel's amplitudeScale register
+        during :func:`set_run_eta_scan` or :func:`set_run_serial_find_freq`.
+        Same scale as :func:`set_amplitude_scale_channel` — 4-bit unsigned
+        (0–15), 3 dB per step.  Typical value is 12, which the
+        firmware tone generation was optimized for for large numbers of
+        tones.
 
         Args
         ----
         band : int
-            The band to set.
+            Which band.
         val : int
-            The eta scan amplitude. Typical value is 9 to 11.
+            Tone amplitude for scanned channels (0–15).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`set_run_eta_scan` : Single-channel eta scan using this
+                amplitude.
+        :func:`set_run_serial_find_freq` : Multi-channel find-freq using
+                this amplitude.
         """
         self._caput(
             self._cryo_root(band) + self._eta_scan_amplitude_reg,
             np.uint32(val), **kwargs)
 
     def get_eta_scan_amplitude(self, band, **kwargs):
-        """
-        Gets the amplitude of the eta scan.
+        r"""Gets the tone amplitude used during eta scan or find-freq.
 
         Args
         ----
         band : int
-            The band to set.
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
 
         Returns
         -------
-        amp : int
-            The eta scan amplitude.
+        int
+            Tone amplitude for scanned channels (0–15, exactly 3 dB per
+            step).
+
+        See Also
+        --------
+        :func:`set_eta_scan_amplitude` : Sets this value.
         """
         return self._caget(
             self._cryo_root(band) + self._eta_scan_amplitude_reg,
@@ -1211,33 +1580,53 @@ class SmurfCommandMixin(SmurfBase):
     _eta_scan_channel_reg = 'etaScanChannel'
 
     def set_eta_scan_channel(self, band, val, **kwargs):
-        """
-        Sets the channel to eta scan.
+        r"""Sets the channel for the single-channel eta scan.
+
+        Selects which channel :func:`set_run_eta_scan` will operate on.
+        The scan sweeps this channel through the frequencies in
+        :func:`set_eta_scan_freq` and records the frequency error
+        response.
+
+        Not used by :func:`set_run_serial_find_freq` or
+        :func:`run_serial_eta_scan`, which operate on all channels.
 
         Args
         ----
         band : int
-            The band to set.
+            Which band.
         val : int
-            The channel to set.
+            Channel number within the band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`set_run_eta_scan` : Triggers the scan on this channel.
         """
         self._caput(
             self._cryo_root(band) + self._eta_scan_channel_reg,
             val, **kwargs)
 
     def get_eta_scan_channel(self, band, **kwargs):
-        """
-        Gets the channel to eta scan.
+        r"""Gets the channel for the single-channel eta scan.
 
         Args
         ----
         band : int
-            The band to set.
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
 
         Returns
         -------
-        chan : int
-            The channel that is being eta scanned.
+        int
+            Channel number selected for the single-channel eta scan.
+
+        See Also
+        --------
+        :func:`set_eta_scan_channel` : Sets this value.
         """
         return self._caget(
             self._cryo_root(band) + self._eta_scan_channel_reg,
@@ -1246,88 +1635,85 @@ class SmurfCommandMixin(SmurfBase):
     _eta_scan_averages_reg = 'etaScanAverages'
 
     def set_eta_scan_averages(self, band, val, **kwargs):
-        """
-        Sets the number of frequency error averages to take at each point of
-        the etaScan.
+        r"""Sets the number of frequency error averages for serial eta scan.
+
+        Used by :func:`run_serial_eta_scan` to average multiple frequency
+        error readings at each measurement point.  Not used by
+        :func:`set_run_eta_scan` (single-channel, no averaging).
 
         Args
         ----
         band : int
-            The band to set.
+            Which band.
         val : int
-            The channel to set.
+            Number of frequency error samples to average at each point.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`run_serial_eta_scan` : Serial scan that uses this
+                parameter.
         """
         self._caput(
             self._cryo_root(band) + self._eta_scan_averages_reg,
             val, **kwargs)
 
     def get_eta_scan_averages(self, band, **kwargs):
-        """
-        Gets the number of frequency error averages taken at each point of
-        the etaScan.
+        r"""Gets the number of frequency error averages for serial eta scan.
 
         Args
         ----
         band : int
-            The band to set.
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
 
         Returns
         -------
         int
-            The number of frequency error averages taken at each point
-            of the etaScan.
+            Number of frequency error samples averaged at each point.
+
+        See Also
+        --------
+        :func:`set_eta_scan_averages` : Sets this value.
         """
         return self._caget(
             self._cryo_root(band) + self._eta_scan_averages_reg,
             **kwargs)
 
-    _eta_scan_dwell_reg = 'etaScanDwell'
-
-    def set_eta_scan_dwell(self, band, val, **kwargs):
-        """
-        Swets how long to dwell while eta scanning.
-
-        Args
-        ----
-        band : int
-            The band to eta scan.
-        val : int
-            The time to dwell.
-        """
-        self._caput(
-            self._cryo_root(band) + self._eta_scan_dwell_reg,
-            val, **kwargs)
-
-    def get_eta_scan_dwell(self, band, **kwargs):
-        """
-        Gets how long to dwell
-
-        Args
-        ----
-        band : int
-            The band being eta scanned.
-
-        Returns
-        -------
-        dwell : int
-            The time to dwell during an eta scan.
-        """
-        return self._caget(
-            self._cryo_root(band) + self._eta_scan_dwell_reg,
-            **kwargs)
-
     _run_serial_find_freq_reg = 'runSerialFindFreq'
 
     def set_run_serial_find_freq(self, band, val, **kwargs):
-        """
-        Runs the eta scan. Set the channel using set_eta_scan_channel()
+        r"""Triggers the serial find-freq scan across all channels.
+
+        Starts the rogue SerialFindFreq process, which sweeps each
+        channel through the frequencies previously loaded via
+        :func:`set_eta_scan_freq` (reshaped to n_channels × scan_points).
+        At each frequency, measures frequency error at eta phase 0° then
+        -90°, storing results in etaScanResultsReal and etaScanResultsImag.
+        Channels whose frequency rows are all identical are skipped.
+
+        Blocks until the scan completes.
 
         Args
         ----
         band : int
-            The band to eta scan.
-        val : bool
-            Start the eta scan.
+            Which band.
+        val : int
+            Set to 1 to start the scan.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`set_eta_scan_freq` : Load frequencies before calling this.
+        :func:`set_eta_scan_amplitude` : Set tone power before calling this.
+        :func:`get_eta_scan_results_real` : Read back real results.
+        :func:`get_eta_scan_results_imag` : Read back imaginary results.
         """
         self._caput(
             self._cryo_root(band) + self._run_serial_find_freq_reg,
@@ -1340,55 +1726,71 @@ class SmurfCommandMixin(SmurfBase):
     _run_eta_scan_reg = 'runEtaScan'
 
     def set_run_eta_scan(self, band, val, **kwargs):
-        """
-        Runs the eta scan. Set the channel using set_eta_scan_channel()
+        r"""Triggers the single-channel eta scan.
+
+        Starts the rogue runEtaScan command, which sweeps the channel
+        selected by :func:`set_eta_scan_channel` through the frequencies
+        in :func:`set_eta_scan_freq`.  Measures frequency error at eta
+        phase 90° then 0°, storing results in etaScanResultsReal and
+        etaScanResultsImag.
+
+        Blocks until the scan completes (rogue commands are synchronous).
 
         Args
         ----
         band : int
-            The band to eta scan.
-        val : bool
-            Start the eta scan.
+            Which band.
+        val : int
+            Set to 1 to start the scan.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`set_eta_scan_channel` : Select channel before calling this.
+        :func:`set_eta_scan_freq` : Load frequencies before calling this.
+        :func:`get_eta_scan_results_real` : Read back real results.
+        :func:`get_eta_scan_results_imag` : Read back imaginary results.
         """
         self._caput(
             self._cryo_root(band) + self._run_eta_scan_reg,
             val, **kwargs)
 
-    def get_run_eta_scan(self, band, **kwargs):
-        """
-        Gets the status of eta scan.
-
-        Args
-        ----
-        band : int
-            The band that is being checked.
-
-        Returns
-        -------
-        status : int
-            Whether the band is eta scanning.
-        """
-        return self._caget(
-            self._cryo_root(band) + self._run_eta_scan_reg,
-            **kwargs)
-
     _eta_scan_results_real_reg = 'etaScanResultsReal'
 
     def get_eta_scan_results_real(self, band, count, **kwargs):
-        """
-        Gets the real component of the eta scan.
+        r"""Gets the real component of the eta scan.
+
+        Returns frequency error measured during the first sweep of
+        the most recent :func:`set_run_eta_scan` or
+        :func:`set_run_serial_find_freq`.  Treated as I when
+        constructing the complex response as ``I + 1j*Q``.
+
+        For serial find-freq, the array is flattened from shape
+        (n_channels, n_scan_points) — reshape using the same dimensions
+        passed to :func:`set_eta_scan_freq`.
 
         Args
         ----
         band : int
-            The to get eta scans.
+            Which band.
         count : int
-            The number of samples to read.
+            Number of samples to read from the results array.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
 
         Returns
         -------
-        resp : float array
-            The real component of the most recent eta scan.
+        numpy.ndarray
+            Frequency error array of length `count`.
+
+        See Also
+        --------
+        :func:`get_eta_scan_results_imag` : Imaginary (Q) component.
+        :func:`set_run_serial_find_freq` : Multi-channel scan that populates this.
+        :func:`set_run_eta_scan` : Single-channel scan that populates this.
         """
         return self._caget(
             self._cryo_root(band) + self._eta_scan_results_real_reg,
@@ -1397,63 +1799,94 @@ class SmurfCommandMixin(SmurfBase):
     _eta_scan_results_imag_reg = 'etaScanResultsImag'
 
     def get_eta_scan_results_imag(self, band, count, **kwargs):
-        """
-        Gets the imaginary component of the eta scan.
+        r"""Gets the imaginary component of the eta scan.
+
+        Returns frequency error measured during the second sweep of
+        the most recent :func:`set_run_eta_scan` or
+        :func:`set_run_serial_find_freq`.  Treated as Q when
+        constructing the complex response as ``I + 1j*Q``.
+
+        For serial find-freq, the array is flattened from shape
+        (n_channels, n_scan_points) — reshape using the same dimensions
+        passed to :func:`set_eta_scan_freq`.
 
         Args
         ----
         band : int
-            The to get eta scans.
+            Which band.
         count : int
-            The number of samples to read.
+            Number of samples to read from the results array.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
 
         Returns
         -------
-        resp : float array
-            The imaginary component of the most recent eta scan.
+        numpy.ndarray
+            Frequency error array of length `count`.
+
+        See Also
+        --------
+        :func:`get_eta_scan_results_real` : Real (I) component.
+        :func:`set_run_serial_find_freq` : Multi-channel scan that populates this.
+        :func:`set_run_eta_scan` : Single-channel scan that populates this.
         """
         return self._caget(
             self._cryo_root(band) + self._eta_scan_results_imag_reg,
             count=count, **kwargs)
 
-    _amplitude_scales_reg = 'setAmplitudeScales'
-
-    def set_amplitude_scales(self, band, val, **kwargs):
-        """
-        """
-        self._caput(
-            self._cryo_root(band) + self._amplitude_scales_reg,
-            val, **kwargs)
-
-    def get_amplitude_scales(self, band, **kwargs):
-        """
-        """
-        return self._caget(
-            self._cryo_root(band) + self._amplitude_scales_reg,
-            **kwargs)
 
     _amplitude_scale_array_reg = 'amplitudeScale'
 
     def set_amplitude_scale_array(self, band, val, **kwargs):
-        """
+        r"""Sets the tone amplitude for all channels in a band.
+
+        Writes the full array of per-channel amplitudes to firmware
+        BRAM. Each value controls the drive power for that channel.
+        Each step is 3 dB. Channels with amplitude 0 output no tone
+        and are not processed by firmware.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : array-like
+            Array of tone amplitudes, one per channel. 4-bit
+            unsigned (0-15) per element.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_amplitude_scale_array` : Gets all channel amplitudes.
+        :func:`set_amplitude_scale_channel` : Sets one channel.
         """
         self._caput(
             self._cryo_root(band) + self._amplitude_scale_array_reg,
             np.array(val).astype(np.uint32), **kwargs)
 
     def get_amplitude_scale_array(self, band, **kwargs):
-        """
-        Gets the array of amplitudes
+        r"""Gets the tone amplitude for all channels in a band.
 
         Args
         ----
         band : int
-            The band to search.
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
 
         Returns
         -------
-        amplitudes : array
-            The tone amplitudes.
+        val : array
+            Array of tone amplitudes, one per channel. 4-bit
+            unsigned (0-15) per element.
+
+        See Also
+        --------
+        :func:`set_amplitude_scale_array` : Sets all channel amplitudes.
+        :func:`get_amplitude_scale_channel` : Gets one channel.
         """
         return self._caget(
             self._cryo_root(band) + self._amplitude_scale_array_reg,
@@ -1483,25 +1916,56 @@ class SmurfCommandMixin(SmurfBase):
     _feedback_enable_array_reg = 'feedbackEnable'
 
     def set_feedback_enable_array(self, band, val, **kwargs):
-        """
+        r"""Sets the per-channel feedback enable for all channels in a band.
+
+        Writes an array of per-channel feedback enables to firmware
+        BRAM. Each channel must have its individual feedback enabled
+        here AND the global feedback enable must be set via
+        :func:`set_feedback_enable` for tracking to be active on
+        that channel.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : array-like
+            Array of feedback enable values, one per channel.
+            1 to enable, 0 to disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_feedback_enable_array` : Gets all per-channel enables.
+        :func:`set_feedback_enable` : Sets the global feedback enable.
+        :func:`set_feedback_enable_channel` : Sets a single channel's enable.
         """
         self._caput(
             self._cryo_root(band) + self._feedback_enable_array_reg,
             val, **kwargs)
 
     def get_feedback_enable_array(self, band, **kwargs):
-        """
-        Gets the array of feedbacks enables
+        r"""Gets the per-channel feedback enable for all channels in a band.
 
         Args
         ----
         band : int
-            The band to search.
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
 
         Returns
         -------
-        fb_on : bool array
-            An array of whether the feedback is on or off.
+        val : int array
+            Array of feedback enable values, one per channel.
+            1 if enabled, 0 if disabled.
+
+        See Also
+        --------
+        :func:`set_feedback_enable_array` : Sets all per-channel enables.
+        :func:`get_feedback_enable` : Gets the global feedback enable.
         """
         return self._caget(
             self._cryo_root(band) + self._feedback_enable_array_reg,
@@ -1510,21 +1974,56 @@ class SmurfCommandMixin(SmurfBase):
     _single_channel_readout_reg = 'singleChannelReadout'
 
     def set_single_channel_readout(self, band, val, **kwargs):
-        """
-        Sets the singleChannelReadout bit.
+        r"""Enables filtered/decimated single-channel debug readout.
+
+        When enabled, debug data outputs only the channel specified
+        by :func:`set_readout_channel_select`, passed through the
+        IIR filter (``filterAlpha``) and decimated. When disabled,
+        multichannel debug data is output. For single-channel
+        readout at the full channel processing rate without
+        filtering or decimation, use
+        :func:`set_single_channel_readout_opt2` instead.
 
         Args
         ----
         band : int
-            The band to set to single channel readout.
+            Which band.
+        val : int
+            1 to enable single-channel mode, 0 for multichannel.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_single_channel_readout` : Gets the current state.
+        :func:`set_readout_channel_select` : Selects which channel.
+        :func:`set_single_channel_readout_opt2` : Full-rate single-channel mode.
+        :func:`take_debug_data` : Takes debug data.
         """
         self._caput(
             self._band_root(band) + self._single_channel_readout_reg,
             val, **kwargs)
 
     def get_single_channel_readout(self, band, **kwargs):
-        """
+        r"""Gets the filtered/decimated single-channel debug readout state.
 
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            1 if single-channel mode is enabled, 0 for multichannel.
+
+        See Also
+        --------
+        :func:`set_single_channel_readout` : Sets this mode.
         """
         return self._caget(
             self._band_root(band) + self._single_channel_readout_reg,
@@ -1533,20 +2032,54 @@ class SmurfCommandMixin(SmurfBase):
     _single_channel_readout2_reg = 'singleChannelReadoutOpt2'
 
     def set_single_channel_readout_opt2(self, band, val, **kwargs):
-        """
-        Sets the singleChannelReadout2 bit.
+        r"""Enables non-decimated single-channel debug readout.
+
+        When enabled, debug data outputs the selected channel at
+        the full channel processing rate (see
+        :func:`get_channel_frequency_mhz`, default 2.4 MHz),
+        bypassing the IIR filter and decimation. Channel is
+        selected by :func:`set_readout_channel_select`.
 
         Args
         ----
         band : int
-            The band to set to single channel readout.
+            Which band.
+        val : int
+            1 to enable full-rate single-channel mode, 0 to disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_single_channel_readout_opt2` : Gets the current state.
+        :func:`set_single_channel_readout` : Filtered/decimated mode.
+        :func:`set_readout_channel_select` : Selects which channel.
+        :func:`take_debug_data` : Takes debug data.
         """
         self._caput(
             self._band_root(band) + self._single_channel_readout2_reg,
             val, **kwargs)
 
     def get_single_channel_readout_opt2(self, band, **kwargs):
-        """
+        r"""Gets the non-decimated single-channel debug readout state.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            1 if full-rate single-channel mode is enabled, 0 if disabled.
+
+        See Also
+        --------
+        :func:`set_single_channel_readout_opt2` : Sets this mode.
         """
         return self._caget(
             self._band_root(band) + self._single_channel_readout2_reg,
@@ -1555,14 +2088,57 @@ class SmurfCommandMixin(SmurfBase):
     _readout_channel_select_reg = 'readoutChannelSelect'
 
     def set_readout_channel_select(self, band, channel, **kwargs):
-        """
+        r"""Selects which channel to output in single-channel debug mode.
+
+        Only used when single-channel readout is enabled via
+        :func:`set_single_channel_readout`. Not all channel indices
+        produce valid data; use :func:`which_on` to find channels
+        with nonzero tone power, and :func:`get_processed_channels`
+        to find which channel indices are processed by the
+        channelizer.
+
+        Args
+        ----
+        band : int
+            Which band.
+        channel : int
+            Which channel. Range is 0 to
+            :func:`get_number_channels` - 1 (default firmware
+            has 512 channels per band).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_readout_channel_select` : Gets the selected channel.
+        :func:`set_single_channel_readout` : Enables single-channel debug mode.
+        :func:`which_on` : Returns channels with nonzero amplitude.
+        :func:`get_processed_channels` : Returns valid channel indices.
         """
         self._caput(
             self._band_root(band) + self._readout_channel_select_reg,
             channel, **kwargs)
 
     def get_readout_channel_select(self, band, **kwargs):
-        """
+        r"""Gets the channel selected for single-channel debug mode.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        channel : int
+            The currently selected channel.
+
+        See Also
+        --------
+        :func:`set_readout_channel_select` : Sets the selected channel.
         """
         return self._caget(
             self._band_root(band) + self._readout_channel_select_reg,
@@ -1571,14 +2147,46 @@ class SmurfCommandMixin(SmurfBase):
     _stream_enable_reg = 'enableStreaming'
 
     def set_stream_enable(self, val, **kwargs):
-        """
-        Enable/disable streaming data, for all bands.
+        r"""Enables or disables streaming data output for all bands.
+
+        Master enable for the data streaming path. When enabled,
+        firmware generates a data frame on each flux ramp trigger
+        containing the demodulated channel data. When disabled,
+        flux ramp triggers are ignored and no streaming frames
+        are produced.
+
+        Args
+        ----
+        val : int
+            1 to enable streaming, 0 to disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_stream_enable` : Gets the current state.
+        :func:`take_stream_data` : Takes streaming data for a duration.
         """
         self._caput(self.app_core + self._stream_enable_reg, val, **kwargs)
 
     def get_stream_enable(self, **kwargs):
-        """
-        Enable/disable streaming data, for all bands.
+        r"""Gets the streaming data output enable state.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            1 if streaming is enabled, 0 if disabled.
+
+        See Also
+        --------
+        :func:`set_stream_enable` : Sets the enable state.
         """
         return self._caget(
             self.app_core + self._stream_enable_reg,
@@ -1737,33 +2345,54 @@ class SmurfCommandMixin(SmurfBase):
     _rf_iq_stream_enable_reg = 'rfIQStreamEnable'
 
     def set_rf_iq_stream_enable(self, band, val, **kwargs):
-        """
-        Sets the bit that turns on RF IQ streaming for take_debug_data
+        r"""Selects raw RF I/Q debug output from the analysis filter bank.
+
+        When enabled (val=1), the debug readout path returns the raw I/Q
+        output from the analysis filter bank (digital downconverter),
+        before any tracking or flux ramp demodulation.  This and
+        :func:`set_iq_stream_enable` are two bits of the same mux select
+        in firmware — do not enable both simultaneously.  Used with
+        :func:`take_debug_data` for diagnostics like measuring ADC power
+        or verifying tone placement.
 
         Args
         ----
         band : int
-            The 500 Mhz band
-        val : int or bool
-            Whether to set the mode to RF IQ.
+            Which band.
+        val : int
+            0 to disable, 1 to select raw RF I/Q output.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`set_iq_stream_enable` : Selects demodulated I/Q instead.
+        :func:`take_debug_data` : Takes data in the selected mode.
         """
         self._caput(self._band_root(band) +
                     self._rf_iq_stream_enable_reg,
                     val, **kwargs)
 
     def get_rf_iq_stream_enable(self, band, **kwargs):
-        """
-        gets the bit that turns on RF IQ streaming for take_debug_data
+        r"""Gets the raw RF I/Q debug output enable state.
 
         Args
         ----
         band : int
-            The 500 MHz band
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
 
-        Ret
-        ---
-        rf_iq_stream_bit : int
-            The bit that sets the RF streaming
+        Returns
+        -------
+        int
+            0 for disabled, 1 for raw RF I/Q output enabled.
+
+        See Also
+        --------
+        :func:`set_rf_iq_stream_enable` : Sets this value.
         """
         return self._caget(self._band_root(band) +
                            self._rf_iq_stream_enable_reg,
@@ -1773,10 +2402,22 @@ class SmurfCommandMixin(SmurfBase):
     _build_dsp_g_reg = 'BUILD_DSP_G'
 
     def get_build_dsp_g(self, **kwargs):
-        """
-        BUILD_DSP_G encodes which bands the fw being used was built for.
-        E.g. 0xFF means Base[0...7], 0xF is Base[0...3], etc.
+        r"""Gets the firmware band bitmask.
 
+        BUILD_DSP_G encodes which bands the firmware was built for.
+        Each bit corresponds to one band (Base[n]).  For example, 0xFF
+        means bands 0–7 are present, 0xF means bands 0–3.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            Bitmask of available bands in this firmware build.
         """
         return self._caget(
             self.app_core + self._build_dsp_g_reg,
@@ -1785,14 +2426,53 @@ class SmurfCommandMixin(SmurfBase):
     _decimation_reg = 'decimation'
 
     def set_decimation(self, band, val, **kwargs):
-        """
+        r"""Sets the debug data decimation factor.
+
+        Direct divisor for the debug data output rate.  The debug
+        output rate is approximately
+        :func:`get_channel_frequency_mhz` / 2 / decimation MHz.
+        Minimum value is 1 (no decimation).
+        Applied after the IIR filter set by :func:`set_filter_alpha`.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            Decimation factor (15-bit unsigned, minimum 1).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_decimation` : Gets this value.
+        :func:`set_filter_alpha` : IIR filter applied before decimation.
+        :func:`take_debug_data` : Takes data using this path.
         """
         self._caput(
             self._band_root(band) + self._decimation_reg,
             val, **kwargs)
 
     def get_decimation(self, band, **kwargs):
-        """
+        r"""Gets the debug data decimation factor.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            Decimation factor (15-bit unsigned, minimum 1).
+
+        See Also
+        --------
+        :func:`set_decimation` : Sets this value.
         """
         return self._caget(
             self._band_root(band) + self._decimation_reg,
@@ -1801,24 +2481,74 @@ class SmurfCommandMixin(SmurfBase):
     _filter_alpha_reg = 'filterAlpha'
 
     def set_filter_alpha(self, band, val, **kwargs):
-        """
-        Coefficient for single pole low pass fitler before readout
-        (when channels are multiplexed, decimated)
-        y[n] = alpha*x[n] + (1 - alpha)*y[n-1]
-        matlab to visualize
-        h = fvtool([alpha], [1 -(1-alpha)]); h.Fs = 2.4e6;
+        r"""Sets the IIR low-pass filter coefficient for debug data.
+
+        Applies a single-pole IIR low-pass filter to each channel's
+        debug data before decimation:
+        y[n] = alpha * x[n] + (1 - alpha) * y[n-1].
+        Larger alpha values give less filtering (higher bandwidth).
+        This filter is applied to multichannel debug readout and
+        single-channel readout (Opt1). It is NOT applied to
+        singleChannelReadoutOpt2 (which picks off before the filter
+        at the full channel processing rate) or to the main streamed
+        data path. Most users should use
+        :func:`set_debug_data_filter_cutoff` to set this by desired
+        cutoff frequency in Hz.
+
+        To visualize the filter response in Python::
+
+            from scipy.signal import freqz
+            import matplotlib.pyplot as plt
+            alpha = val / 65536
+            w, h = freqz([alpha], [1, -(1 - alpha)], fs=2.4e6)
+            plt.semilogy(w, abs(h))
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            Filter coefficient. 16-bit unsigned integer (0-65535).
+            val/65536 gives the effective alpha (e.g. 0x4000 gives
+            alpha=0.25, f3dB ~110 kHz; 0x10000 would give alpha=1.0
+            but saturates at 0xFFFF).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_filter_alpha` : Gets the current filter coefficient.
+        :func:`set_debug_data_filter_cutoff` : Sets filter by cutoff frequency.
+        :func:`set_decimation` : Sets the decimation after filtering.
+        :func:`set_single_channel_readout_opt2` : Bypasses this filter.
+        :func:`take_debug_data` : Takes data using this filter/decimation path.
         """
         self._caput(
             self._band_root(band) + self._filter_alpha_reg,
             val, **kwargs)
 
     def get_filter_alpha(self, band, **kwargs):
-        """
-        Coefficient for single pole low pass fitler before readout
-        (when channels are multiplexed, decimated)
-        y[n] = alpha*x[n] + (1 - alpha)*y[n-1]
-        matlab to visualize
-        h = fvtool([alpha], [1 -(1-alpha)]); h.Fs = 2.4e6;
+        r"""Gets the IIR low-pass filter coefficient for debug data.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Filter coefficient. 16-bit unsigned integer (0-65535).
+            val/65536 gives the effective alpha.
+
+        See Also
+        --------
+        :func:`set_filter_alpha` : Sets the filter coefficient.
+        :func:`get_debug_data_filter_cutoff` : Gets the cutoff frequency in Hz.
         """
         return self._caget(
             self._band_root(band) + self._filter_alpha_reg,
@@ -1827,20 +2557,49 @@ class SmurfCommandMixin(SmurfBase):
     _iq_swap_in_reg = 'iqSwapIn'
 
     def set_iq_swap_in(self, band, val, **kwargs):
-        """
-        Swaps I&Q into DSP (from ADC).  Tones being output by the
-        system will flip about the band center (e.g. 4.25GHz, 5.25GHz
-        etc.)
+        r"""Swaps I and Q on the analysis filter bank input.
+
+        Swapping I and Q flips the input spectrum around the band center
+        frequency.  Used to correct for hardware-dependent sideband
+        conventions.  Set per-band in the pysmurf configuration file.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            0 for normal, 1 for swapped.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`set_iq_swap_out` : Swaps I/Q on the synthesis output.
         """
         self._caput(
             self._band_root(band) + self._iq_swap_in_reg,
             val, **kwargs)
 
     def get_iq_swap_in(self, band, **kwargs):
-        """
-        Swaps I&Q into DSP (from ADC).  Tones being output by the
-        system will flip about the band center (e.g. 4.25GHz, 5.25GHz
-        etc.)
+        r"""Gets the I/Q swap state on the analysis filter bank input.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            0 for normal, 1 for swapped.
+
+        See Also
+        --------
+        :func:`set_iq_swap_in` : Sets this value.
         """
         return self._caget(
             self._band_root(band) + self._iq_swap_in_reg,
@@ -1849,18 +2608,50 @@ class SmurfCommandMixin(SmurfBase):
     _iq_swap_out_reg = 'iqSwapOut'
 
     def set_iq_swap_out(self, band, val, **kwargs):
-        """
-        Swaps I&Q out of DSP (to DAC).  Swapping I&Q flips spectrum
-        around band center.
+        r"""Swaps I and Q on the synthesis filter bank output.
+
+        Swapping I and Q flips the output spectrum around the band
+        center frequency. Used to correct for hardware-dependent
+        sideband conventions.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            1 to swap, 0 for normal.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_iq_swap_out` : Gets the current state.
+        :func:`set_iq_swap_in` : Swaps I/Q on the analysis input.
         """
         self._caput(
             self._band_root(band) + self._iq_swap_out_reg,
             val, **kwargs)
 
     def get_iq_swap_out(self, band, **kwargs):
-        """
-        Swaps I&Q out of DSP (to DAC).  Swapping I&Q flips spectrum
-        around band center.
+        r"""Gets the I/Q swap state on the synthesis filter bank output.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            1 if swapped, 0 if normal.
+
+        See Also
+        --------
+        :func:`set_iq_swap_out` : Sets the swap state.
         """
         return self._caget(
             self._band_root(band) + self._iq_swap_out_reg,
@@ -1869,16 +2660,60 @@ class SmurfCommandMixin(SmurfBase):
     _ref_phase_delay_reg = 'refPhaseDelay'
 
     def set_ref_phase_delay(self, band, val, **kwargs):
-        """
-        Deprecated.  Use set_band_delay_us instead.
+        r"""Sets the coarse reference phase delay.
+
+        Compensates for system round-trip latency at coarse
+        resolution (channel processing rate ticks, see
+        :func:`get_channel_frequency_mhz`, default 2.4 MHz).
+        ``refPhaseDelayFine`` adds sub-tick correction at the JESD
+        clock rate (see :func:`get_digitizer_frequency_mhz` / 2,
+        default 307.2 MHz), and ``lmsDelay`` (set to the same
+        value) aligns
+        the LMS tracking loop separately. Most users should call
+        :func:`estimate_phase_delay`, which measures and sets all
+        three automatically.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            Coarse delay value.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_ref_phase_delay` : Gets the current value.
+        :func:`set_ref_phase_delay_fine` : Sets the fine correction.
+        :func:`set_band_delay_us` : Sets all delay registers together.
+        :func:`estimate_phase_delay` : Measures and sets system latency.
         """
         self._caput(
             self._band_root(band) + self._ref_phase_delay_reg,
             val, **kwargs)
 
     def get_ref_phase_delay(self, band, **kwargs):
-        """
-        Deprecated.  Use get_band_delay_us instead.
+        r"""Gets the coarse reference phase delay.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Coarse delay in channel processing rate ticks.
+
+        See Also
+        --------
+        :func:`set_ref_phase_delay` : Sets the value.
+        :func:`get_band_delay_us` : Gets the total delay in microseconds.
         """
         return self._caget(
             self._band_root(band) + self._ref_phase_delay_reg,
@@ -1887,16 +2722,57 @@ class SmurfCommandMixin(SmurfBase):
     _ref_phase_delay_fine_reg = 'refPhaseDelayFine'
 
     def set_ref_phase_delay_fine(self, band, val, **kwargs):
-        """
-        Deprecated.  Use set_band_delay_us instead.
+        r"""Sets the fine reference phase delay.
+
+        Fine correction to the DAC output timing at the JESD clock
+        rate (see :func:`get_digitizer_frequency_mhz` / 2, default
+        307.2 MHz, ~3.25 ns steps). Compensates for the rounding
+        of ``refPhaseDelay`` to the coarser channel processing rate
+        grid. Most users should call :func:`estimate_phase_delay`,
+        which measures and sets this automatically.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            Fine delay value (8-bit unsigned).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_ref_phase_delay_fine` : Gets the current value.
+        :func:`set_ref_phase_delay` : Sets the coarse delay.
+        :func:`estimate_phase_delay` : Measures and sets system latency.
         """
         self._caput(
             self._band_root(band) + self._ref_phase_delay_fine_reg,
             val, **kwargs)
 
     def get_ref_phase_delay_fine(self, band, **kwargs):
-        """
-        Deprecated.  Use get_band_delay_us instead.
+        r"""Gets the fine reference phase delay.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Fine delay in JESD clock ticks
+            (:func:`get_digitizer_frequency_mhz` / 2, default
+            307.2 MHz).
+
+        See Also
+        --------
+        :func:`set_ref_phase_delay_fine` : Sets the value.
+        :func:`get_band_delay_us` : Gets the total delay in microseconds.
         """
         return self._caget(
             self._band_root(band) + self._ref_phase_delay_fine_reg,
@@ -1905,19 +2781,55 @@ class SmurfCommandMixin(SmurfBase):
     _band_delay_us_reg = 'bandDelayUs'
 
     def set_band_delay_us(self, band, val, **kwargs):
-        """
-        Set band delay compensation, microseconds.  Corrects
-        for total system delay (cable, DSP, etc.).  Internally
-        configures both ref_phase_delay and ref_phase_delay_fine
+        r"""Sets the total band delay compensation in microseconds.
+
+        Configures ``refPhaseDelay``, ``refPhaseDelayFine``, and
+        ``lmsDelay`` together to compensate for the system
+        round-trip latency. Most users should call
+        :func:`estimate_phase_delay`, which measures the delay
+        and calls this function automatically.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : float
+            Delay in microseconds.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_band_delay_us` : Gets the current value.
+        :func:`estimate_phase_delay` : Measures and sets the delay.
+        :func:`set_ref_phase_delay` : Sets coarse delay directly.
+        :func:`set_ref_phase_delay_fine` : Sets fine delay directly.
         """
         self._caput(
             self._band_root(band) + self._band_delay_us_reg,
             val, **kwargs)
 
     def get_band_delay_us(self, band, **kwargs):
-        """
-        Get band delay compensation, microseconds.  Corrects
-        for total system delay (cable, DSP, etc.).
+        r"""Gets the total band delay compensation in microseconds.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : float
+            Delay in microseconds.
+
+        See Also
+        --------
+        :func:`set_band_delay_us` : Sets the value.
+        :func:`estimate_phase_delay` : Measures and sets the delay.
         """
         return self._caget(
             self._band_root(band) + self._band_delay_us_reg,
@@ -1926,16 +2838,51 @@ class SmurfCommandMixin(SmurfBase):
     _tone_scale_reg = 'toneScale'
 
     def set_tone_scale(self, band, val, **kwargs):
-        """
-        Scales the sum of 16 tones before synthesizer.
+        r"""Sets the tone output scaling before the synthesis filter bank.
+
+        Scales the combined tone output before it enters the
+        synthesis filter bank. Each increment doubles the output
+        amplitude.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            Scale factor. 2-bit unsigned (0-3).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_tone_scale` : Gets the current value.
+        :func:`set_synthesis_scale` : Scales the synthesis filter bank output.
         """
         self._caput(
             self._band_root(band) + self._tone_scale_reg,
             val, **kwargs)
 
     def get_tone_scale(self, band, **kwargs):
-        """
-        Scales the sum of 16 tones before synthesizer.
+        r"""Gets the tone output scaling before the synthesis filter bank.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Scale factor. 2-bit unsigned (0-3). Each increment
+            doubles the output amplitude.
+
+        See Also
+        --------
+        :func:`set_tone_scale` : Sets the value.
         """
         return self._caget(
             self._band_root(band) + self._tone_scale_reg,
@@ -1944,56 +2891,104 @@ class SmurfCommandMixin(SmurfBase):
     _waveform_select_reg = 'waveformSelect'
 
     def set_waveform_select(self, band, val, **kwargs):
-        """
-        0x0 select DSP -> DAC
-        0x1 selects waveform table -> DAC (toneFile)
+        r"""Selects the DAC output source for a band.
+
+        When set to 0, the DAC outputs the normal DSP synthesis path.
+        When set to 1, the DAC outputs from the preloaded waveform table
+        (tone file loaded via :func:`load_tone_file`).
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            0 for DSP synthesis, 1 for waveform table (tone file).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`set_tone_file_path` : Sets the path to the tone file CSV.
+        :func:`load_tone_file` : Loads the tone file into the waveform table.
+        :func:`set_noise_select` : Selects random noise output instead.
         """
         self._caput(
             self._band_root(band) + self._waveform_select_reg,
             val, **kwargs)
 
     def get_waveform_select(self, band, **kwargs):
-        """
-        0x0 select DSP -> DAC
-        0x1 selects waveform table -> DAC (toneFile)
+        r"""Gets the DAC output source selection for a band.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            0 for DSP synthesis, 1 for waveform table (tone file).
+
+        See Also
+        --------
+        :func:`set_waveform_select` : Sets this value.
         """
         return self._caget(
             self._band_root(band) + self._waveform_select_reg,
             **kwargs)
 
-    _waveform_start_reg = 'waveformStart'
-
-    def set_waveform_start(self, band, val, **kwargs):
-        """
-        0x1 enables waveform table
-        """
-        self._caput(
-            self._band_root(band) + self._waveform_start_reg,
-            val, **kwargs)
-
-    def get_waveform_start(self, band, **kwargs):
-        """
-        0x1 enables waveform table
-        """
-        return self._caget(
-            self._band_root(band) + self._waveform_start_reg,
-            **kwargs)
-
     _rf_enable_reg = 'rfEnable'
 
     def set_rf_enable(self, band, val, **kwargs):
-        """
-        0x0 output all 0s to DAC
-        0x1 enable output to DAC (from DSP or waveform table)
+        r"""Enables or disables RF DAC output for a band.
+
+        When set to 0, the DAC outputs all zeros regardless of the DSP
+        or waveform table state.  When set to 1, the DAC outputs from
+        whichever source is selected (:func:`set_waveform_select`,
+        :func:`set_noise_select`, or DSP synthesis).
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            0 to disable (output zeros), 1 to enable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`set_waveform_select` : Selects DSP vs. tone file output.
+        :func:`set_noise_select` : Selects random noise output.
         """
         self._caput(
             self._band_root(band) + self._rf_enable_reg,
             val, **kwargs)
 
     def get_rf_enable(self, band, **kwargs):
-        """
-        0x0 output all 0s to DAC
-        0x1 enable output to DAC (from DSP or waveform table)
+        r"""Gets the RF DAC output enable state for a band.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            0 for disabled (output zeros), 1 for enabled.
+
+        See Also
+        --------
+        :func:`set_rf_enable` : Sets this value.
         """
         return self._caget(
             self._band_root(band) + self._rf_enable_reg,
@@ -2002,14 +2997,53 @@ class SmurfCommandMixin(SmurfBase):
     _analysis_scale_reg = 'analysisScale'
 
     def set_analysis_scale(self, band, val, **kwargs):
-        """
+        r"""Sets the analysis filter bank output scaling.
+
+        Controls the output amplitude of the polyphase analysis
+        (channelizer) filter bank. Each increment doubles the output amplitude. Too low risks overflow (check
+        with the overflow status); too high loses dynamic range.
+        Nominal value is 1.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            Scale factor. 2-bit unsigned (0-3). Each increment
+            is a factor of 2. Nominal is 1.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_analysis_scale` : Gets the current analysis scale.
+        :func:`set_synthesis_scale` : Sets the synthesis filter bank scaling.
         """
         self._caput(
             self._band_root(band) + self._analysis_scale_reg,
             val, **kwargs)
 
     def get_analysis_scale(self, band, **kwargs):
-        """
+        r"""Gets the analysis filter bank output scaling.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Scale factor. 2-bit unsigned (0-3). Each increment
+            is a factor of 2. Nominal is 1.
+
+        See Also
+        --------
+        :func:`set_analysis_scale` : Sets the analysis scale.
         """
         return self._caget(
             self._band_root(band) + self._analysis_scale_reg,
@@ -2018,14 +3052,51 @@ class SmurfCommandMixin(SmurfBase):
     _feedback_enable_reg = 'feedbackEnable'
 
     def set_feedback_enable(self, band, val, **kwargs):
-        """
+        r"""Sets the global feedback enable for a band.
+
+        When enabled (val=1), the tone-tracking loop applies frequency
+        corrections to all channels that also have per-channel feedback
+        enabled. When disabled (val=0), no tracking corrections are
+        applied regardless of per-channel settings.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            1 to enable global feedback, 0 to disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_feedback_enable` : Gets the global feedback enable state.
+        :func:`set_feedback_enable_channel` : Sets per-channel feedback enable.
         """
         self._caput(
             self._band_root(band) + self._feedback_enable_reg,
             val, **kwargs)
 
     def get_feedback_enable(self, band, **kwargs):
-        """
+        r"""Gets the global feedback enable for a band.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            1 if global feedback is enabled, 0 if disabled.
+
+        See Also
+        --------
+        :func:`set_feedback_enable` : Sets the global feedback enable.
         """
         return self._caget(
             self._band_root(band) + self._feedback_enable_reg,
@@ -2034,7 +3105,31 @@ class SmurfCommandMixin(SmurfBase):
     _loop_filter_output_array_reg = 'loopFilterOutput'
 
     def get_loop_filter_output_array(self, band, **kwargs):
-        """
+        r"""Gets the loop filter output for all channels in a band.
+
+        Returns the accumulated frequency correction for each
+        channel. This is the integrated feedback that is added to
+        each tone's center frequency during tracking. Read-only
+        from firmware BRAM.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : array
+            Array of loop filter outputs, one per channel.
+
+        See Also
+        --------
+        :func:`set_feedback_gain` : Sets the gain that drives this output.
+        :func:`set_feedback_limit` : Limits this output's excursion.
+        :func:`get_frequency_error_array` : Gets the frequency error input.
         """
         return self._caget(
             self._cryo_root(band) +
@@ -2043,16 +3138,30 @@ class SmurfCommandMixin(SmurfBase):
 
     _tone_frequency_offset_mhz_reg = 'toneFrequencyOffsetMHz'
 
-    def set_tone_frequency_offset_mhz(self, band, val, **kwargs):
-        """
-        """
-        self._caput(
-            self._band_root(band) +
-            self._tone_frequency_offset_mhz_reg,
-            val, **kwargs)
-
     def get_tone_frequency_offset_mhz(self, band, **kwargs):
-        """
+        r"""Gets the subband center frequency offsets in MHz.
+
+        Returns an array of precomputed frequency offsets from the
+        band center for each subband. These are fixed by the
+        channelizer architecture and are not user-configurable.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : array
+            Array of subband center frequency offsets in MHz,
+            relative to the band center.
+
+        See Also
+        --------
+        :func:`get_band_center_mhz` : Gets the absolute band center frequency.
         """
         return self._caget(
             self._band_root(band) +
@@ -2062,15 +3171,56 @@ class SmurfCommandMixin(SmurfBase):
     _center_frequency_array_reg = 'centerFrequencyMHz'
 
     def set_center_frequency_array(self, band, val, **kwargs):
-        """
-        Sets all the center frequencies in a band
+        r"""Sets the tone center frequency for all channels in a band.
+
+        Each value is the frequency offset from the band center at
+        which that channel's tone is placed. This is the static
+        tone position; the tracking loop adds corrections on top
+        of this via the loop filter output. Typically set by
+        :func:`setup_notches`.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : array-like
+            Array of center frequencies in MHz, one per channel.
+            Range is +/-1.2 MHz (the half-bandwidth of one
+            subband).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_center_frequency_array` : Gets all center frequencies.
+        :func:`set_center_frequency_mhz_channel` : Sets one channel.
+        :func:`setup_notches` : Measures and sets tone positions.
         """
         self._caput(
             self._cryo_root(band) + self._center_frequency_array_reg,
             val, **kwargs)
 
     def get_center_frequency_array(self, band, **kwargs):
-        """
+        r"""Gets the tone center frequency for all channels in a band.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : array
+            Array of center frequencies in MHz, one per channel.
+
+        See Also
+        --------
+        :func:`set_center_frequency_array` : Sets all center frequencies.
+        :func:`get_center_frequency_mhz_channel` : Gets one channel.
         """
         return self._caget(
             self._cryo_root(band) + self._center_frequency_array_reg,
@@ -2079,14 +3229,57 @@ class SmurfCommandMixin(SmurfBase):
     _feedback_gain_reg = 'feedbackGain'
 
     def set_feedback_gain(self, band, val, **kwargs):
-        """
+        r"""Sets the integral gain of the tracking feedback loop.
+
+        This gain scales the frequency error before it is accumulated
+        into the loop filter output that adjusts each tone's center
+        frequency. Higher values increase loop bandwidth but reduce
+        stability margin. Distinct from ``lmsGain``, which controls
+        how quickly the LMS flux ramp harmonic estimator adapts;
+        ``feedbackGain`` controls how aggressively tone frequencies
+        are corrected based on the measured error.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            Feedback gain. 16-bit unsigned integer (0-65535).
+            val/4096 gives the effective gain multiplier.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_feedback_gain` : Gets the current feedback gain.
+        :func:`set_feedback_limit` : Sets the maximum feedback excursion.
+        :func:`set_lms_gain` : Sets the LMS harmonic estimator step size.
         """
         self._caput(
             self._band_root(band) + self._feedback_gain_reg,
             val, **kwargs)
 
     def get_feedback_gain(self, band, **kwargs):
-        """
+        r"""Gets the integral gain of the tracking feedback loop.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Feedback gain. 16-bit unsigned integer (0-65535).
+            val/4096 gives the effective gain multiplier.
+
+        See Also
+        --------
+        :func:`set_feedback_gain` : Sets the feedback gain.
         """
         return self._caget(
             self._band_root(band) + self._feedback_gain_reg,
@@ -2095,14 +3288,57 @@ class SmurfCommandMixin(SmurfBase):
     _eta_phase_array_reg = 'etaPhase'
 
     def set_eta_phase_array(self, band, val, **kwargs):
-        """
+        r"""Sets the eta phase for all channels in a band.
+
+        Eta is the complex calibration parameter that rotates the
+        measured resonator I/Q response so that frequency detuning
+        appears as a single-axis signal. It is stored in firmware
+        as Cartesian components (etaI, etaQ). Setting the phase
+        preserves the current magnitude and recomputes etaI and
+        etaQ as mag * cos(phase) and mag * sin(phase). Typically
+        determined by :func:`setup_notches`, which calls
+        :func:`run_serial_eta_scan` internally.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : array-like
+            Array of eta phases in radians, one per channel.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_eta_phase_array` : Gets the current eta phases.
+        :func:`set_eta_mag_array` : Sets the eta magnitudes for all channels.
+        :func:`setup_notches` : Measures and sets eta parameters.
         """
         self._caput(
             self._cryo_root(band) + self._eta_phase_array_reg,
             val, **kwargs)
 
     def get_eta_phase_array(self, band, **kwargs):
-        """
+        r"""Gets the eta phase for all channels in a band.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : array
+            Array of eta phases in radians, one per channel.
+
+        See Also
+        --------
+        :func:`set_eta_phase_array` : Sets the eta phases.
+        :func:`get_eta_mag_array` : Gets the eta magnitudes.
         """
         return self._caget(
             self._cryo_root(band) + self._eta_phase_array_reg,
@@ -2110,15 +3346,30 @@ class SmurfCommandMixin(SmurfBase):
 
     _frequency_error_array_reg = 'frequencyError'
 
-    def set_frequency_error_array(self, band, val, **kwargs):
-        """
-        """
-        self._caput(
-            self._cryo_root(band) + self._frequency_error_array_reg,
-            val, **kwargs)
-
     def get_frequency_error_array(self, band, **kwargs):
-        """
+        r"""Gets the frequency error for all channels in a band.
+
+        Returns the measured detuning of each tone from its
+        resonance after eta rotation. This is the input to the
+        tracking loop filter. Read-only from firmware BRAM.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : array
+            Array of frequency errors, one per channel.
+
+        See Also
+        --------
+        :func:`get_loop_filter_output_array` : Gets the integrated feedback.
+        :func:`get_frequency_error_mhz` : Gets a single channel's error in MHz.
         """
         return self._caget(
             self._cryo_root(band) + self._frequency_error_array_reg,
@@ -2127,14 +3378,61 @@ class SmurfCommandMixin(SmurfBase):
     _eta_mag_array_reg = 'etaMag'
 
     def set_eta_mag_array(self, band, val, **kwargs):
-        """
+        r"""Sets the eta magnitude for all channels in a band.
+
+        Eta is the complex calibration parameter that rotates the
+        measured resonator I/Q response so that frequency detuning
+        appears as a single-axis signal. It is stored in firmware
+        as Cartesian components (etaI, etaQ). Setting the magnitude
+        preserves the current phase and recomputes etaI and etaQ as
+        mag * cos(phase) and mag * sin(phase). Typically determined
+        by :func:`setup_notches`, which calls
+        :func:`run_serial_eta_scan` internally.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : array-like
+            Array of eta magnitudes (real, positive), one per
+            channel. Maximum safe value is ~2.0 (limited by the
+            underlying etaI/etaQ registers). Setting above
+            ~2.0 may overflow one component depending on phase.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_eta_mag_array` : Gets the current eta magnitudes.
+        :func:`set_eta_phase_array` : Sets the eta phases for all channels.
+        :func:`setup_notches` : Measures and sets eta parameters.
         """
         self._caput(
             self._cryo_root(band) + self._eta_mag_array_reg,
             val, **kwargs)
 
     def get_eta_mag_array(self, band, **kwargs):
-        """
+        r"""Gets the eta magnitude for all channels in a band.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : array
+            Array of eta magnitudes (real, positive), one per
+            channel.
+
+        See Also
+        --------
+        :func:`set_eta_mag_array` : Sets the eta magnitudes.
+        :func:`get_eta_phase_array` : Gets the eta phases.
         """
         return self._caget(
             self._cryo_root(band) + self._eta_mag_array_reg,
@@ -2143,18 +3441,57 @@ class SmurfCommandMixin(SmurfBase):
     _feedback_limit_reg = 'feedbackLimit'
 
     def set_feedback_limit(self, band, val, **kwargs):
-        """
-        freq = centerFreq + feedbackFreq
-        abs(freq) < centerFreq + feedbackLimit
+        r"""Sets the maximum feedback excursion for tone tracking.
+
+        Limits how far the loop filter output can shift a tone's
+        frequency from its programmed center frequency. If the
+        accumulated feedback would exceed this limit, it is clamped.
+        This prevents the tracker from pulling tones too far off
+        resonance during transients or instability.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            Maximum allowed feedback excursion. 16-bit unsigned
+            integer (0-65535) representing a fraction of the
+            band width. val/65536 gives the fraction of the
+            full 2.4 MHz subband.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_feedback_limit` : Gets the current feedback limit.
+        :func:`set_feedback_gain` : Sets the feedback loop gain.
         """
         self._caput(
             self._band_root(band) + self._feedback_limit_reg,
             val, **kwargs)
 
     def get_feedback_limit(self, band, **kwargs):
-        """
-        freq = centerFreq + feedbackFreq
-        abs(freq) < centerFreq + feedbackLimit
+        r"""Gets the maximum feedback excursion for tone tracking.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Maximum allowed feedback excursion. 16-bit unsigned
+            integer (0-65535). val/65536 gives the fraction of
+            the full 2.4 MHz subband.
+
+        See Also
+        --------
+        :func:`set_feedback_limit` : Sets the feedback limit.
         """
         return self._caget(
             self._band_root(band) + self._feedback_limit_reg,
@@ -2163,14 +3500,55 @@ class SmurfCommandMixin(SmurfBase):
     _noise_select_reg = 'noiseSelect'
 
     def set_noise_select(self, band, val, **kwargs):
-        """
+        r"""Enables or disables random noise output on the RF DACs.
+
+        When enabled, firmware replaces the normal resonator tracking
+        tones with pseudo-random noise (uniformly distributed) on the
+        RF output for this band. This outputs broadband noise across
+        the 500 MHz band instead of discrete tones. The noise is
+        generated digitally by an FPGA shift-register PRNG, not by
+        the DAC hardware. Used for system diagnostics such as
+        measuring the RF transfer function.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            1 to output random noise, 0 for normal tone output.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_noise_select` : Gets the current noise select state.
+        :func:`set_waveform_select` : Selects preloaded waveform output instead.
+        :func:`set_rf_enable` : Enables/disables RF output entirely.
         """
         self._caput(
             self._band_root(band) + self._noise_select_reg,
             val, **kwargs)
 
     def get_noise_select(self, band, **kwargs):
-        """
+        r"""Gets the random noise output state.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            1 if noise output is enabled, 0 for normal tone output.
+
+        See Also
+        --------
+        :func:`set_noise_select` : Sets the noise select state.
         """
         return self._caget(
             self._band_root(band) + self._noise_select_reg,
@@ -2179,16 +3557,61 @@ class SmurfCommandMixin(SmurfBase):
     _lms_delay_reg = 'lmsDelay'
 
     def set_lms_delay(self, band, val, **kwargs):
-        """
-        Match system latency for LMS feedback (2.4MHz ticks)
+        r"""Sets the LMS loop delay compensation.
+
+        Compensates for the round-trip latency of the system
+        (ADC through channelizer, DSP processing, and back through
+        the synthesis filter bank to DAC) so that the feedback
+        correction is applied at the correct phase of the flux ramp.
+        Typically set equal to ``refPhaseDelay``. Most users should
+        call :func:`estimate_phase_delay`, which measures the system
+        latency and sets this register (along with ``refPhaseDelay``
+        and ``refPhaseDelayFine``) automatically.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            Delay in channel processing rate ticks (see
+            :func:`get_channel_frequency_mhz`, default 2.4 MHz).
+            6-bit unsigned (0-63).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_lms_delay` : Gets the current LMS delay.
+        :func:`estimate_phase_delay` : Measures and sets the system latency.
+        :func:`set_band_delay_us` : Sets all delay registers directly.
         """
         self._caput(
             self._band_root(band) + self._lms_delay_reg,
             val, **kwargs)
 
     def get_lms_delay(self, band, **kwargs):
-        """
-        Match system latency for LMS feedback (2.4MHz ticks)
+        r"""Gets the LMS loop delay compensation.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Delay in channel processing rate ticks (see
+            :func:`get_channel_frequency_mhz`, default 2.4 MHz).
+            6-bit unsigned (0-63).
+
+        See Also
+        --------
+        :func:`set_lms_delay` : Sets the LMS delay.
+        :func:`estimate_phase_delay` : Measures and sets the system latency.
         """
         return self._caget(
             self._band_root(band) + self._lms_delay_reg,
@@ -2197,16 +3620,55 @@ class SmurfCommandMixin(SmurfBase):
     _lms_gain_reg = 'lmsGain'
 
     def set_lms_gain(self, band, val, **kwargs):
-        """
-        LMS gain, powers of 2
+        r"""Sets the LMS tracking loop gain.
+
+        Controls the step size of the LMS adaptive filter that
+        estimates flux ramp harmonic coefficients. The gain is
+        applied as a power-of-2 bit shift, so the effective gain
+        is 2^val. Larger values make the harmonic estimator adapt
+        faster but can cause instability.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            LMS gain exponent. 3-bit unsigned (0-7), giving an
+            effective gain of 2^val.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_lms_gain` : Gets the current LMS gain.
+        :func:`set_feedback_gain` : Sets the integrator gain (distinct from LMS).
+        :func:`set_lms_enable1` : Enables 1st harmonic tracking.
         """
         self._caput(
             self._band_root(band) + self._lms_gain_reg,
             val, **kwargs)
 
     def get_lms_gain(self, band, **kwargs):
-        """
-        LMS gain, powers of 2
+        r"""Gets the LMS tracking loop gain.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            LMS gain exponent. 3-bit unsigned (0-7). Effective
+            gain is 2^val.
+
+        See Also
+        --------
+        :func:`set_lms_gain` : Sets the LMS gain.
         """
         return self._caget(
             self._band_root(band) + self._lms_gain_reg,
@@ -2215,28 +3677,47 @@ class SmurfCommandMixin(SmurfBase):
     _trigger_reset_delay_reg = 'trigRstDly'
 
     def set_trigger_reset_delay(self, band, val, **kwargs):
-        """
-        Trigger reset delay, set such that the ramp resets at the flux
-        ramp glitch.  2.4 MHz ticks.
+        r"""Sets the trigger reset delay for the flux ramp.
+
+        Delay in channel processing clock ticks between the flux ramp
+        reset trigger and the actual integrator reset.  Adjusted so that
+        the reset occurs at the flux ramp glitch.  Units are ticks of the
+        channel processing clock (see :func:`get_channel_frequency_mhz`,
+        default 2.4 MHz).
 
         Args
         ----
         band : int
             Which band.
+        val : int
+            Delay in processing clock ticks.  7-bit unsigned (0–127).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
         """
         self._caput(
             self._band_root(band) + self._trigger_reset_delay_reg,
             val, **kwargs)
 
     def get_trigger_reset_delay(self, band, **kwargs):
-        """
-        Trigger reset delay, set such that the ramp resets at the flux
-        ramp glitch.  2.4 MHz ticks.
+        r"""Gets the trigger reset delay for the flux ramp.
 
         Args
         ----
         band : int
             Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            Delay in processing clock ticks (default 2.4 MHz clock).
+
+        See Also
+        --------
+        :func:`set_trigger_reset_delay` : Sets this value.
         """
         return self._caget(
             self._band_root(band) + self._trigger_reset_delay_reg,
@@ -2245,28 +3726,58 @@ class SmurfCommandMixin(SmurfBase):
     _feedback_start_reg = 'feedbackStart'
 
     def set_feedback_start(self, band, val, **kwargs):
-        """
-        The flux ramp DAC value at which to start applying feedback in
-        each flux ramp cycle.  In 2.4 MHz ticks.
+        r"""Sets the sample count at which to start applying feedback.
+
+        Defines the start of the feedback-active window within each
+        flux ramp cycle. Firmware only applies tracking corrections
+        between ``feedbackStart`` and ``feedbackEnd`` sample counts,
+        allowing the transient at the flux ramp reset to be blanked.
 
         Args
         ----
         band : int
             Which band.
+        val : int
+            Start sample count (32-bit unsigned). Units are ticks of
+            the channel processing rate (see
+            :func:`get_channel_frequency_mhz`, default 2.4 MHz)
+            from the beginning of each flux ramp cycle.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_feedback_start` : Gets the current feedback start count.
+        :func:`set_feedback_end` : Sets the end of the feedback window.
         """
         self._caput(
             self._band_root(band) + self._feedback_start_reg,
             val, **kwargs)
 
     def get_feedback_start(self, band, **kwargs):
-        """
-        The flux ramp DAC value at which to start applying feedback in
-        each flux ramp cycle.  In 2.4 MHz ticks.
+        r"""Gets the sample count at which feedback starts.
 
         Args
         ----
         band : int
             Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Start sample count. Units are ticks of the channel
+            processing rate (see :func:`get_channel_frequency_mhz`,
+            default 2.4 MHz) from the beginning of each flux ramp
+            cycle.
+
+        See Also
+        --------
+        :func:`set_feedback_start` : Sets the feedback start count.
+        :func:`get_feedback_end` : Gets the end of the feedback window.
         """
         return self._caget(
             self._band_root(band) + self._feedback_start_reg,
@@ -2275,28 +3786,57 @@ class SmurfCommandMixin(SmurfBase):
     _feedback_end_reg = 'feedbackEnd'
 
     def set_feedback_end(self, band, val, **kwargs):
-        """
-        The flux ramp DAC value at which to stop applying feedback in
-        each flux ramp cycle.  In 2.4 MHz ticks.
+        r"""Sets the sample count at which to stop applying feedback.
+
+        Defines the end of the feedback-active window within each
+        flux ramp cycle. Firmware only applies tracking corrections
+        between ``feedbackStart`` and ``feedbackEnd`` sample counts.
 
         Args
         ----
         band : int
             Which band.
+        val : int
+            End sample count (32-bit unsigned). Units are ticks of
+            the channel processing rate (see
+            :func:`get_channel_frequency_mhz`, default 2.4 MHz)
+            from the beginning of each flux ramp cycle.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_feedback_end` : Gets the current feedback end count.
+        :func:`set_feedback_start` : Sets the start of the feedback window.
         """
         self._caput(
             self._band_root(band) + self._feedback_end_reg,
             val, **kwargs)
 
     def get_feedback_end(self, band, **kwargs):
-        """
-        The flux ramp DAC value at which to stop applying feedback in
-        each flux ramp cycle.  In 2.4 MHz ticks.
+        r"""Gets the sample count at which feedback stops.
 
         Args
         ----
         band : int
             Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            End sample count. Units are ticks of the channel
+            processing rate (see :func:`get_channel_frequency_mhz`,
+            default 2.4 MHz) from the beginning of each flux ramp
+            cycle.
+
+        See Also
+        --------
+        :func:`set_feedback_end` : Sets the feedback end count.
+        :func:`get_feedback_start` : Gets the start of the feedback window.
         """
         return self._caget(
             self._band_root(band) + self._feedback_end_reg,
@@ -2305,16 +3845,52 @@ class SmurfCommandMixin(SmurfBase):
     _lms_enable1_reg = 'lmsEnable1'
 
     def set_lms_enable1(self, band, val, **kwargs):
-        """
-        Enable 1st harmonic tracking
+        r"""Enables or disables 1st harmonic tracking.
+
+        When enabled, the LMS adaptive filter tracks the fundamental
+        frequency of the flux ramp modulation. The fundamental
+        frequency is set by :func:`set_lms_freq_hz`.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            1 to enable, 0 to disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_lms_enable1` : Gets the current state.
+        :func:`set_lms_enable2` : Enables 2nd harmonic tracking.
+        :func:`set_lms_enable3` : Enables 3rd harmonic tracking.
+        :func:`set_lms_freq_hz` : Sets the fundamental tracking frequency.
         """
         self._caput(
             self._band_root(band) + self._lms_enable1_reg,
             val, **kwargs)
 
     def get_lms_enable1(self, band, **kwargs):
-        """
-        Enable 1st harmonic tracking
+        r"""Gets the 1st harmonic tracking enable state.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            1 if enabled, 0 if disabled.
+
+        See Also
+        --------
+        :func:`set_lms_enable1` : Sets the 1st harmonic tracking enable.
         """
         return self._caget(
             self._band_root(band) + self._lms_enable1_reg,
@@ -2323,16 +3899,50 @@ class SmurfCommandMixin(SmurfBase):
     _lms_enable2_reg = 'lmsEnable2'
 
     def set_lms_enable2(self, band, val, **kwargs):
-        """
-        Enable 2nd harmonic tracking
+        r"""Enables or disables 2nd harmonic tracking.
+
+        When enabled, the LMS adaptive filter tracks the 2nd harmonic
+        (2x the fundamental frequency) of the flux ramp modulation.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            1 to enable, 0 to disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_lms_enable2` : Gets the current state.
+        :func:`set_lms_enable1` : Enables 1st harmonic tracking.
+        :func:`set_lms_enable3` : Enables 3rd harmonic tracking.
         """
         self._caput(
             self._band_root(band) + self._lms_enable2_reg,
             val, **kwargs),
 
     def get_lms_enable2(self, band, **kwargs):
-        """
-        Enable 2nd harmonic tracking
+        r"""Gets the 2nd harmonic tracking enable state.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            1 if enabled, 0 if disabled.
+
+        See Also
+        --------
+        :func:`set_lms_enable2` : Sets the 2nd harmonic tracking enable.
         """
         return self._caget(
             self._band_root(band) + self._lms_enable2_reg,
@@ -2341,52 +3951,114 @@ class SmurfCommandMixin(SmurfBase):
     _lms_enable3_reg = 'lmsEnable3'
 
     def set_lms_enable3(self, band, val, **kwargs):
-        """
-        Enable 3rd harmonic tracking
+        r"""Enables or disables 3rd harmonic tracking.
+
+        When enabled, the LMS adaptive filter tracks the 3rd harmonic
+        (3x the fundamental frequency) of the flux ramp modulation.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            1 to enable, 0 to disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_lms_enable3` : Gets the current state.
+        :func:`set_lms_enable1` : Enables 1st harmonic tracking.
+        :func:`set_lms_enable2` : Enables 2nd harmonic tracking.
         """
         self._caput(
             self._band_root(band) + self._lms_enable3_reg,
             val, **kwargs)
 
     def get_lms_enable3(self, band, **kwargs):
-        """
-        Enable 3rd harmonic tracking
+        r"""Gets the 3rd harmonic tracking enable state.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            1 if enabled, 0 if disabled.
+
+        See Also
+        --------
+        :func:`set_lms_enable3` : Sets the 3rd harmonic tracking enable.
         """
         return self._caget(
             self._band_root(band) + self._lms_enable3_reg,
             **kwargs)
 
-    _lms_rst_dly_reg = 'lmsRstDly'
-
-    def set_lms_rst_dly(self, band, val, **kwargs):
-        """
-        Disable feedback after reset (2.4MHz ticks)
-        """
-        self._caput(
-            self._band_root(band) + self._lms_rst_dly_reg,
-            val, **kwargs)
-
-    def get_lms_rst_dly(self, band, **kwargs):
-        """
-        Disable feedback after reset (2.4MHz ticks)
-        """
-        return self._caget(
-            self._band_root(band) + self._lms_rst_dly_reg,
-            **kwargs)
 
     _lms_freq_reg = 'lmsFreq'
 
     def set_lms_freq(self, band, val, **kwargs):
-        """
-        LMS frequency = flux ramp freq * nPhi0
+        r"""Sets the LMS tracking frequency in raw firmware units.
+
+        The LMS frequency is the fundamental frequency at which
+        the tracker demodulates the flux ramp signal. It should
+        equal the flux ramp rate times the number of flux quanta
+        per ramp cycle (nPhi0). Most users should use
+        :func:`set_lms_freq_hz` which accepts Hz directly.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            LMS frequency as a fraction of the channel processing
+            rate (see :func:`get_channel_frequency_mhz`, default
+            2.4 MHz). 24-bit unsigned (0 to 2^24-1).
+            To convert to Hz:
+            val * get_channel_frequency_mhz() * 1e6 / 2^24.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_lms_freq` : Gets the current raw LMS frequency.
+        :func:`set_lms_freq_hz` : Sets the LMS frequency in Hz.
+        :func:`get_channel_frequency_mhz` : Gets the channel processing rate.
         """
         self._caput(
             self._band_root(band) + self._lms_freq_reg,
             val, **kwargs)
 
     def get_lms_freq(self, band, **kwargs):
-        """
-        LMS frequency = flux ramp freq * nPhi0
+        r"""Gets the LMS tracking frequency in raw firmware units.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            LMS frequency as a fraction of the channel processing
+            rate (see :func:`get_channel_frequency_mhz`, default
+            2.4 MHz). 24-bit unsigned. To convert to Hz:
+            val * get_channel_frequency_mhz() * 1e6 / 2^24.
+
+        See Also
+        --------
+        :func:`set_lms_freq` : Sets the raw LMS frequency.
+        :func:`get_lms_freq_hz` : Gets the LMS frequency in Hz.
         """
         return self._caget(
             self._band_root(band) + self._lms_freq_reg,
@@ -2395,50 +4067,121 @@ class SmurfCommandMixin(SmurfBase):
     _lms_freq_hz_reg = 'lmsFreqHz'
 
     def set_lms_freq_hz(self, band, val, **kwargs):
-        """
-        LMS frequency = flux ramp freq * nPhi0
+        r"""Sets the LMS tracking frequency in Hz.
+
+        The LMS frequency is the fundamental frequency at which
+        the tracker demodulates the flux ramp signal. It should
+        equal the flux ramp rate times the number of flux quanta
+        per ramp cycle (nPhi0). This is a convenience wrapper
+        that handles the conversion from Hz to raw firmware units.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : float
+            LMS frequency in Hz. Range is 0 to just under the
+            channel processing rate (see
+            :func:`get_channel_frequency_mhz`, default 2.4 MHz),
+            with resolution of ~0.14 Hz. Typical values are in
+            the kHz range.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_lms_freq_hz` : Gets the LMS frequency in Hz.
+        :func:`set_lms_freq` : Sets the LMS frequency in raw units.
         """
         self._caput(
             self._band_root(band) + self._lms_freq_hz_reg,
             val, **kwargs)
 
     def get_lms_freq_hz(self, band, **kwargs):
-        """
-        LMS frequency = flux ramp freq * nPhi0
+        r"""Gets the LMS tracking frequency in Hz.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : float
+            LMS frequency in Hz.
+
+        See Also
+        --------
+        :func:`set_lms_freq_hz` : Sets the LMS frequency in Hz.
+        :func:`get_lms_freq` : Gets the LMS frequency in raw units.
         """
         return self._caget(
             self._band_root(band) + self._lms_freq_hz_reg,
             **kwargs)
 
-    _lms_dly_fine_reg = 'lmsDlyFine'
-
-    def set_lms_dly_fine(self, band, val, **kwargs):
-        """
-        fine delay control (38.4MHz ticks)
-        """
-        self._caput(
-            self._band_root(band) + self._lms_dly_fine_reg,
-            val, **kwargs)
-
-    def get_lms_dly_fine(self, band, **kwargs):
-        """
-        fine delay control (38.4MHz ticks)
-        """
-        return self._caget(
-            self._band_root(band) + self._lms_dly_fine_reg,
-            **kwargs)
 
     _iq_stream_enable_reg = 'iqStreamEnable'
 
     def set_iq_stream_enable(self, band, val, **kwargs):
-        """
+        r"""Selects between frequency and demodulated I/Q debug output.
+
+        Toggles what data the debug readout path returns. When
+        disabled (val=0), the system returns frequency (F) and
+        frequency error (dF) streams. When enabled (val=1), the
+        system returns the demodulated flux ramp I/Q from the LMS
+        harmonic estimator — the detector signal expressed as I
+        and Q components. This is distinct from
+        :func:`set_rf_iq_stream_enable`, which outputs the raw RF
+        I/Q from the digital downconverter before any tracking or
+        demodulation.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            0 for F/dF output, 1 for demodulated I/Q output.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_iq_stream_enable` : Gets the current state.
+        :func:`set_rf_iq_stream_enable` : Selects raw RF I/Q output.
+        :func:`take_debug_data` : Takes data in the selected mode.
         """
         self._caput(
             self._band_root(band) + self._iq_stream_enable_reg,
             val, **kwargs)
 
     def get_iq_stream_enable(self, band, **kwargs):
-        """
+        r"""Gets the demodulated I/Q debug output enable state.
+
+        When enabled, the debug path outputs the demodulated flux
+        ramp I/Q from the LMS harmonic estimator instead of
+        frequency (F) and frequency error (dF).
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            0 if outputting F/dF, 1 if outputting demodulated I/Q.
+
+        See Also
+        --------
+        :func:`set_iq_stream_enable` : Sets this mode.
         """
         return self._caget(
             self._band_root(band) + self._iq_stream_enable_reg,
@@ -2447,14 +4190,50 @@ class SmurfCommandMixin(SmurfBase):
     _feedback_polarity_reg = 'feedbackPolarity'
 
     def set_feedback_polarity(self, band, val, **kwargs):
-        """
+        r"""Sets the global feedback polarity for a band.
+
+        Controls the sign of the feedback correction applied to tone
+        frequencies. The correct polarity depends on the sign
+        convention of the eta calibration and the physical wiring.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            0 or 1. Flips the sign of the feedback correction.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_feedback_polarity` : Gets the current feedback polarity.
+        :func:`set_feedback_enable` : Global enable for the feedback loop.
         """
         self._caput(
             self._band_root(band) + self._feedback_polarity_reg,
             val, **kwargs)
 
     def get_feedback_polarity(self, band, **kwargs):
-        """
+        r"""Gets the global feedback polarity for a band.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            0 or 1. The current feedback polarity.
+
+        See Also
+        --------
+        :func:`set_feedback_polarity` : Sets the feedback polarity.
         """
         return self._caget(
             self._band_root(band) + self._feedback_polarity_reg,
@@ -2463,15 +4242,55 @@ class SmurfCommandMixin(SmurfBase):
     _band_center_mhz_reg = 'bandCenterMHz'
 
     def set_band_center_mhz(self, band, val, **kwargs):
-        """
+        r"""Sets the band center frequency in MHz.
+
+        This is a software-only variable that records the absolute
+        RF frequency of the band center (set by the LO). It does
+        not write to hardware. Used for converting between channel
+        offsets and absolute frequencies.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : float
+            Band center frequency in MHz (e.g. 4250.0).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_band_center_mhz` : Gets the band center frequency.
+        :func:`get_tone_frequency_offset_mhz` : Gets subband offsets.
         """
         self._caput(
             self._band_root(band) + self._band_center_mhz_reg,
             val, **kwargs)
 
     def get_band_center_mhz(self, band, **kwargs):
-        """
-        Returns the center frequency of the band in MHz
+        r"""Gets the band center frequency in MHz.
+
+        Returns the absolute RF frequency of the band center.
+        This is a software-only variable (not read from hardware).
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : float
+            Band center frequency in MHz.
+
+        See Also
+        --------
+        :func:`set_band_center_mhz` : Sets the band center frequency.
+        :func:`get_tone_frequency_offset_mhz` : Gets subband offsets.
         """
         if self.offline:
             bc = (4250 + band*500)
@@ -2552,14 +4371,52 @@ class SmurfCommandMixin(SmurfBase):
     _synthesis_scale_reg = 'synthesisScale'
 
     def set_synthesis_scale(self, band, val, **kwargs):
-        """
+        r"""Sets the synthesis filter bank output scaling.
+
+        Controls the output amplitude of the polyphase synthesis
+        (reconstruction) filter bank. Each increment scales the
+        output amplitude by a factor of 2. Nominal value is 2.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            Scale factor. 2-bit unsigned (0-3). Each increment
+            is a factor of 2. Nominal is 2.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_synthesis_scale` : Gets the current synthesis scale.
+        :func:`set_analysis_scale` : Sets the analysis filter bank scaling.
         """
         self._caput(
             self._band_root(band) + self._synthesis_scale_reg,
             val, **kwargs)
 
     def get_synthesis_scale(self, band, **kwargs):
-        """
+        r"""Gets the synthesis filter bank output scaling.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Scale factor. 2-bit unsigned (0-3). Each increment
+            is a factor of 2. Nominal is 2.
+
+        See Also
+        --------
+        :func:`set_synthesis_scale` : Sets the synthesis scale.
         """
         return self._caget(
             self._band_root(band) + self._synthesis_scale_reg,
@@ -2568,14 +4425,49 @@ class SmurfCommandMixin(SmurfBase):
     _dsp_enable_reg = 'dspEnable'
 
     def set_dsp_enable(self, band, val, **kwargs):
-        """
+        r"""Enables or disables baseband DSP processing for a band.
+
+        When disabled, the analysis and synthesis filter banks still
+        run but the baseband processing (tone generation, tracking,
+        feedback, streaming) is halted.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            1 to enable, 0 to disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_dsp_enable` : Gets the current DSP enable state.
         """
         self._caput(
             self._band_root(band) + self._dsp_enable_reg,
             val, **kwargs)
 
     def get_dsp_enable(self, band, **kwargs):
-        """
+        r"""Gets the baseband DSP processing enable state.
+
+        Args
+        ----
+        band : int
+            Which band.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            1 if enabled, 0 if disabled.
+
+        See Also
+        --------
+        :func:`set_dsp_enable` : Sets the DSP enable state.
         """
         return self._caget(
             self._band_root(band) + self._dsp_enable_reg,
@@ -2586,8 +4478,29 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_feedback_enable_channel(self, band, channel, val,
                                     **kwargs):
-        """
-        Set the feedback for a single channel
+        r"""Sets the feedback enable for a single channel.
+
+        The channel must have feedback enabled here AND the global
+        feedback enable must be set via :func:`set_feedback_enable`
+        for tracking to be active on this channel.
+
+        Args
+        ----
+        band : int
+            Which band.
+        channel : int
+            Which channel.
+        val : int
+            1 to enable, 0 to disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_feedback_enable_channel` : Gets this channel's enable.
+        :func:`set_feedback_enable_array` : Sets all channels at once.
+        :func:`set_feedback_enable` : Sets the global feedback enable.
         """
         self._caput(
             self._channel_root(band, channel) +
@@ -2595,8 +4508,27 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_feedback_enable_channel(self, band, channel, **kwargs):
-        """
-        Get the feedback for a single channel
+        r"""Gets the feedback enable for a single channel.
+
+        Args
+        ----
+        band : int
+            Which band.
+        channel : int
+            Which channel.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            1 if enabled, 0 if disabled.
+
+        See Also
+        --------
+        :func:`set_feedback_enable_channel` : Sets this channel's enable.
+        :func:`get_feedback_enable_array` : Gets all channels at once.
         """
         return self._caget(
             self._channel_root(band, channel) +
@@ -2607,7 +4539,34 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_eta_mag_scaled_channel(self, band, channel, val,
                                    **kwargs):
-        """
+        r"""Sets the eta magnitude for a single channel.
+
+        Per-channel accessor for the same data as
+        :func:`set_eta_mag_array`. The "Scaled" name is historical;
+        there is no additional scaling applied. Preserves the
+        current eta phase and recomputes the underlying etaI and
+        etaQ.
+
+        Args
+        ----
+        band : int
+            Which band.
+        channel : int
+            Which channel.
+        val : float
+            Eta magnitude (real, positive). Maximum safe value
+            is ~2.0 (limited by the underlying etaI/etaQ
+            registers). Setting above ~2.0 may overflow one
+            component depending on phase.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_eta_mag_scaled_channel` : Gets this channel's eta magnitude.
+        :func:`set_eta_phase_degree_channel` : Sets this channel's eta phase.
+        :func:`set_eta_mag_array` : Sets all channels at once.
         """
         self._caput(
             self._channel_root(band, channel) +
@@ -2615,7 +4574,30 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_eta_mag_scaled_channel(self, band, channel, **kwargs):
-        """
+        r"""Gets the eta magnitude for a single channel.
+
+        Per-channel accessor for the same data as
+        :func:`get_eta_mag_array`.
+
+        Args
+        ----
+        band : int
+            Which band.
+        channel : int
+            Which channel.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : float
+            Eta magnitude (real, positive).
+
+        See Also
+        --------
+        :func:`set_eta_mag_scaled_channel` : Sets this channel's eta magnitude.
+        :func:`get_eta_mag_array` : Gets all channels at once.
         """
         return self._caget(
             self._channel_root(band, channel) +
@@ -2626,7 +4608,27 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_center_frequency_mhz_channel(self, band, channel, val,
                                          **kwargs):
-        """
+        r"""Sets the tone center frequency for a single channel.
+
+        Per-channel accessor for the same data as
+        :func:`set_center_frequency_array`.
+
+        Args
+        ----
+        band : int
+            Which band.
+        channel : int
+            Which channel.
+        val : float
+            Center frequency in MHz. Range is +/-1.2 MHz.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_center_frequency_mhz_channel` : Gets this channel's frequency.
+        :func:`set_center_frequency_array` : Sets all channels at once.
         """
         self._caput(
             self._channel_root(band, channel) +
@@ -2635,7 +4637,27 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_center_frequency_mhz_channel(self, band, channel,
                                          **kwargs):
-        """
+        r"""Gets the tone center frequency for a single channel.
+
+        Args
+        ----
+        band : int
+            Which band.
+        channel : int
+            Which channel.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : float
+            Center frequency in MHz.
+
+        See Also
+        --------
+        :func:`set_center_frequency_mhz_channel` : Sets this channel's frequency.
+        :func:`get_center_frequency_array` : Gets all channels at once.
         """
         return self._caget(
             self._channel_root(band, channel) +
@@ -2647,7 +4669,30 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_amplitude_scale_channel(self, band, channel, val,
                                     **kwargs):
-        """
+        r"""Sets the tone amplitude for a single channel.
+
+        Controls the drive power of the tone output for this
+        channel. Each step is 3 dB. When set to 0, no tone is
+        output and the channel is not processed by firmware.
+
+        Args
+        ----
+        band : int
+            Which band.
+        channel : int
+            Which channel.
+        val : int
+            Tone amplitude. 4-bit unsigned (0-15). 0 means no
+            tone output and no processing. Each increment is
+            3 dB.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_amplitude_scale_channel` : Gets this channel's amplitude.
+        :func:`set_amplitude_scale_array` : Sets all channels at once.
         """
         self._caput(
             self._channel_root(band, channel) +
@@ -2655,7 +4700,28 @@ class SmurfCommandMixin(SmurfBase):
             np.uint32(val), **kwargs)
 
     def get_amplitude_scale_channel(self, band, channel, **kwargs):
-        """
+        r"""Gets the tone amplitude for a single channel.
+
+        Args
+        ----
+        band : int
+            Which band.
+        channel : int
+            Which channel.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Tone amplitude. 4-bit unsigned (0-15). 0 means no
+            tone. Each increment is 3 dB.
+
+        See Also
+        --------
+        :func:`set_amplitude_scale_channel` : Sets this channel's amplitude.
+        :func:`get_amplitude_scale_array` : Gets all channels at once.
         """
         return self._caget(
             self._channel_root(band, channel) +
@@ -2666,7 +4732,30 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_eta_phase_degree_channel(self, band, channel, val,
                                      **kwargs):
-        """
+        r"""Sets the eta phase for a single channel in degrees.
+
+        Preserves the current eta magnitude and recomputes the
+        underlying etaI and etaQ. Note this accepts degrees,
+        unlike :func:`set_eta_phase_array` which uses radians.
+
+        Args
+        ----
+        band : int
+            Which band.
+        channel : int
+            Which channel.
+        val : float
+            Eta phase in degrees. Range -180 to 180 (values
+            outside this wrap due to periodicity of cos/sin).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_eta_phase_degree_channel` : Gets this channel's eta phase.
+        :func:`set_eta_mag_scaled_channel` : Sets this channel's eta magnitude.
+        :func:`set_eta_phase_array` : Sets all channels (in radians).
         """
         self._caput(
             self._channel_root(band, channel) +
@@ -2674,7 +4763,27 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_eta_phase_degree_channel(self, band, channel, **kwargs):
-        """
+        r"""Gets the eta phase for a single channel in degrees.
+
+        Args
+        ----
+        band : int
+            Which band.
+        channel : int
+            Which channel.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : float
+            Eta phase in degrees (-180 to 180).
+
+        See Also
+        --------
+        :func:`set_eta_phase_degree_channel` : Sets this channel's eta phase.
+        :func:`get_eta_phase_array` : Gets all channels (in radians).
         """
         return self._caget(
             self._channel_root(band, channel) +
@@ -2684,7 +4793,30 @@ class SmurfCommandMixin(SmurfBase):
     _frequency_error_mhz_reg = 'frequencyErrorMHz'
 
     def get_frequency_error_mhz(self, band, channel, **kwargs):
-        """
+        r"""Gets the frequency error for a single channel in MHz.
+
+        Returns the measured detuning of the specified tone from
+        its resonance after eta rotation, converted to MHz by
+        the PyRogue linked variable.
+
+        Args
+        ----
+        band : int
+            Which band.
+        channel : int
+            Which channel.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : float
+            Frequency error in MHz.
+
+        See Also
+        --------
+        :func:`get_frequency_error_array` : Gets all channels' errors (raw).
         """
         return self._caget(
             self._channel_root(band, channel) +
@@ -2786,17 +4918,6 @@ class SmurfCommandMixin(SmurfBase):
             self.att_root.format(bay) + self._dc_reg.format(att),
             **kwargs)
 
-    # ADC commands
-    _adc_remap_reg = "Remap[0]"  # Why is this hardcoded 0
-
-    def set_remap(self, **kwargs):
-        """
-        This command should probably be renamed to something more descriptive.
-        """
-        self._caput(
-            self.adc_root + self._adc_remap_reg,
-            1, **kwargs)
-
     # DAC commands
     _dac_temp_reg = "Temperature"
 
@@ -2861,7 +4982,29 @@ class SmurfCommandMixin(SmurfBase):
     _data_out_mux_reg = 'dataOutMux[{}]'
 
     def set_data_out_mux(self, bay, b, val, **kwargs):
-        """
+        r"""Sets the JESD transmit output data source for a lane.
+
+        Selects what data is driven on the specified JESD
+        transmit lane.
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        b : int
+            Which lane (0-9).
+        val : int or str
+            Output source: 0 or 'OutputZero' (zeros),
+            1 or 'UserData' (normal FPGA data),
+            2 or 'OutputOnes' (ones),
+            3 or 'TestData' (test pattern).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_data_out_mux` : Gets the current selection.
         """
         self._caput(
             self.jesd_tx_root.format(bay) +
@@ -2869,7 +5012,26 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_data_out_mux(self, bay, b, **kwargs):
-        """
+        r"""Gets the JESD transmit output data source for a lane.
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        b : int
+            Which lane (0-9).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int or str
+            Output source (0-3).
+
+        See Also
+        --------
+        :func:`set_data_out_mux` : Sets the selection.
         """
         return self._caget(
             self.jesd_tx_root.format(bay) +
@@ -2899,11 +5061,53 @@ class SmurfCommandMixin(SmurfBase):
     _jesd_rx_enable_reg = 'Enable'
 
     def set_jesd_rx_enable(self, bay, val, **kwargs):
+        r"""Sets the JESD receive lane enable mask for a bay.
+
+        Each bit enables one JESD204b receive lane (ADC data into
+        the FPGA). Only 8 of the 10 available lanes are used per
+        bay; the active mask depends on the hardware configuration.
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        val : int
+            Lane enable bitmask (up to 10 bits). Each bit enables
+            one lane.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_jesd_rx_enable` : Gets the current enable mask.
+        :func:`set_jesd_tx_enable` : Sets the JESD transmit lane mask.
+        :func:`get_jesd_rx_data_valid` : Checks if receive data is valid.
+        """
         self._caput(
             self.jesd_rx_root.format(bay) + self._jesd_rx_enable_reg,
             val, **kwargs)
 
     def get_jesd_rx_enable(self, bay, **kwargs):
+        r"""Gets the JESD receive lane enable mask for a bay.
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Lane enable bitmask. Default is 0x3F3.
+
+        See Also
+        --------
+        :func:`set_jesd_rx_enable` : Sets the enable mask.
+        """
         return self._caget(
             self.jesd_rx_root.format(bay) + self._jesd_rx_enable_reg,
             **kwargs)
@@ -2911,6 +5115,35 @@ class SmurfCommandMixin(SmurfBase):
     _jesd_rx_status_valid_cnt_reg = 'StatusValidCnt'
 
     def get_jesd_rx_status_valid_cnt(self, bay, num, **kwargs):
+        r"""Gets the JESD receive synchronization count for a lane.
+
+        Counts the number of times the specified lane has
+        synchronized (rising edges of data valid). On a stable
+        system (synced once at startup) this should not be
+        incrementing. Any count incrementing after startup
+        indicates link instability. There are 10 lanes per bay
+        (indexed 0-9), but only 8 are in use (matching the Rx
+        enable mask 0x3F3).
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        num : int
+            Which lane (0-9).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Number of synchronizations for this lane.
+
+        See Also
+        --------
+        :func:`get_jesd_rx_data_valid` : Checks if receive data is valid.
+        """
         return self._caget(
             self.jesd_rx_root.format(bay) +
             self._jesd_rx_status_valid_cnt_reg + f'[{num}]',
@@ -2919,37 +5152,87 @@ class SmurfCommandMixin(SmurfBase):
     _jesd_rx_data_valid_reg = 'DataValid'
 
     def get_jesd_rx_data_valid(self, bay, **kwargs):
+        r"""Gets the JESD receive data valid status for a bay.
+
+        Returns a bitmask indicating which receive lanes have
+        valid data. Used to verify the JESD link is up and
+        synchronized. Should match the enable mask (0x3F3) when
+        the link is healthy.
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Data valid bitmask, one bit per lane.
+
+        See Also
+        --------
+        :func:`get_jesd_rx_enable` : Gets the lane enable mask.
+        :func:`get_jesd_rx_status_valid_cnt` : Gets per-lane valid count.
+        """
         return self._caget(
             self.jesd_rx_root.format(bay) +
             self._jesd_rx_data_valid_reg,
             **kwargs)
 
-    _link_disable_reg = 'LINK_DISABLE'
-
-    def set_jesd_link_disable(self, bay, val, **kwargs):
-        """
-        Disables jesd link
-        """
-        self._caput(
-            self.jesd_rx_root.format(bay) + self._link_disable_reg,
-            val, **kwargs)
-
-    def get_jesd_link_disable(self, bay, **kwargs):
-        """
-        Disables jesd link
-        """
-        return self._caget(
-            self.jesd_rx_root.format(bay) + self._link_disable_reg,
-            **kwargs)
-
     _jesd_tx_enable_reg = 'Enable'
 
     def set_jesd_tx_enable(self, bay, val, **kwargs):
+        r"""Sets the JESD transmit lane enable mask for a bay.
+
+        Each bit enables one JESD204b transmit lane (DAC data out
+        of the FPGA). Only 8 of the 10 available lanes are used
+        per bay; the active mask depends on the hardware
+        configuration.
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        val : int
+            Lane enable bitmask (up to 10 bits). Each bit enables
+            one lane.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_jesd_tx_enable` : Gets the current enable mask.
+        :func:`set_jesd_rx_enable` : Sets the JESD receive lane mask.
+        :func:`get_jesd_tx_data_valid` : Checks if transmit data is valid.
+        """
         self._caput(
             self.jesd_tx_root.format(bay) + self._jesd_tx_enable_reg,
             val, **kwargs)
 
     def get_jesd_tx_enable(self, bay, **kwargs):
+        r"""Gets the JESD transmit lane enable mask for a bay.
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Lane enable bitmask. Default is 0x3CF.
+
+        See Also
+        --------
+        :func:`set_jesd_tx_enable` : Sets the enable mask.
+        """
         return self._caget(
             self.jesd_tx_root.format(bay) + self._jesd_tx_enable_reg,
             **kwargs)
@@ -2957,6 +5240,30 @@ class SmurfCommandMixin(SmurfBase):
     _jesd_tx_data_valid_reg = 'DataValid'
 
     def get_jesd_tx_data_valid(self, bay, **kwargs):
+        r"""Gets the JESD transmit data valid status for a bay.
+
+        Returns a bitmask indicating which transmit lanes have
+        valid data. Should match the enable mask (0x3CF) when
+        the link is healthy.
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Data valid bitmask, one bit per lane.
+
+        See Also
+        --------
+        :func:`get_jesd_tx_enable` : Gets the lane enable mask.
+        :func:`get_jesd_tx_status_valid_cnt` : Gets per-lane valid count.
+        """
         return self._caget(
             self.jesd_tx_root.format(bay) +
             self._jesd_tx_data_valid_reg,
@@ -2965,6 +5272,33 @@ class SmurfCommandMixin(SmurfBase):
     _jesd_tx_status_valid_cnt_reg = 'StatusValidCnt'
 
     def get_jesd_tx_status_valid_cnt(self, bay, num, **kwargs):
+        r"""Gets the JESD transmit synchronization count for a lane.
+
+        Counts the number of times the specified lane has
+        synchronized. On a stable system (synced once at startup)
+        this should not be incrementing. There are 10 lanes per
+        bay (indexed 0-9), but only 8 are in use (matching the Tx
+        enable mask 0x3CF).
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        num : int
+            Which lane (0-9).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Number of synchronizations for this lane.
+
+        See Also
+        --------
+        :func:`get_jesd_tx_data_valid` : Checks if transmit data is valid.
+        """
         return self._caget(
             self.jesd_tx_root.format(bay) +
             self._jesd_tx_status_valid_cnt_reg + f'[{num}]',
@@ -3237,7 +5571,40 @@ class SmurfCommandMixin(SmurfBase):
     _input_mux_sel_reg = 'InputMuxSel[{}]'
 
     def set_input_mux_sel(self, bay, lane, val, **kwargs):
-        """
+        r"""Selects the data source for a DaqMux buffer lane.
+
+        The DaqMux routes internal firmware signals to acquisition
+        buffers for debug data capture. Mapping (with InputMuxSel
+        enum offset of 2):
+
+        - 0: Disabled
+        - 1: Test (incrementing counter pattern)
+        - 2-11: ADC lanes 0-9 (I/Q pairs for each converter)
+        - 12-21: DAC lanes 0-9 (I/Q pairs for each converter)
+        - 22-25: Debug outputs 0-3 (content depends on
+          :func:`set_iq_stream_enable` and
+          :func:`set_rf_iq_stream_enable`; band selected by
+          :func:`set_debug_select`)
+
+        Typically configured automatically by :func:`take_debug_data`.
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        lane : int
+            Which DaqMux buffer lane.
+        val : int
+            Input source selection (0-25).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_input_mux_sel` : Gets the current selection.
+        :func:`set_debug_select` : Selects which band's debug routes to DaqMux.
+        :func:`take_debug_data` : Sets this up automatically.
         """
         self._caput(
             self.daq_mux_root.format(bay) +
@@ -3245,7 +5612,26 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_input_mux_sel(self, bay, lane, **kwargs):
-        """
+        r"""Gets the data source selection for a DaqMux buffer lane.
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        lane : int
+            Which DaqMux buffer lane.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Input source selection (0-25).
+
+        See Also
+        --------
+        :func:`set_input_mux_sel` : Sets the selection.
         """
         self._caget(
             self.daq_mux_root.format(bay) +
@@ -3255,8 +5641,25 @@ class SmurfCommandMixin(SmurfBase):
     _data_buffer_size_reg = 'DataBufferSize'
 
     def set_data_buffer_size(self, bay, val, **kwargs):
-        """
-        Sets the data buffer size for the DAQx
+        r"""Sets the DaqMux data buffer size.
+
+        Sets the number of 32-bit words to capture in the DaqMux
+        waveform buffer.  Determines how many samples are collected
+        per :func:`take_debug_data` acquisition.
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        val : int
+            Buffer size in 32-bit words.  Minimum 4.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`take_debug_data` : Triggers a data capture using this buffer.
         """
         self._caput(
             self.daq_mux_root.format(bay) +
@@ -3264,8 +5667,25 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_data_buffer_size(self, bay, **kwargs):
-        """
-        Gets the data buffer size for the DAQs
+        r"""Gets the DaqMux data buffer size.
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            Buffer size in 32-bit words.
+
+        See Also
+        --------
+        :func:`set_data_buffer_size` : Sets this value.
+        :func:`take_debug_data` : Triggers a data capture using this buffer.
         """
         return self._caget(
             self.daq_mux_root.format(bay) +
@@ -3501,7 +5921,20 @@ class SmurfCommandMixin(SmurfBase):
     _datawriter_open_reg = 'Open'
 
     def set_streamdatawriter_open(self, val, **kwargs):
-        """
+        r"""Opens the stream data file writer.
+
+        Args
+        ----
+        val : int
+            1 to open.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_streamdatawriter_open` : Gets the current state.
+        :func:`set_streamdatawriter_close` : Closes the writer.
         """
         self._caput(
             self.stream_data_writer_root + self._datawriter_open_reg,
@@ -3509,7 +5942,22 @@ class SmurfCommandMixin(SmurfBase):
 
 
     def get_streamdatawriter_open(self, **kwargs):
-        """
+        r"""Gets the stream data file writer open state.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Current state.
+
+        See Also
+        --------
+        :func:`set_streamdatawriter_open` : Opens the writer.
         """
         return self._caget(
             self.stream_data_writer_root + self._datawriter_open_reg,
@@ -3518,14 +5966,42 @@ class SmurfCommandMixin(SmurfBase):
     _datawriter_close_reg = 'Close'
 
     def set_streamdatawriter_close(self, val, **kwargs):
-        """
+        r"""Closes the stream data file writer.
+
+        Args
+        ----
+        val : int
+            1 to close.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_streamdatawriter_close` : Gets the current state.
+        :func:`set_streamdatawriter_open` : Opens the writer.
         """
         self._caput(
             self.stream_data_writer_root + self._datawriter_close_reg,
             val, **kwargs)
 
     def get_streamdatawriter_close(self, **kwargs):
-        """
+        r"""Gets the stream data file writer close state.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Current state.
+
+        See Also
+        --------
+        :func:`set_streamdatawriter_close` : Closes the writer.
         """
         return self._caget(
             self.stream_data_writer_root + self._datawriter_close_reg,
@@ -3534,14 +6010,46 @@ class SmurfCommandMixin(SmurfBase):
     _trigger_daq_reg = 'TriggerDaq'
 
     def set_trigger_daq(self, bay, val, **kwargs):
-        """
+        r"""Triggers the DaqMux to start data acquisition.
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        val : int
+            1 to trigger.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_trigger_daq` : Gets the current state.
+        :func:`set_arm_hw_trigger` : Arms the hardware trigger.
         """
         self._caput(
             self.daq_mux_root.format(bay) + self._trigger_daq_reg,
             val, **kwargs)
 
     def get_trigger_daq(self, bay, **kwargs):
-        """
+        r"""Gets the DaqMux trigger state.
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Current trigger state.
+
+        See Also
+        --------
+        :func:`set_trigger_daq` : Triggers acquisition.
         """
         self._caget(
             self.daq_mux_root.format(bay) + self._trigger_daq_reg,
@@ -3550,7 +6058,22 @@ class SmurfCommandMixin(SmurfBase):
     _arm_hw_trigger_reg = "ArmHwTrigger"
 
     def set_arm_hw_trigger(self, bay, val, **kwargs):
-        """
+        r"""Arms the DaqMux hardware trigger (alternate register).
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        val : int
+            1 to arm.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`set_trigger_hw_arm` : Arms the hardware trigger.
+        :func:`set_trigger_daq` : Software trigger for acquisition.
         """
         self._caput(
             self.daq_mux_root.format(bay) + self._arm_hw_trigger_reg,
@@ -3559,14 +6082,46 @@ class SmurfCommandMixin(SmurfBase):
     _trigger_hw_arm_reg = 'TriggerHwArm'
 
     def set_trigger_hw_arm(self, bay, val, **kwargs):
-        """
+        r"""Arms the DaqMux hardware trigger.
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        val : int
+            1 to arm.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_trigger_hw_arm` : Gets the current state.
+        :func:`set_trigger_daq` : Software trigger for acquisition.
         """
         self._caput(
             self.daq_mux_root.format(bay) + self._trigger_hw_arm_reg,
             val, **kwargs)
 
     def get_trigger_hw_arm(self, bay, **kwargs):
-        """
+        r"""Gets the DaqMux hardware trigger arm state.
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Current arm state.
+
+        See Also
+        --------
+        :func:`set_trigger_hw_arm` : Arms the trigger.
         """
         return self._caget(
             self.daq_mux_root.format(bay) + self._trigger_hw_arm_reg,
@@ -3629,9 +6184,20 @@ class SmurfCommandMixin(SmurfBase):
             lut_arr, **kwargs)
 
     def get_rtm_arb_waveform_lut_table(self, reg, **kwargs):
-        """
-        Gets the table currently loaded into the LUT table indexed by
-        reg.
+        r"""Gets the waveform LUT table contents.
+
+        Args
+        ----
+        reg : int
+            Which LUT table (0 or 1).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        array-like
+            LUT contents, up to 2048 entries of 20-bit signed values.
         """
         assert (reg in range(2)), 'reg must be in [0,1]'
         return self._caget(
@@ -3642,10 +6208,22 @@ class SmurfCommandMixin(SmurfBase):
     _rtm_arb_waveform_busy_reg = 'Busy'
 
     def get_rtm_arb_waveform_busy(self, **kwargs):
-        """
-        =1 if waveform if Continuous=1 and the RTM arbitrary waveform
-        is being continously generated.  Can be toggled low again by
-        setting Continuous=0.
+        r"""Gets whether the RTM arbitrary waveform generator is active.
+
+        Returns 1 if the LUT controller state machine is not idle
+        (waveform is being output).  Goes low when playback completes
+        or when Continuous is set to 0.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            1 if busy (outputting waveform), 0 if idle.
         """
         return self._caget(
             self.rtm_lut_ctrl + self._rtm_arb_waveform_busy_reg,
@@ -3654,9 +6232,21 @@ class SmurfCommandMixin(SmurfBase):
     _rtm_arb_waveform_trig_cnt_reg = 'TrigCnt'
 
     def get_rtm_arb_waveform_trig_cnt(self, **kwargs):
-        """
-        Counts the number of RTM arbitrary waveform software triggers
-        since boot up or the last CntRst.
+        r"""Gets the RTM arbitrary waveform trigger count.
+
+        Number of accepted software triggers since boot or the last
+        counter reset.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            Trigger count (16-bit).
         """
         return self._caget(
             self.rtm_lut_ctrl + self._rtm_arb_waveform_trig_cnt_reg,
@@ -3682,10 +6272,22 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_rtm_arb_waveform_continuous(self, **kwargs):
-        """
-        If =1, RTM arbitrary waveform generation is continuous and
-        repeats, otherwise if =0, waveform in LUT tables is only
-        broadcast once on software trigger.
+        r"""Gets the RTM arbitrary waveform continuous mode flag.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            1 if continuous (repeating), 0 if single-shot.
+
+        See Also
+        --------
+        :func:`set_rtm_arb_waveform_continuous` : Sets this value.
         """
         return self._caget(
             self.rtm_lut_ctrl + self._rtm_arb_waveform_continuous_reg,
@@ -3763,9 +6365,25 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_rtm_arb_waveform_timer_size(self, **kwargs):
-        """
-        Arbitrary waveforms are written to the slow RTM DACs with time
-        between samples TimerSize*6.4ns.
+        r"""Gets the RTM arbitrary waveform sample interval.
+
+        Time between DAC updates is TimerSize × 6.4 ns.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            Timer size (24-bit unsigned).  Multiply by 6.4 ns for
+            the sample interval.
+
+        See Also
+        --------
+        :func:`set_rtm_arb_waveform_timer_size` : Sets this value.
         """
         return self._caget(
             self.rtm_lut_ctrl + self._rtm_arb_waveform_timer_size_reg,
@@ -3793,12 +6411,28 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_rtm_arb_waveform_max_addr(self, **kwargs):
-        """
-        Slow RTM DACs will play the sequence [0...MaxAddr] of points
-        out of the loaded LUT tables before stopping or repeating on
-        software trigger (if in continuous mode).  MaxAddr is an
-        11-bit number (must be in [0,2048), because that's the maximum
-        length of the LUT tables that store the waveforms.
+        r"""Gets the last LUT address played by the RTM arbitrary waveform generator.
+
+        The slow RTM DACs play entries [0, MaxAddr] from the LUT
+        tables before stopping (single-shot) or repeating (continuous
+        mode).
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            MaxAddr (11-bit, range [0, 2048)).
+
+        See Also
+        --------
+        :func:`set_rtm_arb_waveform_max_addr` : Sets this value.
+        :func:`trigger_rtm_arb_waveform` : Start waveform playback.
+        :func:`set_rtm_arb_waveform_continuous` : Single-shot vs repeating.
         """
         return self._caget(
             self.rtm_lut_ctrl + self._rtm_arb_waveform_max_addr_reg,
@@ -3824,14 +6458,24 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_rtm_arb_waveform_enable(self, **kwargs):
-        """
-        Enable for generation of arbitrary waveforms on the RTM slow
-        DACs.
+        r"""Gets the enable for generation of arbitrary waveforms on the RTM slow DACs.
 
-        EnableCh = 0x0 is disable
-        0x1 is Addr[0]
-        0x2 is Addr[1]
-        0x3 is Addr[0] and Addr[1]
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            Bitmask: 0x0 = disabled, 0x1 = Addr[0], 0x2 = Addr[1],
+            0x3 = both.
+
+        See Also
+        --------
+        :func:`set_rtm_arb_waveform_enable` : Sets this value.
+        :func:`trigger_rtm_arb_waveform` : Start waveform playback.
         """
         return self._caget(
             self.rtm_lut_ctrl + self._rtm_arb_waveform_enable_reg,
@@ -3843,8 +6487,23 @@ class SmurfCommandMixin(SmurfBase):
     _reset_rtm_reg = 'resetRtm'
 
     def reset_rtm(self, **kwargs):
-        """
-        Resets the rear transition module (RTM)
+        r"""Resets the rear transition module (RTM) CPLD.
+
+        Asserts the CPLD reset line for 100 ms, which resets the flux
+        ramp counter, bias DAC SPI state machines, and all CPLD
+        control logic.  After releasing reset, re-writes all RTM
+        registers from cached values to restore prior state.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`set_cpld_reset` : Direct control of the reset line.
+        :func:`cpld_toggle` : Alias for this function.
         """
         self._caput(
             self.rtm_cryo_det_root + self._reset_rtm_reg,
@@ -3866,43 +6525,73 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_cpld_reset(self, **kwargs):
-        """
+        r"""Gets the RTM CPLD reset state.
+
+        When asserted (1), holds the RTM CPLD in reset — all CPLD
+        logic is inactive, the flux ramp counter is zeroed, and
+        SPI communication with the CPLD is halted.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            1 if CPLD is held in reset, 0 if released.
+
+        See Also
+        --------
+        :func:`set_cpld_reset` : Sets the reset state.
+        :func:`cpld_toggle` : Pulses the reset.
         """
         return self._caget(
             self.rtm_cryo_det_root + self._cpld_reset_reg,
             **kwargs)
 
     def cpld_toggle(self, **kwargs):
-        """
-        Toggles the cpld reset bit.
+        r"""Resets the RTM CPLD.
+
+        Alias for :func:`reset_rtm`.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to
+            :func:`reset_rtm`.
         """
         self.reset_rtm(**kwargs)
 
-    _k_relay_reg = 'KRelay'
-
-    def set_k_relay(self, val, **kwargs):
-        """
-        """
-        self._caput(
-            self.rtm_cryo_det_root + self._k_relay_reg,
-            val, **kwargs)
-
-    def get_k_relay(self, **kwargs):
-        """
-        """
-        return self._caget(
-            self.rtm_cryo_det_root + self._k_relay_reg,
-            **kwargs)
 
     _timing_crate_root_reg = "AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierTiming.EvrV2CoreTriggers"
     _trigger_rate_sel_reg = ".EvrV2ChannelReg[0].RateSel"
 
     def set_ramp_rate(self, val, **kwargs):
-        """
-        flux ramp sawtooth reset rate in kHz
+        r"""Sets the flux ramp reset rate via the timing system.
 
-        If using timing system, the allowed rates are: 1, 2, 3, 4, 5,
-        6, 8, 10, 12, 15kHz (hardcoded by timing)
+        Only applies when using the timing system as the ramp trigger
+        source (RampStartMode = 1, see :func:`set_ramp_start_mode`).
+        When using internal triggering, the ramp rate is instead
+        determined by :func:`set_low_cycle` and :func:`set_high_cycle`.
+
+        The timing system only supports discrete rates: 1, 2, 3, 4,
+        5, 6, 8, 10, 12, 15 kHz.
+
+        Args
+        ----
+        val : int or float
+            Desired reset rate in kHz.  Must be one of the allowed
+            values listed above.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_ramp_rate` : Gets the timing system rate setting.
+        :func:`set_ramp_start_mode` : Select trigger source.
         """
         rate_sel = self.flux_ramp_rate_to_PV(val)
 
@@ -3918,8 +6607,28 @@ class SmurfCommandMixin(SmurfBase):
                 "12, 15kHz only")
 
     def get_ramp_rate(self, **kwargs):
-        """
-        flux ramp sawtooth reset rate in kHz
+        r"""Gets the flux ramp reset rate from the timing system in kHz.
+
+        Reads the timing system trigger rate selector and converts
+        to the corresponding reset rate.  Only meaningful when using
+        the timing system as the ramp trigger source
+        (RampStartMode = 1).
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        float or None
+            Flux ramp reset rate in kHz.
+
+        See Also
+        --------
+        :func:`set_ramp_rate` : Sets the reset rate.
+        :func:`set_ramp_start_mode` : Select trigger source.
         """
 
         rate_sel = self._caget(
@@ -3934,11 +6643,20 @@ class SmurfCommandMixin(SmurfBase):
     _trigger_delay_reg = ".EvrV2TriggerReg[0].Delay"
 
     def set_trigger_delay(self, val, **kwargs):
-        """
-        Adds an offset to flux ramp trigger.  Only really useful if
-        you're using two carriers at once and you're trying to
-        synchronize them.  Mitch thinks it's in units of 122.88MHz
-        ticks.
+        r"""Sets the flux ramp trigger delay offset.
+
+        Adds a delay to the flux ramp trigger.  Used to synchronize
+        multiple carriers.  Units are timing system clock ticks
+        (default 122.88 MHz = :func:`get_digitizer_frequency_mhz` / 5).
+
+        Args
+        ----
+        val : int
+            Trigger delay in timing clock ticks (default 122.88 MHz).
+            28-bit unsigned.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
         """
         self._caput(
             self._timing_crate_root_reg +
@@ -3946,10 +6664,22 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_trigger_delay(self, **kwargs):
-        """
-        The flux ramp trigger offset.  Only really useful if you're
-        using two carriers at once and you're trying to synchronize
-        them.  Mitch thinks it's in units of 122.88MHz ticks.
+        r"""Gets the flux ramp trigger delay offset.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            Trigger delay in timing clock ticks (default 122.88 MHz).
+
+        See Also
+        --------
+        :func:`set_trigger_delay` : Sets this value.
         """
 
         trigger_delay = self._caget(
@@ -3962,14 +6692,51 @@ class SmurfCommandMixin(SmurfBase):
     _debounce_width_reg = 'DebounceWidth'
 
     def set_debounce_width(self, val, **kwargs):
-        """
+        r"""Sets the external trigger debounce width.
+
+        Controls how many JESD clock cycles (see
+        :func:`get_digitizer_frequency_mhz` / 2, default
+        307.2 MHz) the external flux ramp trigger input (LEMO1
+        on the RTM front panel) must be stable before being
+        accepted as a valid trigger event. Only relevant when
+        the ramp start mode is set to external triggering.
+        Prevents spurious triggers from noisy input signals.
+
+        Args
+        ----
+        val : int
+            Debounce count (16-bit unsigned). Debounce time =
+            val / (get_digitizer_frequency_mhz() * 1e6 / 2).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_debounce_width` : Gets the current debounce width.
+        :func:`set_enable_ramp_trigger` : Enables trigger pulses.
         """
         self._caput(
             self.rtm_cryo_det_root + self._debounce_width_reg,
             val, **kwargs)
 
     def get_debounce_width(self, **kwargs):
-        """
+        r"""Gets the external trigger debounce width.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Debounce count (16-bit unsigned).
+
+        See Also
+        --------
+        :func:`set_debounce_width` : Sets the debounce width.
         """
         return self._caget(
             self.rtm_cryo_det_root + self._debounce_width_reg,
@@ -3978,14 +6745,45 @@ class SmurfCommandMixin(SmurfBase):
     _ramp_slope_reg = 'RampSlope'
 
     def set_ramp_slope(self, val, **kwargs):
-        """
+        r"""Sets the flux ramp slope polarity.
+
+        Controls whether the flux ramp sawtooth waveform ramps
+        up (positive slope) or down (negative slope).
+
+        Args
+        ----
+        val : int
+            0 for positive slope, 1 for negative slope.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_ramp_slope` : Gets the current slope polarity.
+        :func:`set_cfg_reg_ena_bit` : Enables/disables the flux ramp.
         """
         self._caput(
             self.rtm_spi_root + self._ramp_slope_reg,
             val, **kwargs)
 
     def get_ramp_slope(self, **kwargs):
-        """
+        r"""Gets the flux ramp slope polarity.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            0 for positive slope, 1 for negative slope.
+
+        See Also
+        --------
+        :func:`set_ramp_slope` : Sets the slope polarity.
         """
         return self._caget(
             self.rtm_spi_root + self._ramp_slope_reg,
@@ -3994,14 +6792,52 @@ class SmurfCommandMixin(SmurfBase):
     _flux_ramp_dac_reg = 'LTC1668RawDacData'
 
     def set_flux_ramp_dac(self, val, **kwargs):
-        """
+        r"""Sets the raw flux ramp DAC value.
+
+        Writes directly to the LTC1668 flux ramp DAC data register
+        on the RTM. This value is only output to the DAC when
+        ``ModeControl`` is set to 1 (test mode) via
+        :func:`set_mode_control`. In normal operation
+        (``ModeControl`` = 0), the internal ramp counter drives
+        the DAC and this value is ignored. The flux ramp does not
+        need to be enabled for this static value to appear at the
+        DAC output; ``ModeControl`` = 1 is sufficient.
+
+        Args
+        ----
+        val : int
+            Raw DAC value. 16-bit unsigned (0-65535).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_flux_ramp_dac` : Gets the current DAC value.
+        :func:`set_mode_control` : Switches between ramp and static DAC modes.
         """
         self._caput(
             self.rtm_spi_root + self._flux_ramp_dac_reg,
             val, **kwargs)
 
     def get_flux_ramp_dac(self, **kwargs):
-        """
+        r"""Gets the raw flux ramp DAC value.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Raw DAC value. 16-bit unsigned (0-65535).
+
+        See Also
+        --------
+        :func:`set_flux_ramp_dac` : Sets the DAC value.
+        :func:`get_mode_control` : Gets the current DAC mode.
         """
         return self._caget(
             self.rtm_spi_root + self._flux_ramp_dac_reg,
@@ -4010,14 +6846,49 @@ class SmurfCommandMixin(SmurfBase):
     _mode_control_reg = 'ModeControl'
 
     def set_mode_control(self, val, **kwargs):
-        """
+        r"""Sets the RTM DAC output mode.
+
+        Switches the RTM between normal operation (flux ramp counter
+        drives the ramp DAC) and test/load mode (DACs are programmed
+        directly from control registers). In test mode, the flux ramp
+        DAC outputs the static value from :func:`set_flux_ramp_dac`,
+        and direct SPI programming of bias DACs is enabled.
+
+        Args
+        ----
+        val : int
+            0 for normal operation (flux ramp output),
+            1 for test/load mode (direct DAC programming).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_mode_control` : Gets the current mode.
+        :func:`set_flux_ramp_dac` : Sets the static ramp DAC value for test mode.
         """
         self._caput(
             self.rtm_spi_root + self._mode_control_reg,
             val, **kwargs)
 
     def get_mode_control(self, **kwargs):
-        """
+        r"""Gets the RTM DAC output mode.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            0 for normal operation, 1 for test/load mode.
+
+        See Also
+        --------
+        :func:`set_mode_control` : Sets the DAC output mode.
         """
         return self._caget(
             self.rtm_spi_root + self._mode_control_reg,
@@ -4026,14 +6897,55 @@ class SmurfCommandMixin(SmurfBase):
     _fast_slow_step_size_reg = 'FastSlowStepSize'
 
     def set_fast_slow_step_size(self, val, **kwargs):
-        """
+        r"""Sets the flux ramp step size.
+
+        Controls how much the RTM ramp DAC counter increments
+        each clock tick. The counter clock is derived from the
+        307.2 MHz JESD clock divided by
+        (lowCycle + highCycle + 2), defaulting to 51.2 MHz. The
+        counter is 32 bits wide and the top 16 bits drive the
+        DAC, so the effective DAC increment per tick is
+        val / 2^16. Together with the ramp rate
+        (:func:`set_ramp_max_cnt`), this determines the
+        peak-to-peak amplitude of the flux ramp sawtooth.
+
+        Args
+        ----
+        val : int
+            Step size (32-bit unsigned).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_fast_slow_step_size` : Gets the current step size.
+        :func:`set_fast_slow_rst_value` : Sets the ramp reset value.
+        :func:`set_ramp_max_cnt` : Sets the ramp repetition rate.
+        :func:`set_low_cycle` : Sets the clock divider low phase.
+        :func:`set_high_cycle` : Sets the clock divider high phase.
         """
         self._caput(
             self.rtm_spi_root + self._fast_slow_step_size_reg,
             val, **kwargs)
 
     def get_fast_slow_step_size(self, **kwargs):
-        """
+        r"""Gets the flux ramp step size.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Step size (32-bit unsigned).
+
+        See Also
+        --------
+        :func:`set_fast_slow_step_size` : Sets the step size.
         """
         return self._caget(
             self.rtm_spi_root + self._fast_slow_step_size_reg,
@@ -4042,14 +6954,47 @@ class SmurfCommandMixin(SmurfBase):
     _fast_slow_rst_value_reg = 'FastSlowRstValue'
 
     def set_fast_slow_rst_value(self, val, **kwargs):
-        """
+        r"""Sets the flux ramp counter reset value.
+
+        The value the RTM ramp DAC counter resets to at the start
+        of each ramp cycle (on each trigger pulse). This sets the
+        starting point of the sawtooth waveform.
+
+        Args
+        ----
+        val : int
+            Reset value (32-bit unsigned). The top 16 bits
+            correspond to the DAC output at ramp start.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_fast_slow_rst_value` : Gets the current reset value.
+        :func:`set_fast_slow_step_size` : Sets the ramp step size.
         """
         self._caput(
             self.rtm_spi_root + self._fast_slow_rst_value_reg,
             val, **kwargs)
 
     def get_fast_slow_rst_value(self, **kwargs):
-        """
+        r"""Gets the flux ramp counter reset value.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Reset value (32-bit unsigned).
+
+        See Also
+        --------
+        :func:`set_fast_slow_rst_value` : Sets the reset value.
         """
         return self._caget(
             self.rtm_spi_root + self._fast_slow_rst_value_reg,
@@ -4058,14 +7003,47 @@ class SmurfCommandMixin(SmurfBase):
     _enable_ramp_trigger_reg = 'EnableRampTrigger'
 
     def set_enable_ramp_trigger(self, val, **kwargs):
-        """
+        r"""Enables or disables the flux ramp trigger pulses.
+
+        Controls the FPGA-side gate that allows ramp trigger pulses
+        to reach the RTM. When disabled, no trigger pulses are
+        generated regardless of the internal ramp counter or
+        external trigger state.
+
+        Args
+        ----
+        val : int
+            1 to enable trigger pulses, 0 to disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_enable_ramp_trigger` : Gets the current state.
+        :func:`set_cfg_reg_ena_bit` : Enables the flux ramp via SPI.
         """
         self._caput(
             self.rtm_cryo_det_root + self._enable_ramp_trigger_reg,
             val, **kwargs)
 
     def get_enable_ramp_trigger(self, **kwargs):
-        """
+        r"""Gets the flux ramp trigger pulse enable state.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            1 if trigger pulses are enabled, 0 if disabled.
+
+        See Also
+        --------
+        :func:`set_enable_ramp_trigger` : Sets the enable state.
         """
         return self._caget(
             self.rtm_cryo_det_root + self._enable_ramp_trigger_reg,
@@ -4074,14 +7052,50 @@ class SmurfCommandMixin(SmurfBase):
     _cfg_reg_ena_bit_reg = 'CfgRegEnaBit'
 
     def set_cfg_reg_ena_bit(self, val, **kwargs):
-        """
+        r"""Enables or disables the flux ramp.
+
+        Controls the flux ramp enable via the RTM SPI register
+        interface. When enabled, the FPGA generates periodic
+        trigger pulses that drive the RTM flux ramp DAC sawtooth
+        waveform. Most users should use :func:`flux_ramp_on` and
+        :func:`flux_ramp_off` instead.
+
+        Args
+        ----
+        val : int
+            1 to enable the flux ramp, 0 to disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_cfg_reg_ena_bit` : Gets the current state.
+        :func:`flux_ramp_on` : Convenience wrapper to enable.
+        :func:`flux_ramp_off` : Convenience wrapper to disable.
+        :func:`set_ramp_max_cnt` : Sets the flux ramp frequency.
         """
         self._caput(
             self.rtm_spi_root + self._cfg_reg_ena_bit_reg,
             val, **kwargs)
 
     def get_cfg_reg_ena_bit(self, **kwargs):
-        """
+        r"""Gets the flux ramp enable state.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            1 if flux ramp is enabled, 0 if disabled.
+
+        See Also
+        --------
+        :func:`set_cfg_reg_ena_bit` : Sets the flux ramp enable.
         """
         return self._caget(
             self.rtm_spi_root + self._cfg_reg_ena_bit_reg,
@@ -4399,6 +7413,32 @@ class SmurfCommandMixin(SmurfBase):
     _rtm_33_data_reg = 'HemtBiasDacDataRegCh'
 
     def get_amp_gate_voltage(self, amp):
+        r"""Gets the gate voltage for a cryogenic RF amplifier.
+
+        Reads the raw DAC value from the RTM and converts to volts
+        using the ``bit_to_V`` calibration factor from the pysmurf
+        config file (e.g. ``config['amplifier']['bit_to_V_hemt']``).
+        The conversion is: volts = bit_to_volt * dac_bits. The
+        RTM DAC output is routed through a voltage divider on the
+        cryocard before reaching the amplifier gate.
+
+        Args
+        ----
+        amp : str
+            Which amplifier. Use '50k' and 'hemt' for C02
+            cryocards, or '50k1', '50k2', 'hemt1', 'hemt2' for
+            C04/C05 cryocards.
+
+        Returns
+        -------
+        volts : float
+            Gate voltage in volts.
+
+        See Also
+        --------
+        :func:`set_amp_gate_voltage` : Sets the gate voltage.
+        :func:`get_amplifier_biases` : Gets all amplifier states.
+        """
         self.C.assert_amps_match_this_cryocard(list(amp))
 
         if amp == 'hemt' or amp =='hemt1':
@@ -4507,10 +7547,27 @@ class SmurfCommandMixin(SmurfBase):
         return out_volt
 
     def get_amp_drain_enable(self, amp):
-        """Don't use directly, use get_amp_drain_voltage. Get if power supply
-        are enabled for this cryocard amplifier. The drain will output
-        voltage even if the power register is zero (ESCRYODET-851).
+        """Gets whether the drain power supply is enabled for a cryogenic RF amplifier.
 
+        Reads the cryocard power-supply enable register and checks
+        whether the bit(s) for the specified amplifier are set.
+
+        Args
+        ----
+        amp : str
+            Amplifier name.  One of 'hemt', '50k' (C02 revision
+            cryostat card) or 'hemt1', 'hemt2', '50k1', '50k2'
+            (C04/C05 revision cryostat card).
+
+        Returns
+        -------
+        bool
+            True if the drain power supply is enabled.
+
+        See Also
+        --------
+        :func:`set_amp_drain_enable` : Enable or disable.
+        :func:`set_amp_drain_voltage` : Preferred interface (C04/C05).
         """
         self.C.assert_amps_match_this_cryocard(list(amp))
 
@@ -4521,12 +7578,23 @@ class SmurfCommandMixin(SmurfBase):
         return power_masked > 0
 
     def set_amp_drain_enable(self, amp, enable):
-        """
-        Enable the drain power supply. If C04, set_amp_drain_voltage sets
-        this automatically. It is very important that this is on only
-        when you want voltage going out the drain. See bug
-        ESCRYODET-851. There are two drain outputs on the C02, and
-        four drain outputs on the C04.
+        """Enables or disables the drain power supply for a cryogenic RF amplifier.
+
+        On C04/C05 revision cryostat cards,
+        :func:`set_amp_drain_voltage` manages this automatically —
+        call this directly only if you need explicit control.
+        Depending on the RF amplifier, applying drain voltage with
+        the gate at zero can cause significant current draw and
+        heating in the cryostat.
+
+        Args
+        ----
+        amp : str
+            Amplifier name.  One of 'hemt', '50k' (C02 revision
+            cryostat card) or 'hemt1', 'hemt2', '50k1', '50k2'
+            (C04/C05 revision cryostat card).
+        enable : bool
+            True to enable, False to disable.
         """
         self.C.assert_amps_match_this_cryocard(list(amp))
 
@@ -4541,15 +7609,30 @@ class SmurfCommandMixin(SmurfBase):
         self.C.write_ps_en(power_masked)
 
     def set_amp_drain_voltage(self, amp, volt, override = False):
-        """
-        C04 only. Set the drain voltage going out of the given amplifier
-        circuit, either 50k1, 50k2, hemt1, hemt2. The HEMT drain
-        voltage range is different from the 50K voltage range, set the
-        range limits in the SMuRF .cfg file. If given 0 volts, turn
-        turn off the power supply entirely to avoid bug
-        ESCRYODET-851. We cannot set the drain voltage directly,
-        instead we can only set the RTM DAC voltage directly which
-        approximately sets the drain voltage..
+        """Sets the drain voltage for a cryogenic RF amplifier.
+
+        C04/C05 revision cryostat card only.  Converts the requested
+        drain voltage to the corresponding RTM DAC voltage using the
+        linear calibration (m, b) from the pysmurf cfg file and writes
+        it.  If 0 V is requested, the drain power supply is disabled
+        to prevent residual output.  Allowable range differs between
+        HEMT and 50K amplifiers — configure limits in the cfg file.
+
+        Args
+        ----
+        amp : str
+            Amplifier name: 'hemt1', 'hemt2', '50k1', or '50k2'.
+        volt : float
+            Desired drain voltage in volts.  Must be within the range
+            [drain_volt_min, drain_volt_max] configured in the cfg
+            file, unless override is True.
+        override : bool, optional, default False
+            If True, bypass the configured voltage range limits.
+
+        See Also
+        --------
+        :func:`get_amp_drain_voltage` : Read back drain voltage.
+        :func:`set_amp_drain_enable` : Direct enable/disable control.
         """
         self.C.assert_amps_match_this_cryocard(list(amp))
 
@@ -4598,11 +7681,30 @@ class SmurfCommandMixin(SmurfBase):
             self.set_rtm_slow_dac_volt(dac_num, dac_volt)
 
     def get_amp_drain_current(self, amp):
-        """Guess the current going out of the given amp by measuring the
-        another voltage on the cryocard, for example 50K2_I. This
-        function has high jitter, 1 mA at least. There is no
-        set_amp_drain_current.
+        """Measures the drain current for a cryogenic RF amplifier.
 
+        Reads a current-sense voltage from the cryostat card PIC ADC,
+        then converts to milliamps using the configured op-amp gain
+        and sense resistor.  Because the current is sensed before the
+        LDO, there is a small offset (typically < 1 mA) which is
+        subtracted using the Id_offset parameter in the cfg file
+        (hemt_Id_offset, 50k_Id_offset, or per-amp drain_offset).
+
+        Args
+        ----
+        amp : str
+            Amplifier name.  One of 'hemt', '50k' (C02 revision
+            cryostat card) or 'hemt1', 'hemt2', '50k1', '50k2'
+            (C04/C05 revision cryostat card).
+
+        Returns
+        -------
+        float
+            Measured drain current in milliamps.
+
+        See Also
+        --------
+        :func:`get_amp_drain_current_dict` : Measure all amplifiers.
         """
         self.C.assert_amps_match_this_cryocard(list(amp))
 
@@ -4629,10 +7731,20 @@ class SmurfCommandMixin(SmurfBase):
         return out_milliamp_offset
 
     def get_amp_drain_current_dict(self):
-        """
-        Return dictionary of all drain currents. This will return two drain
-        currents if working on the C02, and four drain currents if working on
-        the C04.
+        """Measures drain current for all cryogenic RF amplifiers.
+
+        Returns two entries on C02 revision cryostat cards ('hemt',
+        '50k') or four on C04/C05 revision cryostat cards ('hemt1',
+        'hemt2', '50k1', '50k2').
+
+        Returns
+        -------
+        dict
+            Amplifier name to drain current in milliamps.
+
+        See Also
+        --------
+        :func:`get_amp_drain_current` : Single-amplifier measurement.
         """
         amp_gate_currents = dict()
         major, minor, patch = self.C.get_fw_version()
@@ -4650,20 +7762,21 @@ class SmurfCommandMixin(SmurfBase):
         return amp_gate_currents
 
     def set_amp_defaults(self):
-        """The pysmurf cfg file specifies the default power state, default
-        gate voltage for the C02 amplifiers HEMT and 50K. Additionally
-        it specifies the default drain voltage for the C04 hemt1,
-        50k1, hemt2, 50k2. Read these values, then set them according
-        to if the card is connected or not. See smurf_config.py. This
-        assumes the gate and drain DAC are enabled, and the drain
-        power supplies are disabled. Always set the gate voltage, and
-        always zero the drain DAC voltage, which implies the drain
-        voltage going out the cryocard is zero, and the drain current
-        is zero. Also, send enable, 0x2, to all gate voltages and
-        drain voltages, otherwise they cannot be controlled, even if
-        the current register reports that they are supposedly enabled,
-        0x2.
+        """Applies default gate bias to all cryogenic RF amplifiers.
 
+        Reads default gate voltages from the pysmurf cfg file and sets
+        them.  On C04/C05 revision cryostat cards, configures all four
+        amplifier gates.  Does not touch drain power supplies or drain
+        voltages — call :func:`set_amp_drain_voltage` separately after
+        confirming gate bias is correct.
+
+        Should be called when drain power supplies are disabled and
+        RTM DAC outputs are enabled (typical state after boot).
+
+        See Also
+        --------
+        :func:`set_amp_drain_voltage` : Set drain voltage (C04/C05).
+        :func:`set_amp_gate_voltage` : Set individual gate voltage.
         """
         major, minor, patch = self.C.get_fw_version()
 
@@ -4686,9 +7799,19 @@ class SmurfCommandMixin(SmurfBase):
                 self.set_amp_gate_voltage(amp, gate_volt_default)
 
     def get_amplifier_biases(self):
-        """For the C00, C01 and C02, return dictionary of all gate voltages,
-        drain currents, and drain power supply states. For the C04,
-        also return all drain voltages.
+        """Returns bias state for all cryogenic RF amplifiers.
+
+        On C02 revision cryostat cards, returns gate voltages, drain
+        currents, and drain enable states for 'hemt' and '50k'.  On
+        C04/C05 revision cryostat cards, also returns drain voltages
+        for 'hemt1', 'hemt2', '50k1', '50k2'.
+
+        Returns
+        -------
+        dict
+            Keys are '{amp}_{param}' strings, e.g. 'hemt_gate_volt',
+            'hemt_drain_current', 'hemt_enable', and on C04/C05 also
+            'hemt1_drain_volt'.
         """
 
         amp_dict = dict()
@@ -4726,36 +7849,44 @@ class SmurfCommandMixin(SmurfBase):
         return amp_dict
 
     def set_hemt_enable(self, disable=False):
+        """Deprecated. Use :func:`set_amp_drain_enable` instead."""
         enable = not disable
         self.log(f'set_hemt_enable: Deprecated. Calling set_amp_drain_enable("hemt", {enable}')
         self.set_amp_drain_enable('hemt', enable)
 
     def set_50k_amp_enable(self, disable=False):
+        """Deprecated. Use :func:`set_amp_drain_enable` instead."""
         enable = not disable
         self.log(f'set_50k_enable: Deprecated. Calling set_amp_drain_enable("50k", {enable}')
         self.set_amp_drain_enable('50k', enable)
 
     def get_50k_amp_gate_voltage(self):
+        """Deprecated. Use :func:`get_amp_gate_voltage` instead."""
         self.log('get_50k_gate_voltage: Deprecated. Calling get_amp_gate_voltage("50k")')
         self.get_amp_get_voltage('50k')
 
     def set_50k_amp_gate_voltage(self, voltage, override=False):
+        """Deprecated. Use :func:`set_amp_gate_voltage` instead."""
         self.log(f'set_50k_gate_voltage: Deprecated. Calling set_amp_gate_voltage("50k", {voltage}, override={override})')
         self.set_amp_gate_voltage('50k', voltage, override)
 
     def set_hemt_gate_voltage(self, voltage, override=False):
+        """Deprecated. Use :func:`set_amp_gate_voltage` instead."""
         self.log(f'set_hemt_gate_voltage: Deprecated. Calling set_amp_gate_voltage("hemt", {voltage}, override={override})')
         self.set_amp_gate_voltage('hemt', voltage, override)
 
     def set_hemt_bias(self, voltage, override=False):
+        """Deprecated. Use :func:`set_amp_gate_voltage` instead."""
         self.log(f'set_hemt_bias: Deprecated. Calling set_amp_gate_voltage("hemt", {voltage}, override={override})')
         self.get_amp_get_voltage('hemt', voltage, override)
 
     def get_hemt_bias(self):
+        """Deprecated. Use :func:`get_amp_gate_voltage` instead."""
         self.log('get_hemt_bias: Deprecated. Calling get_amp_gate_voltage("hemt")')
         return self.get_amp_gate_voltage('hemt')
 
     def set_amplifier_bias(self, bias_hemt = None, bias_50k = None, **kwargs):
+        """Deprecated. Use :func:`set_amp_gate_voltage` instead."""
         self.log('set_amplifier_bias: Deprecated. Calling set_amp_gate_voltage')
         if bias_hemt is not None:
             self.set_amp_gate_voltage('hemt', bias_hemt, **kwargs)
@@ -4764,48 +7895,106 @@ class SmurfCommandMixin(SmurfBase):
             self.set_amp_gate_voltage('50k', bias_50k, **kwargs)
 
     def get_amplifier_bias(self):
+        """Deprecated. Use :func:`get_amplifier_biases` instead."""
         self.log('get_amplifier_bias: Deprecated. Calling get_amplifier_biases')
         return self.get_amplifier_biases()
 
     def get_hemt_drain_current(self):
+        """Deprecated. Use :func:`get_amp_drain_current` instead."""
         self.log('get_hemt_drain_current: Deprecated. Calling get_amp_drain_current("hemt")')
         return self.get_amp_drain_current("hemt")
 
     def get_50k_amp_drain_current(self):
+        """Deprecated. Use :func:`get_amp_drain_current` instead."""
         self.log('get_50k_amp_drain_current: Deprecated. Calling get_amp_drain_current("50k")')
         return self.get_amp_drain_current("50k")
 
     def flux_ramp_on(self, **kwargs):
-        """
-        Turns on the flux ramp - a useful wrapper for set_cfg_reg_ena_bit
+        r"""Enables flux ramp output.
+
+        Wrapper for :func:`set_cfg_reg_ena_bit` with value 1.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to
+            :func:`set_cfg_reg_ena_bit`.
+
+        See Also
+        --------
+        :func:`flux_ramp_off` : Disable flux ramp output.
+        :func:`set_cfg_reg_ena_bit` : Direct control.
         """
         self.set_cfg_reg_ena_bit(1, **kwargs)
 
     def flux_ramp_off(self, **kwargs):
-        """
-        Turns off the flux ramp - a useful wrapper for set_cfg_reg_ena_bit
+        r"""Disables flux ramp output.
+
+        Wrapper for :func:`set_cfg_reg_ena_bit` with value 0.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to
+            :func:`set_cfg_reg_ena_bit`.
+
+        See Also
+        --------
+        :func:`flux_ramp_on` : Enable flux ramp output.
+        :func:`set_cfg_reg_ena_bit` : Direct control.
         """
         self.set_cfg_reg_ena_bit(0, **kwargs)
 
     _ramp_max_cnt_reg = 'RampMaxCnt'
 
     def set_ramp_max_cnt(self, val, **kwargs):
-        """
-        Internal Ramp's maximum count. Sets the trigger repetition rate. This
-        is effectively the flux ramp frequency.
+        r"""Sets the internal flux ramp maximum count.
 
-        RampMaxCnt = 307199 means flux ramp is 1kHz (307.2e6/(RampMaxCnt+1))
+        Controls the flux ramp reset rate when using internal
+        triggering (RampStartMode = 0).  The ramp resets every
+        (RampMaxCnt + 1) jesdClk cycles, giving a reset rate of
+        :func:`get_digitizer_frequency_mhz` / 2 / (RampMaxCnt + 1)
+        MHz.  For example, with the default 614.4 MHz digitizer
+        clock, RampMaxCnt = 307199 gives 1 kHz.
+
+        Args
+        ----
+        val : int
+            Maximum count (32-bit unsigned).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_ramp_max_cnt` : Gets this value.
+        :func:`set_ramp_rate` : Set rate via timing system instead.
         """
         self._caput(
             self.rtm_cryo_det_root + self._ramp_max_cnt_reg,
             val, **kwargs)
 
     def get_ramp_max_cnt(self, **kwargs):
-        """
-        Internal Ramp's maximum count. Sets the trigger repetition rate. This
-        is effectively the flux ramp frequency.
+        r"""Gets the internal flux ramp maximum count.
 
-        RampMaxCnt = 307199 means flux ramp is 1kHz (307.2e6/(RampMaxCnt+1))
+        The ramp reset rate is :func:`get_digitizer_frequency_mhz` /
+        2 / (RampMaxCnt + 1) MHz.  Only meaningful when using internal
+        triggering (RampStartMode = 0).
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            Maximum count (32-bit unsigned).
+
+        See Also
+        --------
+        :func:`set_ramp_max_cnt` : Sets this value.
         """
         return self._caget(
             self.rtm_cryo_det_root + self._ramp_max_cnt_reg,
@@ -4924,18 +8113,50 @@ class SmurfCommandMixin(SmurfBase):
     _low_cycle_reg = 'LowCycle'
 
     def set_low_cycle(self, val, **kwargs):
-        """
-        CPLD's clock: low cycle duration (zero inclusive).  Along with
-        HighCycle, sets the frequency of the clock going to the RTM.
+        r"""Sets the RTM clock low cycle duration.
+
+        Along with :func:`set_high_cycle`, sets the frequency of the
+        RTM CPLD clock.  The RTM clock frequency is
+        jesdClk / (LowCycle + HighCycle + 2), where jesdClk is
+        :func:`get_digitizer_frequency_mhz` / 2 (default 307.2 MHz).
+        Zero inclusive (a value of 0 means 1 tick low).
+
+        Args
+        ----
+        val : int
+            Low cycle duration in jesdClk ticks (zero inclusive).
+            8-bit unsigned (0–255).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`set_high_cycle` : Sets the high cycle duration.
         """
         self._caput(
             self.rtm_cryo_det_root + self._low_cycle_reg,
             val, **kwargs)
 
     def get_low_cycle(self, val, **kwargs):
-        """
-        CPLD's clock: low cycle duration (zero inclusive).  Along with
-        HighCycle, sets the frequency of the clock going to the RTM.
+        r"""Gets the RTM clock low cycle duration.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            Low cycle duration in jesdClk ticks (zero inclusive).
+            jesdClk = :func:`get_digitizer_frequency_mhz` / 2
+            (default 307.2 MHz).
+
+        See Also
+        --------
+        :func:`set_low_cycle` : Sets this value.
         """
         return self._caget(
             self.rtm_cryo_det_root + self._low_cycle_reg,
@@ -4944,66 +8165,90 @@ class SmurfCommandMixin(SmurfBase):
     _high_cycle_reg = 'HighCycle'
 
     def set_high_cycle(self, val, **kwargs):
-        """
-        CPLD's clock: high cycle duration (zero inclusive).  Along
-        with LowCycle, sets the frequency of the clock going to the
-        RTM.
+        r"""Sets the RTM clock high cycle duration.
+
+        Along with :func:`set_low_cycle`, sets the frequency of the
+        RTM CPLD clock.  The RTM clock frequency is
+        jesdClk / (LowCycle + HighCycle + 2), where jesdClk is
+        :func:`get_digitizer_frequency_mhz` / 2 (default 307.2 MHz).
+        Zero inclusive (a value of 0 means 1 tick high).
+
+        Args
+        ----
+        val : int
+            High cycle duration in jesdClk ticks (zero inclusive).
+            8-bit unsigned (0–255).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`set_low_cycle` : Sets the low cycle duration.
         """
         self._caput(
             self.rtm_cryo_det_root + self._high_cycle_reg,
             val, **kwargs)
 
     def get_high_cycle(self, val, **kwargs):
-        """
-        CPLD's clock: high cycle duration (zero inclusive).  Along
-        with LowCycle, sets the frequency of the clock going to the
-        RTM.
+        r"""Gets the RTM clock high cycle duration.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            High cycle duration in jesdClk ticks (zero inclusive).
+            jesdClk = :func:`get_digitizer_frequency_mhz` / 2
+            (default 307.2 MHz).
+
+        See Also
+        --------
+        :func:`set_high_cycle` : Sets this value.
         """
         return self._caget(
             self.rtm_cryo_det_root + self._high_cycle_reg,
             **kwargs)
 
-    _select_ramp_reg = 'SelectRamp'
-
-    def set_select_ramp(self, val, **kwargs):
-        """
-        Select Ramp to the CPLD
-        0x1 = Fast flux Ramp
-        0x0 = Slow flux ramp
-        """
-        self._caput(
-            self.rtm_cryo_det_root + self._select_ramp_reg,
-            val, **kwargs)
-
-    def get_select_ramp(self, **kwargs):
-        """
-        Select Ramp to the CPLD
-        0x1 = Fast flux Ramp
-        0x0 = Slow flux ramp
-        """
-        return self._caget(
-            self.rtm_cryo_det_root + self._select_ramp_reg,
-            **kwargs)
-
     _ramp_start_mode_reg = 'RampStartMode'
 
     def set_ramp_start_mode(self, val, **kwargs):
-        """
-        Select Ramp to the CPLD
-        0x2 = trigger from external system
-        0x1 = trigger from timing system
-        0x0 = trigger from internal system
+        r"""Sets the flux ramp trigger source.
+
+        Args
+        ----
+        val : int
+            0 for internal trigger, 1 for timing system trigger,
+            2 for external trigger.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
         """
         self._caput(
             self.rtm_cryo_det_root + self._ramp_start_mode_reg,
             val, **kwargs)
 
     def get_ramp_start_mode(self, **kwargs):
-        """
-        Select Ramp to the CPLD
-        0x2 = trigger from external system
-        0x1 = trigger from timing system
-        0x0 = trigger from internal system
+        r"""Gets the flux ramp trigger source.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            0 for internal, 1 for timing system, 2 for external.
+
+        See Also
+        --------
+        :func:`set_ramp_start_mode` : Sets this value.
         """
         return self._caget(
             self.rtm_cryo_det_root + self._ramp_start_mode_reg,
@@ -5012,20 +8257,43 @@ class SmurfCommandMixin(SmurfBase):
     _pulse_width_reg = 'PulseWidth'
 
     def set_pulse_width(self, val, **kwargs):
-        """
-        Select Ramp to the CPLD
-        0x1 = Fast flux Ramp
-        0x0 = Slow flux ramp
+        r"""Sets the flux ramp pulse width on the RTM.
+
+        Width of the start ramp pulse sent to the CPLD, in units of
+        jesdClk = :func:`get_digitizer_frequency_mhz` / 2 (default
+        307.2 MHz), same clock as :func:`set_low_cycle` and
+        :func:`set_high_cycle`.  Typical value is 64.
+
+        Args
+        ----
+        val : int
+            Pulse width in jesdClk ticks (default 307.2 MHz).
+            16-bit unsigned (0–65535).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
         """
         self._caput(
             self.rtm_cryo_det_root + self._pulse_width_reg,
             val, **kwargs)
 
     def get_pulse_width(self, **kwargs):
-        """
-        Select Ramp to the CPLD
-        0x1 = Fast flux Ramp
-        0x0 = Slow flux ramp
+        r"""Gets the flux ramp pulse width on the RTM.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            Pulse width in jesdClk ticks (default 307.2 MHz).
+
+        See Also
+        --------
+        :func:`set_pulse_width` : Sets this value.
         """
         return self._caget(
             self.rtm_cryo_det_root + self._pulse_width_reg,
@@ -5446,7 +8714,30 @@ class SmurfCommandMixin(SmurfBase):
     _smurf_to_gcp_stream_reg = 'userConfig[0]'  # bit for streaming
 
     def get_user_config0(self, as_binary=False, **kwargs):
-        """
+        r"""Gets the userConfig[0] timing frame header register.
+
+        A general-purpose 32-bit field embedded in the data stream
+        timing frame. Individual bits are used as control flags
+        by the SmurfProcessor (e.g. bit 0 resets unwrapping and
+        averaging when toggled).
+
+        Args
+        ----
+        as_binary : bool, optional, default False
+            If True, returns the value as a binary string.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int or str
+            Register value, or binary string if as_binary=True.
+
+        See Also
+        --------
+        :func:`set_user_config0` : Sets the value.
+        :func:`clear_unwrapping_and_averages` : Toggles bit 0.
         """
         val =  self._caget(
             self.timing_header + self._smurf_to_gcp_stream_reg,
@@ -5459,7 +8750,26 @@ class SmurfCommandMixin(SmurfBase):
 
 
     def set_user_config0(self, val, as_binary=False, **kwargs):
-        """
+        r"""Sets the userConfig[0] timing frame header register.
+
+        A general-purpose 32-bit field embedded in the data stream
+        timing frame. Individual bits are used as control flags
+        by the SmurfProcessor.
+
+        Args
+        ----
+        val : int
+            Register value (32-bit unsigned).
+        as_binary : bool, optional, default False
+            Unused (kept for API compatibility).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_user_config0` : Gets the current value.
+        :func:`clear_unwrapping_and_averages` : Toggles bit 0.
         """
         self._caput(
             self.timing_header + self._smurf_to_gcp_stream_reg,
@@ -5467,8 +8777,22 @@ class SmurfCommandMixin(SmurfBase):
 
 
     def clear_unwrapping_and_averages(self, **kwargs):
-        """
-        Resets unwrapping and averaging for all channels, in all bands.
+        r"""Resets phase unwrapping and averaging for all channels.
+
+        Toggles bit 0 of userConfig[0] high then low, which signals
+        the downstream processor to clear its unwrapping accumulators
+        and averaging state across all bands.  Uses a SyncGroup to
+        confirm each transition completes before proceeding.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.
+
+        See Also
+        --------
+        :func:`set_unwrapper_reset` : Per-band unwrapper reset.
+        :func:`set_filter_reset` : Per-band filter reset.
         """
 
         # Set bit 0 of userConfig[0] high.  Use SyncGroup to detect
@@ -5506,8 +8830,21 @@ class SmurfCommandMixin(SmurfBase):
     _trigger_width_reg = 'EvrV2TriggerReg[{}].Width'
 
     def set_trigger_width(self, chan, val, **kwargs):
-        """
-        Mystery value that seems to make the timing system work
+        r"""Sets the trigger output pulse width.
+
+        Duration of the trigger pulse output for the given channel,
+        in timing system clock ticks (default 122.88 MHz =
+        :func:`get_digitizer_frequency_mhz` / 5).
+
+        Args
+        ----
+        chan : int
+            Which trigger channel.
+        val : int
+            Pulse width in timing clock ticks.  28-bit unsigned.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
         """
         self._caput(
             self.trigger_root + self._trigger_width_reg.format(chan),
@@ -5640,20 +8977,32 @@ class SmurfCommandMixin(SmurfBase):
             self._trigger_channel_reg_enable_reg.format(chan),
             **kwargs)
 
-    _trigger_reg_enable_reg = 'EvrV2TriggerReg[{}].enable'
-
-    def set_evr_trigger_reg_enable(self, chan, val, **kwargs):
-        """
-        """
-        self._caput(
-            self.trigger_root +
-            self._trigger_reg_enable_reg.format(chan),
-            val, **kwargs)
 
     _trigger_channel_reg_count_reg = 'EvrV2ChannelReg[{}].Count'
 
     def get_evr_channel_reg_count(self, chan, **kwargs):
-        """
+        r"""Gets the EVR trigger channel event count.
+
+        Returns the number of timing events received on the
+        specified channel. Useful for verifying that timing
+        events are being received.
+
+        Args
+        ----
+        chan : int
+            Which trigger channel.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Number of events received.
+
+        See Also
+        --------
+        :func:`set_evr_trigger_dest_type` : Sets the trigger destination type.
         """
         return self._caget(
             self.trigger_root +
@@ -5750,7 +9099,25 @@ class SmurfCommandMixin(SmurfBase):
     _trigger_channel_reg_dest_sel_reg = 'EvrV2ChannelReg[{}].DestSel'
 
     def set_evr_trigger_channel_reg_dest_sel(self, chan, val, **kwargs):
-        """
+        r"""Sets the EVR trigger channel destination select.
+
+        Selects the destination mask for the specified EVR
+        channel. Used during timing setup to configure which
+        events are routed to the flux ramp trigger.
+
+        Args
+        ----
+        chan : int
+            Which trigger channel.
+        val : int
+            Destination select value.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`set_evr_trigger_dest_type` : Sets the destination type.
         """
         self._caput(
             self.trigger_root +
@@ -5843,14 +9210,50 @@ class SmurfCommandMixin(SmurfBase):
     _debug_select_reg = "DebugSelect[{}]"
 
     def set_debug_select(self, bay, val, **kwargs):
-        """
+        r"""Selects which band's debug data is routed to the DaqMux.
+
+        Each bay has 4 bands. This register selects which band's
+        debug output is routed to that bay's DaqMux debug stream
+        for acquisition via :func:`take_debug_data`.
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        val : int
+            Which band within the bay (0-3).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_debug_select` : Gets the current selection.
+        :func:`take_debug_data` : Takes debug data.
         """
         self._caput(
             self.app_core + self._debug_select_reg.format(bay),
             val, **kwargs)
 
     def get_debug_select(self, bay, **kwargs):
-        """
+        r"""Gets the band selected for debug data routing.
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Which band within the bay (0-3).
+
+        See Also
+        --------
+        :func:`set_debug_select` : Sets the selection.
         """
         return self._caget(
             self.app_core + self._debug_select_reg.format(bay),
@@ -5861,18 +9264,40 @@ class SmurfCommandMixin(SmurfBase):
     _ultrascale_ot_upper_threshold_reg = "OTUpperThreshold"
 
     def set_ultrascale_ot_upper_threshold(self, val, **kwargs):
-        """
-        Over-temperature (OT) upper threshold in degC for Ultrascale+
-        FPGA.
+        r"""Sets the FPGA over-temperature shutdown threshold.
+
+        If the Ultrascale+ FPGA die temperature exceeds this value,
+        the FPGA asserts an over-temperature alarm.
+
+        Args
+        ----
+        val : float
+            Temperature threshold in degrees C.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
         """
         self._caput(
             self.ultrascale + self._ultrascale_ot_upper_threshold_reg,
             val, **kwargs)
 
     def get_ultrascale_ot_upper_threshold(self, **kwargs):
-        """
-        Over-temperature (OT) upper threshold in degC for Ultrascale+
-        FPGA.
+        r"""Gets the FPGA over-temperature shutdown threshold.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        float
+            Temperature threshold in degrees C.
+
+        See Also
+        --------
+        :func:`set_ultrascale_ot_upper_threshold` : Sets this value.
         """
         return self._caget(
             self.ultrascale + self._ultrascale_ot_upper_threshold_reg,
@@ -5883,17 +9308,63 @@ class SmurfCommandMixin(SmurfBase):
     _output_config_reg = "OutputConfig[{}]"
 
     def set_crossbar_output_config(self, index, val, **kwargs):
-        """
+        r"""Sets the timing crossbar output configuration.
+
+        Configures the Microchip SY56040 timing signal routing
+        crossbar, which determines how timing signals are routed
+        between the RTM, FPGA, and ATCA backplane. Each output
+        index selects which input source drives it:
+
+        - Index 0: RTM_TIMING_OUT0 source
+        - Index 1: FPGA_TIMING_OUT source
+        - Index 2: Backplane DIST0 source
+        - Index 3: Backplane DIST1 source
+
+        For each index, val selects the input:
+
+        - 0x0: RTM_TIMING_IN0
+        - 0x1: FPGA_TIMING_IN
+        - 0x2: BP_TIMING_IN
+        - 0x3: RTM_TIMING_IN1
+
+        Args
+        ----
+        index : int
+            Which output (0-3).
+        val : int
+            Which input source (0-3).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_crossbar_output_config` : Gets the current config.
         """
         self._caput(
             self.crossbar + self._output_config_reg.format(index),
             val, **kwargs)
 
     def get_crossbar_output_config(self, index, **kwargs):
-        """
-        This is the timing crossbar, which determins how the SMuRF carrier
-        receives its timing signal, and how the backplane receives its
-        timing signal.
+        r"""Gets the timing crossbar output configuration.
+
+        Args
+        ----
+        index : int
+            Which output (0-3).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            Which input source (0-3) is routed to this output.
+
+        See Also
+        --------
+        :func:`set_crossbar_output_config` : Sets this value (includes
+                full input/output mapping).
         """
         return self._caget(
             self.crossbar + self._output_config_reg.format(index),
@@ -6226,18 +9697,59 @@ class SmurfCommandMixin(SmurfBase):
     _lmk_reg = "LmkReg_0x{:04X}"
 
     def set_lmk_reg(self, bay, reg, val, **kwargs):
-        """
-        Can call like this get_lmk_reg(bay=0,reg=0x147,val=0xA)
-        to see only hex as in gui.
+        r"""Sets a register on the LMK clock distribution chip.
+
+        Low-level access to individual registers of the LMK jitter
+        cleaner on the specified AMC bay.  The LMK generates and
+        distributes clocks and JESD204B SYSREF signals to the ADC
+        and DAC chips on the ADC/DAC card.
+
+        Args
+        ----
+        bay : int
+            AMC bay number (0 or 1).
+        reg : int
+            Register address (e.g. 0x147).
+        val : int
+            Value to write.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_lmk_reg` : Read back a register.
         """
         self._caput(
             self.lmk.format(bay) + self._lmk_reg.format(reg),
             val, **kwargs)
 
     def get_lmk_reg(self, bay, reg, **kwargs):
-        """
-        Can call like this hex(get_lmk_reg(bay=0,reg=0x147))
-        to see only hex as in gui.
+        r"""Gets a register from the LMK clock distribution chip.
+
+        Low-level access to individual registers of the LMK jitter
+        cleaner on the specified AMC bay.  The LMK generates and
+        distributes clocks and JESD204B SYSREF signals to the ADC
+        and DAC chips on the ADC/DAC card.
+
+        Args
+        ----
+        bay : int
+            AMC bay number (0 or 1).
+        reg : int
+            Register address (e.g. 0x147).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            Register value.
+
+        See Also
+        --------
+        :func:`set_lmk_reg` : Write a register.
         """
         return self._caget(
             self.lmk.format(bay) + self._lmk_reg.format(reg),
@@ -6293,9 +9805,27 @@ class SmurfCommandMixin(SmurfBase):
     _frame_loss_count_reg = 'FrameLossCnt'
 
     def get_frame_loss_cnt(self, **kwargs):
-        """
-        The number of frames that did not make it to the smurf
-        processor
+        r"""Gets the count of frames lost before reaching the SmurfProcessor.
+
+        A SmurfProcessor diagnostic counter.  Increments by the number
+        of missing frames each time a gap in frame sequence numbers is
+        detected (i.e. frames generated by the FPGA but never received
+        by the SmurfProcessor).
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            Number of lost frames since last reset.
+
+        See Also
+        --------
+        :func:`get_frame_out_order_count` : Frames received out of order.
         """
         return self._caget(
             self.frame_rx_stats + self._frame_loss_count_reg,
@@ -6304,7 +9834,23 @@ class SmurfCommandMixin(SmurfBase):
     _frame_out_order_count_reg = 'FrameOutOrderCnt'
 
     def get_frame_out_order_count(self, **kwargs):
-        """
+        r"""Gets the count of frames received out of order.
+
+        A SmurfProcessor diagnostic counter. Increments each time
+        a received frame has a lower sequence number than the
+        previous frame. Such frames are discarded. A nonzero
+        value may indicate network or data transport issues.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            Number of out-of-order frames received.
         """
         return self._caget(
             self.frame_rx_stats + self._frame_out_order_count_reg,
@@ -6344,9 +9890,25 @@ class SmurfCommandMixin(SmurfBase):
     _unwrapper_reset_reg = 'Unwrapper.reset'
 
     def set_unwrapper_reset(self, **kwargs):
-        """
-        Resets the unwrap filter. There is no get function because
-        it is an executed command.
+        r"""Resets the SmurfProcessor phase unwrapper.
+
+        The unwrapper tracks wraps in the firmware's fixed-point
+        frequency output, maintaining a per-channel counter to
+        reconstruct the continuous signal.  This reset clears all
+        wrap counters and previous-sample state, so subsequent
+        output restarts from zero offset.  One-shot command (no
+        corresponding get).
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`set_filter_reset` : Reset the downsample filter.
+        :func:`clear_unwrapping_and_averages` : Reset unwrapper and averaging.
         """
         self._caput(
             self.smurf_processor + self._unwrapper_reset_reg,
@@ -6355,8 +9917,22 @@ class SmurfCommandMixin(SmurfBase):
     _filter_reset_reg = 'Filter.reset'
 
     def set_filter_reset(self, **kwargs):
-        """
-        Resets the downsample filter
+        r"""Resets the SmurfProcessor downsample filter.
+
+        Clears the filter state for all channels.  One-shot command
+        (no corresponding get).
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`set_unwrapper_reset` : Reset the phase unwrapper.
+        :func:`set_filter_a` : Set filter A coefficients.
+        :func:`set_filter_b` : Set filter B coefficients.
         """
         self._caput(
             self.smurf_processor + self._filter_reset_reg,
@@ -6489,11 +10065,24 @@ class SmurfCommandMixin(SmurfBase):
     _downsampler_mode_reg = 'Downsampler.DownsamplerMode'
 
     def set_downsample_mode(self, mode):
-        """
-        Set the downsampler mode. 0 is internal, 1 is external.
+        """Sets the SmurfProcessor downsampler trigger mode.
 
-        Ref. SmurfHeader.h, SmurfHeader.cpp, _SmurfProcessor.py
-        Ref. https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+Processor
+        In 'internal' mode, the downsampler outputs one frame every
+        N input frames (N set by :func:`set_downsample_factor`).
+        In 'external' mode, the downsampler uses timing bits from the
+        frame header to trigger output, allowing synchronization to
+        external timing markers.
+
+        Args
+        ----
+        mode : str
+            'internal' or 'external'.
+
+        See Also
+        --------
+        :func:`get_downsample_mode` : Gets the current mode.
+        :func:`set_downsample_factor` : Set internal decimation factor.
+        :func:`set_downsample_external_bitmask` : Set timing bits for external mode.
         """
         if mode == 'internal':
             self._caput(self.smurf_processor + self._downsampler_mode_reg, 0)
@@ -6503,24 +10092,23 @@ class SmurfCommandMixin(SmurfBase):
             self.log(f'set_downsample_mode: Unknown mode {mode}')
 
     def get_downsample_mode(self):
-        """
-        Get the downsampler mode. 0 is internal, 1 is external.
+        """Gets the SmurfProcessor downsampler trigger mode.
 
-        Ref. SmurfHeader.h, SmurfHeader.cpp, _SmurfProcessor.py
-        Ref. https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+Processor
+        Returns
+        -------
+        str
+            'internal' or 'external'.
+
+        See Also
+        --------
+        :func:`set_downsample_mode` : Sets the mode.
         """
         mode = self._caget(self.smurf_processor + self._downsampler_mode_reg)
 
-        ret = 'Unknown'
-
         if mode == 0:
-            ret = 'internal'
-        elif mode == 1:
-            ret = 'external'
+            return 'internal'
         else:
-            self.log(f'get_downsample_mode: Unknown mode {mode}')
-
-        return ret
+            return 'external'
 
     _downsampler_factor_reg = 'Downsampler.InternalFactor'
 
@@ -6589,10 +10177,28 @@ class SmurfCommandMixin(SmurfBase):
     _downsampler_external_bitmask_reg = 'Downsampler.ExternalBitmask'
 
     def set_downsample_external_bitmask(self, bitmask):
-        """
-        Set the downsampler external bitmask.
+        """Sets the external downsampler bitmask.
 
-        Ref. https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+Processor
+        Only used when downsample mode is 'external'.  The
+        SmurfProcessor reads timing bits from each frame header,
+        ANDs them with this bitmask, and outputs a frame only when
+        the result equals the bitmask (i.e. all masked bits are set
+        simultaneously in that frame).
+
+        The timing bits are: bits [9:0] are fixed-rate markers
+        (1, 2, 3, 4, 5, 6, 8, 10, 12, 15 kHz), bits [27:10] are
+        sequencer markers.  For example, bitmask = 0x1 triggers at
+        1 kHz (the rate of the first fixed-rate marker).
+
+        Args
+        ----
+        bitmask : int
+            28-bit bitmask selecting which timing bits to match.
+
+        See Also
+        --------
+        :func:`get_downsample_external_bitmask` : Gets this value.
+        :func:`set_downsample_mode` : Must be 'external' for this to apply.
         """
         self._caput(self.smurf_processor + self._downsampler_external_bitmask_reg, bitmask)
 
@@ -6722,8 +10328,17 @@ class SmurfCommandMixin(SmurfBase):
     _data_file_open_reg = 'FileWriter.Open'
 
     def open_data_file(self, **kwargs):
-        """
-        Open the data file.
+        r"""Opens the SmurfProcessor output data file for writing.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`close_data_file` : Close the file.
         """
         self._caput(self.smurf_processor + self._data_file_open_reg, 1,
             **kwargs)
@@ -6731,8 +10346,17 @@ class SmurfCommandMixin(SmurfBase):
     _data_file_close_reg = 'FileWriter.Close'
 
     def close_data_file(self, **kwargs):
-        """
-        Close the data file.
+        r"""Closes the SmurfProcessor output data file.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`open_data_file` : Open the file.
         """
         self._caput(self.smurf_processor + self._data_file_close_reg, 1,
             **kwargs)
@@ -6788,14 +10412,42 @@ class SmurfCommandMixin(SmurfBase):
     ### Data emulator
 
     def set_predata_emulator_enable(self, val, **kwargs):
-        """
-        Turns on and off the predata emulator.
+        r"""Enables or disables the SmurfProcessor pre-data emulator.
+
+        When enabled, the emulator generates synthetic data frames
+        upstream of the SmurfProcessor for testing without hardware.
+
+        Args
+        ----
+        val : int
+            1 to enable, 0 to disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_predata_emulator_enable` : Gets the enable state.
         """
         self._caput(self._predata_emulator + 'enable', val, **kwargs)
 
     def get_predata_emulator_enable(self, **kwargs):
-        """
-        Gets the enable bit for predata emulator.
+        r"""Gets the SmurfProcessor pre-data emulator enable state.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            1 if enabled, 0 if disabled.
+
+        See Also
+        --------
+        :func:`set_predata_emulator_enable` : Sets the enable state.
         """
         return self._caget(self._predata_emulator + 'enable', **kwargs)
 
@@ -6854,13 +10506,44 @@ class SmurfCommandMixin(SmurfBase):
     _predata_emulator_amplitude = "Amplitude"
 
     def set_predata_emulator_amplitude(self, val, **kwargs):
-        """
+        r"""Sets the pre-data emulator signal amplitude.
+
+        The pre-data emulator injects synthetic test data into
+        the streaming pipeline before data processing.
+
+        Args
+        ----
+        val : float
+            Signal amplitude.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_predata_emulator_amplitude` : Gets the current value.
+        :func:`set_predata_emulator_enable` : Enables the emulator.
         """
         self._caput(self._predata_emulator + self._predata_emulator_amplitude,
             val, **kwargs)
 
     def get_predata_emulator_amplitude(self, **kwargs):
-        """
+        r"""Gets the pre-data emulator signal amplitude.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : float
+            Signal amplitude.
+
+        See Also
+        --------
+        :func:`set_predata_emulator_amplitude` : Sets the value.
         """
         return self._caget(self._predata_emulator +
             self._predata_emulator_amplitude, **kwargs)
@@ -6868,13 +10551,40 @@ class SmurfCommandMixin(SmurfBase):
     _predata_emulator_offset = "Offset"
 
     def set_predata_emulator_offset(self, val, **kwargs):
-        """
+        r"""Sets the pre-data emulator signal offset.
+
+        Args
+        ----
+        val : float
+            Signal DC offset.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_predata_emulator_offset` : Gets the current value.
         """
         self._caput(self._predata_emulator + self._predata_emulator_offset, val,
             **kwargs)
 
     def get_predata_emulator_offset(self, **kwargs):
-        """
+        r"""Gets the pre-data emulator signal offset.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : float
+            Signal DC offset.
+
+        See Also
+        --------
+        :func:`set_predata_emulator_offset` : Sets the value.
         """
         return self._caget(self._predata_emulator +
             self._predata_emulator_offset, **kwargs)
@@ -6914,12 +10624,40 @@ class SmurfCommandMixin(SmurfBase):
             self._predata_emulator_period, as_string=True, **kwargs))
 
     def set_postdata_emulator_enable(self, val, **kwargs):
-        """
+        r"""Enables or disables the post-data emulator.
+
+        Args
+        ----
+        val : int
+            1 to enable, 0 to disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_postdata_emulator_enable` : Gets the current state.
+        :func:`set_postdata_emulator_amplitude` : Sets the signal amplitude.
         """
         self._caput(self._postdata_emulator + 'enable', val, **kwargs)
 
     def get_postdata_emulator_enable(self, **kwargs):
-        """
+        r"""Gets the post-data emulator enable state.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            1 if enabled, 0 if disabled.
+
+        See Also
+        --------
+        :func:`set_postdata_emulator_enable` : Sets the enable state.
         """
         return self._caget(self._postdata_emulator + 'enable', **kwargs)
 
@@ -6954,13 +10692,44 @@ class SmurfCommandMixin(SmurfBase):
     _postdata_emulator_amplitude = "Amplitude"
 
     def set_postdata_emulator_amplitude(self, val, **kwargs):
-        """
+        r"""Sets the post-data emulator signal amplitude.
+
+        The post-data emulator injects synthetic test data into
+        the streaming pipeline after data processing.
+
+        Args
+        ----
+        val : float
+            Signal amplitude.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_postdata_emulator_amplitude` : Gets the current value.
+        :func:`set_postdata_emulator_enable` : Enables the emulator.
         """
         self._caput(self._postdata_emulator + self._postdata_emulator_amplitude,
             val, **kwargs)
 
     def get_postdata_emulator_amplitude(self, **kwargs):
-        """
+        r"""Gets the post-data emulator signal amplitude.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : float
+            Signal amplitude.
+
+        See Also
+        --------
+        :func:`set_postdata_emulator_amplitude` : Sets the value.
         """
         return self._caget(self._postdata_emulator +
             self._postdata_emulator_amplitude, **kwargs)
@@ -6968,13 +10737,40 @@ class SmurfCommandMixin(SmurfBase):
     _postdata_emulator_offset = "Offset"
 
     def set_postdata_emulator_offset(self, val, **kwargs):
-        """
+        r"""Sets the post-data emulator signal offset.
+
+        Args
+        ----
+        val : float
+            Signal DC offset.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_postdata_emulator_offset` : Gets the current value.
         """
         self._caput(self._postdata_emulator + self._postdata_emulator_offset,
             val, **kwargs)
 
     def get_postdata_emulator_offset(self, **kwargs):
-        """
+        r"""Gets the post-data emulator signal offset.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : float
+            Signal DC offset.
+
+        See Also
+        --------
+        :func:`set_postdata_emulator_offset` : Sets the value.
         """
         return self._caget(self._postdata_emulator +
             self._postdata_emulator_offset, **kwargs)
@@ -7012,14 +10808,45 @@ class SmurfCommandMixin(SmurfBase):
     _stream_data_source_enable = "SourceEnable"
 
     def set_stream_data_source_enable(self, val, **kwargs):
-        """
-        Sets the data stream enable bit. Must be set to True to stream data.
+        r"""Enables or disables the StreamDataSource emulator.
+
+        The StreamDataSource generates synthetic SMuRF frames at a
+        configurable period for testing without hardware.  This is
+        separate from the real data path.
+
+        Args
+        ----
+        val : bool or int
+            True/1 to enable, False/0 to disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_stream_data_source_enable` : Gets the enable state.
+        :func:`set_stream_data_source_period` : Set frame period.
         """
         self._caput(self.stream_data_source + self._stream_data_source_enable,
             val, **kwargs)
 
     def get_stream_data_source_enable(self, **kwargs):
-        """
+        r"""Gets the data stream source enable state.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            1 if streaming is enabled, 0 if disabled.
+
+        See Also
+        --------
+        :func:`set_stream_data_source_enable` : Sets the enable state.
         """
         return self._caget(self.stream_data_source +
             self._stream_data_source_enable, **kwargs)
@@ -7027,15 +10854,43 @@ class SmurfCommandMixin(SmurfBase):
     _stream_data_period = "Period"
 
     def set_stream_data_source_period(self, val, **kwargs):
-        """
-        Sets the data source period.
+        r"""Sets the StreamDataSource emulator frame period.
+
+        Time between emulated frames in microseconds.
+
+        Args
+        ----
+        val : int
+            Period in microseconds.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_stream_data_source_period` : Gets this value.
+        :func:`set_stream_data_source_enable` : Enable the emulator.
         """
         self._caput(self.stream_data_source + self._stream_data_period, val,
             **kwargs)
 
     def get_stream_data_source_period(self, **kwargs):
-        """
-        Gets the data source period.
+        r"""Gets the StreamDataSource emulator frame period.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            Period in microseconds.
+
+        See Also
+        --------
+        :func:`set_stream_data_source_period` : Sets this value.
         """
         return self._caget(self.stream_data_source + self._stream_data_period,
             **kwargs)
