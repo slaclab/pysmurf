@@ -1711,8 +1711,7 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_eta_scan_freq` : Load frequencies before calling this.
-        :func:`set_eta_scan_amplitude` : Set tone power before calling
-                this.
+        :func:`set_eta_scan_amplitude` : Set tone power before calling this.
         :func:`get_eta_scan_results_real` : Read back real results.
         :func:`get_eta_scan_results_imag` : Read back imaginary results.
         """
@@ -1749,8 +1748,7 @@ class SmurfCommandMixin(SmurfBase):
 
         See Also
         --------
-        :func:`set_eta_scan_channel` : Select channel before calling
-                this.
+        :func:`set_eta_scan_channel` : Select channel before calling this.
         :func:`set_eta_scan_freq` : Load frequencies before calling this.
         :func:`get_eta_scan_results_real` : Read back real results.
         :func:`get_eta_scan_results_imag` : Read back imaginary results.
@@ -1791,10 +1789,8 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`get_eta_scan_results_imag` : Imaginary (Q) component.
-        :func:`set_run_serial_find_freq` : Multi-channel scan that
-                populates this array.
-        :func:`set_run_eta_scan` : Single-channel scan that populates
-                this array.
+        :func:`set_run_serial_find_freq` : Multi-channel scan that populates this.
+        :func:`set_run_eta_scan` : Single-channel scan that populates this.
         """
         return self._caget(
             self._cryo_root(band) + self._eta_scan_results_real_reg,
@@ -1832,10 +1828,8 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`get_eta_scan_results_real` : Real (I) component.
-        :func:`set_run_serial_find_freq` : Multi-channel scan that
-                populates this array.
-        :func:`set_run_eta_scan` : Single-channel scan that populates
-                this array.
+        :func:`set_run_serial_find_freq` : Multi-channel scan that populates this.
+        :func:`set_run_eta_scan` : Single-channel scan that populates this.
         """
         return self._caget(
             self._cryo_root(band) + self._eta_scan_results_imag_reg,
@@ -2916,8 +2910,7 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_tone_file_path` : Sets the path to the tone file CSV.
-        :func:`load_tone_file` : Loads the tone file into the waveform
-                table.
+        :func:`load_tone_file` : Loads the tone file into the waveform table.
         :func:`set_noise_select` : Selects random noise output instead.
         """
         self._caput(
@@ -5666,8 +5659,7 @@ class SmurfCommandMixin(SmurfBase):
 
         See Also
         --------
-        :func:`take_debug_data` : Triggers a data capture using this
-                buffer size.
+        :func:`take_debug_data` : Triggers a data capture using this buffer.
         """
         self._caput(
             self.daq_mux_root.format(bay) +
@@ -5693,8 +5685,7 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_data_buffer_size` : Sets this value.
-        :func:`take_debug_data` : Triggers a data capture using this
-                buffer size.
+        :func:`take_debug_data` : Triggers a data capture using this buffer.
         """
         return self._caget(
             self.daq_mux_root.format(bay) +
@@ -6600,8 +6591,7 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`get_ramp_rate` : Gets the timing system rate setting.
-        :func:`set_ramp_start_mode` : Select internal, timing, or
-            external trigger source.
+        :func:`set_ramp_start_mode` : Select trigger source.
         """
         rate_sel = self.flux_ramp_rate_to_PV(val)
 
@@ -7577,8 +7567,7 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_amp_drain_enable` : Enable or disable.
-        :func:`set_amp_drain_voltage` : Preferred interface — manages
-            enable state automatically on C04/C05.
+        :func:`set_amp_drain_voltage` : Preferred interface (C04/C05).
         """
         self.C.assert_amps_match_this_cryocard(list(amp))
 
@@ -9919,8 +9908,7 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_filter_reset` : Reset the downsample filter.
-        :func:`clear_unwrapping_and_averages` : Reset both unwrapper
-            and averaging via userConfig toggle.
+        :func:`clear_unwrapping_and_averages` : Reset unwrapper and averaging.
         """
         self._caput(
             self.smurf_processor + self._unwrapper_reset_reg,
@@ -10094,8 +10082,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`get_downsample_mode` : Gets the current mode.
         :func:`set_downsample_factor` : Set internal decimation factor.
-        :func:`set_downsample_external_bitmask` : Set which timing
-            bits trigger output in external mode.
+        :func:`set_downsample_external_bitmask` : Set timing bits for external mode.
         """
         if mode == 'internal':
             self._caput(self.smurf_processor + self._downsampler_mode_reg, 0)
@@ -10211,8 +10198,7 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`get_downsample_external_bitmask` : Gets this value.
-        :func:`set_downsample_mode` : Must be 'external' for this
-            to take effect.
+        :func:`set_downsample_mode` : Must be 'external' for this to apply.
         """
         self._caput(self.smurf_processor + self._downsampler_external_bitmask_reg, bitmask)
 
