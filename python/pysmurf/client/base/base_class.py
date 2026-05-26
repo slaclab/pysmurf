@@ -103,8 +103,11 @@ class SmurfBase:
             self._client = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._server_port)
             # Set a 10s timeout, retry up to 9 times for a total of 90s
             self._client.setTimeout(10000, True, 9)  # ms
+            # Stop the monitor thread since we can't guarantee it will be stopped on exit
+            self._client.stopMonitor()
             if atca_monitor:
                 self._atca = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._atca_port)
+                self._atca.stopMonitor()
                 if self._atca.root is None:
                     self.log(f"Could not connect to ATCA monitor at port {self._atca_port}.")
             else:
