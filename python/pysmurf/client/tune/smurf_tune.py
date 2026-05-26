@@ -681,11 +681,11 @@ class SmurfTuneMixin(SmurfBase):
                 att_dc = self.get_att_dc(band)
                 self.log(f'UC (DAC) att: {att_uc}', self.LOG_INFO)
                 self.log(f'DC (ADC) att: {att_dc}', self.LOG_INFO)
-                if att_uc > 0:
+                if att_uc is not None and att_uc > 0:
                     scale = (10**(-att_uc/2/20))
                     self.log(f'UC attenuator > 0. Scaling by {scale:4.3f}', self.LOG_INFO)
                     dac *= scale
-                if att_dc > 0:
+                if att_dc is not None and att_dc > 0:
                     scale = (10**(att_dc/2/20))
                     self.log(f'DC attenuator > 0. Scaling by {scale:4.3f}', self.LOG_INFO)
                     adc *= scale
@@ -2288,7 +2288,6 @@ class SmurfTuneMixin(SmurfBase):
                                   write_log=write_log)
         self.set_eta_scan_amplitude(band, tone_power, write_log=write_log)
         self.set_eta_scan_freq(band, freq, write_log=write_log)
-        self.set_eta_scan_dwell(band, 0, write_log=write_log)
 
         self.set_run_eta_scan(band, 1, wait_done=False, write_log=write_log)
         pvs = [self._cryo_root(band) + self._eta_scan_results_real_reg,
@@ -3240,7 +3239,6 @@ class SmurfTuneMixin(SmurfBase):
         FastSlowRstValue = np.floor((2**self._num_flux_ramp_counter_bits) *
             (1 - fractionFullScale)/2)
 
-        KRelay = 3 #where do these values come from
         PulseWidth = 64
         DebounceWidth = 255
         RampSlope = 0
@@ -3249,7 +3247,6 @@ class SmurfTuneMixin(SmurfBase):
 
         self.set_low_cycle(LowCycle, write_log=write_log)
         self.set_high_cycle(HighCycle, write_log=write_log)
-        self.set_k_relay(KRelay, write_log=write_log)
         self.set_ramp_max_cnt(rampMaxCnt, write_log=write_log)
         self.set_pulse_width(PulseWidth, write_log=write_log)
         self.set_debounce_width(DebounceWidth, write_log=write_log)
@@ -3832,8 +3829,6 @@ class SmurfTuneMixin(SmurfBase):
         self.set_eta_scan_freq(band, freq)
         self.set_eta_scan_amplitude(band, tone_power)
         self.set_eta_scan_channel(band, subchan)
-        self.set_eta_scan_dwell(band, 0)
-
         self.set_run_eta_scan(band, 1)
 
         I = self.get_eta_scan_results_real(band, count=len(freq))
