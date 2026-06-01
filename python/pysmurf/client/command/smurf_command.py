@@ -584,7 +584,7 @@ class SmurfCommandMixin(SmurfBase):
         n_processed_channels=int(0.8125*n_channels)
         return n_processed_channels
 
-    def set_defaults_pv(self, max_timeout_sec=60.0, **kwargs):
+    def set_defaults_pv(self, max_timeout_sec=300.0, **kwargs):
         r"""Loads the default configuration.
 
         Calls the rogue `setDefaults` command, which loads the default
@@ -597,9 +597,11 @@ class SmurfCommandMixin(SmurfBase):
 
         Args
         ----
-        max_timeout_sec : float, optional, default 400.0
+        max_timeout_sec : float, optional, default 300.0
             Seconds to wait for system to configure before giving up.
             Only used for pysmurf core code versions >= 4.1.0.
+            The underlying process will give up after 240s by default,
+            so if a shorter timeout is set here, it may not complete.
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to
             all `_caget` calls.
@@ -633,10 +635,10 @@ class SmurfCommandMixin(SmurfBase):
             # once complete.
             start_time = time.time()
 
-            # Start by calling the 'setDefaults' command. Set the 'wait' flag
-            # to wait for the command to finish, although the server usually
-            # gets unresponsive during setup and the connection is lost.
-            self._caput('AMCc.setDefaults', 1, wait_done=True, **kwargs)
+            # Start by calling the 'setDefaults' command.
+            # This is now implemented as a rogue Process, so this call will
+            # return immediately, and the wait loop that follows will begin
+            self._caput('AMCc.setDefaults.Start', 1, **kwargs)
 
             # Now let's wait until the process is finished. We define a maximum
             # time we will wait, 400 seconds in this case
