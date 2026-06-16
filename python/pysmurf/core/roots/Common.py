@@ -242,6 +242,10 @@ class Common(pyrogue.Root):
             # Set the status register to 'Not found'.
             self.SmurfApplication.JesdStatus.set(3)
 
+        # disable the updateGroup period so that variable updates cannot
+        # interfere with configuration
+        self.setDefaults.UpdatePeriod.set(0.0)
+
         self.Ready.set(True)
 
     def stop(self):
@@ -257,6 +261,10 @@ class Common(pyrogue.Root):
     # "False" otherwise.
     def _load_config(self, timeout=60, max_retries=4):
         success = False
+
+        # ensure the update period is disabled, otherwise the variable update
+        # thread can interfere with some steps of initialisation
+        self.LoadConfigProcess.UpdatePeriod.set(0.0)
 
         for i in range(max_retries):
             print(f'Setting defaults from file {self._config_file} (try number {i})')
