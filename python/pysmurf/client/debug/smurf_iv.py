@@ -423,8 +423,6 @@ class SmurfIVMixin(SmurfBase):
             phase_excursion_list.append(phase_excursion)
 
             if make_plot:
-                plt.rcParams["patch.force_edgecolor"] = True
-
                 if not show_plot:
                     plt.ioff()
 
@@ -1029,8 +1027,6 @@ class SmurfIVMixin(SmurfBase):
             # would work once we had a permanent lookup table of ch to bias group...
 
             if make_plot: # make the timestream plot
-                plt.rcParams["patch.force_edgecolor"] = True
-
                 if not show_plot:
                     plt.ioff()
 
