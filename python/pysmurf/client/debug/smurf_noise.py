@@ -134,9 +134,6 @@ class SmurfNoiseMixin(SmurfBase):
 
         n_channel = len(channels)
 
-        if make_summary_plot or make_channel_plot:
-            plt.rcParams["patch.force_edgecolor"] = True
-
         noise_floors = np.full((len(low_freq), n_channel), np.nan)
         f_knees = np.full(n_channel,np.nan)
         res_freqs = np.full(n_channel,np.nan)
@@ -1006,7 +1003,7 @@ class SmurfNoiseMixin(SmurfBase):
             del phase
 
         # Make plot
-        cm = plt.get_cmap('plasma')
+        cm = plt.colormaps['plasma']
         noise_est_data = []
         if est_NEP:
             NEP_est_data = []
@@ -1763,7 +1760,7 @@ class SmurfNoiseMixin(SmurfBase):
         n_tone = len(tone)
 
         # Make plot
-        cm = plt.get_cmap('plasma')
+        cm = plt.colormaps['plasma']
 
         # Different plot sizes depending on whether there are timestream plots
         n_col = 3
