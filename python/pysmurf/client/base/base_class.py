@@ -13,6 +13,8 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
+import atexit
+
 try:
     import pyrogue.interfaces
 except ModuleNotFoundError:
@@ -101,16 +103,18 @@ class SmurfBase:
         # connect to rogue servers
         if not offline:
             self._client = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._server_port)
-            # set the timeout to supress spam in logs. Retries forever anyway
-            # certain calls take long to complete
-            self._client.setTimeout(10000, True)  # ms
-            # but disable monitor thread to avoid issues on exit. Socket remains open
-            self._client.stop()
+            # Set a 30s timeout. And warn every 5s
+            self._client.setTimeout(5000, 30000)  # ms
+            # disable monitor thread that hangs on exit
+            self._client._monEnable = False
+            # ensure that client socket is closed
+            atexit.register(self._client.stop)
             if atca_monitor:
                 self._atca = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._atca_port)
                 if self._atca.root is None:
                     self.log(f"Could not connect to ATCA monitor at port {self._atca_port}.")
-                self._atca.stop()
+                self._atca._monEnable = False
+                atexit.register(self._atca.stop)
             else:
                 self._atca = _DummyClient("ATCA monitor client")
         else:
