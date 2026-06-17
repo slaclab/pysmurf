@@ -1274,6 +1274,7 @@ class SmurfUtilMixin(SmurfBase):
                     'Fast Cython reader not available. Falling back on slow reader.',
                     self.LOG_ERROR
                 )
+                fast_reader = False  # will impact conversion later
             # Flag to indicate we are about the read the fist frame from the disk
             # The number of channel will be extracted from the first frame and the
             # data structures will be build based on that
