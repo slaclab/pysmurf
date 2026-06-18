@@ -1,4 +1,4 @@
-FROM ghcr.io/slaclab/smurf-rogue:R5.0.1
+FROM ghcr.io/slaclab/smurf-rogue:R5.1.0
 
 RUN apt-get update
 RUN apt-get install -y \
