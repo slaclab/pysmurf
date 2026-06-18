@@ -29,7 +29,7 @@
 FW_SYSTEMS=(
     # uMUX (standard microwave multiplexer) systems
     # Uses Primary:False naming -> rogue_MicrowaveMuxBpEthGen2_<tag>.zip
-    "umux|https://github.com/slaclab/cryo-det|MicrowaveMuxBpEthGen2_v2.4.0|MicrowaveMuxBpEthGen2-0x02040000-20260414104316-ruckman-33885cfb.mcs|rogue_MicrowaveMuxBpEthGen2_v2.4.0.zip"
+    "umux|https://github.com/slaclab/cryo-det|MicrowaveMuxBpEthGen2_v2.5.0|MicrowaveMuxBpEthGen2-0x02050000-20260616105622-ruckman-af249f83.mcs|rogue_MicrowaveMuxBpEthGen2_v2.5.0.zip"
 
     # NO LONGER BEING DEVELOPED
     ## TKID (transition-edge sensor kinetic inductance detector) systems
