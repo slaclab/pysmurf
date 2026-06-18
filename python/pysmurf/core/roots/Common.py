@@ -16,6 +16,7 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
+import time
 
 import pyrogue
 import pyrogue.interfaces
@@ -114,7 +115,7 @@ class Common(pyrogue.Root):
         # will be called with a predefined file passed during startup
         # However, it can be usefull also win the GUI, so it is always added.
         self._config_file = config_file
-        self.add(pyrogue.LocalCommand(
+        self.add(pyrogue.Process(
             name='setDefaults',
             description='Set default configuration',
             function=self._set_defaults_cmd))
@@ -216,7 +217,7 @@ class Common(pyrogue.Root):
 
         # Load default configuration, if requested
         if self._configure:
-            self.setDefaults.call()
+            self._set_defaults_cmd()
 
         # Update the 'EnabledBays' variable with the correct list of enabled bays.
         self.SmurfApplication.EnabledBays.set(self._enabled_bays)
@@ -241,6 +242,10 @@ class Common(pyrogue.Root):
             # Set the status register to 'Not found'.
             self.SmurfApplication.JesdStatus.set(3)
 
+        # disable the updateGroup period so that variable updates cannot
+        # interfere with configuration
+        self.setDefaults.UpdatePeriod.set(0.0)
+
         self.Ready.set(True)
 
     def stop(self):
@@ -254,20 +259,31 @@ class Common(pyrogue.Root):
     # "max_retries" times.
     # This method returns "True" if the configuration file was load correctly, or
     # "False" otherwise.
-    def _load_config(self):
+    def _load_config(self, timeout=60, max_retries=4):
         success = False
-        max_retries = 4
+
+        # ensure the update period is disabled, otherwise the variable update
+        # thread can interfere with some steps of initialisation
+        self.LoadConfigProcess.UpdatePeriod.set(0.0)
 
         for i in range(max_retries):
             print(f'Setting defaults from file {self._config_file} (try number {i})')
 
             try:
                 # Try to load the defaults file
-                ret = self.LoadConfig(self._config_file)
+                self.LoadConfigProcess.LoadMode.setDisp("File")
+                self.LoadConfigProcess.ConfigFile.set(self._config_file)
+                self.LoadConfigProcess.Start()
 
+                # wait for process to complete
+                start = time.time()
+                def keep_waiting():
+                    return (timeout == 0) or ((time.time() - start) <= timeout)
+                while self.LoadConfigProcess.Running.value() and keep_waiting():
+                    time.sleep(0.1)
                 # Check the return value from 'LoadConfig'.
-                if not ret:
-                    print(f'\nSetting defaults try number {i} failed. "LoadConfig" returned "False"\n')
+                if self.LoadConfigProcess.Message.value() != "Done":
+                    print(f'\nSetting defaults try number {i} failed. "LoadConfig" process did not finish.\n')
                 else:
                     success = True
                     break
