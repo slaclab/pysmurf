@@ -30,7 +30,7 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       # Setup python3
       - name: setup python 3.12
@@ -60,7 +60,7 @@ jobs:
       # We use ssh key authentication to be able to access other private
       # repositories (like the firmware repository).
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         #with:
         #  ssh-key: ${{ secrets.SLACLAB_KEY }}
 
@@ -85,7 +85,7 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       # Setup python 3.12
       - name: Setup python 3.12
@@ -114,7 +114,7 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       # Setup Docker build environment
       - name: Set up docker build enviroment
@@ -188,7 +188,7 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       # Setup Docker build environment
       - name: Set up docker build enviroment
@@ -239,7 +239,7 @@ jobs:
     needs: [test-docs, test-server, test-client]  # Run only if all tests passed
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0  # fetch all tags
 
@@ -275,7 +275,7 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -317,7 +317,7 @@ jobs:
       # We use ssh key authentication to be able to access other private
       # repositories (like the firmware repository).
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         #with:
         #  ssh-key: ${{ secrets.SLACLAB_KEY }}
 
@@ -356,7 +356,7 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       # Get the git tag from the environmental variables
       # It will used to tag the docker image
