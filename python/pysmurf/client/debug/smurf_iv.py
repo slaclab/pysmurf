@@ -30,6 +30,7 @@ class SmurfIVMixin(SmurfBase):
     def run_iv(self, bias_groups=None, wait_time=.1, bias=None,
                bias_high=1.5, bias_low=0, bias_step=.005,
                show_plot=False, overbias_wait=2., cool_wait=30,
+               cool_voltage=None,
                make_plot=True, save_plot=True, plotname_append='',
                channels=None, band=None, high_current_mode=True,
                overbias_voltage=8., grid_on=True,
@@ -64,6 +65,12 @@ class SmurfIVMixin(SmurfBase):
         cool_wait : float, optional, default 30.0
             The time to stay in the low current state after
             overbiasing before taking the IV.
+        cool_voltage : float or None, optional, default None
+            The TES bias voltage to hold during the ``cool_wait``
+            period after overbiasing. If None, defaults to
+            ``np.max(bias)`` (the highest IV bias). Setting a value
+            below ``np.max(bias)`` reduces the heat dissipated during
+            the cool-wait window.
         make_plot : bool, optional, default True
             Whether to make plots.
         save_plot : bool, optional, default True
@@ -111,8 +118,9 @@ class SmurfIVMixin(SmurfBase):
 
         # Overbias the TESs to drive them normal
         if overbias:
+            cool_tes_bias = np.max(bias) if cool_voltage is None else cool_voltage
             self.overbias_tes_all(bias_groups=bias_groups,
-                overbias_wait=overbias_wait, tes_bias=np.max(bias),
+                overbias_wait=overbias_wait, tes_bias=cool_tes_bias,
                 cool_wait=cool_wait, high_current_mode=high_current_mode,
                 overbias_voltage=overbias_voltage)
 
