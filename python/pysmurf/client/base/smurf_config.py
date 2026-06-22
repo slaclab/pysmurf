@@ -459,6 +459,17 @@ class SmurfConfig:
 
                 # LMS gain, powers of 2
                 'lmsGain': And(int, lambda n: 0 <= n < 2**3),
+
+                # Optional DSP scale overrides.  When omitted, pysmurf
+                # does not touch the firmware register, so whatever
+                # value defaults.yml programmed stays in effect.  See
+                # issue #67.
+                Optional('toneScale', default=None):
+                    And(int, lambda n: 0 <= n < 2**4),
+                Optional('analysisScale', default=None):
+                    And(int, lambda n: 0 <= n < 2**4),
+                Optional('synthesisScale', default=None):
+                    And(int, lambda n: 0 <= n < 2**4),
             }
         #### Done specifying init schema
 
