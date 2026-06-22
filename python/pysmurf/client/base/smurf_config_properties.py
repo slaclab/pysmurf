@@ -129,6 +129,16 @@ class SmurfConfigPropertiesMixin:
         # Reading/writing data
         self._fs = None
 
+        # SMuRF processor (rogue4 SmurfProcessor downsampling-filter chain)
+        self._filter_disable = None
+        self._filter_freq = None
+        self._filter_order = None
+        self._filter_gain = None
+        self._downsample_mode = None
+        self._downsample_factor = None
+        self._downsample_external_bitmask = None
+        self._unwrapper_disable = None
+
         # In fridge
         self._R_sh = None
 
@@ -265,6 +275,20 @@ class SmurfConfigPropertiesMixin:
 
         ## Reading/writing data
         self.fs = config.get('fs')
+
+        ## SMuRF processor
+        # The schema's Optional(...) defaults populate every sub-key when
+        # the user omits the block, so a plain config.get('processor') is
+        # always a fully-populated dict here.
+        processor_cfg = config.get('processor')
+        self.filter_disable = processor_cfg['filter_disable']
+        self.filter_freq = processor_cfg['filter_freq']
+        self.filter_order = processor_cfg['filter_order']
+        self.filter_gain = processor_cfg['filter_gain']
+        self.downsample_mode = processor_cfg['downsample_mode']
+        self.downsample_factor = processor_cfg['downsample_factor']
+        self.downsample_external_bitmask = processor_cfg['downsample_external_bitmask']
+        self.unwrapper_disable = processor_cfg['unwrapper_disable']
 
         ## In fridge
         self.R_sh = config.get('R_sh')
@@ -2594,4 +2618,234 @@ class SmurfConfigPropertiesMixin:
         self._att_dc = value
 
     ## End att_dc property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start filter_disable property definition
+
+    # Getter
+    @property
+    def filter_disable(self):
+        """SMuRF processor downsampling-filter disable bit.
+
+        If True, the rogue4 SmurfProcessor IIR filter is bypassed and
+        incoming data passes straight to the downsampler.
+
+        Specified in the pysmurf configuration file as
+        `processor:filter_disable`.
+
+        See Also
+        --------
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_filter_disable`
+
+        """
+        return self._filter_disable
+
+    # Setter
+    @filter_disable.setter
+    def filter_disable(self, value):
+        self._filter_disable = value
+
+    ## End filter_disable property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start filter_freq property definition
+
+    # Getter
+    @property
+    def filter_freq(self):
+        """SMuRF processor downsampling-filter cutoff frequency, in Hz.
+
+        Used together with :attr:`filter_order` to derive the IIR A/B
+        coefficients via :func:`scipy.signal.butter` at setup time.
+        Normalized against the flux-ramp rate (the filter's input
+        sample rate is one sample per channel per flux-ramp reset).
+
+        Specified in the pysmurf configuration file as
+        `processor:filter_freq`.
+
+        See Also
+        --------
+        :attr:`filter_order`, :attr:`reset_rate_khz`
+
+        """
+        return self._filter_freq
+
+    # Setter
+    @filter_freq.setter
+    def filter_freq(self, value):
+        self._filter_freq = value
+
+    ## End filter_freq property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start filter_order property definition
+
+    # Getter
+    @property
+    def filter_order(self):
+        """SMuRF processor downsampling-filter order.
+
+        Order of the Butterworth filter whose A/B coefficients are
+        loaded into the rogue4 SmurfProcessor.  Must be 1..15 (the
+        firmware register holds 16 taps).
+
+        Specified in the pysmurf configuration file as
+        `processor:filter_order`.
+
+        See Also
+        --------
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_filter_order`
+
+        """
+        return self._filter_order
+
+    # Setter
+    @filter_order.setter
+    def filter_order(self, value):
+        self._filter_order = value
+
+    ## End filter_order property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start filter_gain property definition
+
+    # Getter
+    @property
+    def filter_gain(self):
+        """SMuRF processor downsampling-filter gain.
+
+        Specified in the pysmurf configuration file as
+        `processor:filter_gain`.
+
+        See Also
+        --------
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_filter_gain`
+
+        """
+        return self._filter_gain
+
+    # Setter
+    @filter_gain.setter
+    def filter_gain(self, value):
+        self._filter_gain = value
+
+    ## End filter_gain property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start downsample_mode property definition
+
+    # Getter
+    @property
+    def downsample_mode(self):
+        """SMuRF processor downsampler mode.
+
+        Either ``'internal'`` (downsample by an integer factor) or
+        ``'external'`` (gate the downsampler from the timing system
+        bitmask).
+
+        Specified in the pysmurf configuration file as
+        `processor:downsample_mode`.
+
+        See Also
+        --------
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_downsample_mode`
+
+        """
+        return self._downsample_mode
+
+    # Setter
+    @downsample_mode.setter
+    def downsample_mode(self, value):
+        self._downsample_mode = value
+
+    ## End downsample_mode property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start downsample_factor property definition
+
+    # Getter
+    @property
+    def downsample_factor(self):
+        """SMuRF processor internal downsample factor.
+
+        Only used when :attr:`downsample_mode` is ``'internal'``.
+
+        Specified in the pysmurf configuration file as
+        `processor:downsample_factor`.
+
+        See Also
+        --------
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_downsample_factor`
+
+        """
+        return self._downsample_factor
+
+    # Setter
+    @downsample_factor.setter
+    def downsample_factor(self, value):
+        self._downsample_factor = value
+
+    ## End downsample_factor property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start downsample_external_bitmask property definition
+
+    # Getter
+    @property
+    def downsample_external_bitmask(self):
+        """SMuRF processor external downsampler bitmask.
+
+        Only used when :attr:`downsample_mode` is ``'external'``.
+
+        Specified in the pysmurf configuration file as
+        `processor:downsample_external_bitmask`.
+
+        See Also
+        --------
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_downsample_external_bitmask`
+
+        """
+        return self._downsample_external_bitmask
+
+    # Setter
+    @downsample_external_bitmask.setter
+    def downsample_external_bitmask(self, value):
+        self._downsample_external_bitmask = value
+
+    ## End downsample_external_bitmask property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start unwrapper_disable property definition
+
+    # Getter
+    @property
+    def unwrapper_disable(self):
+        """SMuRF processor unwrapper disable bit.
+
+        If True, the rogue4 SmurfProcessor unwrapper is bypassed.
+
+        Specified in the pysmurf configuration file as
+        `processor:unwrapper_disable`.
+
+        See Also
+        --------
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_unwrapper_disable`
+
+        """
+        return self._unwrapper_disable
+
+    # Setter
+    @unwrapper_disable.setter
+    def unwrapper_disable(self, value):
+        self._unwrapper_disable = value
+
+    ## End unwrapper_disable property definition
     ###########################################################################
