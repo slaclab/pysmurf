@@ -77,6 +77,8 @@ class SmurfTuneMixin(SmurfBase):
         new_master_assignment : bool, optional, default False
             Whether to make a new master assignment which forces
             resonators at a given frequency to a given channel.
+            Set True the first time you tune or whenever the resonator
+            set has changed.
         track_and_check : bool, optional, default True
             Whether or not after tuning to run track and check.
         """
@@ -299,6 +301,8 @@ class SmurfTuneMixin(SmurfBase):
             Whether to make a plot per subband. This is very slow.
         new_master_assignment : bool, optional, default False
             Whether to overwrite the previous master_assignment list.
+            Set True the first time you tune or whenever the resonator
+            set has changed.
         from_old_tune : bool, optional, default False
             Whether to use an old tuning file. This will load a tuning
             file and use its peak frequencies as a starting point for
@@ -1676,6 +1680,12 @@ class SmurfTuneMixin(SmurfBase):
         offsets = np.zeros(len(freq))
 
         if not new_master_assignment:
+            if f'band_{band}' not in self.channel_assignment_files:
+                msg = (f'No channel_assignment file found for band {band} '
+                       f'in {self.tune_dir}. Rerun with '
+                       'new_master_assignment=True to create one.')
+                self.log(msg, self.LOG_ERROR)
+                raise RuntimeError(msg)
             freq_master,subbands_master,channels_master,groups_master = \
                 self.get_master_assignment(band)
             n_freqs = len(freq)
@@ -1704,7 +1714,15 @@ class SmurfTuneMixin(SmurfBase):
                     self.log(f'No match found for {f:.2f} MHz')
             self.log(
                 f'No channel assignment for {n_unmatched} of {n_freqs}'+
-                ' resonances.')
+                ' resonances.', self.LOG_USER)
+            if n_freqs > 0 and n_unmatched / n_freqs >= 0.5:
+                self.log(
+                    f'WARNING: {n_unmatched}/{n_freqs} resonances in '
+                    f'band {band} did not match the master channel '
+                    'assignment. The master assignment file may be '
+                    'out of date. To reassign all current resonances '
+                    'and overwrite the master file, rerun with '
+                    'new_master_assignment=True.', self.LOG_USER)
         else:
             d_freq = np.diff(freq)
             close_idx = d_freq > min_offset
