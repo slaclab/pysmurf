@@ -655,11 +655,11 @@ class SmurfTuneMixin(SmurfBase):
             # Take read the ADC data
             try:
                 adc = self.read_adc_data(band, nsamp, hw_trigger=hw_trigger,
-                    save_data=False)
+                    save_data=False, check_if_adc_is_saturated=False)
             except Exception:
                 self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
                 adc = self.read_adc_data(band, nsamp, hw_trigger=hw_trigger,
-                    save_data=False)
+                    save_data=False, check_if_adc_is_saturated=False)
             time.sleep(.05)  # Need to wait, otherwise dac call interferes with adc
 
             try:
