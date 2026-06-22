@@ -1671,6 +1671,13 @@ class SmurfTuneMixin(SmurfBase):
             self.log('Must have band or bandcenter', self.LOG_ERROR)
             raise ValueError('Must have band or bandcenter')
 
+        if len(freq) == 0:
+            self.log('assign_channels called with empty frequency array;' +
+                     ' no channels will be assigned.', self.LOG_USER)
+            return (np.zeros(0, dtype=int),
+                    -1 * np.ones(0, dtype=int),
+                    np.zeros(0))
+
         subbands = np.zeros(len(freq), dtype=int)
         channels = -1 * np.ones(len(freq), dtype=int)
         offsets = np.zeros(len(freq))
