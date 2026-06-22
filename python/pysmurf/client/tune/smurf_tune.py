@@ -1541,6 +1541,9 @@ class SmurfTuneMixin(SmurfBase):
             The frequency to search for a subband.
         band : int
             The band to identify.
+        as_offset : bool, optional, default True
+            Whether to return subband centers as an offset from the band
+            center (passed through to ``get_subband_centers``).
 
         Returns
         -------
@@ -1647,14 +1650,23 @@ class SmurfTuneMixin(SmurfBase):
 
         band : int or None, optional, default None
             The band to assign channels.
-        band_center : float array or None, optional, default None
+        bandcenter : float array or None, optional, default None
             The frequency center of the band. Must supply band or
             subband center.
         channel_per_subband : int, optional, default 4
             The number of channels to assign per subband.
+        as_offset : bool, optional, default True
+            Whether subband centers are computed as offsets from the
+            band center (passed through to ``get_subband_centers`` and
+            ``get_closest_subband``).
         min_offset : float, optional, default 0.1
             The minimum offset between two resonators in MHz.  If
             closer, then both are ignored.
+        new_master_assignment : bool, optional, default False
+            If True, assign each resonator to its closest subband and
+            write a fresh master assignment file for this band. If
+            False (default), match resonators against the existing
+            master assignment loaded via ``get_master_assignment``.
 
         Returns
         -------
