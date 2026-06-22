@@ -358,7 +358,7 @@ class SmurfConfig:
 
         """
         # Import useful schema objects
-        from schema import Schema, And, Use, Optional, Regex
+        from schema import Schema, And, Or, Use, Optional, Regex
 
         # Start with an extremely limited validation to figure out
         # things that we need to validate the entire configuration
@@ -429,6 +429,18 @@ class SmurfConfig:
 
                 # use bandDelayUs (microseconds) instead of refPhaseDelay(Fine)
                 Optional('bandDelayUs', default=None): And(Use(float), lambda n : 0 <= n < 30),
+
+                # Optional list of DSP subband indices known to be
+                # empty of resonators on this hardware.  When set,
+                # estimate_phase_delay() uses these subbands for the
+                # DSP latency fit instead of geometrically selecting
+                # subbands from its freq_min/freq_max arguments.
+                # This avoids the bias that resonator phase response
+                # would otherwise introduce into the linear
+                # phase-vs-frequency polyfit.
+                Optional('phaseDelaySubbands', default=None):
+                    Or(None, And([Use(int)], list,
+                       lambda l: all(0 <= sb < 128 for sb in l))),
 
                 # RF attenuator on SMuRF output.  UC=up convert.  0.5dB steps.
                 'att_uc': And(int, lambda n: 0 <= n < 2**5),

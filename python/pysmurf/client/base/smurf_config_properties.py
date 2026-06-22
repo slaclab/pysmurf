@@ -146,6 +146,7 @@ class SmurfConfigPropertiesMixin:
         self._ref_phase_delay = None
         self._ref_phase_delay_fine = None
         self._band_delay_us = None
+        self._phase_delay_subbands = None
         self._att_uc = None
         self._att_dc = None
         self._trigger_reset_delay = None
@@ -301,6 +302,9 @@ class SmurfConfigPropertiesMixin:
             for band in bands}
         self.band_delay_us = {
             band:smurf_init_config[f'band_{band}']['bandDelayUs']
+            for band in bands}
+        self.phase_delay_subbands = {
+            band:smurf_init_config[f'band_{band}']['phaseDelaySubbands']
             for band in bands}
         self.att_uc = {
             band:smurf_init_config[f'band_{band}']['att_uc']
@@ -2302,6 +2306,50 @@ class SmurfConfigPropertiesMixin:
         self._band_delay_us = value
 
     ## End band_delay_us property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start phase_delay_subbands property definition
+
+    # Getter
+    @property
+    def phase_delay_subbands(self):
+        """Subbands known to contain no resonators on this hardware.
+
+        Per-band dict of lists of DSP subband indices to use for
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.estimate_phase_delay`
+        's DSP latency fit.  Restricting the fit to resonator-free
+        subbands avoids the bias that resonator phase response would
+        otherwise introduce into the linear phase-vs-frequency
+        polyfit.
+
+        If `None` for a given band,
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.estimate_phase_delay`
+        falls back to geometric subband selection from its
+        ``freq_min``/``freq_max`` arguments.
+
+        Specified in the pysmurf configuration file under
+        ``init.band_<N>.phaseDelaySubbands``.
+
+        Returns
+        -------
+        dict
+           Per-band dict (keyed by band number) of `list` of `int`
+           or `None`.
+
+        See Also
+        --------
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.estimate_phase_delay`
+
+        """
+        return self._phase_delay_subbands
+
+    # Setter
+    @phase_delay_subbands.setter
+    def phase_delay_subbands(self, value):
+        self._phase_delay_subbands = value
+
+    ## End phase_delay_subbands property definition
     ###########################################################################
 
     ###########################################################################
