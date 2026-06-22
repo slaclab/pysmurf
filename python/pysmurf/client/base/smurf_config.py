@@ -761,6 +761,17 @@ class SmurfConfig:
                                           lambda f: 0 <= f <= 99)
         #### Done specifying thermal schema
 
+        #### Start payload size schema
+        # Default payload size used by S.setup().  If None or absent,
+        # S.setup() falls back to its built-in default (2048).  A value
+        # of 0 lets rogue auto-size the payload from the channel mask.
+        # See issue #299.
+        schema_dict[
+            Optional('payload_size',
+                     default=None)] = And(Use(int),
+                                          lambda n: 0 <= n <= 4096)
+        #### Done specifying payload size schema
+
         #### Start specifying timing-related schema
         schema_dict["timing"] = {
             # "ext_ref" : internal oscillator locked to an external
