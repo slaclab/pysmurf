@@ -733,7 +733,7 @@ class SmurfTuneMixin(SmurfBase):
             else:
                 plt.ioff()
 
-            fig, ax = plt.subplots(3, figsize=(5,8), sharex=True)
+            fig1, ax = plt.subplots(3, figsize=(5,8), sharex=True)
             f_plot = f / 1.0E6
 
             plot_idx = np.where(np.logical_and(f_plot>-250, f_plot<250))
@@ -753,9 +753,9 @@ class SmurfTuneMixin(SmurfBase):
                     f'{timestamp}_b{band}_full_band_resp_raw.png')
                 plt.savefig(path, bbox_inches='tight')
                 self.pub.register_file(path, 'response', plot=True)
-                plt.close()
+            plt.close(fig1)
 
-            fig, ax = plt.subplots(1, figsize=(5.5, 3))
+            fig2, ax = plt.subplots(1, figsize=(5.5, 3))
 
             # Log y-scale plot
             ax.plot(f_plot[plot_idx], np.log10(np.abs(resp[plot_idx])))
@@ -776,7 +776,7 @@ class SmurfTuneMixin(SmurfBase):
             if show_plot:
                 plt.show()
             else:
-                plt.close()
+                plt.close(fig2)
 
         if save_data:
             save_name = timestamp + '_{}_full_band_resp.txt'
