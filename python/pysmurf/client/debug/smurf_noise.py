@@ -257,12 +257,21 @@ class SmurfNoiseMixin(SmurfBase):
                 # Publish the data
                 self.pub.register_file(outfn, 'noise_timestream', format='txt')
 
-                np.save(os.path.join(self.output_dir,
-                    f'{basename}_wl_list'), wl_list)
-                np.save(os.path.join(self.output_dir,
-                    f'{basename}_f_knee_list'), f_knee_list)
-                np.save(os.path.join(self.output_dir,
-                    f'{basename}_n_list'), n_list)
+                wl_path = os.path.join(self.output_dir,
+                    f'{basename}_wl_list')
+                np.save(wl_path, wl_list)
+                self.pub.register_file(wl_path, 'noise_timestream',
+                    format='npy')
+                f_knee_path = os.path.join(self.output_dir,
+                    f'{basename}_f_knee_list')
+                np.save(f_knee_path, f_knee_list)
+                self.pub.register_file(f_knee_path, 'noise_timestream',
+                    format='npy')
+                n_path = os.path.join(self.output_dir,
+                    f'{basename}_n_list')
+                np.save(n_path, n_list)
+                self.pub.register_file(n_path, 'noise_timestream',
+                    format='npy')
 
         if make_summary_plot:
             bins = np.arange(0,351,20)
@@ -1290,6 +1299,7 @@ class SmurfNoiseMixin(SmurfBase):
                 self.log(f'Saving plot to {plot_fn}')
                 plt.savefig(plot_fn,
                     bbox_inches='tight')
+                self.pub.register_file(plot_fn, 'noise_vs_bias', plot=True)
                 plt.close()
 
             del f
@@ -1379,6 +1389,8 @@ class SmurfNoiseMixin(SmurfBase):
             plot_fn = os.path.join(self.plot_dir, plot_name)
             self.log(f'\nSaving NEI histogram to {plot_fn}')
             plt.savefig(plot_fn, bbox_inches='tight')
+            self.pub.register_file(plot_fn, 'noise_vs_bias_nei_hist',
+                plot=True)
             plt.close()
 
         if est_NEP:
@@ -1428,6 +1440,8 @@ class SmurfNoiseMixin(SmurfBase):
                 plot_fn = os.path.join(self.plot_dir, plot_name)
                 self.log(f'\nSaving NEP histogram to {plot_fn}')
                 plt.savefig(plot_fn, bbox_inches='tight')
+                self.pub.register_file(plot_fn, 'noise_vs_bias_nep_hist',
+                    plot=True)
                 plt.close()
 
 
@@ -1907,6 +1921,7 @@ class SmurfNoiseMixin(SmurfBase):
                 self.log(f'Saving plot to {plot_fn}')
                 plt.savefig(plot_fn,
                     bbox_inches='tight')
+                self.pub.register_file(plot_fn, 'noise_vs_tone', plot=True)
                 plt.close()
 
 
@@ -2033,8 +2048,10 @@ class SmurfNoiseMixin(SmurfBase):
             plt.tight_layout()
 
             if save_plot:
-                plt.savefig(os.path.join(self.plot_dir, f'{filename}.png'),
-                    bbox_inches='tight')
+                path = os.path.join(self.plot_dir, f'{filename}.png')
+                plt.savefig(path, bbox_inches='tight')
+                self.pub.register_file(path, 'noise_high_bandwidth',
+                    plot=True)
             if show_plot:
                 plt.show()
             else:
@@ -2042,7 +2059,10 @@ class SmurfNoiseMixin(SmurfBase):
 
         if save_psd:
             np.save(os.path.join(self.output_dir, f'{filename}'), ff)
-            np.save(os.path.join(self.output_dir, f'{filename}'), pxx)
+            psd_path = os.path.join(self.output_dir, f'{filename}')
+            np.save(psd_path, pxx)
+            self.pub.register_file(psd_path, 'noise_high_bandwidth_psd',
+                format='npy')
 
         return ff, pxx
 
@@ -2128,8 +2148,9 @@ class SmurfNoiseMixin(SmurfBase):
             if save_name is None:
                 raise IOError('To save plot, save_name must be provided')
             else:
-                plt.savefig(os.path.join(self.plot_dir, save_name),
-                            bbox_inches='tight')
+                path = os.path.join(self.plot_dir, save_name)
+                plt.savefig(path, bbox_inches='tight')
+                self.pub.register_file(path, 'svd_summary', plot=True)
 
         if show_plot:
             plt.show()
@@ -2186,8 +2207,9 @@ class SmurfNoiseMixin(SmurfBase):
             if save_name is None:
                 raise IOError('To save plot, save_name must be provided')
             else:
-                plt.savefig(os.path.join(self.plot_dir, save_name),
-                            bbox_inches='tight')
+                path = os.path.join(self.plot_dir, save_name)
+                plt.savefig(path, bbox_inches='tight')
+                self.pub.register_file(path, 'svd_modes', plot=True)
 
         if show_plot:
             plt.show()
