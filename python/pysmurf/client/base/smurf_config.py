@@ -729,7 +729,12 @@ class SmurfConfig:
         #### Start specifying flux ramp-related
         schema_dict["flux_ramp"] = {
             # 20 bits for the C0 RTMs, 32 bits for the C1 RTMs.
-            "num_flux_ramp_counter_bits" : And(int, lambda n: n in (20, 32))
+            "num_flux_ramp_counter_bits" : And(int, lambda n: n in (20, 32)),
+            # Cryocard flux-ramp coupling: "AC" or "DC". Case-insensitive.
+            # If omitted, setup() leaves the relay in whatever state the
+            # hardware is currently in (backwards compatible). Issue #510.
+            Optional('ac_dc_mode', default=None) :
+                And(str, lambda s: s.upper() in ('AC', 'DC'))
         }
         #### Done specifying flux-ramp related
 
