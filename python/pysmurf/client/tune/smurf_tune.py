@@ -643,37 +643,41 @@ class SmurfTuneMixin(SmurfBase):
             self.set_trigger_hw_arm(bay, 0, write_log=write_log)
 
             self.set_noise_select(band, 1, wait_done=True, write_log=write_log)
-            # if true, checks whether or not playing noise file saturates the ADC.
-            #If ADC is saturated, throws an exception.
-            if check_if_adc_is_saturated:
-                adc_is_saturated = self.check_adc_saturation(band)
-                if adc_is_saturated:
-                    raise ValueError('Playing the noise file saturates the '+
-                        f'ADC for band {band}.  Try increasing the DC '+
-                        'attenuation for this band.')
-
-            # Take read the ADC data
             try:
-                adc = self.read_adc_data(band, nsamp, hw_trigger=hw_trigger,
-                    save_data=False)
-            except Exception:
-                self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
-                adc = self.read_adc_data(band, nsamp, hw_trigger=hw_trigger,
-                    save_data=False)
-            time.sleep(.05)  # Need to wait, otherwise dac call interferes with adc
+                # if true, checks whether or not playing noise file saturates the ADC.
+                #If ADC is saturated, throws an exception.
+                if check_if_adc_is_saturated:
+                    adc_is_saturated = self.check_adc_saturation(band)
+                    if adc_is_saturated:
+                        raise ValueError('Playing the noise file saturates the '+
+                            f'ADC for band {band}.  Try increasing the DC '+
+                            'attenuation for this band.')
 
-            try:
-                dac = self.read_dac_data(
-                    band, nsamp, hw_trigger=hw_trigger,
-                    save_data=False)
-            except BaseException:
-                self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
-                dac = self.read_dac_data(
-                    band, nsamp, hw_trigger=hw_trigger,
-                    save_data=False)
-            time.sleep(.05)
+                # Take read the ADC data
+                try:
+                    adc = self.read_adc_data(band, nsamp, hw_trigger=hw_trigger,
+                        save_data=False)
+                except Exception:
+                    self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
+                    adc = self.read_adc_data(band, nsamp, hw_trigger=hw_trigger,
+                        save_data=False)
+                time.sleep(.05)  # Need to wait, otherwise dac call interferes with adc
 
-            self.set_noise_select(band, 0, wait_done=True, write_log=write_log)
+                try:
+                    dac = self.read_dac_data(
+                        band, nsamp, hw_trigger=hw_trigger,
+                        save_data=False)
+                except BaseException:
+                    self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
+                    dac = self.read_dac_data(
+                        band, nsamp, hw_trigger=hw_trigger,
+                        save_data=False)
+                time.sleep(.05)
+            finally:
+                # Always disable the noise file, even if the data read above
+                # raised, so the band is not left streaming broadband noise
+                # (issue #131).
+                self.set_noise_select(band, 0, wait_done=True, write_log=write_log)
 
             # Account for the up and down converter attenuators
             if correct_att:
