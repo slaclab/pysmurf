@@ -492,3 +492,346 @@ class SmurfAtcaMonitorMixin(SmurfBase):
                                             self._rtm_product_version_reg, as_string=True,
                                             **kwargs)
             return f'{rtm_product_version}-{rtm_product_asset_tag}'
+
+    # Crate-level (chassis) getters.  These wrap non-slot-scoped Rogue
+    # variables exposed by the atca_monitor server (see
+    # https://github.com/slaclab/smurf-atca-monitor):
+    #   - Crate.Sensors.Crate.CrateInfo.*   : shelf FRU fields
+    #   - Crate.Sensors.Crate.FanTrays.*    : per-fan-tray speed levels
+    #   - Crate.IpmiThread.*                : atca_monitor poll thread health
+
+    _crate_info_path = 'Crate.Sensors.Crate.CrateInfo.'
+    _crate_manufacturer_reg  = _crate_info_path + 'manufacturer'
+    # Note the capital 'N': upstream monitor.py renames the FRU 'name' field to
+    # 'Name' to avoid a name collision when generating the Rogue tree.
+    _crate_product_name_reg  = _crate_info_path + 'Name'
+    _crate_version_reg       = _crate_info_path + 'version'
+    _crate_serial_number_reg = _crate_info_path + 'serial_number'
+    _crate_part_number_reg   = _crate_info_path + 'part_number'
+
+    def get_crate_manufacturer(self, **kwargs):
+        r"""Returns the ATCA crate manufacturer.
+
+        Reads the 'manufacturer' field from the shelf FRU product info area,
+        as exposed by the atca_monitor server at
+        `Crate.Sensors.Crate.CrateInfo.manufacturer`.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        str or None
+            Crate manufacturer string (e.g. 'comtel', 'asis').  If None,
+            either the EPICS query timed out or the atca_monitor server
+            isn't running.
+        """
+        return self._atca_caget(self._crate_manufacturer_reg, as_string=True, **kwargs)
+
+    def get_crate_product_name(self, **kwargs):
+        r"""Returns the ATCA crate product name.
+
+        Reads the 'name' field from the shelf FRU product info area,
+        as exposed by the atca_monitor server at
+        `Crate.Sensors.Crate.CrateInfo.Name`.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        str or None
+            Crate product name.  If None, either the EPICS query timed
+            out or the atca_monitor server isn't running.
+        """
+        return self._atca_caget(self._crate_product_name_reg, as_string=True, **kwargs)
+
+    def get_crate_version(self, **kwargs):
+        r"""Returns the ATCA crate hardware version.
+
+        Reads the 'version' field from the shelf FRU product info area,
+        as exposed by the atca_monitor server at
+        `Crate.Sensors.Crate.CrateInfo.version`.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        str or None
+            Crate hardware version string.  If None, either the EPICS
+            query timed out or the atca_monitor server isn't running.
+        """
+        return self._atca_caget(self._crate_version_reg, as_string=True, **kwargs)
+
+    def get_crate_serial_number(self, **kwargs):
+        r"""Returns the ATCA crate serial number.
+
+        Reads the 'serial_number' field from the shelf FRU product info
+        area, as exposed by the atca_monitor server at
+        `Crate.Sensors.Crate.CrateInfo.serial_number`.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        str or None
+            Crate serial number string.  If None, either the EPICS
+            query timed out or the atca_monitor server isn't running.
+        """
+        return self._atca_caget(self._crate_serial_number_reg, as_string=True, **kwargs)
+
+    def get_crate_part_number(self, **kwargs):
+        r"""Returns the ATCA crate part number.
+
+        Reads the 'part_number' field from the shelf FRU product info
+        area, as exposed by the atca_monitor server at
+        `Crate.Sensors.Crate.CrateInfo.part_number`.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        str or None
+            Crate part number string.  If None, either the EPICS
+            query timed out or the atca_monitor server isn't running.
+        """
+        return self._atca_caget(self._crate_part_number_reg, as_string=True, **kwargs)
+
+    def get_crate_info(self):
+        """Returns all available crate FRU fields as a dictionary.
+
+        The atca_monitor server populates `Crate.Sensors.Crate.CrateInfo.*`
+        dynamically from the shelf manager FRU's product info area, so the
+        exact set of fields varies by crate model (e.g. Comtel vs ASIS).
+        This walks the Rogue subtree and returns whatever is exposed,
+        which is useful for discovery on a new crate before reaching for
+        a specific named getter (`get_crate_manufacturer`, etc.).
+
+        Returns
+        -------
+        dict
+            Mapping of FRU field name (str) to field value.  Returns an
+            empty dict if the CrateInfo subtree exists but has no
+            populated fields.
+
+        Raises
+        ------
+        ConnectionError
+            If the atca_monitor client is not connected.
+        ValueError
+            If the `Crate.Sensors.Crate.CrateInfo` node is not present
+            on the connected atca_monitor server.
+        """
+        if self._atca.root is None:
+            raise ConnectionError("ATCA monitor is not connected")
+
+        # Strip trailing dot from the path constant.
+        node = self._atca.root.getNode(self._crate_info_path.rstrip('.'))
+        if node is None:
+            raise ValueError(
+                "Could not access ATCA monitor node "
+                f"{self._crate_info_path.rstrip('.')}")
+
+        return {var.name: var.get() for var in node.variables.values()}
+
+    _fan_trays_path = 'Crate.Sensors.Crate.FanTrays.'
+    _fan_speed_level_reg     = 'speed_level'
+    _fan_min_speed_level_reg = 'minimum_speed_level'
+    _fan_max_speed_level_reg = 'maximum_speed_level'
+
+    def get_fan_tray_names(self):
+        """Returns the list of fan tray names exposed by the atca_monitor.
+
+        Fan tray names are crate-dependent and are populated dynamically
+        when the atca_monitor server scans IPMI FRUs containing
+        'FanTray' in their device id string (see
+        `slaclab/smurf-atca-monitor` `monitor.py`).
+
+        Returns
+        -------
+        list of str
+            Fan tray names (e.g. ['FanTray_1', 'FanTray_2']).  Returns
+            an empty list if no fan trays are exposed.
+
+        Raises
+        ------
+        ConnectionError
+            If the atca_monitor client is not connected.
+        ValueError
+            If the `Crate.Sensors.Crate.FanTrays` node is not present
+            on the connected atca_monitor server.
+        """
+        if self._atca.root is None:
+            raise ConnectionError("ATCA monitor is not connected")
+
+        node = self._atca.root.getNode(self._fan_trays_path.rstrip('.'))
+        if node is None:
+            raise ValueError(
+                "Could not access ATCA monitor node "
+                f"{self._fan_trays_path.rstrip('.')}")
+
+        return list(node.nodes.keys())
+
+    def get_fan_tray_speed_level(self, fan_tray, **kwargs):
+        r"""Returns the current speed level of a fan tray.
+
+        Args
+        ----
+        fan_tray : str
+            Fan tray name as returned by :func:`get_fan_tray_names`
+            (e.g. 'FanTray_1').
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int or None
+            Current fan speed level.  Crate-specific units
+            (e.g. 0-100 for Comtel, 0-15 for ASIS).  If None, either
+            the EPICS query timed out or the atca_monitor server isn't
+            running.
+        """
+        return self._atca_caget(
+            self._fan_trays_path + f'{fan_tray}.' + self._fan_speed_level_reg,
+            **kwargs)
+
+    def get_fan_tray_min_speed_level(self, fan_tray, **kwargs):
+        r"""Returns the minimum allowed speed level of a fan tray.
+
+        Args
+        ----
+        fan_tray : str
+            Fan tray name as returned by :func:`get_fan_tray_names`.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int or None
+            Minimum allowed fan speed level.  If None, either the EPICS
+            query timed out or the atca_monitor server isn't running.
+        """
+        return self._atca_caget(
+            self._fan_trays_path + f'{fan_tray}.' + self._fan_min_speed_level_reg,
+            **kwargs)
+
+    def get_fan_tray_max_speed_level(self, fan_tray, **kwargs):
+        r"""Returns the maximum allowed speed level of a fan tray.
+
+        Args
+        ----
+        fan_tray : str
+            Fan tray name as returned by :func:`get_fan_tray_names`.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int or None
+            Maximum allowed fan speed level.  If None, either the EPICS
+            query timed out or the atca_monitor server isn't running.
+        """
+        return self._atca_caget(
+            self._fan_trays_path + f'{fan_tray}.' + self._fan_max_speed_level_reg,
+            **kwargs)
+
+    _ipmi_thread_path = 'Crate.IpmiThread.'
+    _ipmi_timestamp_reg       = _ipmi_thread_path + 'TimeStamp'
+    _ipmi_poll_period_reg     = _ipmi_thread_path + 'PollPeriod'
+    _ipmi_min_poll_period_reg = _ipmi_thread_path + 'MinPollPeriod'
+
+    def get_atca_ipmi_timestamp(self, **kwargs):
+        r"""Returns the timestamp of the last IPMI poll.
+
+        Wraps `Crate.IpmiThread.TimeStamp` from the atca_monitor server.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        str or None
+            Timestamp string of last IPMI query.  If None, either the
+            EPICS query timed out or the atca_monitor server isn't
+            running.
+        """
+        return self._atca_caget(self._ipmi_timestamp_reg, **kwargs)
+
+    def get_atca_ipmi_poll_period(self, **kwargs):
+        r"""Returns the actual measured period between IPMI polls, in seconds.
+
+        Wraps `Crate.IpmiThread.PollPeriod` from the atca_monitor server.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        float or None
+            Measured time period between IPMI polls in seconds.  If
+            None, either the EPICS query timed out or the atca_monitor
+            server isn't running.
+        """
+        return self._atca_caget(self._ipmi_poll_period_reg, **kwargs)
+
+    def get_atca_ipmi_min_poll_period(self, **kwargs):
+        r"""Returns the configured minimum allowed period between IPMI polls.
+
+        Wraps `Crate.IpmiThread.MinPollPeriod` from the atca_monitor server.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        float or None
+            Minimum allowed time period between IPMI polls in seconds.
+            If None, either the EPICS query timed out or the
+            atca_monitor server isn't running.
+        """
+        return self._atca_caget(self._ipmi_min_poll_period_reg, **kwargs)
+
+    def set_atca_ipmi_min_poll_period(self, val, **kwargs):
+        r"""Sets the minimum allowed period between IPMI polls, in seconds.
+
+        Wraps `Crate.IpmiThread.MinPollPeriod` from the atca_monitor server.
+
+        Args
+        ----
+        val : float
+            Minimum allowed time period between IPMI polls in seconds.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+        """
+        self._atca_caput(self._ipmi_min_poll_period_reg, val, **kwargs)
