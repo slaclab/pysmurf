@@ -153,6 +153,8 @@ class Common(pyrogue.Root):
                 pyrogue.streamConnect(self._ddr_streams[i], self._stream_fifos[i])
 
 
+        # Note that these are no longer exposed in the SmurfCommand interface.
+        # Instead, the SaveConfigProcess is called, which WILL read before saving.
         # Update SaveState to not read before saving
         self.SaveState.replaceFunction(lambda arg: self.saveYaml(name=arg,
                                                                  readFirst=False,
