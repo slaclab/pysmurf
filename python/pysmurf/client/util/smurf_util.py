@@ -3795,7 +3795,16 @@ class SmurfUtilMixin(SmurfBase):
         fmt=''
         counter=0
         for key, value in d.items():
-            columns.append(str(value()))
+            # Isolate each getter so one misbehaving read (e.g. a wedged or
+            # disconnected atca_monitor) can neither stall nor kill the
+            # hardware logging thread.  Substitute NaN and keep logging.
+            try:
+                col=str(value())
+            except Exception as e:
+                self.log('Hardware log getter %s failed: %s'%(key,e),
+                         self.LOG_ERROR)
+                col=str(float('nan'))
+            columns.append(col)
             names.append(key)
             fmt+='{0[%d]:<20}'%counter
             counter+=1
