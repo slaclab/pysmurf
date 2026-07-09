@@ -193,13 +193,74 @@ setup_slot() {
         run_pysmurf_setup ${slot_number}
         info "Slot ${slot_number}: Running S.setup()"
 
-        # Wait for setup to complete
+        # Monitor server log while waiting for setup to complete
         local setup_start=$(date +%s)
+        local container="smurf_server_s${slot_number}"
+        local _setup_last_init_retry=0
+        local _setup_last_try=0
+        local _setup_last_timeout=0
+        local _setup_last_collision=0
+        local frames=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
+        local fi=0
+
+        if [[ -t 1 ]]; then printf "\033[?25l"; fi
+
         while true; do
             if is_slot_pysmurf_setup_complete ${slot_number}; then
+                if [[ -t 1 ]]; then printf "\r\033[K\033[?25h"; fi
                 success "Slot ${slot_number}: S.setup() complete ${DIM}($(( $(date +%s) - setup_start ))s)${RESET}"
                 break
             fi
+
+            local setup_elapsed=$(( $(date +%s) - setup_start ))
+            local setup_status="Slot ${slot_number}: S.setup() running"
+
+            # Poll server log for setDefaults/Init errors
+            local logs
+            logs=$(docker logs "$container" 2>&1 | tail -200)
+
+            # AppTop.Init() JESD link retries
+            local init_retry=$(echo "$logs" | grep -oP "retryCnt = \K[0-9]+" | tail -1)
+            if [[ -n "$init_retry" && "$init_retry" -gt "$_setup_last_init_retry" ]]; then
+                _setup_last_init_retry=$init_retry
+                if [[ -t 1 ]]; then printf "\r\033[K"; fi
+                warn "Slot ${slot_number}: JESD link not locked — AppTop.Init() retry ${init_retry}"
+            fi
+            if [[ -n "$init_retry" ]]; then
+                setup_status="Slot ${slot_number}: S.setup() — JESD init retry ${init_retry}"
+            fi
+
+            # setDefaults try count
+            local try_num=$(echo "$logs" | grep -oP "Setting defaults.*try number \K[0-9]+" | tail -1)
+            if [[ -n "$try_num" && "$try_num" -gt "$_setup_last_try" ]]; then
+                _setup_last_try=$try_num
+                if [[ -t 1 ]]; then printf "\r\033[K"; fi
+                warn "Slot ${slot_number}: setDefaults try ${try_num} starting (previous failed)"
+            fi
+
+            # LoadConfig timeout
+            local timeout_cnt=$(echo "$logs" | grep -c "process did not finish")
+            if [[ "$timeout_cnt" -gt "$_setup_last_timeout" ]]; then
+                _setup_last_timeout=$timeout_cnt
+                if [[ -t 1 ]]; then printf "\r\033[K"; fi
+                warn "Slot ${slot_number}: LoadConfig process timed out"
+            fi
+
+            # Process collision
+            local collision_cnt=$(echo "$logs" | grep -c "Process already running")
+            if [[ "$collision_cnt" -gt "$_setup_last_collision" ]]; then
+                _setup_last_collision=$collision_cnt
+                if [[ -t 1 ]]; then printf "\r\033[K"; fi
+                warn "Slot ${slot_number}: LoadConfig process collision"
+            fi
+
+            # Spinner
+            if [[ -t 1 ]]; then
+                printf "\r\033[K  ${CYAN}%s${RESET} %s ${DIM}(%ds)${RESET}" \
+                    "${frames[$fi]}" "$setup_status" "$setup_elapsed"
+                fi=$(( (fi + 1) % ${#frames[@]} ))
+            fi
+
             sleep 2
         done
     fi
@@ -517,23 +578,29 @@ monitor_server_startup() {
         fi
 
         # Check for setDefaults success
-        if echo "$logs" | grep -q "Defaults were set correctly"; then
+        if echo "$logs" | grep -q "Defaults were set correctly\|defaults loaded\|Done setting defaults"; then
             setdefaults_done=true
             if [[ -t 1 ]]; then printf "\r\033[K"; fi
-            success "setDefaults completed"
+            success "Slot ${slot_number}: setDefaults completed"
             break
         fi
 
         # If heartbeat is up but no setDefaults/Init after 120s, server likely
         # started without configure=True — don't wait forever
         if $heartbeat_ok && ! $setdefaults_started; then
-            local since_heartbeat=$(( elapsed - ${_heartbeat_time:-$elapsed} ))
             if [[ -z "${_heartbeat_time:-}" ]]; then
                 _heartbeat_time=$elapsed
-            elif [[ $since_heartbeat -gt 120 ]]; then
+            elif (( elapsed - _heartbeat_time > 120 )); then
                 setdefaults_done=true
                 break
             fi
+        fi
+
+        # Hard cap: if setDefaults started but hasn't finished after 300s, move on
+        if $heartbeat_ok && $setdefaults_started && (( elapsed > 300 )); then
+            if [[ -t 1 ]]; then printf "\r\033[K"; fi
+            warn "Slot ${slot_number}: Server init still running after ${elapsed}s — moving on"
+            break
         fi
 
         # Render spinner
@@ -604,29 +671,10 @@ is_rogue_server_up(){
 	dockercmd="timeout 5 docker exec smurf_server_s${slot} caget -w 1.0 -t smurf_server_s${slot}:AMCc:LocalTime -S 2>/dev/null"
     fi
 
-    local localtime epochtime
+    local localtime
     localtime=$(eval ${dockercmd})
     [[ -z "$localtime" ]] && return 1
-    epochtime=$(date "+%s" -d "$localtime" 2>/dev/null) || return 1
-
-    local val0=$epochtime
-    local val1=$epochtime
-    local ctime0=$(date +%s)
-
-    while [[ $val0 -eq $val1 ]]; do
-	local localtime1 epochtime1
-	localtime1=$(eval ${dockercmd})
-	[[ -z "$localtime1" ]] && sleep 1 && continue
-	epochtime1=$(date "+%s" -d "$localtime1" 2>/dev/null)
-	if [ "$?" -eq "0" ]; then
-	    val1=$epochtime1
-	fi
-
-	if (( $(date +%s) - ctime0 > timeout_sec )); then
-	    return 1
-	fi
-	sleep 1
-    done
-
+    # If we got a parseable timestamp, the server is responding
+    date "+%s" -d "$localtime" &>/dev/null || return 1
     return 0
 }
