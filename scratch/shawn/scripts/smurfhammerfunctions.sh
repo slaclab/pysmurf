@@ -222,7 +222,7 @@ setup_slot() {
 
             # Poll server log for setDefaults/Init errors
             local logs
-            logs=$(docker logs "$container" 2>&1 | tail -200)
+            logs=$(docker logs "$container" 2>&1 | tr -d '\0' | tail -200)
 
             # JESD Link Not Locked (DataValid = 0)
             local link_not_locked_cnt=$(echo "$logs" | grep -c "Link Not Locked")
@@ -450,7 +450,7 @@ monitor_server_startup() {
             sleep 1
             continue
         fi
-        logs=$(docker logs "$container" 2>&1)
+        logs=$(docker logs "$container" 2>&1 | tr -d '\0')
 
         # Check for firmware mismatch
         if ! $saw_fw_mismatch && echo "$logs" | grep -q "They don't match"; then
