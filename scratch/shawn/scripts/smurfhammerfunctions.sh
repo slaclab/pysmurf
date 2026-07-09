@@ -344,6 +344,11 @@ monitor_server_startup() {
 
         # Poll the latest log content (no buffering issues)
         local logs
+        if ! docker ps --filter "name=^${container}$" --format '{{.ID}}' 2>/dev/null | grep -q .; then
+            status_msg="Slot ${slot_number}: Container ${container} not found — waiting"
+            sleep 1
+            continue
+        fi
         logs=$(docker logs "$container" 2>&1)
 
         # Check for firmware mismatch
@@ -389,13 +394,40 @@ monitor_server_startup() {
             fi
         fi
 
-        # Detect heartbeat (server ZMQ/EPICS is responding)
-        if ! $heartbeat_ok && echo "$logs" | grep -q "Running. Hit cntrl-c"; then
-            if is_rogue_server_up ${slot_number} >/dev/null 2>&1; then
+        # Detect server process is running, then verify heartbeat
+        if ! $heartbeat_ok && echo "$logs" | grep -q "Running\. Hit cntrl-c"; then
+            if [[ -t 1 ]]; then printf "\r\033[K"; fi
+            success "Slot ${slot_number}: smurf_server_s${slot_number} process started ${DIM}(${elapsed}s)${RESET}"
+            status_msg="Slot ${slot_number}: Verifying ZMQ heartbeat"
+
+            # Heartbeat retry loop — ZMQ takes a moment to bind after server starts
+            local hb_start=$(date +%s)
+            local hb_timeout=60
+            local hb_ok=false
+            while (( $(date +%s) - hb_start < hb_timeout )); do
+                if [[ -t 1 ]]; then
+                    local hb_elapsed=$(( $(date +%s) - hb_start ))
+                    printf "\r\033[K  ${CYAN}%s${RESET} Slot %s: Verifying heartbeat ${DIM}(%ds)${RESET}" \
+                        "${frames[$fi]}" "$slot_number" "$hb_elapsed"
+                    fi=$(( (fi + 1) % ${#frames[@]} ))
+                fi
+                if is_rogue_server_up ${slot_number} >/dev/null 2>&1; then
+                    hb_ok=true
+                    break
+                fi
+                sleep 2
+            done
+
+            if $hb_ok; then
                 heartbeat_ok=true
                 if [[ -t 1 ]]; then printf "\r\033[K"; fi
-                success "smurf_server_s${slot_number} rogue heartbeat detected ${DIM}(${elapsed}s)${RESET}"
-                status_msg="Server running setDefaults"
+                success "Slot ${slot_number}: Heartbeat confirmed (timestamp incrementing)"
+                status_msg="Slot ${slot_number}: Waiting for server init to complete"
+            else
+                if [[ -t 1 ]]; then printf "\r\033[K"; fi
+                warn "Slot ${slot_number}: Heartbeat not detected after ${hb_timeout}s — continuing anyway"
+                heartbeat_ok=true
+                status_msg="Slot ${slot_number}: Waiting for server init to complete"
             fi
         fi
 
@@ -405,9 +437,9 @@ monitor_server_startup() {
             local current_try=$(echo "$logs" | grep -c "^Setting defaults from file")
             local retry_cnt=$(echo "$logs" | grep -o "retryCnt = [0-9]*" | tail -1 | grep -oP '[0-9]+')
             if [[ -n "$retry_cnt" && "$retry_cnt" -gt 0 ]]; then
-                status_msg="setDefaults try ${current_try}, AppTop.Init() retry ${retry_cnt}/7"
+                status_msg="Slot ${slot_number}: Server setDefaults try ${current_try}, JESD init retry ${retry_cnt}/7"
             else
-                status_msg="setDefaults try ${current_try}, running AppTop.Init()"
+                status_msg="Slot ${slot_number}: Server setDefaults try ${current_try}"
             fi
         fi
 
