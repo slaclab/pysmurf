@@ -61,61 +61,39 @@ dim() {
     printf "  ${DIM}%b${RESET}\n" "$*"
 }
 
-_SPINNER_PID=""
-_SPINNER_START_TIME=""
+_spin_wait_elapsed=0
 
-_cleanup() {
-    spinner_stop
-    printf "\n" >&2
-    exit 130
-}
-trap _cleanup INT TERM
+# Synchronous spinner — no background processes.
+# Usage: spin_wait "message" "condition_command"
+# Loops until condition_command succeeds (exit 0), showing a braille spinner.
+# Sets _spin_wait_elapsed to the number of seconds waited.
+spin_wait() {
+    local msg="$1"
+    local condition="$2"
+    local frames=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
+    local i=0
+    local start=$(date +%s)
+    _spin_wait_elapsed=0
 
-spinner_start() {
-    local msg="${1:-}"
     if [[ ! -t 1 ]]; then
-        [[ -n "$msg" ]] && info "$msg"
+        info "$msg"
+        while ! eval "$condition"; do sleep 1; done
+        _spin_wait_elapsed=$(( $(date +%s) - start ))
         return
     fi
-    _SPINNER_START_TIME=$(date +%s)
-    printf "\033[?25l" >&2
-    (
-        trap '' INT TERM
-        local frames=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
-        local i=0
-        local start=$(date +%s)
-        while true; do
-            local elapsed=$(( $(date +%s) - start ))
-            printf "\r\033[K  ${CYAN}%s${RESET} %s ${DIM}(%ds)${RESET}" "${frames[$i]}" "$msg" "$elapsed" >&2
-            i=$(( (i + 1) % ${#frames[@]} ))
-            sleep 0.1
-        done
-    ) &
-    _SPINNER_PID=$!
-}
 
-spinner_stop() {
-    if [[ -n "$_SPINNER_PID" ]]; then
-        kill $_SPINNER_PID 2>/dev/null
-        wait $_SPINNER_PID 2>/dev/null
-        printf "\r\033[K\033[?25h" >&2
-        _SPINNER_PID=""
-    fi
-}
+    printf "\033[?25l"
+    trap 'printf "\033[?25h\n"; exit 130' INT TERM
 
-spinner_stop_success() {
-    local msg="$1"
-    local elapsed=""
-    if [[ -n "$_SPINNER_START_TIME" ]]; then
-        elapsed=$(( $(date +%s) - _SPINNER_START_TIME ))
-    fi
-    spinner_stop
-    _SPINNER_START_TIME=""
-    if [[ -n "$elapsed" ]]; then
-        success "${msg} ${DIM}(${elapsed}s)${RESET}"
-    else
-        success "${msg}"
-    fi
+    while ! eval "$condition"; do
+        _spin_wait_elapsed=$(( $(date +%s) - start ))
+        printf "\r\033[K  ${CYAN}%s${RESET} %s ${DIM}(%ds)${RESET}" "${frames[$i]}" "$msg" "$_spin_wait_elapsed"
+        i=$(( (i + 1) % ${#frames[@]} ))
+        sleep 0.2
+    done
+
+    _spin_wait_elapsed=$(( $(date +%s) - start ))
+    printf "\r\033[K\033[?25h"
 }
 
 # Status stage names for the parallel setup display
@@ -136,6 +114,29 @@ slot_status_line() {
         fi
     done
     printf "\r\033[K  ${DIM}│${RESET} %b" "$line" >&2
+}
+
+###############################################################################
+# Rogue version detection
+###############################################################################
+
+# Cache of rogue major version per slot (avoids repeated docker exec)
+declare -A _rogue_major_version
+
+get_rogue_major_version() {
+    local slot=$1
+    if [[ -z "${_rogue_major_version[$slot]:-}" ]]; then
+        local ver
+        ver=$(docker exec smurf_server_s${slot} python3 -c "import pyrogue; print(pyrogue.__version__)" 2>/dev/null | head -1)
+        _rogue_major_version[$slot]="${ver%%.*}"
+    fi
+    echo "${_rogue_major_version[$slot]}"
+}
+
+is_rogue6() {
+    local slot=$1
+    local major=$(get_rogue_major_version $slot)
+    [[ "$major" -ge 6 ]] 2>/dev/null
 }
 
 ###############################################################################
@@ -219,7 +220,6 @@ pysmurf_init() {
     else
 	dim "Building pysmurf init script for slot ${slot_number}"
 	tmp_pysmurf_init_script=/tmp/psmurf_init_`date +%s`.py
-	zmq_port=$((9000 + 3*slot_number))
 
 	tmux send-keys -t ${tmux_session_name}:${slot_number} 'echo "import pysmurf.client" >> '${tmp_pysmurf_init_script} C-m
 	tmux send-keys -t ${tmux_session_name}:${slot_number} 'echo "import matplotlib.pylab as plt" >> '${tmp_pysmurf_init_script} C-m
@@ -228,10 +228,20 @@ pysmurf_init() {
 	tmux send-keys -t ${tmux_session_name}:${slot_number} 'echo "sys.path = [path for path in sys.path if path != \".\"]" >> '${tmp_pysmurf_init_script} C-m
 	tmux send-keys -t ${tmux_session_name}:${slot_number} 'echo "import os" >> '${tmp_pysmurf_init_script} C-m
 
-	tmux send-keys -t ${tmux_session_name}:${slot_number} 'echo "server_port='${zmq_port}'" >> '${tmp_pysmurf_init_script} C-m
 	tmux send-keys -t ${tmux_session_name}:${slot_number} 'echo "config_file=os.path.abspath(\"'${pysmurf_cfg}'\")" >> '${tmp_pysmurf_init_script} C-m
 
-	tmux send-keys -t ${tmux_session_name}:${slot_number} 'echo "S = pysmurf.client.SmurfControl(server_port=server_port,cfg_file=config_file,setup=False,make_logfile=False,data_dir=\"/data/\")" >> '${tmp_pysmurf_init_script} C-m
+	if is_rogue6 ${slot_number}; then
+	    # Rogue 6+: connect via ZMQ server_port
+	    zmq_port=$((9000 + 3*slot_number))
+	    dim "Rogue 6 detected on slot ${slot_number} (ZMQ port ${zmq_port})"
+	    tmux send-keys -t ${tmux_session_name}:${slot_number} 'echo "server_port='${zmq_port}'" >> '${tmp_pysmurf_init_script} C-m
+	    tmux send-keys -t ${tmux_session_name}:${slot_number} 'echo "S = pysmurf.client.SmurfControl(server_port=server_port,cfg_file=config_file,setup=False,make_logfile=False,data_dir=\"/data/\")" >> '${tmp_pysmurf_init_script} C-m
+	else
+	    # Rogue 4: connect via EPICS epics_root
+	    dim "Rogue 4 detected on slot ${slot_number} (EPICS)"
+	    tmux send-keys -t ${tmux_session_name}:${slot_number} 'echo "epics_prefix=\"smurf_server_s'${slot_number}'\"" >> '${tmp_pysmurf_init_script} C-m
+	    tmux send-keys -t ${tmux_session_name}:${slot_number} 'echo "S = pysmurf.client.SmurfControl(epics_root=epics_prefix,cfg_file=config_file,setup=False,make_logfile=False,shelf_manager=\"'${shelfmanager}'\")" >> '${tmp_pysmurf_init_script} C-m
+	fi
 
 	tmux send-keys -t ${tmux_session_name}:${slot_number} "ipython3 -i ${tmp_pysmurf_init_script}" C-m
     fi
@@ -265,19 +275,13 @@ start_slot_tmux_serial () {
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '$2 C-m
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh -N '${slot_number}'; sleep 5; docker logs smurf_server_s'${slot_number}' -f' C-m
 
-    spinner_start "Waiting for smurf_server_s${slot_number} docker to start"
-    while true; do
-	docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^smurf_server_s${slot_number}$" && break
-	sleep 1
-    done
-    spinner_stop_success "smurf_server_s${slot_number} docker started"
+    spin_wait "Waiting for smurf_server_s${slot_number} docker to start" \
+        'docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^smurf_server_s'"${slot_number}"'$"'
+    success "smurf_server_s${slot_number} docker started ${DIM}(${_spin_wait_elapsed}s)${RESET}"
 
-    spinner_start "Waiting for smurf_server_s${slot_number} rogue server (ZMQ heartbeat)"
-    while ! is_rogue_server_up ${slot_number} >/dev/null 2>&1
-    do
-	sleep 5
-    done
-    spinner_stop_success "smurf_server_s${slot_number} rogue server is up"
+    spin_wait "Waiting for smurf_server_s${slot_number} rogue server (heartbeat)" \
+        "is_rogue_server_up ${slot_number} >/dev/null 2>&1"
+    success "smurf_server_s${slot_number} rogue server is up ${DIM}(${_spin_wait_elapsed}s)${RESET}"
 
     tmux split-window -v -t ${tmux_session_name}:${slot_number}
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '${pysmurf} C-m
@@ -391,14 +395,22 @@ config_pysmurf_serial () {
 }
 
 ###############################################################################
-# Heartbeat check (ZMQ)
+# Heartbeat check
 ###############################################################################
 
 is_rogue_server_up(){
     slot=$1
     timeout_sec=10
-    zmq_port=$((9000 + 3*slot))
-    dockercmd="docker exec smurf_server_s${slot} python3 -c \"import pyrogue.interfaces; c = pyrogue.interfaces.SimpleClient('localhost', ${zmq_port}); print(c.getDisp('AMCc.LocalTime'))\" 2>/dev/null | head -1"
+
+    if is_rogue6 ${slot}; then
+	# Rogue 6+: query LocalTime via ZMQ
+	zmq_port=$((9000 + 3*slot))
+	dockercmd="docker exec smurf_server_s${slot} python3 -c \"import pyrogue.interfaces; c = pyrogue.interfaces.SimpleClient('localhost', ${zmq_port}); print(c.getDisp('AMCc.LocalTime'))\" 2>/dev/null | head -1"
+    else
+	# Rogue 4: query LocalTime via EPICS caget
+	dockercmd="docker exec smurf_server_s${slot} caget -w 1.0 -t smurf_server_s${slot}:AMCc:LocalTime -S 2>/dev/null"
+    fi
+
     localtime=`eval ${dockercmd}`
     epochtime=`date "+%s" -d "$localtime" 2> /dev/null`
 
@@ -407,7 +419,6 @@ is_rogue_server_up(){
 	val1=$epochtime
 	ctime0=`date +%s`
 
-	dim "Got timestamp from smurf_server_s${slot}, verifying increment..."
 	while [[ $val0 -eq $val1 ]]; do
 	    localtime1=`eval ${dockercmd}`
 	    epochtime1=`date "+%s" -d "$localtime1" 2> /dev/null`
