@@ -38,6 +38,11 @@ usage() {
     6. (Optional) Run S.setup() on each carrier
     7. (Optional) Run post-setup scripts
 
+  Prerequisites:
+    - SSH key auth must be configured for the shelf manager
+      (ssh-copy-id root@<shelfmanager>) or carrier reboot/fan
+      control commands will prompt for a password and hang.
+
   Examples:
     shawnhammer
     shawnhammer -c /data/smurf_startup_cfg/my_custom.cfg
@@ -103,8 +108,8 @@ ctime=${_hammer_start}
 
 printf "\n"
 printf "  ${BBLUE}┌─────────────────────────────────────────────────────────┐${RESET}\n"
-printf "  ${BBLUE}│${RESET}  ${BOLD}░▒▓ SHAWNHAMMER ▓▒░${RESET}                                    ${BBLUE}│${RESET}\n"
-printf "  ${BBLUE}│${RESET}  ${DIM}SMuRF system startup — $(date '+%Y-%m-%d %H:%M:%S')${RESET}          ${BBLUE}│${RESET}\n"
+printf "  ${BBLUE}│${RESET}  ${BOLD}░▒▓ SHAWNHAMMER ▓▒░${RESET}                                   ${BBLUE}│${RESET}\n"
+printf "  ${BBLUE}│${RESET}  ${DIM}SMuRF system startup — $(date '+%Y-%m-%d %H:%M:%S')${RESET}           ${BBLUE}│${RESET}\n"
 printf "  ${BBLUE}└─────────────────────────────────────────────────────────┘${RESET}\n"
 printf "\n"
 printf "  ${DIM}Config:${RESET}  %s\n" "$startup_cfg"
@@ -191,18 +196,25 @@ if [[ "$enable_tmux_logging" = true ]]; then
     tmux set -g @logging-path "/data/smurf_data/tmux_logs"
 fi
 
-# Stop pyrogue servers on all AMC carriers
+# Stop pyrogue servers only for configured slots
 for ((i=0; i<${#slots[@]}; ++i)); do
     slot=${slots[i]}
     pyrogue=${pyrogues[i]}
-    stop_pyrogue $slot $pyrogue
+    if docker ps --format '{{.Names}}' | grep -q "smurf_server_s${slot}"; then
+        stop_pyrogue $slot $pyrogue
+    else
+        dim "No running docker for slot ${slot}, skipping"
+    fi
 done
 
-# Stop pyrogue servers on all RFSoCs
 for ((i=0; i<${#rfsoc_slots[@]}; ++i)); do
     slot=${rfsoc_slots[i]}
     pyrogue=${rfsoc_pyrogues[i]}
-    stop_pyrogue $slot $pyrogue
+    if docker ps --format '{{.Names}}' | grep -q "smurf_server_s${slot}"; then
+        stop_pyrogue $slot $pyrogue
+    else
+        dim "No running docker for slot ${slot}, skipping"
+    fi
 done
 cd $cpwd
 

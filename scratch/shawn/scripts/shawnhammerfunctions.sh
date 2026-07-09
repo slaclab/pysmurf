@@ -36,43 +36,47 @@ header() {
 }
 
 info() {
-    printf "  ${CYAN}▸${RESET} %s\n" "$*"
+    printf "  ${CYAN}▸${RESET} %b\n" "$*"
 }
 
 success() {
-    printf "  ${BGREEN}✓${RESET} %s\n" "$*"
+    printf "  ${BGREEN}✓${RESET} %b\n" "$*"
 }
 
 warn() {
-    printf "  ${BYELLOW}⚠${RESET}  %s\n" "$*"
+    printf "  ${BYELLOW}⚠${RESET}  %b\n" "$*"
 }
 
 error() {
-    printf "  ${BRED}✗${RESET} %s\n" "$*"
+    printf "  ${BRED}✗${RESET} %b\n" "$*"
 }
 
 step() {
     local current=$1 total=$2
     shift 2
-    printf "  ${BOLD}[%d/%d]${RESET} %s\n" "$current" "$total" "$*"
+    printf "  ${BOLD}[%d/%d]${RESET} %b\n" "$current" "$total" "$*"
 }
 
 dim() {
-    printf "  ${DIM}%s${RESET}\n" "$*"
+    printf "  ${DIM}%b${RESET}\n" "$*"
 }
 
 _SPINNER_PID=""
+_SPINNER_START_TIME=""
 spinner_start() {
     local msg="${1:-}"
     if [[ ! -t 1 ]]; then
         [[ -n "$msg" ]] && info "$msg"
         return
     fi
+    _SPINNER_START_TIME=$(date +%s)
     (
         local frames=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
         local i=0
+        local start=$(date +%s)
         while true; do
-            printf "\r  ${CYAN}%s${RESET} ${DIM}%s${RESET}" "${frames[$i]}" "$msg" >&2
+            local elapsed=$(( $(date +%s) - start ))
+            printf "\r\033[K  ${CYAN}%s${RESET} %s ${DIM}(%ds)${RESET}" "${frames[$i]}" "$msg" "$elapsed" >&2
             i=$(( (i + 1) % ${#frames[@]} ))
             sleep 0.1
         done
@@ -82,11 +86,27 @@ spinner_start() {
 }
 
 spinner_stop() {
+    local elapsed=""
     if [[ -n "$_SPINNER_PID" ]]; then
         kill $_SPINNER_PID 2>/dev/null
         wait $_SPINNER_PID 2>/dev/null
         printf "\r\033[K" >&2
+        if [[ -n "$_SPINNER_START_TIME" ]]; then
+            elapsed=$(( $(date +%s) - _SPINNER_START_TIME ))
+        fi
         _SPINNER_PID=""
+        _SPINNER_START_TIME=""
+    fi
+    echo "$elapsed"
+}
+
+spinner_stop_success() {
+    local msg="$1"
+    local elapsed=$(spinner_stop)
+    if [[ -n "$elapsed" ]]; then
+        success "${msg} ${DIM}(${elapsed}s)${RESET}"
+    else
+        success "${msg}"
     fi
 }
 
@@ -240,16 +260,14 @@ start_slot_tmux_serial () {
     while [[ -z `docker ps  | grep smurf_server_s${slot_number}`  ]]; do
 	sleep 1
     done
-    spinner_stop
-    success "smurf_server_s${slot_number} docker started"
+    spinner_stop_success "smurf_server_s${slot_number} docker started"
 
     spinner_start "Waiting for smurf_server_s${slot_number} rogue server (ZMQ heartbeat)"
     while ! is_rogue_server_up ${slot_number}
     do
 	sleep 5
     done
-    spinner_stop
-    success "smurf_server_s${slot_number} rogue server is up"
+    spinner_stop_success "smurf_server_s${slot_number} rogue server is up"
 
     tmux split-window -v -t ${tmux_session_name}:${slot_number}
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '${pysmurf} C-m
