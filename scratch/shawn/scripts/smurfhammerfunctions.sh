@@ -233,24 +233,26 @@ setup_slot() {
                 warn "Slot ${slot_number}: JESD link not locked (${bad_links:-?})"
             fi
 
-            # AppTop.Init() JESD link retries (track total count across all setDefaults tries)
+            # setDefaults try count (4 total attempts in _load_config)
+            local try_num=$(echo "$logs" | grep -oP "Setting defaults.*try number \K[0-9]+" | tail -1)
+            if [[ -n "$try_num" && "$try_num" -gt "$_setup_last_try" ]]; then
+                _setup_last_try=$try_num
+                if [[ -t 1 ]]; then printf "\r\033[K"; fi
+                warn "Slot ${slot_number}: setDefaults try $((try_num+1))/4 starting (previous failed)"
+            fi
+
+            # AppTop.Init() JESD link retries (FW retries within each setDefaults try)
             local init_retry=$(echo "$logs" | grep -oP "retryCnt = \K[0-9]+" | tail -1)
             local total_init_retries=$(echo "$logs" | grep -c "Re-executing AppTop.Init()")
             if [[ "$total_init_retries" -gt "$_setup_last_init_retry" ]]; then
                 _setup_last_init_retry=$total_init_retries
                 if [[ -t 1 ]]; then printf "\r\033[K"; fi
-                warn "Slot ${slot_number}: Re-executing AppTop.Init() — retry ${init_retry}/7"
+                warn "Slot ${slot_number}: Re-executing AppTop.Init() — retry ${init_retry}/8"
             fi
-            if [[ -n "$init_retry" ]]; then
-                setup_status="Slot ${slot_number}: S.setup() — JESD init retry ${init_retry}/7"
-            fi
-
-            # setDefaults try count
-            local try_num=$(echo "$logs" | grep -oP "Setting defaults.*try number \K[0-9]+" | tail -1)
-            if [[ -n "$try_num" && "$try_num" -gt "$_setup_last_try" ]]; then
-                _setup_last_try=$try_num
-                if [[ -t 1 ]]; then printf "\r\033[K"; fi
-                warn "Slot ${slot_number}: setDefaults try ${try_num} starting (previous failed)"
+            if [[ -n "$init_retry" && -n "$try_num" ]]; then
+                setup_status="Slot ${slot_number}: S.setup() — try $((try_num+1))/4, JESD init retry ${init_retry}/8"
+            elif [[ -n "$init_retry" ]]; then
+                setup_status="Slot ${slot_number}: S.setup() — JESD init retry ${init_retry}/8"
             fi
 
             # LoadConfig timeout
