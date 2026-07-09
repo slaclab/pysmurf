@@ -25,8 +25,8 @@ jobs:
   label:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
-    - uses: actions/labeler@v6
+    - uses: actions/labeler@b8dd2d9be0f68b860e7dae5dae7d772984eacd6d # v6
       with:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"
