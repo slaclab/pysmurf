@@ -108,7 +108,7 @@ get_rogue_major_version() {
     local slot=$1
     if [[ -z "${_rogue_major_version[$slot]:-}" ]]; then
         local ver
-        ver=$(docker exec smurf_server_s${slot} python3 -c "import pyrogue; print(pyrogue.__version__)" 2>/dev/null | head -1)
+        ver=$(docker exec smurf_server_s${slot} python3 -c "import pyrogue; print(pyrogue.__version__)" 2>/dev/null | tail -1)
         _rogue_major_version[$slot]="${ver%%.*}"
     fi
     echo "${_rogue_major_version[$slot]}"
