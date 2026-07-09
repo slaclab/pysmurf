@@ -406,19 +406,13 @@ config_pysmurf_serial () {
 monitor_server_startup() {
     local slot_number=$1
     local container="smurf_server_s${slot_number}"
-    local logfile="/tmp/.shawnhammer_s${slot_number}_startup.log"
-    local saw_pull=false
     local saw_fw_mismatch=false
     local saw_program=false
-    local program_phase=""
-    local last_pct=""
     local saw_setdefaults_error=false
     local setdefaults_try=0
-    local server_ready=false
-
-    > "$logfile"
-    docker logs "$container" -f --since 0s > "$logfile" 2>&1 &
-    local log_pid=$!
+    local heartbeat_ok=false
+    local setdefaults_started=false
+    local setdefaults_done=false
 
     local frames=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
     local fi=0
@@ -429,53 +423,42 @@ monitor_server_startup() {
         printf "\033[?25l"
     fi
 
-    _help_text() {
-        printf "\r\033[K  ${DIM}Tip: docker logs %s -f${RESET}" "$container"
-    }
-
     while true; do
         local elapsed=$(( $(date +%s) - start ))
 
-        # Check for docker pull (shown in docker-compose output, not container log)
-        # This is detected from the run.sh output in the tmux pane, but we can
-        # check if the container is still missing (pull in progress)
-        if ! docker ps --filter "name=^${container}$" --format '{{.ID}}' 2>/dev/null | grep -q .; then
-            status_msg="Waiting for docker (may be pulling image)"
-        fi
+        # Poll the latest log content (no buffering issues)
+        local logs
+        logs=$(docker logs "$container" 2>&1)
 
         # Check for firmware mismatch
-        if ! $saw_fw_mismatch && grep -q "They don't match" "$logfile" 2>/dev/null; then
+        if ! $saw_fw_mismatch && echo "$logs" | grep -q "They don't match"; then
             saw_fw_mismatch=true
-            local old_hash=$(grep "Firmware githash:" "$logfile" | grep -oP "'[a-f0-9]+'" | tr -d "'")
-            local new_hash=$(grep "MCS file githash:" "$logfile" | grep -oP "'[a-f0-9]+'" | tr -d "'")
+            local old_hash=$(echo "$logs" | grep "Firmware githash:" | grep -oP "'[a-f0-9]+'" | tr -d "'")
+            local new_hash=$(echo "$logs" | grep "MCS file githash:" | grep -oP "'[a-f0-9]+'" | tr -d "'")
             if [[ -t 1 ]]; then printf "\r\033[K"; fi
             warn "FPGA firmware mismatch — reprogramming PROM"
             dim "  FPGA: ${old_hash:-?}  MCS: ${new_hash:-?}"
             status_msg="Erasing PROM"
-            program_phase="erase"
         fi
 
         # Track PROM programming progress
         if $saw_fw_mismatch && ! $saw_program; then
-            local latest_erase=$(grep -o "Erasing the PROM: [0-9]* percent" "$logfile" 2>/dev/null | tail -1)
-            local latest_write=$(grep -o "Writing the PROM: [0-9]* percent" "$logfile" 2>/dev/null | tail -1)
-            local latest_verify=$(grep -o "Verifying the PROM: [0-9]* percent" "$logfile" 2>/dev/null | tail -1)
+            local latest_erase=$(echo "$logs" | grep -o "Erasing the PROM: [0-9]* percent" | tail -1)
+            local latest_write=$(echo "$logs" | grep -o "Writing the PROM: [0-9]* percent" | tail -1)
+            local latest_verify=$(echo "$logs" | grep -o "Verifying the PROM: [0-9]* percent" | tail -1)
 
             if [[ -n "$latest_verify" ]]; then
                 local pct=$(echo "$latest_verify" | grep -oP '[0-9]+')
                 status_msg="Verifying PROM (${pct}%)"
-                program_phase="verify"
             elif [[ -n "$latest_write" ]]; then
                 local pct=$(echo "$latest_write" | grep -oP '[0-9]+')
                 status_msg="Writing PROM (${pct}%)"
-                program_phase="write"
             elif [[ -n "$latest_erase" ]]; then
                 local pct=$(echo "$latest_erase" | grep -oP '[0-9]+')
                 status_msg="Erasing PROM (${pct}%)"
-                program_phase="erase"
             fi
 
-            if grep -q "FPGA programmed successfully" "$logfile" 2>/dev/null; then
+            if echo "$logs" | grep -q "FPGA programmed successfully"; then
                 saw_program=true
                 if [[ -t 1 ]]; then printf "\r\033[K"; fi
                 success "FPGA programmed successfully"
@@ -484,25 +467,38 @@ monitor_server_startup() {
         fi
 
         # Track FPGA reboot / ETH
-        if $saw_program; then
-            if grep -q "FPGA's ETH came up" "$logfile" 2>/dev/null; then
+        if $saw_program && ! $heartbeat_ok; then
+            if echo "$logs" | grep -q "FPGA's ETH came up"; then
                 status_msg="FPGA rebooted, starting server"
             fi
         fi
 
-        # Track setDefaults retries
-        local current_try=$(grep -c "^Setting defaults from file" "$logfile" 2>/dev/null)
-        if [[ "$current_try" -gt 0 ]]; then
-            local retry_cnt=$(grep -o "retryCnt = [0-9]*" "$logfile" 2>/dev/null | tail -1 | grep -oP '[0-9]+')
-            if [[ -n "$retry_cnt" && "$retry_cnt" -gt 0 ]]; then
-                status_msg="setDefaults try ${current_try}, AppTop.Init() retry ${retry_cnt}/7"
+        # Detect heartbeat (server ZMQ/EPICS is responding)
+        if ! $heartbeat_ok && echo "$logs" | grep -q "Running. Hit cntrl-c"; then
+            if is_rogue_server_up ${slot_number} >/dev/null 2>&1; then
+                heartbeat_ok=true
+                if [[ -t 1 ]]; then printf "\r\033[K"; fi
+                success "smurf_server_s${slot_number} rogue heartbeat detected ${DIM}(${elapsed}s)${RESET}"
+                status_msg="Server running setDefaults"
             fi
         fi
 
-        # Check for setDefaults failure
-        if grep -q "ERROR: Setting defaults try number" "$logfile" 2>/dev/null; then
-            local fail_try=$(grep -o "Setting defaults try number [0-9]*" "$logfile" 2>/dev/null | tail -1 | grep -oP '[0-9]+')
-            if [[ "$fail_try" != "$setdefaults_try" ]]; then
+        # Track setDefaults progress (runs after heartbeat is up)
+        if echo "$logs" | grep -q "^Setting defaults from file"; then
+            setdefaults_started=true
+            local current_try=$(echo "$logs" | grep -c "^Setting defaults from file")
+            local retry_cnt=$(echo "$logs" | grep -o "retryCnt = [0-9]*" | tail -1 | grep -oP '[0-9]+')
+            if [[ -n "$retry_cnt" && "$retry_cnt" -gt 0 ]]; then
+                status_msg="setDefaults try ${current_try}, AppTop.Init() retry ${retry_cnt}/7"
+            else
+                status_msg="setDefaults try ${current_try}, running AppTop.Init()"
+            fi
+        fi
+
+        # Check for individual setDefaults try failure
+        if echo "$logs" | grep -q "ERROR: Setting defaults try number\|Setting defaults try number .* failed"; then
+            local fail_try=$(echo "$logs" | grep -oP "(?:ERROR: Setting defaults try number|Setting defaults try number )\K[0-9]+" | tail -1)
+            if [[ -n "$fail_try" && "$fail_try" != "$setdefaults_try" ]]; then
                 setdefaults_try="$fail_try"
                 if [[ -t 1 ]]; then printf "\r\033[K"; fi
                 warn "setDefaults try ${fail_try} failed (JESD init retries exhausted)"
@@ -510,20 +506,41 @@ monitor_server_startup() {
             fi
         fi
 
-        # Check for "Too many retries and giving up" (fatal)
-        if grep -q "Failed to set defaults after" "$logfile" 2>/dev/null; then
+        # Check for "LoadConfig process did not finish" (timeout-based failure)
+        if echo "$logs" | grep -q 'process did not finish'; then
+            local timeout_try=$(echo "$logs" | grep -c "process did not finish")
+            if [[ "$timeout_try" -gt "${_last_timeout_warn:-0}" ]]; then
+                _last_timeout_warn=$timeout_try
+                if [[ -t 1 ]]; then printf "\r\033[K"; fi
+                warn "setDefaults LoadConfig timed out (try ${timeout_try})"
+                saw_setdefaults_error=true
+            fi
+        fi
+
+        # Check for fatal failure (all retries exhausted)
+        if echo "$logs" | grep -q "Failed to set defaults after"; then
             if [[ -t 1 ]]; then printf "\r\033[K\033[?25h"; fi
             error "Server gave up on setDefaults — JESD link won't lock"
             dim "  View log: docker logs ${container} | tail -80"
-            kill $log_pid 2>/dev/null; wait $log_pid 2>/dev/null
-            rm -f "$logfile"
             return 1
         fi
 
-        # Check for server ready (heartbeat via timestamp increment)
-        if grep -q "Running. Hit cntrl-c" "$logfile" 2>/dev/null; then
-            if is_rogue_server_up ${slot_number} >/dev/null 2>&1; then
-                server_ready=true
+        # Check for setDefaults success
+        if echo "$logs" | grep -q "Defaults were set correctly"; then
+            setdefaults_done=true
+            if [[ -t 1 ]]; then printf "\r\033[K"; fi
+            success "setDefaults completed"
+            break
+        fi
+
+        # If heartbeat is up but no setDefaults after 15s, server likely
+        # started without configure=True — don't wait forever
+        if $heartbeat_ok && ! $setdefaults_started; then
+            local since_heartbeat=$(( elapsed - ${_heartbeat_time:-$elapsed} ))
+            if [[ -z "${_heartbeat_time:-}" ]]; then
+                _heartbeat_time=$elapsed
+            elif [[ $since_heartbeat -gt 15 ]]; then
+                setdefaults_done=true
                 break
             fi
         fi
@@ -535,15 +552,15 @@ monitor_server_startup() {
             fi=$(( (fi + 1) % ${#frames[@]} ))
         fi
 
-        sleep 0.5
+        sleep 1
     done
-
-    kill $log_pid 2>/dev/null; wait $log_pid 2>/dev/null
-    rm -f "$logfile"
 
     local total_elapsed=$(( $(date +%s) - start ))
     if [[ -t 1 ]]; then printf "\r\033[K\033[?25h"; fi
-    success "smurf_server_s${slot_number} rogue server is up ${DIM}(${total_elapsed}s)${RESET}"
+
+    if ! $heartbeat_ok; then
+        success "smurf_server_s${slot_number} rogue server is up ${DIM}(${total_elapsed}s)${RESET}"
+    fi
 
     if $saw_fw_mismatch; then
         dim "  Note: FPGA was reprogrammed during this startup"
@@ -551,6 +568,7 @@ monitor_server_startup() {
     if $saw_setdefaults_error; then
         dim "  Note: setDefaults required multiple attempts"
     fi
+    dim "  Tip: docker logs ${container} -f"
     return 0
 }
 
