@@ -206,10 +206,15 @@ setup_slot() {
         if [[ -t 1 ]]; then printf "\033[?25l"; fi
 
         while true; do
-            if is_slot_pysmurf_setup_complete ${slot_number}; then
+            is_slot_pysmurf_setup_complete ${slot_number}
+            local setup_rc=$?
+            if [[ $setup_rc -eq 0 ]]; then
                 if [[ -t 1 ]]; then printf "\r\033[K\033[?25h"; fi
                 success "Slot ${slot_number}: S.setup() complete ${DIM}($(( $(date +%s) - setup_start ))s)${RESET}"
                 break
+            elif [[ $setup_rc -eq 2 ]]; then
+                # Setup failed — error already printed by is_slot_pysmurf_setup_complete
+                return 1
             fi
 
             local setup_elapsed=$(( $(date +%s) - setup_start ))
@@ -219,15 +224,25 @@ setup_slot() {
             local logs
             logs=$(docker logs "$container" 2>&1 | tail -200)
 
-            # AppTop.Init() JESD link retries
-            local init_retry=$(echo "$logs" | grep -oP "retryCnt = \K[0-9]+" | tail -1)
-            if [[ -n "$init_retry" && "$init_retry" -gt "$_setup_last_init_retry" ]]; then
-                _setup_last_init_retry=$init_retry
+            # JESD Link Not Locked (DataValid = 0)
+            local link_not_locked_cnt=$(echo "$logs" | grep -c "Link Not Locked")
+            if [[ "$link_not_locked_cnt" -gt "${_setup_last_link_not_locked:-0}" ]]; then
+                _setup_last_link_not_locked=$link_not_locked_cnt
+                local bad_links=$(echo "$logs" | grep "Link Not Locked" | tail -2 | grep -oP 'Jesd[TR]x' | sort -u | tr '\n' '/' | sed 's/\/$//')
                 if [[ -t 1 ]]; then printf "\r\033[K"; fi
-                warn "Slot ${slot_number}: JESD link not locked — AppTop.Init() retry ${init_retry}"
+                warn "Slot ${slot_number}: JESD link not locked (${bad_links:-?})"
+            fi
+
+            # AppTop.Init() JESD link retries (track total count across all setDefaults tries)
+            local init_retry=$(echo "$logs" | grep -oP "retryCnt = \K[0-9]+" | tail -1)
+            local total_init_retries=$(echo "$logs" | grep -c "Re-executing AppTop.Init()")
+            if [[ "$total_init_retries" -gt "$_setup_last_init_retry" ]]; then
+                _setup_last_init_retry=$total_init_retries
+                if [[ -t 1 ]]; then printf "\r\033[K"; fi
+                warn "Slot ${slot_number}: Re-executing AppTop.Init() — retry ${init_retry}/7"
             fi
             if [[ -n "$init_retry" ]]; then
-                setup_status="Slot ${slot_number}: S.setup() — JESD init retry ${init_retry}"
+                setup_status="Slot ${slot_number}: S.setup() — JESD init retry ${init_retry}/7"
             fi
 
             # setDefaults try count
@@ -251,7 +266,15 @@ setup_slot() {
             if [[ "$collision_cnt" -gt "$_setup_last_collision" ]]; then
                 _setup_last_collision=$collision_cnt
                 if [[ -t 1 ]]; then printf "\r\033[K"; fi
-                warn "Slot ${slot_number}: LoadConfig process collision"
+                warn "Slot ${slot_number}: setDefaults: previous process still running"
+            fi
+
+            # Fatal: all setDefaults retries exhausted
+            if echo "$logs" | grep -q "Failed to set defaults after\|Too many retries and giving up"; then
+                if [[ -t 1 ]]; then printf "\r\033[K\033[?25h"; fi
+                error "Slot ${slot_number}: setDefaults failed — JESD link won't lock"
+                dim "  View log: docker logs ${container} | tail -100"
+                return 1
             fi
 
             # Spinner
@@ -373,9 +396,10 @@ is_slot_pysmurf_setup_complete() {
 
     tmux capture-pane -pt ${tmux_session_name}:${slot_number} -S -10 | grep -Eom1 "Done with setup|Setup failed" | grep -q failed
     if [[ $? -eq 0 ]]; then
+	if [[ -t 1 ]]; then printf "\r\033[K\033[?25h"; fi
 	error "Carrier in slot ${slot_number} failed to configure."
 	error "Attach using \`tmux a -t ${tmux_session_name}\` to view errors."
-	exit 1
+	return 2
     fi
 
     return $ret

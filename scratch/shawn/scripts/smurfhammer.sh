@@ -353,7 +353,11 @@ _hammer_end=`date +%s`
 _elapsed=$((_hammer_end - _hammer_start))
 
 printf "\n"
-printf "  ${BGREEN}✓ SMURFHAMMER COMPLETE${RESET}\n"
+if $_any_failed; then
+    printf "  ${BRED}✗ SMURFHAMMER FAILED${RESET}\n"
+else
+    printf "  ${BGREEN}✓ SMURFHAMMER COMPLETE${RESET}\n"
+fi
 printf "  ${DIM}Elapsed: %dm %ds   Slots: %s${RESET}\n" \
        "$((_elapsed/60))" "$((_elapsed%60))" "${all_slots[*]}"
 printf "  ${DIM}tmux attach -t %s${RESET}\n" "${tmux_session_name}"
