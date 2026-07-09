@@ -275,10 +275,24 @@ start_slot_pysmurf() {
     slot_number=$1
     pysmurf_cfg=$2
 
+    docker rm -f "pysmurf_s${slot_number}" 2>/dev/null
+
+    # Record containers before starting so we can identify the new one
+    local before
+    before=$(docker ps -q | sort)
+
     tmux split-window -v -t ${tmux_session_name}:${slot_number}
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '${pysmurf} C-m
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh' C-m
-    sleep 2
+    sleep 3
+
+    # Find the newly created container and rename it
+    local after new_id
+    after=$(docker ps -q | sort)
+    new_id=$(comm -13 <(echo "$before") <(echo "$after") | head -1)
+    if [[ -n "$new_id" ]]; then
+        docker rename "$new_id" "pysmurf_s${slot_number}" 2>/dev/null
+    fi
 
     if [ "$enable_tmux_logging" = true ] ; then
 	tmux run-shell -t ${tmux_session_name}:${slot_number} /home/cryo/tmux-logging/scripts/toggle_logging.sh
@@ -431,10 +445,26 @@ monitor_server_startup() {
             fi
         fi
 
-        # Track setDefaults progress (runs after heartbeat is up)
-        if echo "$logs" | grep -q "^Setting defaults from file"; then
+        # Track AppTop.Init() retries (JESD link locking)
+        if echo "$logs" | grep -q "Re-executing AppTop.Init()"; then
             setdefaults_started=true
-            local current_try=$(echo "$logs" | grep -c "^Setting defaults from file")
+            local init_retry=$(echo "$logs" | grep -oP "retryCnt = \K[0-9]+" | tail -1)
+            if [[ -n "$init_retry" ]]; then
+                status_msg="Slot ${slot_number}: AppTop.Init() JESD link retry ${init_retry}"
+                if echo "$logs" | grep -q "Link Not Locked"; then
+                    if [[ "${_last_init_retry:-0}" != "$init_retry" ]]; then
+                        _last_init_retry=$init_retry
+                        if [[ -t 1 ]]; then printf "\r\033[K"; fi
+                        warn "Slot ${slot_number}: JESD link not locked — AppTop.Init() retry ${init_retry}"
+                    fi
+                fi
+            fi
+        fi
+
+        # Track setDefaults progress (runs after heartbeat is up)
+        if echo "$logs" | grep -q "^Setting defaults from file\|Setting defaults from file"; then
+            setdefaults_started=true
+            local current_try=$(echo "$logs" | grep -c "Setting defaults from file")
             local retry_cnt=$(echo "$logs" | grep -o "retryCnt = [0-9]*" | tail -1 | grep -oP '[0-9]+')
             if [[ -n "$retry_cnt" && "$retry_cnt" -gt 0 ]]; then
                 status_msg="Slot ${slot_number}: Server setDefaults try ${current_try}, JESD init retry ${retry_cnt}/7"
@@ -454,13 +484,24 @@ monitor_server_startup() {
             fi
         fi
 
+        # Check for "Process already running!" (LoadConfigProcess collision)
+        if echo "$logs" | grep -q 'Process already running'; then
+            local already_cnt=$(echo "$logs" | grep -c "Process already running")
+            if [[ "$already_cnt" -gt "${_last_already_warn:-0}" ]]; then
+                _last_already_warn=$already_cnt
+                if [[ -t 1 ]]; then printf "\r\033[K"; fi
+                warn "Slot ${slot_number}: LoadConfig process collision — retrying"
+                saw_setdefaults_error=true
+            fi
+        fi
+
         # Check for "LoadConfig process did not finish" (timeout-based failure)
         if echo "$logs" | grep -q 'process did not finish'; then
             local timeout_try=$(echo "$logs" | grep -c "process did not finish")
             if [[ "$timeout_try" -gt "${_last_timeout_warn:-0}" ]]; then
                 _last_timeout_warn=$timeout_try
                 if [[ -t 1 ]]; then printf "\r\033[K"; fi
-                warn "setDefaults LoadConfig timed out (try ${timeout_try})"
+                warn "Slot ${slot_number}: setDefaults LoadConfig timed out (try ${timeout_try})"
                 saw_setdefaults_error=true
             fi
         fi
@@ -552,16 +593,18 @@ is_rogue_server_up(){
 
     local dockercmd
     if is_rogue6 ${slot}; then
-	# Rogue 6+: query LocalTime via ZMQ (tail -1 skips rogue banner)
+	# Rogue 6+: query LocalTime via ZMQ
+	# SimpleClient must be closed explicitly or it hangs; use timeout as safety net
 	local zmq_port=$((9000 + 3*slot))
-	dockercmd="docker exec smurf_server_s${slot} python3 -c \"import pyrogue.interfaces; c = pyrogue.interfaces.SimpleClient('localhost', ${zmq_port}); print(c.getDisp('AMCc.LocalTime'))\" 2>/dev/null | tail -1"
+	dockercmd="timeout 5 docker exec smurf_server_s${slot} python3 -c \"import pyrogue.interfaces,sys; c=pyrogue.interfaces.SimpleClient('localhost',${zmq_port}); print(c.getDisp('AMCc.LocalTime')); c.close()\" 2>/dev/null | grep -oP '[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}' | tail -1"
     else
 	# Rogue 4: query LocalTime via EPICS caget
-	dockercmd="docker exec smurf_server_s${slot} caget -w 1.0 -t smurf_server_s${slot}:AMCc:LocalTime -S 2>/dev/null"
+	dockercmd="timeout 5 docker exec smurf_server_s${slot} caget -w 1.0 -t smurf_server_s${slot}:AMCc:LocalTime -S 2>/dev/null"
     fi
 
     local localtime epochtime
     localtime=$(eval ${dockercmd})
+    [[ -z "$localtime" ]] && return 1
     epochtime=$(date "+%s" -d "$localtime" 2>/dev/null) || return 1
 
     local val0=$epochtime
@@ -571,6 +614,7 @@ is_rogue_server_up(){
     while [[ $val0 -eq $val1 ]]; do
 	local localtime1 epochtime1
 	localtime1=$(eval ${dockercmd})
+	[[ -z "$localtime1" ]] && sleep 1 && continue
 	epochtime1=$(date "+%s" -d "$localtime1" 2>/dev/null)
 	if [ "$?" -eq "0" ]; then
 	    val1=$epochtime1
@@ -579,6 +623,7 @@ is_rogue_server_up(){
 	if (( $(date +%s) - ctime0 > timeout_sec )); then
 	    return 1
 	fi
+	sleep 1
     done
 
     return 0
