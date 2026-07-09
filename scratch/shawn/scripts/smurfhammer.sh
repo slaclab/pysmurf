@@ -18,6 +18,7 @@ usage() {
                  (default: /data/smurf_startup_cfg/smurf_startup.cfg)
     -i <script>  pysmurf init script (relative to $pysmurf/pysmurf/)
     -t           Run thermal test after setup
+    -e           Open startup config in editor (default: emacs, or $EDITOR)
     -h           Show this help message
 
   Description:
@@ -52,11 +53,14 @@ EOF
     exit 0
 }
 
-while getopts ":hic:t" opt; do
+while getopts ":hei:c:t" opt; do
     case ${opt} in
       h )
           usage
           ;;
+      e )
+	  edit_config=true
+	  ;;
       i )
 	  # make sure this file exists
 	  if [ ! -f $pysmurf/pysmurf/$OPTARG ]; then
@@ -87,6 +91,11 @@ while getopts ":hic:t" opt; do
     esac
 done
 shift $((OPTIND -1))
+
+if [ "$edit_config" = true ]; then
+    ${EDITOR:-emacs} "$startup_cfg"
+    exit 0
+fi
 
 # can't hammer without a cfg ; exit if one doesn't exist
 if [ ! -f "$startup_cfg" ]; then
@@ -189,17 +198,37 @@ sleep 0.1
 info "Creating new ${BOLD}${tmux_session_name}${RESET} tmux session"
 tmux new-session -d -s ${tmux_session_name}
 
+# Style the tmux session — Smurf blue theme
+tmux set -t ${tmux_session_name} status on
+tmux set -t ${tmux_session_name} status-position bottom
+tmux set -t ${tmux_session_name} status-interval 5
+tmux set -t ${tmux_session_name} status-style "bg=#0d1117,fg=#58a6ff"
+tmux set -t ${tmux_session_name} status-left-length 30
+tmux set -t ${tmux_session_name} status-right-length 60
+tmux set -t ${tmux_session_name} status-left "#[bg=#1f6feb,fg=#c9d1d9,bold] ░ ${tmux_session_name} #[bg=#0d1117,fg=#1f6feb]▓▒░"
+tmux set -t ${tmux_session_name} status-right "#[fg=#264d73]│ #[fg=#79c0ff]%H:%M #[fg=#264d73]│ #[fg=#388bfd]%m-%d "
+tmux set -t ${tmux_session_name} window-status-format "#[fg=#264d73] #I:#W "
+tmux set -t ${tmux_session_name} window-status-current-format "#[bg=#161b22,fg=#58a6ff,bold] #I:#W "
+tmux set -t ${tmux_session_name} window-status-separator ""
+tmux set -t ${tmux_session_name} pane-border-style "fg=#1b3a5c"
+tmux set -t ${tmux_session_name} pane-active-border-style "fg=#388bfd"
+tmux set -t ${tmux_session_name} message-style "bg=#0d1117,fg=#79c0ff"
+tmux set -t ${tmux_session_name} mode-style "bg=#1b3a5c,fg=#79c0ff"
+tmux rename-window -t ${tmux_session_name}:0 "main"
+
 if [[ "$enable_tmux_logging" = true ]]; then
     mkdir -vp /data/smurf_data/tmux_logs >/dev/null 2>&1
     tmux set -g @logging-path "/data/smurf_data/tmux_logs"
 fi
 
-# Stop pyrogue servers only for configured slots
+# Stop server and client containers for configured slots
 for ((i=0; i<${#slots[@]}; ++i)); do
     slot=${slots[i]}
     pyrogue=${pyrogues[i]}
-    if docker ps --filter "name=^smurf_server_s${slot}$" --format '{{.ID}}' | grep -q .; then
-        stop_pyrogue $slot $pyrogue
+    if docker ps -a --filter "name=^smurf_server_s${slot}$" --format '{{.ID}}' | grep -q . || \
+       docker ps -a --filter "name=^pysmurf_s${slot}$" --format '{{.ID}}' | grep -q .; then
+        info "Stopping containers for slot ${BOLD}${slot}${RESET}"
+        docker rm -f "smurf_server_s${slot}" "pysmurf_s${slot}" 2>/dev/null
     else
         dim "No running docker for slot ${slot}, skipping"
     fi
@@ -208,8 +237,10 @@ done
 for ((i=0; i<${#rfsoc_slots[@]}; ++i)); do
     slot=${rfsoc_slots[i]}
     pyrogue=${rfsoc_pyrogues[i]}
-    if docker ps --filter "name=^smurf_server_s${slot}$" --format '{{.ID}}' | grep -q .; then
-        stop_pyrogue $slot $pyrogue
+    if docker ps -a --filter "name=^smurf_server_s${slot}$" --format '{{.ID}}' | grep -q . || \
+       docker ps -a --filter "name=^pysmurf_s${slot}$" --format '{{.ID}}' | grep -q .; then
+        info "Stopping containers for slot ${BOLD}${slot}${RESET}"
+        docker rm -f "smurf_server_s${slot}" "pysmurf_s${slot}" 2>/dev/null
     else
         dim "No running docker for slot ${slot}, skipping"
     fi

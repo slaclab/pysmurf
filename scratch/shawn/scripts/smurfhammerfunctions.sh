@@ -212,11 +212,11 @@ start_slot_tmux_and_pyrogue() {
     pyrogue=$2
 
     tmux new-window -t ${tmux_session_name}:${slot_number}
-    tmux rename-window -t ${tmux_session_name}:${slot_number} smurf_slot${slot_number}
+    tmux rename-window -t ${tmux_session_name}:${slot_number} "s${slot_number}"
 
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '${pyrogue} C-m
     tmux send-keys -t ${tmux_session_name}:${slot_number} \
-        '. .env; extra=""; [ -c /dev/datadev_0 ] && [ -c /dev/datadev_1 ] && extra="-f docker-compose.pcie.yml"; slot='${slot_number}' docker-compose -f docker-compose.yml $extra up -d smurf_server_s'${slot_number}'; sleep 5; docker logs smurf_server_s'${slot_number}' -f' C-m
+        '. .env; extra=""; [ -c /dev/datadev_0 ] && [ -c /dev/datadev_1 ] && extra="-f docker-compose.pcie.yml"; slot='${slot_number}' extra_opts="" docker-compose -f docker-compose.yml $extra up -d smurf_server_s'${slot_number}'; sleep 5; docker logs smurf_server_s'${slot_number}' -f' C-m
 }
 
 is_slot_pyrogue_up() {
@@ -275,18 +275,10 @@ start_slot_pysmurf() {
     slot_number=$1
     pysmurf_cfg=$2
 
-    docker rm -f "pysmurf_s${slot_number}" 2>/dev/null
-
     tmux split-window -v -t ${tmux_session_name}:${slot_number}
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '${pysmurf} C-m
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh' C-m
     sleep 2
-
-    local new_pysmurf_id
-    new_pysmurf_id=$(docker ps -a -n 1 -q)
-    if [[ -n "$new_pysmurf_id" ]]; then
-        docker rename "$new_pysmurf_id" "pysmurf_s${slot_number}" 2>/dev/null
-    fi
 
     if [ "$enable_tmux_logging" = true ] ; then
 	tmux run-shell -t ${tmux_session_name}:${slot_number} /home/cryo/tmux-logging/scripts/toggle_logging.sh
