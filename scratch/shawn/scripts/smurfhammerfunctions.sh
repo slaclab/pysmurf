@@ -496,110 +496,13 @@ monitor_server_startup() {
             if $hb_ok; then
                 heartbeat_ok=true
                 if [[ -t 1 ]]; then printf "\r\033[K"; fi
-                success "Slot ${slot_number}: Heartbeat confirmed (timestamp incrementing)"
-                status_msg="Slot ${slot_number}: Waiting for server init to complete"
+                success "Slot ${slot_number}: Heartbeat confirmed (ZMQ responding)"
             else
                 if [[ -t 1 ]]; then printf "\r\033[K"; fi
                 warn "Slot ${slot_number}: Heartbeat not detected after ${hb_timeout}s — continuing anyway"
                 heartbeat_ok=true
-                status_msg="Slot ${slot_number}: Waiting for server init to complete"
             fi
-            # Force fresh log fetch — stale $logs missed setDefaults messages
-            continue
-        fi
-
-        # Track AppTop.Init() retries (JESD link locking)
-        if echo "$logs" | grep -q "Re-executing AppTop.Init()"; then
-            setdefaults_started=true
-            local init_retry=$(echo "$logs" | grep -oP "retryCnt = \K[0-9]+" | tail -1)
-            if [[ -n "$init_retry" ]]; then
-                status_msg="Slot ${slot_number}: AppTop.Init() JESD link retry ${init_retry}"
-                if echo "$logs" | grep -q "Link Not Locked"; then
-                    if [[ "${_last_init_retry:-0}" != "$init_retry" ]]; then
-                        _last_init_retry=$init_retry
-                        if [[ -t 1 ]]; then printf "\r\033[K"; fi
-                        warn "Slot ${slot_number}: JESD link not locked — AppTop.Init() retry ${init_retry}"
-                    fi
-                fi
-            fi
-        fi
-
-        # Track setDefaults progress (runs after heartbeat is up)
-        if echo "$logs" | grep -q "^Setting defaults from file\|Setting defaults from file"; then
-            setdefaults_started=true
-            local current_try=$(echo "$logs" | grep -c "Setting defaults from file")
-            local retry_cnt=$(echo "$logs" | grep -o "retryCnt = [0-9]*" | tail -1 | grep -oP '[0-9]+')
-            if [[ -n "$retry_cnt" && "$retry_cnt" -gt 0 ]]; then
-                status_msg="Slot ${slot_number}: Server setDefaults try ${current_try}, JESD init retry ${retry_cnt}/7"
-            else
-                status_msg="Slot ${slot_number}: Server setDefaults try ${current_try}"
-            fi
-        fi
-
-        # Check for individual setDefaults try failure
-        if echo "$logs" | grep -q "ERROR: Setting defaults try number\|Setting defaults try number .* failed"; then
-            local fail_try=$(echo "$logs" | grep -oP "(?:ERROR: Setting defaults try number|Setting defaults try number )\K[0-9]+" | tail -1)
-            if [[ -n "$fail_try" && "$fail_try" != "$setdefaults_try" ]]; then
-                setdefaults_try="$fail_try"
-                if [[ -t 1 ]]; then printf "\r\033[K"; fi
-                warn "setDefaults try ${fail_try} failed (JESD init retries exhausted)"
-                saw_setdefaults_error=true
-            fi
-        fi
-
-        # Check for "Process already running!" (LoadConfigProcess collision)
-        if echo "$logs" | grep -q 'Process already running'; then
-            local already_cnt=$(echo "$logs" | grep -c "Process already running")
-            if [[ "$already_cnt" -gt "${_last_already_warn:-0}" ]]; then
-                _last_already_warn=$already_cnt
-                if [[ -t 1 ]]; then printf "\r\033[K"; fi
-                warn "Slot ${slot_number}: LoadConfig process collision — retrying"
-                saw_setdefaults_error=true
-            fi
-        fi
-
-        # Check for "LoadConfig process did not finish" (timeout-based failure)
-        if echo "$logs" | grep -q 'process did not finish'; then
-            local timeout_try=$(echo "$logs" | grep -c "process did not finish")
-            if [[ "$timeout_try" -gt "${_last_timeout_warn:-0}" ]]; then
-                _last_timeout_warn=$timeout_try
-                if [[ -t 1 ]]; then printf "\r\033[K"; fi
-                warn "Slot ${slot_number}: setDefaults LoadConfig timed out (try ${timeout_try})"
-                saw_setdefaults_error=true
-            fi
-        fi
-
-        # Check for fatal failure (all retries exhausted)
-        if echo "$logs" | grep -q "Failed to set defaults after"; then
-            if [[ -t 1 ]]; then printf "\r\033[K\033[?25h"; fi
-            error "Server gave up on setDefaults — JESD link won't lock"
-            dim "  View log: docker logs ${container} | tail -80"
-            return 1
-        fi
-
-        # Check for setDefaults success
-        if echo "$logs" | grep -q "Defaults were set correctly\|defaults loaded\|Done setting defaults"; then
-            setdefaults_done=true
-            if [[ -t 1 ]]; then printf "\r\033[K"; fi
-            success "Slot ${slot_number}: setDefaults completed"
-            break
-        fi
-
-        # If heartbeat is up but no setDefaults/Init after 120s, server likely
-        # started without configure=True — don't wait forever
-        if $heartbeat_ok && ! $setdefaults_started; then
-            if [[ -z "${_heartbeat_time:-}" ]]; then
-                _heartbeat_time=$elapsed
-            elif (( elapsed - _heartbeat_time > 120 )); then
-                setdefaults_done=true
-                break
-            fi
-        fi
-
-        # Hard cap: if setDefaults started but hasn't finished after 300s, move on
-        if $heartbeat_ok && $setdefaults_started && (( elapsed > 300 )); then
-            if [[ -t 1 ]]; then printf "\r\033[K"; fi
-            warn "Slot ${slot_number}: Server init still running after ${elapsed}s — moving on"
+            # Server is up — done monitoring boot phase
             break
         fi
 
@@ -616,17 +519,9 @@ monitor_server_startup() {
     local total_elapsed=$(( $(date +%s) - start ))
     if [[ -t 1 ]]; then printf "\r\033[K\033[?25h"; fi
 
-    if ! $heartbeat_ok; then
-        success "smurf_server_s${slot_number} rogue server is up ${DIM}(${total_elapsed}s)${RESET}"
-    fi
-
     if $saw_fw_mismatch; then
         dim "  Note: FPGA was reprogrammed during this startup"
     fi
-    if $saw_setdefaults_error; then
-        dim "  Note: setDefaults required multiple attempts"
-    fi
-    dim "  Tip: docker logs ${container} -f"
     return 0
 }
 
