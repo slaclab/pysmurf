@@ -184,7 +184,8 @@ start_slot_tmux_and_pyrogue() {
     tmux rename-window -t ${tmux_session_name}:${slot_number} smurf_slot${slot_number}
 
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '${pyrogue} C-m
-    tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh -N '${slot_number}'; sleep 5; docker logs smurf_server_s'${slot_number}' -f' C-m
+    tmux send-keys -t ${tmux_session_name}:${slot_number} \
+        '. .env; extra=""; [ -c /dev/datadev_0 ] && [ -c /dev/datadev_1 ] && extra="-f docker-compose.pcie.yml"; slot='${slot_number}' docker-compose -f docker-compose.yml $extra up -d smurf_server_s'${slot_number}'; sleep 5; docker logs smurf_server_s'${slot_number}' -f' C-m
 }
 
 is_slot_pyrogue_up() {
@@ -248,51 +249,24 @@ start_slot_pysmurf() {
     slot_number=$1
     pysmurf_cfg=$2
 
+    docker rm -f "pysmurf_s${slot_number}" 2>/dev/null
+
     tmux split-window -v -t ${tmux_session_name}:${slot_number}
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '${pysmurf} C-m
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh' C-m
-    sleep 1
+    sleep 2
+
+    local new_pysmurf_id
+    new_pysmurf_id=$(docker ps -a -n 1 -q)
+    if [[ -n "$new_pysmurf_id" ]]; then
+        docker rename "$new_pysmurf_id" "pysmurf_s${slot_number}" 2>/dev/null
+    fi
 
     if [ "$enable_tmux_logging" = true ] ; then
 	tmux run-shell -t ${tmux_session_name}:${slot_number} /home/cryo/tmux-logging/scripts/toggle_logging.sh
     fi
     pysmurf_init ${slot_number} ${pysmurf_cfg}
 }
-
-start_slot_tmux_serial () {
-    slot_number=$1
-    pyrogue=$2
-    pysmurf_cfg=$3
-
-    pysmurf_docker0=`docker ps -a | grep pysmurf | grep -v pysmurf_s${slot_number} | head -n 1 | awk '{print $1}'`
-
-    tmux new-window -t ${tmux_session_name}:${slot_number}
-    tmux rename-window -t ${tmux_session_name}:${slot_number} smurf_slot${slot_number}
-
-    check_docker_pull ${slot_number} "${pyrogue}"
-
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '$2 C-m
-    tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh -N '${slot_number}'; sleep 5; docker logs smurf_server_s'${slot_number}' -f' C-m
-
-    spin_wait "Waiting for smurf_server_s${slot_number} docker to start" \
-        "is_slot_pyrogue_up ${slot_number}"
-    success "smurf_server_s${slot_number} docker started ${DIM}(${_spin_wait_elapsed}s)${RESET}"
-
-    monitor_server_startup ${slot_number}
-
-    tmux split-window -v -t ${tmux_session_name}:${slot_number}
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '${pysmurf} C-m
-    tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh' C-m
-    sleep 1
-
-    if [ "$enable_tmux_logging" = true ] ; then
-	tmux run-shell -t ${tmux_session_name}:${slot_number} /home/cryo/tmux-logging/scripts/toggle_logging.sh
-    fi
-    pysmurf_init ${slot_number} ${pysmurf_cfg}
-
-    latest_pysmurf_docker=`docker ps -a | grep pysmurf | grep -v pysmurf_s${slot_number} | head -n 1 | awk '{print $1}'`
-}
-
 
 run_pysmurf_setup () {
     slot_number=$1
@@ -314,82 +288,6 @@ is_slot_pysmurf_setup_complete() {
     return $ret
 }
 
-config_pysmurf_serial () {
-    slot_number=$1
-    pysmurf_docker=$2
-
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.setup()' C-m
-
-    info "Running S.setup() on slot ${BOLD}${slot_number}${RESET} ${DIM}(docker: ${pysmurf_docker})${RESET}"
-
-    sleep 2
-    grep -qE "Done with setup|Setup failed" <(docker logs $pysmurf_docker -f)
-
-    docker logs $pysmurf_docker | grep -Eom1 "Done with setup|Setup failed" | grep -q failed
-    if [[ $? -eq 0 ]]; then
-	error "Carrier in slot ${slot_number} failed to configure."
-	error "Attach using \`tmux a -t ${tmux_session_name}\` to view errors."
-	exit 1
-    fi
-
-    success "Slot ${slot_number} configured"
-
-    if [ "$double_setup" = true ] ; then
-	sleep 2
-	tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.setup()' C-m
-	sleep 5
-
-	info "Running 2nd S.setup() on slot ${slot_number}"
-	grep -q "Done with setup" <(docker logs $pysmurf_docker -f --since 0m)
-	success "2nd setup complete on slot ${slot_number}"
-    fi
-
-    if [ "$disable_streaming" = true ] ; then
-	info "Disabling streaming on slot ${slot_number}"
-	tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.set_stream_enable(0)' C-m
-	sleep 2
-    fi
-
-    if [ "$write_config" = true ] ; then
-	sleep 2
-	info "Writing rogue config → /data/smurf_data/${ctime}_slot${slot_number}_config.yml"
-	tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.set_read_all(write_log=True); S.write_config("/data/smurf_data/'${ctime}'_slot'${slot_number}'_config.yml")' C-m
-	until [ -s /data/smurf_data/${ctime}_slot${slot_number}_config.yml ]
-	do
-	    sleep 5
-	done
-	success "Config written for slot ${slot_number}"
-    fi
-
-    if [ "$save_state" = true ] ; then
-	sleep 2
-	info "Writing rogue state → /data/smurf_data/${ctime}_slot${slot_number}_state.yml"
-	tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.set_read_all(write_log=True); S.save_state("/data/smurf_data/'${ctime}'_slot'${slot_number}'_state.yml")' C-m
-	until [ -s /data/smurf_data/${ctime}_slot${slot_number}_state.yml ]
-	do
-	    sleep 5
-	done
-	success "State written for slot ${slot_number}"
-    fi
-
-    if [ "$run_full_band_response" = true ] ; then
-	sleep 2
-	info "Running full band response on slot ${slot_number}"
-	tmux send-keys -t ${tmux_session_name}:${slot_number} 'exec(open("scratch/shawn/full_band_response.py").read())' C-m
-	grep -q "Done running full_band_response.py." <(docker logs $pysmurf_docker -f)
-	success "Full band response complete on slot ${slot_number}"
-    fi
-
-    if [ "$run_half_band_test" = true ] ; then
-	sleep 2
-	info "Running half-band fill test on slot ${slot_number}"
-	tmux send-keys -t ${tmux_session_name}:${slot_number} 'sys.argv[1]='${ctime}'; exec(open("scratch/shawn/half_band_filling_test.py").read())' C-m
-	grep -q "Done with half-band filling test." <(docker logs $pysmurf_docker -f)
-	success "Half-band fill test complete on slot ${slot_number}"
-    fi
-
-    sleep 1
-}
 
 ###############################################################################
 # Server startup log monitoring

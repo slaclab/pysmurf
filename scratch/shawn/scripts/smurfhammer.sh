@@ -7,11 +7,11 @@ usage() {
     cat <<'EOF'
 
   ┌─────────────────────────────────────────────────────────────┐
-  │                      SHAWNHAMMER                            │
+  │                      SMURFHAMMER                            │
   │         SMuRF system startup & configuration tool           │
   └─────────────────────────────────────────────────────────────┘
 
-  Usage: shawnhammer [OPTIONS]
+  Usage: smurfhammer [OPTIONS]
 
   Options:
     -c <path>    Path to startup config file
@@ -44,9 +44,9 @@ usage() {
       control commands will prompt for a password and hang.
 
   Examples:
-    shawnhammer
-    shawnhammer -c /data/smurf_startup_cfg/my_custom.cfg
-    shawnhammer -c /data/smurf_startup_cfg/my_custom.cfg -t
+    smurfhammer
+    smurfhammer -c /data/smurf_startup_cfg/my_custom.cfg
+    smurfhammer -c /data/smurf_startup_cfg/my_custom.cfg -t
 
 EOF
     exit 0
@@ -90,13 +90,13 @@ shift $((OPTIND -1))
 
 # can't hammer without a cfg ; exit if one doesn't exist
 if [ ! -f "$startup_cfg" ]; then
-    echo "$startup_cfg doesn't exist, unable to shawnhammer." 1>&2
+    echo "$startup_cfg doesn't exist, unable to smurfhammer." 1>&2
     exit 1
 fi
 source ${startup_cfg}
 
 # source functions (and UI helpers)
-source shawnhammerfunctions
+source smurfhammerfunctions
 
 # Record start time for elapsed calculation
 _hammer_start=`date +%s`
@@ -107,7 +107,7 @@ ctime=${_hammer_start}
 ###############################################################################
 
 printf "\n"
-printf "  ${BOLD}░▒▓ SHAWNHAMMER ▓▒░${RESET}\n"
+printf "  ${BOLD}░▒▓ SMURFHAMMER ▓▒░${RESET}\n"
 printf "  ${DIM}SMuRF system startup - $(date '+%Y-%m-%d %H:%M:%S')${RESET}\n"
 printf "\n"
 printf "  ${DIM}Config:${RESET}  %s\n" "$startup_cfg"
@@ -274,97 +274,73 @@ all_pysmurf_cfgs=("${pysmurf_cfgs[@]}" "${rfsoc_pysmurf_cfgs[@]}")
 info "Bringing up ${BOLD}${#all_slots[@]}${RESET} slot(s): ${BOLD}${all_slots[*]}${RESET}"
 printf "\n"
 
-if [ "$parallel_setup" = true ] ; then
-    ## Parallel setup
-    setup_complete=false
-    completion_status=7
-    declare -a slot_status=( $(for slot in ${slots[@]}; do echo 0; done) $(for rfsoc_slot in ${rfsoc_slots[@]}; do echo 1; done) )
-    setup_loop_cadence_sec=1
+setup_complete=false
+completion_status=7
+declare -a slot_status=( $(for slot in ${slots[@]}; do echo 0; done) $(for rfsoc_slot in ${rfsoc_slots[@]}; do echo 1; done) )
+setup_loop_cadence_sec=1
 
-    while [[ "${setup_complete}" = false ]] ; do
-	for ((slot_idx=0; slot_idx<${#all_slots[@]}; ++slot_idx)); do
-	    slot=${all_slots[slot_idx]}
-	    pyrogue=${all_pyrogues[slot_idx]}
-	    pysmurf_cfg=${all_pysmurf_cfgs[slot_idx]}
+while [[ "${setup_complete}" = false ]] ; do
+    for ((slot_idx=0; slot_idx<${#all_slots[@]}; ++slot_idx)); do
+	slot=${all_slots[slot_idx]}
+	pyrogue=${all_pyrogues[slot_idx]}
+	pysmurf_cfg=${all_pysmurf_cfgs[slot_idx]}
 
-	    if [ "${slot_status[${slot_idx}]}" = "0" ]; then
-		cd $cpwd
-		ping_carrier -q 10.0.${crate_id}.$((${slot}+100))
-		slot_status[$slot_idx]=$?
+	if [ "${slot_status[${slot_idx}]}" = "0" ]; then
+	    cd $cpwd
+	    ping_carrier -q 10.0.${crate_id}.$((${slot}+100))
+	    slot_status[$slot_idx]=$?
+	fi
+
+	if [ "${slot_status[${slot_idx}]}" = "1" ]; then
+	    start_slot_tmux_and_pyrogue ${slot} ${pyrogue}
+	    slot_status[$slot_idx]=2
+	fi
+
+	if [ "${slot_status[${slot_idx}]}" = "2" ]; then
+	    if is_slot_pyrogue_up ${slot}; then
+		slot_status[$slot_idx]=3;
 	    fi
+	fi
 
-	    if [ "${slot_status[${slot_idx}]}" = "1" ]; then
-		start_slot_tmux_and_pyrogue ${slot} ${pyrogue}
-		slot_status[$slot_idx]=2
+	if [ "${slot_status[${slot_idx}]}" = "3" ]; then
+	    if is_slot_server_up ${slot}; then
+		slot_status[$slot_idx]=4;
 	    fi
+	fi
 
-	    if [ "${slot_status[${slot_idx}]}" = "2" ]; then
-		if is_slot_pyrogue_up ${slot}; then
-		    slot_status[$slot_idx]=3;
-		fi
+	if [ "${slot_status[${slot_idx}]}" = "4" ]; then
+	    start_slot_pysmurf ${slot} ${pysmurf_cfg}
+	    slot_status[$slot_idx]=5;
+	    if [ "${configure_pysmurf}" = false ]; then
+		slot_status[$slot_idx]=7;
 	    fi
+	fi
 
-	    if [ "${slot_status[${slot_idx}]}" = "3" ]; then
-		if is_slot_server_up ${slot}; then
-		    slot_status[$slot_idx]=4;
-		fi
+	if [ "${slot_status[${slot_idx}]}" = "5" ]; then
+	    run_pysmurf_setup ${slot}
+	    slot_status[$slot_idx]=6
+	fi
+
+	if [ "${slot_status[${slot_idx}]}" = "6" ]; then
+	    if is_slot_pysmurf_setup_complete ${slot}; then
+		slot_status[$slot_idx]=7;
 	    fi
+	fi
 
-	    if [ "${slot_status[${slot_idx}]}" = "4" ]; then
-		start_slot_pysmurf ${slot} ${pysmurf_cfg}
-		slot_status[$slot_idx]=5;
-		if [ "${configure_pysmurf}" = false ]; then
-		    slot_status[$slot_idx]=7;
-		fi
-	    fi
-
-	    if [ "${slot_status[${slot_idx}]}" = "5" ]; then
-		run_pysmurf_setup ${slot}
-		slot_status[$slot_idx]=6
-	    fi
-
-	    if [ "${slot_status[${slot_idx}]}" = "6" ]; then
-		if is_slot_pysmurf_setup_complete ${slot}; then
-		    slot_status[$slot_idx]=7;
-		fi
-	    fi
-
-	    # check if complete
-	    status_summary=(`echo ${slot_status[@]} | tr ' ' '\n' | sort | uniq`)
-	    if [[ "${#status_summary[@]}" = "1" && "${status_summary[0]}" = "${completion_status}" ]] ; then
-		setup_complete=true
-	    fi
-	done
-
-	# Print colored status line
-	slot_status_line all_slots slot_status
-	printf "\n"
-
-	sleep ${setup_loop_cadence_sec}
-    done
-    printf "\r\033[K"
-else
-    ## Serial setup
-    for ((i=0; i<${#all_slots[@]}; ++i)); do
-	slot=${all_slots[i]}
-	pyrogue=${all_pyrogues[i]}
-	pysmurf_cfg=${all_pysmurf_cfgs[i]}
-
-	step $((i+1)) ${#all_slots[@]} "Slot ${BOLD}${slot}${RESET} — waiting for ethernet"
-	cd $cpwd
-	ping_carrier 10.0.${crate_id}.$((${slot}+100))
-
-	info "Starting pyrogue + pysmurf on slot ${BOLD}${slot}${RESET} ${DIM}(${pyrogue})${RESET}"
-
-	start_slot_tmux_serial ${slot} ${pyrogue} ${pysmurf_cfg}
-
-	pysmurf_docker_slot=`docker ps -a -n 1 -q`
-
-	if [[ "$reboot" = true && "$configure_pysmurf" = true ]] ; then
-    	    config_pysmurf_serial ${slot} ${pysmurf_docker_slot}
+	# check if complete
+	status_summary=(`echo ${slot_status[@]} | tr ' ' '\n' | sort | uniq`)
+	if [[ "${#status_summary[@]}" = "1" && "${status_summary[0]}" = "${completion_status}" ]] ; then
+	    setup_complete=true
 	fi
     done
-fi
+
+    # Print colored status line
+    slot_status_line all_slots slot_status
+    printf "\n"
+
+    sleep ${setup_loop_cadence_sec}
+done
+printf "\r\033[K"
 
 ###############################################################################
 # Post-setup
@@ -395,7 +371,7 @@ _hammer_end=`date +%s`
 _elapsed=$((_hammer_end - _hammer_start))
 
 printf "\n"
-printf "  ${BGREEN}✓ SHAWNHAMMER COMPLETE${RESET}\n"
+printf "  ${BGREEN}✓ SMURFHAMMER COMPLETE${RESET}\n"
 printf "  ${DIM}Elapsed: %dm %ds   Slots: %s${RESET}\n" \
        "$((_elapsed/60))" "$((_elapsed%60))" "${all_slots[*]}"
 printf "  ${DIM}tmux attach -t %s${RESET}\n" "${tmux_session_name}"
