@@ -107,10 +107,8 @@ ctime=${_hammer_start}
 ###############################################################################
 
 printf "\n"
-printf "  ${BBLUE}┌─────────────────────────────────────────────────────────┐${RESET}\n"
-printf "  ${BBLUE}│${RESET}  ${BOLD}░▒▓ SHAWNHAMMER ▓▒░${RESET}                                   ${BBLUE}│${RESET}\n"
-printf "  ${BBLUE}│${RESET}  ${DIM}SMuRF system startup — $(date '+%Y-%m-%d %H:%M:%S')${RESET}           ${BBLUE}│${RESET}\n"
-printf "  ${BBLUE}└─────────────────────────────────────────────────────────┘${RESET}\n"
+printf "  ${BOLD}░▒▓ SHAWNHAMMER ▓▒░${RESET}\n"
+printf "  ${DIM}SMuRF system startup - $(date '+%Y-%m-%d %H:%M:%S')${RESET}\n"
 printf "\n"
 printf "  ${DIM}Config:${RESET}  %s\n" "$startup_cfg"
 
@@ -397,14 +395,10 @@ _hammer_end=`date +%s`
 _elapsed=$((_hammer_end - _hammer_start))
 
 printf "\n"
-printf "  ${BGREEN}┌─────────────────────────────────────────────────────────┐${RESET}\n"
-printf "  ${BGREEN}│${RESET}  ${BGREEN}✓ SHAWNHAMMER COMPLETE${RESET}                                  ${BGREEN}│${RESET}\n"
-printf "  ${BGREEN}│${RESET}  ${DIM}Elapsed: %dm %ds   Slots: %s${RESET}%*s${BGREEN}│${RESET}\n" \
-       "$((_elapsed/60))" "$((_elapsed%60))" "${all_slots[*]}" \
-       $((34 - ${#all_slots[@]}*2)) ""
-printf "  ${BGREEN}│${RESET}  ${DIM}tmux attach -t ${tmux_session_name}${RESET}%*s${BGREEN}│${RESET}\n" \
-       $((41 - ${#tmux_session_name})) ""
-printf "  ${BGREEN}└─────────────────────────────────────────────────────────┘${RESET}\n"
+printf "  ${BGREEN}✓ SHAWNHAMMER COMPLETE${RESET}\n"
+printf "  ${DIM}Elapsed: %dm %ds   Slots: %s${RESET}\n" \
+       "$((_elapsed/60))" "$((_elapsed%60))" "${all_slots[*]}"
+printf "  ${DIM}tmux attach -t %s${RESET}\n" "${tmux_session_name}"
 printf "\n"
 
 if [ "$attach_at_end" = true ] ; then
