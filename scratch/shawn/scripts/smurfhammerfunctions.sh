@@ -108,7 +108,7 @@ get_rogue_major_version() {
     local slot=$1
     if [[ -z "${_rogue_major_version[$slot]:-}" ]]; then
         local ver
-        ver=$(docker exec smurf_server_s${slot} python3 -c "import pyrogue; print(pyrogue.__version__)" 2>/dev/null | tail -1)
+        ver=$(docker exec smurf_server_s${slot} python3 -c "import pyrogue; print(pyrogue.__version__)" 2>/dev/null | grep -oP '^[0-9]+\.[0-9]+' | head -1)
         _rogue_major_version[$slot]="${ver%%.*}"
     fi
     echo "${_rogue_major_version[$slot]}"
@@ -547,43 +547,39 @@ check_docker_pull() {
 ###############################################################################
 
 is_rogue_server_up(){
-    slot=$1
-    timeout_sec=10
+    local slot=$1
+    local timeout_sec=10
 
+    local dockercmd
     if is_rogue6 ${slot}; then
-	# Rogue 6+: query LocalTime via ZMQ
-	zmq_port=$((9000 + 3*slot))
-	dockercmd="docker exec smurf_server_s${slot} python3 -c \"import pyrogue.interfaces; c = pyrogue.interfaces.SimpleClient('localhost', ${zmq_port}); print(c.getDisp('AMCc.LocalTime'))\" 2>/dev/null | head -1"
+	# Rogue 6+: query LocalTime via ZMQ (tail -1 skips rogue banner)
+	local zmq_port=$((9000 + 3*slot))
+	dockercmd="docker exec smurf_server_s${slot} python3 -c \"import pyrogue.interfaces; c = pyrogue.interfaces.SimpleClient('localhost', ${zmq_port}); print(c.getDisp('AMCc.LocalTime'))\" 2>/dev/null | tail -1"
     else
 	# Rogue 4: query LocalTime via EPICS caget
 	dockercmd="docker exec smurf_server_s${slot} caget -w 1.0 -t smurf_server_s${slot}:AMCc:LocalTime -S 2>/dev/null"
     fi
 
-    localtime=`eval ${dockercmd}`
-    epochtime=`date "+%s" -d "$localtime" 2> /dev/null`
+    local localtime epochtime
+    localtime=$(eval ${dockercmd})
+    epochtime=$(date "+%s" -d "$localtime" 2>/dev/null) || return 1
 
-    if [ "$?" -eq "0" ]; then
-	val0=$epochtime
-	val1=$epochtime
-	ctime0=`date +%s`
+    local val0=$epochtime
+    local val1=$epochtime
+    local ctime0=$(date +%s)
 
-	while [[ $val0 -eq $val1 ]]; do
-	    localtime1=`eval ${dockercmd}`
-	    epochtime1=`date "+%s" -d "$localtime1" 2> /dev/null`
-	    if [  "$?" -eq "0" ]; then
-		val1=$epochtime1
-	    fi
+    while [[ $val0 -eq $val1 ]]; do
+	local localtime1 epochtime1
+	localtime1=$(eval ${dockercmd})
+	epochtime1=$(date "+%s" -d "$localtime1" 2>/dev/null)
+	if [ "$?" -eq "0" ]; then
+	    val1=$epochtime1
+	fi
 
-	    ctime1=`date +%s`
-	    if [ "$(($ctime1-$ctime0))" -gt $timeout_sec ]; then
-		warn "Timed out waiting for smurf_server_s${slot} timestamp to increment (${timeout_sec}s)"
-		return 1
-	    fi
-	done
-    else
-	return 1
-    fi
+	if (( $(date +%s) - ctime0 > timeout_sec )); then
+	    return 1
+	fi
+    done
 
-    success "smurf_server_s${slot} timestamp incrementing - server is up"
     return 0
 }
