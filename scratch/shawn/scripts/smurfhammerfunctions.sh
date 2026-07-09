@@ -443,6 +443,8 @@ monitor_server_startup() {
                 heartbeat_ok=true
                 status_msg="Slot ${slot_number}: Waiting for server init to complete"
             fi
+            # Force fresh log fetch — stale $logs missed setDefaults messages
+            continue
         fi
 
         # Track AppTop.Init() retries (JESD link locking)
@@ -522,13 +524,13 @@ monitor_server_startup() {
             break
         fi
 
-        # If heartbeat is up but no setDefaults after 15s, server likely
+        # If heartbeat is up but no setDefaults/Init after 120s, server likely
         # started without configure=True — don't wait forever
         if $heartbeat_ok && ! $setdefaults_started; then
             local since_heartbeat=$(( elapsed - ${_heartbeat_time:-$elapsed} ))
             if [[ -z "${_heartbeat_time:-}" ]]; then
                 _heartbeat_time=$elapsed
-            elif [[ $since_heartbeat -gt 15 ]]; then
+            elif [[ $since_heartbeat -gt 120 ]]; then
                 setdefaults_done=true
                 break
             fi
