@@ -65,8 +65,8 @@ _SPINNER_PID=""
 _SPINNER_START_TIME=""
 
 _cleanup() {
-    spinner_stop >/dev/null
-    printf "\033[?25h" >&2
+    spinner_stop
+    printf "\n" >&2
     exit 130
 }
 trap _cleanup INT TERM
@@ -95,23 +95,22 @@ spinner_start() {
 }
 
 spinner_stop() {
-    local elapsed=""
     if [[ -n "$_SPINNER_PID" ]]; then
         kill $_SPINNER_PID 2>/dev/null
         wait $_SPINNER_PID 2>/dev/null
         printf "\r\033[K\033[?25h" >&2
-        if [[ -n "$_SPINNER_START_TIME" ]]; then
-            elapsed=$(( $(date +%s) - _SPINNER_START_TIME ))
-        fi
         _SPINNER_PID=""
-        _SPINNER_START_TIME=""
     fi
-    echo "$elapsed"
 }
 
 spinner_stop_success() {
     local msg="$1"
-    local elapsed=$(spinner_stop)
+    local elapsed=""
+    if [[ -n "$_SPINNER_START_TIME" ]]; then
+        elapsed=$(( $(date +%s) - _SPINNER_START_TIME ))
+    fi
+    spinner_stop
+    _SPINNER_START_TIME=""
     if [[ -n "$elapsed" ]]; then
         success "${msg} ${DIM}(${elapsed}s)${RESET}"
     else
@@ -267,13 +266,13 @@ start_slot_tmux_serial () {
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh -N '${slot_number}'; sleep 5; docker logs smurf_server_s'${slot_number}' -f' C-m
 
     spinner_start "Waiting for smurf_server_s${slot_number} docker to start"
-    while [[ -z `docker ps  | grep smurf_server_s${slot_number}`  ]]; do
+    while [[ -z $(docker ps 2>/dev/null | grep smurf_server_s${slot_number}) ]]; do
 	sleep 1
     done
     spinner_stop_success "smurf_server_s${slot_number} docker started"
 
     spinner_start "Waiting for smurf_server_s${slot_number} rogue server (ZMQ heartbeat)"
-    while ! is_rogue_server_up ${slot_number}
+    while ! is_rogue_server_up ${slot_number} >/dev/null 2>&1
     do
 	sleep 5
     done
