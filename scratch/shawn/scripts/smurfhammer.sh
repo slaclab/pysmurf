@@ -274,73 +274,24 @@ all_pysmurf_cfgs=("${pysmurf_cfgs[@]}" "${rfsoc_pysmurf_cfgs[@]}")
 info "Bringing up ${BOLD}${#all_slots[@]}${RESET} slot(s): ${BOLD}${all_slots[*]}${RESET}"
 printf "\n"
 
-setup_complete=false
-completion_status=7
-declare -a slot_status=( $(for slot in ${slots[@]}; do echo 0; done) $(for rfsoc_slot in ${rfsoc_slots[@]}; do echo 1; done) )
-setup_loop_cadence_sec=1
-
-while [[ "${setup_complete}" = false ]] ; do
-    for ((slot_idx=0; slot_idx<${#all_slots[@]}; ++slot_idx)); do
-	slot=${all_slots[slot_idx]}
-	pyrogue=${all_pyrogues[slot_idx]}
-	pysmurf_cfg=${all_pysmurf_cfgs[slot_idx]}
-
-	if [ "${slot_status[${slot_idx}]}" = "0" ]; then
-	    cd $cpwd
-	    ping_carrier -q 10.0.${crate_id}.$((${slot}+100))
-	    slot_status[$slot_idx]=$?
-	fi
-
-	if [ "${slot_status[${slot_idx}]}" = "1" ]; then
-	    start_slot_tmux_and_pyrogue ${slot} ${pyrogue}
-	    slot_status[$slot_idx]=2
-	fi
-
-	if [ "${slot_status[${slot_idx}]}" = "2" ]; then
-	    if is_slot_pyrogue_up ${slot}; then
-		slot_status[$slot_idx]=3;
-	    fi
-	fi
-
-	if [ "${slot_status[${slot_idx}]}" = "3" ]; then
-	    if is_slot_server_up ${slot}; then
-		slot_status[$slot_idx]=4;
-	    fi
-	fi
-
-	if [ "${slot_status[${slot_idx}]}" = "4" ]; then
-	    start_slot_pysmurf ${slot} ${pysmurf_cfg}
-	    slot_status[$slot_idx]=5;
-	    if [ "${configure_pysmurf}" = false ]; then
-		slot_status[$slot_idx]=7;
-	    fi
-	fi
-
-	if [ "${slot_status[${slot_idx}]}" = "5" ]; then
-	    run_pysmurf_setup ${slot}
-	    slot_status[$slot_idx]=6
-	fi
-
-	if [ "${slot_status[${slot_idx}]}" = "6" ]; then
-	    if is_slot_pysmurf_setup_complete ${slot}; then
-		slot_status[$slot_idx]=7;
-	    fi
-	fi
-
-	# check if complete
-	status_summary=(`echo ${slot_status[@]} | tr ' ' '\n' | sort | uniq`)
-	if [[ "${#status_summary[@]}" = "1" && "${status_summary[0]}" = "${completion_status}" ]] ; then
-	    setup_complete=true
-	fi
-    done
-
-    # Print colored status line
-    slot_status_line all_slots slot_status
-    printf "\n"
-
-    sleep ${setup_loop_cadence_sec}
+# Launch all slots in parallel, each running the full setup sequence
+declare -a _slot_pids=()
+for ((i=0; i<${#all_slots[@]}; ++i)); do
+    setup_slot ${all_slots[i]} ${all_pyrogues[i]} "${all_pysmurf_cfgs[i]}" &
+    _slot_pids+=($!)
 done
-printf "\r\033[K"
+
+# Wait for all slots to finish
+_any_failed=false
+for pid in "${_slot_pids[@]}"; do
+    if ! wait $pid; then
+        _any_failed=true
+    fi
+done
+
+if $_any_failed; then
+    error "One or more slots failed during setup"
+fi
 
 ###############################################################################
 # Post-setup

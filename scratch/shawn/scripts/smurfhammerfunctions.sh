@@ -96,25 +96,6 @@ spin_wait() {
     printf "\r\033[K\033[?25h"
 }
 
-# Status stage names for the parallel setup display
-_stage_names=("off" "eth-up" "pyrogue" "docker" "server" "pysmurf" "setup" "done")
-_stage_colors=("$RED" "$YELLOW" "$YELLOW" "$YELLOW" "$CYAN" "$CYAN" "$MAGENTA" "$GREEN")
-
-slot_status_line() {
-    local -n _slots_ref=$1
-    local -n _status_ref=$2
-    local line=""
-    for ((i=0; i<${#_slots_ref[@]}; i++)); do
-        local s=${_status_ref[$i]}
-        local color=${_stage_colors[$s]}
-        local label=${_stage_names[$s]}
-        line+="$(printf "${BOLD}s%s${RESET}:${color}%-8s${RESET}" "${_slots_ref[$i]}" "$label")"
-        if (( i < ${#_slots_ref[@]} - 1 )); then
-            line+="  "
-        fi
-    done
-    printf "\r\033[K  ${DIM}│${RESET} %b" "$line" >&2
-}
 
 ###############################################################################
 # Rogue version detection
@@ -176,6 +157,56 @@ wait_for_docker () {
 # Slot setup helpers
 ###############################################################################
 
+# Full setup sequence for one slot. Runs in a subshell (backgrounded).
+# Produces the same rich output as the old serial path.
+setup_slot() {
+    local slot_number=$1
+    local pyrogue=$2
+    local pysmurf_cfg=$3
+    local carrier_ip="10.0.${crate_id}.$((slot_number + 100))"
+
+    # Wait for carrier ethernet
+    spin_wait "Slot ${slot_number}: Waiting for ${carrier_ip}" \
+        "timeout 0.5 ping -c 1 -n ${carrier_ip} &>/dev/null"
+    success "Slot ${slot_number}: ${carrier_ip} is online ${DIM}(${_spin_wait_elapsed}s)${RESET}"
+
+    # Start server docker
+    check_docker_pull ${slot_number} "${pyrogue}"
+    start_slot_tmux_and_pyrogue ${slot_number} ${pyrogue}
+
+    spin_wait "Slot ${slot_number}: Waiting for smurf_server_s${slot_number} docker" \
+        "is_slot_pyrogue_up ${slot_number}"
+    success "Slot ${slot_number}: smurf_server_s${slot_number} docker started ${DIM}(${_spin_wait_elapsed}s)${RESET}"
+
+    # Monitor server startup (FW mismatch, PROM, setDefaults, heartbeat)
+    monitor_server_startup ${slot_number}
+    if [[ $? -ne 0 ]]; then
+        error "Slot ${slot_number}: Server startup failed"
+        return 1
+    fi
+
+    # Start pysmurf client
+    start_slot_pysmurf ${slot_number} "${pysmurf_cfg}"
+
+    # Run S.setup() if configured
+    if [ "${configure_pysmurf}" = true ]; then
+        run_pysmurf_setup ${slot_number}
+        info "Slot ${slot_number}: Running S.setup()"
+
+        # Wait for setup to complete
+        local setup_start=$(date +%s)
+        while true; do
+            if is_slot_pysmurf_setup_complete ${slot_number}; then
+                success "Slot ${slot_number}: S.setup() complete ${DIM}($(( $(date +%s) - setup_start ))s)${RESET}"
+                break
+            fi
+            sleep 2
+        done
+    fi
+
+    success "Slot ${slot_number}: Done"
+}
+
 start_slot_tmux_and_pyrogue() {
     slot_number=$1
     pyrogue=$2
@@ -193,11 +224,6 @@ is_slot_pyrogue_up() {
     docker ps --filter "name=^smurf_server_s${slot_number}$" --format '{{.ID}}' 2>/dev/null | grep -q .
 }
 
-is_slot_server_up() {
-    slot_number=$1
-    is_rogue_server_up ${slot_number}
-    return $?
-}
 
 pysmurf_init() {
     slot_number=$1
