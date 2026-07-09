@@ -63,6 +63,14 @@ dim() {
 
 _SPINNER_PID=""
 _SPINNER_START_TIME=""
+
+_cleanup() {
+    spinner_stop >/dev/null
+    printf "\033[?25h" >&2
+    exit 130
+}
+trap _cleanup INT TERM
+
 spinner_start() {
     local msg="${1:-}"
     if [[ ! -t 1 ]]; then
@@ -70,7 +78,9 @@ spinner_start() {
         return
     fi
     _SPINNER_START_TIME=$(date +%s)
+    printf "\033[?25l" >&2
     (
+        trap '' INT TERM
         local frames=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
         local i=0
         local start=$(date +%s)
@@ -82,7 +92,6 @@ spinner_start() {
         done
     ) &
     _SPINNER_PID=$!
-    disown $_SPINNER_PID 2>/dev/null
 }
 
 spinner_stop() {
@@ -90,7 +99,7 @@ spinner_stop() {
     if [[ -n "$_SPINNER_PID" ]]; then
         kill $_SPINNER_PID 2>/dev/null
         wait $_SPINNER_PID 2>/dev/null
-        printf "\r\033[K" >&2
+        printf "\r\033[K\033[?25h" >&2
         if [[ -n "$_SPINNER_START_TIME" ]]; then
             elapsed=$(( $(date +%s) - _SPINNER_START_TIME ))
         fi
@@ -389,8 +398,8 @@ is_rogue_server_up(){
     slot=$1
     timeout_sec=10
     zmq_port=$((9000 + 3*slot))
-    dockercmd="docker exec smurf_server_s${slot} python3 -c \"import pyrogue.interfaces; c = pyrogue.interfaces.SimpleClient('localhost', ${zmq_port}); print(c.getDisp('AMCc.LocalTime'))\""
-    localtime=`eval ${dockercmd} 2>/dev/null`
+    dockercmd="docker exec smurf_server_s${slot} python3 -c \"import pyrogue.interfaces; c = pyrogue.interfaces.SimpleClient('localhost', ${zmq_port}); print(c.getDisp('AMCc.LocalTime'))\" 2>/dev/null | head -1"
+    localtime=`eval ${dockercmd}`
     epochtime=`date "+%s" -d "$localtime" 2> /dev/null`
 
     if [ "$?" -eq "0" ]; then
@@ -400,8 +409,8 @@ is_rogue_server_up(){
 
 	dim "Got timestamp from smurf_server_s${slot}, verifying increment..."
 	while [[ $val0 -eq $val1 ]]; do
-	    localtime1=`eval ${dockercmd} 2>/dev/null`
-	    epochtime1=`date "+%s" -d "$localtime1"`
+	    localtime1=`eval ${dockercmd}`
+	    epochtime1=`date "+%s" -d "$localtime1" 2> /dev/null`
 	    if [  "$?" -eq "0" ]; then
 		val1=$epochtime1
 	    fi
@@ -416,6 +425,6 @@ is_rogue_server_up(){
 	return 1
     fi
 
-    success "smurf_server_s${slot} timestamp incrementing — server is up"
+    success "smurf_server_s${slot} timestamp incrementing - server is up"
     return 0
 }
