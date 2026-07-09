@@ -188,7 +188,7 @@ start_slot_tmux_and_pyrogue() {
 
 is_slot_pyrogue_up() {
     slot_number=$1
-    if [[ -z `docker ps  | grep smurf_server_s${slot_number}`  ]]; then
+    if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^smurf_server_s${slot_number}$"; then
 	return 1
     fi
     return 0
@@ -266,7 +266,8 @@ start_slot_tmux_serial () {
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh -N '${slot_number}'; sleep 5; docker logs smurf_server_s'${slot_number}' -f' C-m
 
     spinner_start "Waiting for smurf_server_s${slot_number} docker to start"
-    while [[ -z $(docker ps 2>/dev/null | grep smurf_server_s${slot_number}) ]]; do
+    while true; do
+	docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^smurf_server_s${slot_number}$" && break
 	sleep 1
     done
     spinner_stop_success "smurf_server_s${slot_number} docker started"
