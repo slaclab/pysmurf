@@ -189,10 +189,7 @@ start_slot_tmux_and_pyrogue() {
 
 is_slot_pyrogue_up() {
     slot_number=$1
-    if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^smurf_server_s${slot_number}$"; then
-	return 1
-    fi
-    return 0
+    docker ps --filter "name=^smurf_server_s${slot_number}$" --format '{{.ID}}' 2>/dev/null | grep -q .
 }
 
 is_slot_server_up() {
@@ -272,16 +269,16 @@ start_slot_tmux_serial () {
     tmux new-window -t ${tmux_session_name}:${slot_number}
     tmux rename-window -t ${tmux_session_name}:${slot_number} smurf_slot${slot_number}
 
+    check_docker_pull ${slot_number} "${pyrogue}"
+
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '$2 C-m
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh -N '${slot_number}'; sleep 5; docker logs smurf_server_s'${slot_number}' -f' C-m
 
     spin_wait "Waiting for smurf_server_s${slot_number} docker to start" \
-        'docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^smurf_server_s'"${slot_number}"'$"'
+        "is_slot_pyrogue_up ${slot_number}"
     success "smurf_server_s${slot_number} docker started ${DIM}(${_spin_wait_elapsed}s)${RESET}"
 
-    spin_wait "Waiting for smurf_server_s${slot_number} rogue server (heartbeat)" \
-        "is_rogue_server_up ${slot_number} >/dev/null 2>&1"
-    success "smurf_server_s${slot_number} rogue server is up ${DIM}(${_spin_wait_elapsed}s)${RESET}"
+    monitor_server_startup ${slot_number}
 
     tmux split-window -v -t ${tmux_session_name}:${slot_number}
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '${pysmurf} C-m
@@ -392,6 +389,191 @@ config_pysmurf_serial () {
     fi
 
     sleep 1
+}
+
+###############################################################################
+# Server startup log monitoring
+###############################################################################
+
+# Monitors the server docker log during startup, reporting:
+# - Docker image pull progress
+# - FPGA firmware mismatch & reprogramming (erase/write/verify PROM)
+# - setDefaults retry failures
+# - Heartbeat detection
+# After completion, prints a success message.
+#
+# Usage: monitor_server_startup <slot_number>
+monitor_server_startup() {
+    local slot_number=$1
+    local container="smurf_server_s${slot_number}"
+    local logfile="/tmp/.shawnhammer_s${slot_number}_startup.log"
+    local saw_pull=false
+    local saw_fw_mismatch=false
+    local saw_program=false
+    local program_phase=""
+    local last_pct=""
+    local saw_setdefaults_error=false
+    local setdefaults_try=0
+    local server_ready=false
+
+    > "$logfile"
+    docker logs "$container" -f --since 0s > "$logfile" 2>&1 &
+    local log_pid=$!
+
+    local frames=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
+    local fi=0
+    local start=$(date +%s)
+    local status_msg="Waiting for rogue server to start"
+
+    if [[ -t 1 ]]; then
+        printf "\033[?25l"
+    fi
+
+    _help_text() {
+        printf "\r\033[K  ${DIM}Tip: docker logs %s -f${RESET}" "$container"
+    }
+
+    while true; do
+        local elapsed=$(( $(date +%s) - start ))
+
+        # Check for docker pull (shown in docker-compose output, not container log)
+        # This is detected from the run.sh output in the tmux pane, but we can
+        # check if the container is still missing (pull in progress)
+        if ! docker ps --filter "name=^${container}$" --format '{{.ID}}' 2>/dev/null | grep -q .; then
+            status_msg="Waiting for docker (may be pulling image)"
+        fi
+
+        # Check for firmware mismatch
+        if ! $saw_fw_mismatch && grep -q "They don't match" "$logfile" 2>/dev/null; then
+            saw_fw_mismatch=true
+            local old_hash=$(grep "Firmware githash:" "$logfile" | grep -oP "'[a-f0-9]+'" | tr -d "'")
+            local new_hash=$(grep "MCS file githash:" "$logfile" | grep -oP "'[a-f0-9]+'" | tr -d "'")
+            if [[ -t 1 ]]; then printf "\r\033[K"; fi
+            warn "FPGA firmware mismatch — reprogramming PROM"
+            dim "  FPGA: ${old_hash:-?}  MCS: ${new_hash:-?}"
+            status_msg="Erasing PROM"
+            program_phase="erase"
+        fi
+
+        # Track PROM programming progress
+        if $saw_fw_mismatch && ! $saw_program; then
+            local latest_erase=$(grep -o "Erasing the PROM: [0-9]* percent" "$logfile" 2>/dev/null | tail -1)
+            local latest_write=$(grep -o "Writing the PROM: [0-9]* percent" "$logfile" 2>/dev/null | tail -1)
+            local latest_verify=$(grep -o "Verifying the PROM: [0-9]* percent" "$logfile" 2>/dev/null | tail -1)
+
+            if [[ -n "$latest_verify" ]]; then
+                local pct=$(echo "$latest_verify" | grep -oP '[0-9]+')
+                status_msg="Verifying PROM (${pct}%)"
+                program_phase="verify"
+            elif [[ -n "$latest_write" ]]; then
+                local pct=$(echo "$latest_write" | grep -oP '[0-9]+')
+                status_msg="Writing PROM (${pct}%)"
+                program_phase="write"
+            elif [[ -n "$latest_erase" ]]; then
+                local pct=$(echo "$latest_erase" | grep -oP '[0-9]+')
+                status_msg="Erasing PROM (${pct}%)"
+                program_phase="erase"
+            fi
+
+            if grep -q "FPGA programmed successfully" "$logfile" 2>/dev/null; then
+                saw_program=true
+                if [[ -t 1 ]]; then printf "\r\033[K"; fi
+                success "FPGA programmed successfully"
+                status_msg="Waiting for FPGA reboot"
+            fi
+        fi
+
+        # Track FPGA reboot / ETH
+        if $saw_program; then
+            if grep -q "FPGA's ETH came up" "$logfile" 2>/dev/null; then
+                status_msg="FPGA rebooted, starting server"
+            fi
+        fi
+
+        # Track setDefaults retries
+        local current_try=$(grep -c "^Setting defaults from file" "$logfile" 2>/dev/null)
+        if [[ "$current_try" -gt 0 ]]; then
+            local retry_cnt=$(grep -o "retryCnt = [0-9]*" "$logfile" 2>/dev/null | tail -1 | grep -oP '[0-9]+')
+            if [[ -n "$retry_cnt" && "$retry_cnt" -gt 0 ]]; then
+                status_msg="setDefaults try ${current_try}, AppTop.Init() retry ${retry_cnt}/7"
+            fi
+        fi
+
+        # Check for setDefaults failure
+        if grep -q "ERROR: Setting defaults try number" "$logfile" 2>/dev/null; then
+            local fail_try=$(grep -o "Setting defaults try number [0-9]*" "$logfile" 2>/dev/null | tail -1 | grep -oP '[0-9]+')
+            if [[ "$fail_try" != "$setdefaults_try" ]]; then
+                setdefaults_try="$fail_try"
+                if [[ -t 1 ]]; then printf "\r\033[K"; fi
+                warn "setDefaults try ${fail_try} failed (JESD init retries exhausted)"
+                saw_setdefaults_error=true
+            fi
+        fi
+
+        # Check for "Too many retries and giving up" (fatal)
+        if grep -q "Failed to set defaults after" "$logfile" 2>/dev/null; then
+            if [[ -t 1 ]]; then printf "\r\033[K\033[?25h"; fi
+            error "Server gave up on setDefaults — JESD link won't lock"
+            dim "  View log: docker logs ${container} | tail -80"
+            kill $log_pid 2>/dev/null; wait $log_pid 2>/dev/null
+            rm -f "$logfile"
+            return 1
+        fi
+
+        # Check for server ready (heartbeat via timestamp increment)
+        if grep -q "Running. Hit cntrl-c" "$logfile" 2>/dev/null; then
+            if is_rogue_server_up ${slot_number} >/dev/null 2>&1; then
+                server_ready=true
+                break
+            fi
+        fi
+
+        # Render spinner
+        if [[ -t 1 ]]; then
+            printf "\r\033[K  ${CYAN}%s${RESET} %s ${DIM}(%ds)${RESET}" \
+                "${frames[$fi]}" "$status_msg" "$elapsed"
+            fi=$(( (fi + 1) % ${#frames[@]} ))
+        fi
+
+        sleep 0.5
+    done
+
+    kill $log_pid 2>/dev/null; wait $log_pid 2>/dev/null
+    rm -f "$logfile"
+
+    local total_elapsed=$(( $(date +%s) - start ))
+    if [[ -t 1 ]]; then printf "\r\033[K\033[?25h"; fi
+    success "smurf_server_s${slot_number} rogue server is up ${DIM}(${total_elapsed}s)${RESET}"
+
+    if $saw_fw_mismatch; then
+        dim "  Note: FPGA was reprogrammed during this startup"
+    fi
+    if $saw_setdefaults_error; then
+        dim "  Note: setDefaults required multiple attempts"
+    fi
+    return 0
+}
+
+# Monitor a docker-compose pull/start and detect if images are being pulled.
+# Call this before waiting for the container to appear.
+# Usage: check_docker_pull <slot_number> <pyrogue_dir>
+check_docker_pull() {
+    local slot_number=$1
+    local pyrogue_dir=$2
+    local container="smurf_server_s${slot_number}"
+
+    # If docker is already running, no pull needed
+    if docker ps --filter "name=^${container}$" --format '{{.ID}}' 2>/dev/null | grep -q .; then
+        return 0
+    fi
+
+    # Check if image exists locally
+    local image
+    image=$(grep -r "image:" "$pyrogue_dir/docker-compose.yml" 2>/dev/null | head -1 | awk '{print $2}')
+    if [[ -n "$image" ]] && ! docker image inspect "$image" >/dev/null 2>&1; then
+        info "Docker image ${BOLD}${image}${RESET} not cached — will be pulled"
+        dim "  This may take a few minutes on first run"
+    fi
 }
 
 ###############################################################################

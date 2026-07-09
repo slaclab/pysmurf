@@ -198,7 +198,7 @@ fi
 for ((i=0; i<${#slots[@]}; ++i)); do
     slot=${slots[i]}
     pyrogue=${pyrogues[i]}
-    if docker ps --format '{{.Names}}' | grep -q "smurf_server_s${slot}"; then
+    if docker ps --filter "name=^smurf_server_s${slot}$" --format '{{.ID}}' | grep -q .; then
         stop_pyrogue $slot $pyrogue
     else
         dim "No running docker for slot ${slot}, skipping"
@@ -208,7 +208,7 @@ done
 for ((i=0; i<${#rfsoc_slots[@]}; ++i)); do
     slot=${rfsoc_slots[i]}
     pyrogue=${rfsoc_pyrogues[i]}
-    if docker ps --format '{{.Names}}' | grep -q "smurf_server_s${slot}"; then
+    if docker ps --filter "name=^smurf_server_s${slot}$" --format '{{.ID}}' | grep -q .; then
         stop_pyrogue $slot $pyrogue
     else
         dim "No running docker for slot ${slot}, skipping"
