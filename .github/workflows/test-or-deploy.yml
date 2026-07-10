@@ -30,11 +30,11 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       # Setup python3
       - name: setup python 3.12
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: 3.12
 
@@ -60,7 +60,7 @@ jobs:
       # We use ssh key authentication to be able to access other private
       # repositories (like the firmware repository).
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         #with:
         #  ssh-key: ${{ secrets.SLACLAB_KEY }}
 
@@ -85,11 +85,11 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       # Setup python 3.12
       - name: Setup python 3.12
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: 3.12
 
@@ -114,11 +114,11 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       # Setup Docker build environment
       - name: Set up docker build enviroment
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
 
       # Extract the branch name.
       # - For PR, the branch name is "github.head_ref"
@@ -188,11 +188,11 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       # Setup Docker build environment
       - name: Set up docker build enviroment
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
 
       # Extract the branch name.
       # - For PR, the branch name is "github.head_ref"
@@ -239,7 +239,7 @@ jobs:
     needs: [test-docs, test-server, test-client]  # Run only if all tests passed
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           fetch-depth: 0  # fetch all tags
 
@@ -249,7 +249,7 @@ jobs:
           python -m build --sdist
 
       - name: Build wheel
-        uses: pypa/cibuildwheel@v4.1.0
+        uses: pypa/cibuildwheel@a0a973acdc9e7b7f8b04ac5c80e6883a5a102615 # v4.1.0
         env:
           CIBW_BUILD: cp310-manylinux_x86_64
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
@@ -259,7 +259,7 @@ jobs:
         run: cp wheelhouse/*.whl dist/
 
       - name: Upload dist
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: dist
           path: dist/
@@ -275,7 +275,7 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           fetch-depth: 0
 
@@ -287,7 +287,7 @@ jobs:
 
       # Setup python3
       - name: Setup python 3.12
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: 3.12
 
@@ -317,17 +317,17 @@ jobs:
       # We use ssh key authentication to be able to access other private
       # repositories (like the firmware repository).
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         #with:
         #  ssh-key: ${{ secrets.SLACLAB_KEY }}
 
       # Setup docker build environment
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
 
       # Login to Dockerhub
       - name: Login to Dockerhub
-        uses: docker/login-action@v4
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4
         with:
           registry: ghcr.io
           username: slacrherbst
@@ -356,7 +356,7 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       # Get the git tag from the environmental variables
       # It will used to tag the docker image
@@ -366,11 +366,11 @@ jobs:
 
       # Setup Docker build environment
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
 
       # Login to Dockerhub
       - name: Login to Dockerhub
-        uses: docker/login-action@v4
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4
         with:
           registry: ghcr.io
           username: slacrherbst
@@ -378,7 +378,7 @@ jobs:
 
       # Build and push the docker image
       - name: Build and push image to Dockerhub
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: ./docker/client
           file: ./docker/client/Dockerfile
@@ -399,10 +399,10 @@ jobs:
       id-token: write  # required for trusted publishing
     steps:
     - name: download dist
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
       with:
         name: dist
         path: dist/
 
     - name: publish package distributions to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
+      uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
