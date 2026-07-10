@@ -1228,7 +1228,7 @@ class SmurfCommandMixin(SmurfBase):
 
         while self._caget(self._save_state_reg + ".Running") and keep_waiting():
             time.sleep(0.1)
-        # Check the return value from 'LoadConfig'.
+        # Check the return value from 'SaveConfigProcess'.
         msg = self._caget(self._save_state_reg + ".Message")
         if msg != "Done":
             raise RuntimeError(f"SaveConfigProcess failed with '{msg}'")
