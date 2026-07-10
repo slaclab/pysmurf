@@ -1205,7 +1205,7 @@ class SmurfCommandMixin(SmurfBase):
     _save_state_reg = "AMCc.SaveConfigProcess"
 
     def _save_state_or_config(
-        self, fname :  str, mode : Literal["Config", "Status"], timeout : float = 180.0,
+        self, fname: str, mode: Literal["Config", "Status"], timeout: float = 180.0,
         **kwargs
     ):
         # write out to a file
