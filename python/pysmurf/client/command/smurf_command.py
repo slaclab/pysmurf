@@ -17,6 +17,7 @@
 import os
 import time
 import subprocess
+from typing import Literal
 
 import numpy as np
 from packaging import version
@@ -1199,7 +1200,38 @@ class SmurfCommandMixin(SmurfBase):
 
     # name changed in Rogue 4 from WriteState to SaveState.  Keeping
     # the write_state function for backwards compatibilty.
-    _save_state_reg = "AMCc.SaveState"
+    # In rogue 6 this has moved to a process to avoid timing out
+    # on a long-running command
+    _save_state_reg = "AMCc.SaveConfigProcess"
+
+    def _save_state_or_config(
+        self, fname: str, mode: Literal["Config", "Status"], timeout: float = 180.0,
+        **kwargs
+    ):
+        # write out to a file
+        self._caput(self._save_state_reg + ".SaveMode", "File", **kwargs)
+        self._caput(self._save_state_reg + ".ConfigFile", fname, **kwargs)
+
+        # select state or config
+        self._caput(self._save_state_reg + ".DataType", mode, **kwargs)
+
+        # start the process
+        self._caput(self._save_state_reg + ".Start", 1, **kwargs)
+
+        # wait for process to complete
+        start = time.time()
+
+        def keep_waiting():
+            if (timeout == 0) or ((time.time() - start) <= timeout):
+                return True
+            raise TimeoutError(f"SaveConfigProcess timed out after {timeout}s.")
+
+        while self._caget(self._save_state_reg + ".Running") and keep_waiting():
+            time.sleep(0.1)
+        # Check the return value from 'SaveConfigProcess'.
+        msg = self._caget(self._save_state_reg + ".Message")
+        if msg != "Done":
+            raise RuntimeError(f"SaveConfigProcess failed with '{msg}'")
 
     def save_state(self, val, **kwargs):
         """
@@ -1210,15 +1242,13 @@ class SmurfCommandMixin(SmurfBase):
         val : str
             The path (including file name) to write the yml file to.
         """
-        self._caput(self._save_state_reg, val, **kwargs)
+        self._save_state_or_config(val, "Status", **kwargs)
 
     # alias older rogue 3 write_state function to save_state
     write_state = save_state
 
     # name changed in Rogue 4 from WriteConfig to SaveConfig.  Keeping
     # the write_config function for backwards compatibilty.
-    _save_config_reg = "AMCc.SaveConfig"
-
     def save_config(self, val, **kwargs):
         """
         Writes the current (un-masked) PyRogue settings to a yml file.
@@ -1228,7 +1258,7 @@ class SmurfCommandMixin(SmurfBase):
         val : str
             The path (including file name) to write the yml file to.
         """
-        self._caput(self._save_config_reg, val, **kwargs)
+        self._save_state_or_config(val, "Config", **kwargs)
 
     # alias older rogue 3 write_config function to save_config
     write_config = save_config
