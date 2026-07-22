@@ -1,7 +1,9 @@
-#From Tristan PM, April 2026. Fix to reading in headers.
+################
+# From Tristan PM, April 2026. Fix to reading in headers.
+################
 
-#uncomment the following line if you want to run in a Jupyter notebook
-#%%cython
+# uncomment the following line if you want to run in a Jupyter notebook
+# %%cython
 
 import numpy as np
 cimport numpy as np

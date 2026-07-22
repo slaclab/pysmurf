@@ -557,6 +557,11 @@ class ParityTimestream:
         ## Calculate the PSD and save it to the class
         times_sec = self.data['times_ms'] / 1e3
         dt = times_sec[1] - times_sec[0]
+
+        if self.metadata['DAQ_method'] == 'SMURF':
+            sample_rate_hz = self.metadata['sample_rate']
+            dt = 1 / sample_rate_hz
+        
         f, p = psd(datavals, fs=1 / dt, nfft=nfft)
         self.metadata['psd_done'] = True
         self.metadata['psd_axis'] = data_axis_label
@@ -569,7 +574,7 @@ class ParityTimestream:
 
     #- Fits a lorentzian to the PSD data stored in the class
     
-    def fit_psd(self, fit_to_corrected_function=True, min_freq_bound=None):
+    def fit_psd(self, fit_to_corrected_function=True, min_freq_bound=None, max_freq_bound=None):
         """ Fits a lorentzian to the PSD data stored in the class.
             Stores the fit parameters in the analysis dictionary.
         ----------
@@ -578,7 +583,10 @@ class ParityTimestream:
                     If True, fits the lorentzian function with noise floor correction
                     If False, fits the standard lorentzian function to the PSD data
                 min_freq_bound: float
-                    Minimum frequency bound [in Hz] for the fit.  If None, then no bound is set 
+                    Minimum frequency bound [in Hz] for the fit.  If None, then no bound is set
+                    AD: this appears to be a lower bound on Gamma_p, not on the fit
+                max_freq_bound: float
+                    Maximum frequency [in Hz] for the fit. Useful when there are hardware filters causing roll offs. If None, then no bound set
         """        
         if not self.metadata['psd_done']:
             print('Error: PSD not calculated yet')
@@ -589,6 +597,10 @@ class ParityTimestream:
             S0_guess = np.max(self.analysis['psd_yvals'])
             peak_freq = self.analysis['psd_freqs'][np.argmax(self.analysis['psd_yvals'])]
             freq_bound = 0 if min_freq_bound is None else min_freq_bound
+            max_freq_bound = 2e6 if max_freq_bound is None else max_freq_bound #set max frequency to 2 MHz, or any large sampling frequency
+            
+            #find index of maximum frequency to include in the fit
+            max_freq_idx = np.argmin(np.abs(self.analysis['psd_freqs'] - max_freq_bound))
             
             if fit_to_corrected_function:
                 F_guess = 0.9
@@ -601,10 +613,10 @@ class ParityTimestream:
                 ## Fit with corrected Lorentzian function
                 popt, pcov = curve_fit(
                     lambda f, S0, F, Gamma_p: corrected_lorentzian_psd(f, S0, F, Gamma_p, delta_t),
-                    self.analysis['psd_freqs'][1:], 
-                    self.analysis['psd_yvals'][1:],
+                    self.analysis['psd_freqs'][1:max_freq_idx], 
+                    self.analysis['psd_yvals'][1:max_freq_idx],
                     p0=[S0_guess, F_guess, peak_freq],
-                    sigma = abs(self.analysis['psd_yvals'][1:])/np.sqrt(self.metadata['n_files']),
+                    sigma = abs(self.analysis['psd_yvals'][1:max_freq_idx])/np.sqrt(self.metadata['n_files']),
                     absolute_sigma=True,
                     bounds=([-np.inf, 0, freq_bound], [np.inf, 1, np.inf])
                 )
@@ -620,10 +632,10 @@ class ParityTimestream:
                 ## Fit with standard Lorentzian function
                 popt, pcov = curve_fit(
                     lorentzian_psd,
-                    self.analysis['psd_freqs'][1:], 
-                    self.analysis['psd_yvals'][1:],
+                    self.analysis['psd_freqs'][1:max_freq_idx], 
+                    self.analysis['psd_yvals'][1:max_freq_idx],
                     p0=[S0_guess, peak_freq],
-                    sigma = abs(self.analysis['psd_yvals'][1:])/np.sqrt(self.metadata['n_files']),
+                    sigma = abs(self.analysis['psd_yvals'][1:max_freq_idx])/np.sqrt(self.metadata['n_files']),
                     absolute_sigma=True,
                     bounds=([-np.inf, freq_bound], [np.inf, np.inf])
                 )
