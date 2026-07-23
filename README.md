@@ -2,13 +2,19 @@
 
 [DOE Code](https://www.osti.gov/doecode/biblio/75053)
 
-[![Build Status](https://github.com/slaclab/pysmurf/workflows/CI/CD/badge.svg)](https://github.com/slaclab/pysmurf/actions?query=workflow%3ACI%2FCD) [![Documentation Status](https://readthedocs.org/projects/pysmurf/badge/?version=main)](https://pysmurf.readthedocs.io/en/main/?badge=main)
+[![pypi](https://img.shields.io/pypi/v/pysmurf-slac)](https://pypi.org/project/pysmurf-slac/) ![versions](https://img.shields.io/pypi/pyversions/pysmurf-slac) [![test-or-deploy](https://img.shields.io/github/actions/workflow/status/slaclab/pysmurf/test-or-deploy.yml)](https://github.com/slaclab/pysmurf/actions/workflows/test-or-deploy.yml) [![Documentation Status](https://readthedocs.org/projects/pysmurf/badge/?version=main)](https://pysmurf.readthedocs.io/en/main/?badge=main)
 
 The python control software for SMuRF. Includes scripts to do low level
 commands as well as higher level analysis.
 
 ## Installation
-To install pysmurf clone this repository and install using pip:
+Install pysmurf using pip:
+```
+pip3 install pysmurf-slac
+```
+
+### Installing from Source
+To install from source clone this repository and install using pip:
 
 ```
 git clone https://github.com/slaclab/pysmurf.git

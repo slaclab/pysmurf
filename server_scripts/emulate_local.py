@@ -42,16 +42,17 @@ from pysmurf.core.roots.EmulationRoot import EmulationRoot
 if __name__ == "__main__":
 
     with EmulationRoot ( config_file    = "",
-                         epics_prefix   = "Test",
                          polling_en     = True,
                          pv_dump_file   = "epics_dump.txt",
                          disable_bay0   = False,
-                         disable_bay1   = False) as root:
+                         disable_bay1   = False,
+                         is_rfsoc       = False,
+                         is_prespectra  = False) as root:
 
         root.saveVariableList("varlist.txt")
 
         # Start the GUI
-        import pyrogue.pydm
         print("Starting GUI...\n")
-        pyrogue.pydm.runPyDM(root=root)
+        import pyrogue.pydm
+        pyrogue.pydm.runPyDM(serverList=root.zmqServer.address, title=args['windows_title'])
 

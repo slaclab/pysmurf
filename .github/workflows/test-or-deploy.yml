@@ -26,17 +26,17 @@ jobs:
   # Run flake8 on all .py files. Should block deploys to Read The Docs.
   flake8:
     name: Flake8 Tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # Setup python3
-      - name: setup python 3.8.12
-        uses: actions/setup-python@v2
+      - name: setup python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: 3.8.12
+          python-version: 3.12
 
       # Install flake8 modules
       - name: Install dependencies
@@ -53,15 +53,16 @@ jobs:
   # Validate the server docker image definitions
   docker-definitions:
     name: Docker Definition Tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
+    if: github.actor != 'dependabot[bot]'
     steps:
       # Checkout the code.
       # We use ssh key authentication to be able to access other private
       # repositories (like the firmware repository).
       - name: Checkout code
-        uses: actions/checkout@v2
-        with:
-          ssh-key: ${{ secrets.SLACLAB_KEY }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        #with:
+        #  ssh-key: ${{ secrets.SLACLAB_KEY }}
 
       # Validate the server 'definitions.sh' file.
       # Note about tokens: In this stage we need to use the SLACLAB TOKEN
@@ -70,7 +71,7 @@ jobs:
       - name: Validate the server definitions
         shell: bash
         env:
-          SWH76_TOKEN: ${{ secrets.SWH76_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.SWH76_TOKEN }}
         run: |
           cd docker/server/
           ./validate.sh
@@ -79,25 +80,25 @@ jobs:
   # Documentation automatic build tests
   test-docs:
     name: Documentation Build Tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [flake8, docker-definitions]   # Run only if all checks passed
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      # Setup python 3.8.12
-      - name: Setup python 3.8.12
-        uses: actions/setup-python@v2
+      # Setup python 3.12
+      - name: Setup python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: 3.8.12
+          python-version: 3.12
 
-      # Install requirements, pysmurf, and sphinx
+      # Install requirements, pysmurf, and docs dependencies
       - name: Install dependencies
         run: |
           python -m pip install -r requirements.txt
           python -m pip install .
-          python -m pip install sphinx
+          python -m pip install -r docs/requirements.txt
 
       # Try to build the documentation
       - name: Build documentation
@@ -108,16 +109,16 @@ jobs:
   # Server tests
   test-server:
     name: Server Tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [flake8, docker-definitions]   # Run only if all checks passed
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # Setup Docker build environment
       - name: Set up docker build enviroment
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
 
       # Extract the branch name.
       # - For PR, the branch name is "github.head_ref"
@@ -128,7 +129,7 @@ jobs:
         env:
           BRANCH_NAME: ${{ github.head_ref }}
         run: |
-          echo ::set-output name=branch::"${BRANCH_NAME:-$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { $1=$2=""; sub("  ",""); gsub(" ","/"); print }')}"
+          echo "branch=${BRANCH_NAME:-$(echo "$GITHUB_REF" | awk 'BEGIN { FS = "/" } ; { $1=$2=""; sub("  ",""); gsub(" ","/"); print }')}" >> "$GITHUB_OUTPUT"
 
       # Build docker image
       - name: Build docker image
@@ -182,16 +183,16 @@ jobs:
   # Client tests
   test-client:
     name: Client Tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [flake8, docker-definitions]   # Run only if all checks passed
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # Setup Docker build environment
       - name: Set up docker build enviroment
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
 
       # Extract the branch name.
       # - For PR, the branch name is "github.head_ref"
@@ -202,7 +203,7 @@ jobs:
         env:
           BRANCH_NAME: ${{ github.head_ref }}
         run: |
-          echo ::set-output name=branch::"${BRANCH_NAME:-$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { $1=$2=""; sub("  ",""); gsub(" ","/"); print }')}"
+          echo "branch=${BRANCH_NAME:-$(echo "$GITHUB_REF" | awk 'BEGIN { FS = "/" } ; { $1=$2=""; sub("  ",""); gsub(" ","/"); print }')}" >> "$GITHUB_OUTPUT"	
 
       # Build docker image
       - name: Build docker Image
@@ -229,19 +230,52 @@ jobs:
           docker container exec client \
             /bin/bash -c "python3 -c 'import matplotlib; matplotlib.use(\"Agg\"); import pysmurf.client'"
 
+  # Build
+
+  # Build wheel
+  build-wheel:
+    name: Build Wheel
+    runs-on: ubuntu-24.04
+    needs: [test-docs, test-server, test-client]  # Run only if all tests passed
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0  # fetch all tags
+
+      - name: Build sdist
+        run: |
+          python -m pip install --upgrade build hatch-vcs hatchling
+          python -m build --sdist
+
+      - name: Build wheel
+        uses: pypa/cibuildwheel@294735312765b09d24a2fbec22660ce817587d55 # v4.1.0
+        env:
+          CIBW_BUILD: cp310-manylinux_x86_64
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+          CIBW_BEFORE_BUILD: pip install hatch-vcs hatchling Cython numpy setuptools
+
+      - name: Collect dist files
+        run: cp wheelhouse/*.whl dist/
+
+      - name: Upload dist
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: dist
+          path: dist/
 
   # Deploy
 
   # Deploy new release notes to GitHub
   deploy-release-notes:
     name: Generate Release Notes
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [test-docs, test-server, test-client]  # Run only if all tests passed
     if: startsWith(github.ref, 'refs/tags/')      # Run only on tagged releases
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
@@ -249,13 +283,13 @@ jobs:
       # It will used to tag the docker image
       - name: Get release tag
         id: get_tag
-        run: echo ::set-output name=tag::"${GITHUB_REF#refs/tags/}"
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
       # Setup python3
-      - name: Setup python 3.8.12
-        uses: actions/setup-python@v2
+      - name: Setup python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: 3.8.12
+          python-version: 3.12
 
       # Install dependencies of the releaseGen.py script
       - name: Install dependencies
@@ -275,7 +309,7 @@ jobs:
   # Server docker
   deploy-server:
     name: Build Server Docker Image
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [test-docs, test-server, test-client]  # Run only if all tests passed
     if: startsWith(github.ref, 'refs/tags/')      # Run only on tagged releases
     steps:
@@ -283,17 +317,17 @@ jobs:
       # We use ssh key authentication to be able to access other private
       # repositories (like the firmware repository).
       - name: Checkout code
-        uses: actions/checkout@v2
-        with:
-          ssh-key: ${{ secrets.SLACLAB_KEY }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        #with:
+        #  ssh-key: ${{ secrets.SLACLAB_KEY }}
 
       # Setup docker build environment
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
 
       # Login to Dockerhub
       - name: Login to Dockerhub
-        uses: docker/login-action@v1
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4
         with:
           registry: ghcr.io
           username: slacrherbst
@@ -307,7 +341,7 @@ jobs:
         id: build
         shell: bash
         env:
-          SWH76_TOKEN: ${{ secrets.SWH76_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.SWH76_TOKEN }}
         run: |
           cd docker/server/
           ./build.sh
@@ -316,27 +350,27 @@ jobs:
   # Client docker
   deploy-client:
     name: Build Client Docker Image
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [test-docs, test-server, test-client]  # Run only if all tests passed
     if: startsWith(github.ref, 'refs/tags/')      # Run only on tagged releases
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # Get the git tag from the environmental variables
       # It will used to tag the docker image
       - name: Get release tag
         id: get_tag
-        run: echo ::set-output name=tag::"${GITHUB_REF#refs/tags/}"
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
       # Setup Docker build environment
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
 
       # Login to Dockerhub
       - name: Login to Dockerhub
-        uses: docker/login-action@v1
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4
         with:
           registry: ghcr.io
           username: slacrherbst
@@ -344,10 +378,31 @@ jobs:
 
       # Build and push the docker image
       - name: Build and push image to Dockerhub
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: ./docker/client
           file: ./docker/client/Dockerfile
           push: true
           tags: ghcr.io/slaclab/pysmurf-client:${{ steps.get_tag.outputs.tag }}
           build-args: branch=${{ steps.get_tag.outputs.tag }}
+
+  # Deploy wheel to PyPI
+  deploy-wheel:
+    name: Publish to PyPI
+    needs: [build-wheel]                          # Run only if wheel builds
+    if: startsWith(github.ref, 'refs/tags/')      # Run only on tagged releases
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/pysmurf-slac
+    permissions:
+      id-token: write  # required for trusted publishing
+    steps:
+    - name: download dist
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+      with:
+        name: dist
+        path: dist/
+
+    - name: publish package distributions to PyPI
+      uses: pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247 # release/v1

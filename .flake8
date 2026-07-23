@@ -1,7 +1,7 @@
 [flake8]
 import-order-style = pep8
 application-import-names = pysmurf, smurf
-exclude = __init__.py, rogue_plugin.py, _version.py
+exclude = __init__.py, rogue_plugin.py
 #############################################################
 # Note: Command to remove white space at the end of lines
 # $ find . -type f -name "*.py" -print0 | xargs -0 sed -i 's/\s*$//g'

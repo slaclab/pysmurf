@@ -54,6 +54,12 @@ class LocalRoot(pyrogue.Root):
     def __init__(self, **kwargs):
         pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=True, **kwargs)
 
+        # Add streamer
+        self.stream = pyrogue.interfaces.stream.Variable(root=self, incGroups='stream')
+
+        # Add a variable to produce metadata
+        self.add(pyrogue.LocalVariable(name="testMeta", value=1, groups="stream"))
+
         # Use the DataFromFile as a stream data source
         self._streaming_stream =  pysmurf.core.emulators.StreamDataSource()
         self.add(self._streaming_stream)
@@ -102,13 +108,21 @@ if __name__ == "__main__":
         root.StreamDataSource.SourceEnable.set(False)
         print('Done')
 
+        # Wait for the pipeline to drain: poll until the FileWriter
+        # and Transmitter have received at least as many frames as
+        # entered the pipeline.
+        print('  Waiting for pipeline to drain... ', end='')
+        rx_in = root.SmurfProcessor.FrameRxStats.FrameCnt.get()
+        while root.SmurfProcessor.FileWriter.FrameCount.get() < rx_in:
+            time.sleep(0.1)
+        while root.SmurfProcessor.Transmitter.dataFrameCnt.get() < rx_in:
+            time.sleep(0.1)
+        print('Done')
+
         # Close the output file
         print('  Closing the FileWriter output file... ', end='')
         root.SmurfProcessor.FileWriter.Close()
         print('Done')
-
-        # Delay to make sure all counters are up-to-date
-        time.sleep(2)
 
         # Read all the frame counters
         print('  Reading counters... ', end='')

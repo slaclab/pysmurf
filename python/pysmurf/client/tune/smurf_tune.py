@@ -28,6 +28,7 @@ import seaborn as sns
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util.pub import set_action
+from pysmurf.client.util.tools import save_to_txt
 from ..util import tools
 
 class SmurfTuneMixin(SmurfBase):
@@ -678,15 +679,15 @@ class SmurfTuneMixin(SmurfBase):
             if correct_att:
                 att_uc = self.get_att_uc(band)
                 att_dc = self.get_att_dc(band)
-                self.log(f'UC (DAC) att: {att_uc}')
-                self.log(f'DC (ADC) att: {att_dc}')
-                if att_uc!= None and att_uc > 0:
+                self.log(f'UC (DAC) att: {att_uc}', self.LOG_INFO)
+                self.log(f'DC (ADC) att: {att_dc}', self.LOG_INFO)
+                if att_uc is not None and att_uc > 0:
                     scale = (10**(-att_uc/2/20))
-                    self.log(f'UC attenuator > 0. Scaling by {scale:4.3f}')
+                    self.log(f'UC attenuator > 0. Scaling by {scale:4.3f}', self.LOG_INFO)
                     dac *= scale
-                if att_dc!= None and att_dc > 0:
+                if att_dc is not None and att_dc > 0:
                     scale = (10**(att_dc/2/20))
-                    self.log(f'DC attenuator > 0. Scaling by {scale:4.3f}')
+                    self.log(f'DC attenuator > 0. Scaling by {scale:4.3f}', self.LOG_INFO)
                     adc *= scale
 
             if save_raw_data:
@@ -781,15 +782,15 @@ class SmurfTuneMixin(SmurfBase):
             save_name = timestamp + '_{}_full_band_resp.txt'
 
             path = os.path.join(self.output_dir, save_name.format('freq'))
-            np.savetxt(path, f)
+            save_to_txt(path, f)
             self.pub.register_file(path, 'full_band_resp', format='txt')
 
             path = os.path.join(self.output_dir, save_name.format('real'))
-            np.savetxt(path, np.real(resp))
+            save_to_txt(path, np.real(resp))
             self.pub.register_file(path, 'full_band_resp', format='txt')
 
             path = os.path.join(self.output_dir, save_name.format('imag'))
-            np.savetxt(path, np.imag(resp))
+            save_to_txt(path, np.imag(resp))
             self.pub.register_file(path, 'full_band_resp', format='txt')
 
         if return_plot_path:
@@ -1317,6 +1318,12 @@ class SmurfTuneMixin(SmurfBase):
         eta_mag = np.abs(eta)
         eta_angle = np.angle(eta)
         eta_scaled = eta_mag / subband_half_width
+        if eta_scaled > 1:
+            self.log(f"eta_fit: Measured eta {eta_scaled} > 1. Clipping to 1.")
+            eta_scaled = 1
+            eta /= eta_mag
+            eta *= subband_half_width
+            eta_mag = subband_half_width
         eta_phase_deg = eta_angle * 180 / np.pi
 
 
@@ -2238,25 +2245,6 @@ class SmurfTuneMixin(SmurfBase):
 
            | ii - 1j*rr
 
-        .. warning::
-           For historical reasons, you should perform this scaling on
-           the data returned by this function (which returns the
-           results from
-           :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_eta_scan_results_real`
-           and
-           :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_eta_scan_results_imag`
-           before using it:
-
-           | rr = np.asarray(rr)
-           | idx = np.where( rr > 2**23 )
-           | rr[idx] = rr[idx] - 2**24
-           | rr /= 2**23
-           |
-           | ii = np.asarray(ii)
-           | idx = np.where( ii > 2**23 )
-           | ii[idx] = ii[idx] - 2**24
-           | ii /= 2**23
-
         Args
         ----
         band : int
@@ -2300,14 +2288,13 @@ class SmurfTuneMixin(SmurfBase):
                                   write_log=write_log)
         self.set_eta_scan_amplitude(band, tone_power, write_log=write_log)
         self.set_eta_scan_freq(band, freq, write_log=write_log)
-        self.set_eta_scan_dwell(band, 0, write_log=write_log)
 
         self.set_run_eta_scan(band, 1, wait_done=False, write_log=write_log)
         pvs = [self._cryo_root(band) + self._eta_scan_results_real_reg,
                self._cryo_root(band) + self._eta_scan_results_imag_reg]
 
         if sync_group:
-            sg = SyncGroup(pvs, skip_first=False)
+            sg = SyncGroup(pvs, self._client)
 
             sg.wait()
             vals = sg.get_values()
@@ -2391,7 +2378,7 @@ class SmurfTuneMixin(SmurfBase):
 
         unique_subband = np.unique(subband)
 
-        cm = plt.get_cmap('viridis')
+        cm = plt.colormaps['viridis']
 
         timestamp = self.get_timestamp()
 
@@ -2497,7 +2484,7 @@ class SmurfTuneMixin(SmurfBase):
             meas_flux_ramp_amp=False, n_phi0=4, flux_ramp=True,
             fraction_full_scale=None, lms_enable1=True, lms_enable2=True,
             lms_enable3=True, feedback_gain=None, lms_gain=None, return_data=True,
-            new_epics_root=None, feedback_start_frac=None,
+            feedback_start_frac=None,
             feedback_end_frac=None, setup_flux_ramp=True, plotname_append=''):
         """
         The function to start tracking. Starts the flux ramp and if requested
@@ -2584,8 +2571,6 @@ class SmurfTuneMixin(SmurfBase):
             Too high of lms_gain will overflow the register and greatly incrase noise.
         return_data : bool, optional, default True
             Whether or not to return f, df, sync.
-        new_epics_root : str or None, optional, default None
-            Override the original epics root.
         feedback_start_frac : float or None, optional, default None
             The fraction of the full flux ramp at which to stop
             applying feedback in each flux ramp cycle.  Must be in
@@ -2710,7 +2695,7 @@ class SmurfTuneMixin(SmurfBase):
 
         if setup_flux_ramp:
             self.flux_ramp_setup(reset_rate_khz, fraction_full_scale,
-                             write_log=write_log, new_epics_root=new_epics_root)
+                             write_log=write_log)
         else:
             self.log("Not changing flux ramp status. Use setup_flux_ramp " +
                      "boolean to run flux_ramp_setup")
@@ -2731,7 +2716,7 @@ class SmurfTuneMixin(SmurfBase):
                 f"feedbackEnd={feedback_end})", self.LOG_USER)
 
         if flux_ramp:
-            self.flux_ramp_on(write_log=write_log, new_epics_root=new_epics_root)
+            self.flux_ramp_on(write_log=write_log)
 
         # take one dataset with all channels
         if return_data or make_plot:
@@ -3026,7 +3011,7 @@ class SmurfTuneMixin(SmurfBase):
         scale = 1.0E3
 
         fig, ax = plt.subplots(1)
-        cm = plt.get_cmap('viridis')
+        cm = plt.colormaps['viridis']
         for j, k in enumerate(keys):
             sync = dat['data'][k]['sync']
             df = dat['data'][k]['df']
@@ -3148,7 +3133,7 @@ class SmurfTuneMixin(SmurfBase):
 
     @set_action()
     def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1,
-            band=2, write_log=False, new_epics_root=None):
+            band=2, write_log=False):
         """
         Set flux ramp sawtooth rate and amplitude.
 
@@ -3183,8 +3168,6 @@ class SmurfTuneMixin(SmurfBase):
            The band to setup the flux ramp on.
         write_log : bool, optional, default False
            Whether to write output to the log.
-        new_epics_root : str or None, optional, default None
-           Override the original epics root.  If None, does nothing.
 
         Raises
         ------
@@ -3197,11 +3180,9 @@ class SmurfTuneMixin(SmurfBase):
         """
 
         # Disable flux ramp
-        self.flux_ramp_off(new_epics_root=new_epics_root,
-                           write_log=write_log)
+        self.flux_ramp_off(write_log=write_log)
 
-        digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band,
-            new_epics_root=new_epics_root)
+        digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band)
         dspClockFrequencyMHz=digitizerFrequencyMHz/2
 
         desiredRampMaxCnt = ((dspClockFrequencyMHz*1e3)/
@@ -3258,63 +3239,39 @@ class SmurfTuneMixin(SmurfBase):
         FastSlowRstValue = np.floor((2**self._num_flux_ramp_counter_bits) *
             (1 - fractionFullScale)/2)
 
-        KRelay = 3 #where do these values come from
         PulseWidth = 64
         DebounceWidth = 255
         RampSlope = 0
         ModeControl = 0
         EnableRampTrigger = 1
 
-        self.set_low_cycle(LowCycle, new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_high_cycle(HighCycle, new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_k_relay(KRelay, new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_ramp_max_cnt(rampMaxCnt, new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_pulse_width(PulseWidth, new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_debounce_width(DebounceWidth, new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_ramp_slope(RampSlope, new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_mode_control(ModeControl, new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_fast_slow_step_size(FastSlowStepSize,
-            new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_fast_slow_rst_value(FastSlowRstValue,
-            new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_enable_ramp_trigger(EnableRampTrigger,
-            new_epics_root=new_epics_root,
-            write_log=write_log)
+        self.set_low_cycle(LowCycle, write_log=write_log)
+        self.set_high_cycle(HighCycle, write_log=write_log)
+        self.set_ramp_max_cnt(rampMaxCnt, write_log=write_log)
+        self.set_pulse_width(PulseWidth, write_log=write_log)
+        self.set_debounce_width(DebounceWidth, write_log=write_log)
+        self.set_ramp_slope(RampSlope, write_log=write_log)
+        self.set_mode_control(ModeControl, write_log=write_log)
+        self.set_fast_slow_step_size(FastSlowStepSize, write_log=write_log)
+        self.set_fast_slow_rst_value(FastSlowRstValue, write_log=write_log)
+        self.set_enable_ramp_trigger(EnableRampTrigger, write_log=write_log)
         # If RampStartMode is 0x1, using timing system, which
         # overrides internal triggering.  Must select one of the
         # available ramp rates programmed into the timing system using
         # the set_ramp_rate routine.
         if self.get_ramp_start_mode() == 1:
-            self.set_ramp_rate(
-                reset_rate_khz, new_epics_root=new_epics_root,
-                write_log=write_log)
+            self.set_ramp_rate(reset_rate_khz, write_log=write_log)
 
-    def get_fraction_full_scale(self, new_epics_root=None):
+    def get_fraction_full_scale(self):
         """
         Returns the fraction_full_scale.
-
-        Args
-        ----
-        new_epics_root : str or None, optional, default None
-            Overrides the initialized epics root.
 
         Returns
         -------
         fraction_full_scale : float
             The fraction of the flux ramp amplitude.
         """
-        return 1-2*(self.get_fast_slow_rst_value(new_epics_root=new_epics_root)/
-                    2**self._num_flux_ramp_counter_bits)
+        return 1-2*(self.get_fast_slow_rst_value()/2**self._num_flux_ramp_counter_bits)
 
     @set_action()
     def check_lock(self, band, f_min=.015, f_max=.2, df_max=.03,
@@ -3556,14 +3513,15 @@ class SmurfTuneMixin(SmurfBase):
         timestamp = self.get_timestamp()
 
         # Save data
-        save_name = '{}_amp_sweep_{}.txt'
+        save_name = '{}_b{:d}_amp_sweep_{}.txt'
 
-        path = os.path.join(self.output_dir, save_name.format(timestamp, 'freq'))
-        np.savetxt(path, f)
+        path = os.path.join(self.output_dir, save_name.format(timestamp, band, 'freq'))
+        # will raise an error if the file already exists
+        save_to_txt(path, f)
         self.pub.register_file(path, 'sweep_response', format='txt')
 
-        path = os.path.join(self.output_dir, save_name.format(timestamp, 'resp'))
-        np.savetxt(path, resp)
+        path = os.path.join(self.output_dir, save_name.format(timestamp, band, 'resp'))
+        save_to_txt(path, resp)
         self.pub.register_file(path, 'sweep_response', format='txt')
 
         # Place in dictionary - dictionary declared in smurf_control
@@ -3590,8 +3548,8 @@ class SmurfTuneMixin(SmurfBase):
 
         # Save resonances
         path = os.path.join(self.output_dir,
-            save_name.format(timestamp, 'resonance'))
-        np.savetxt(path, self.freq_resp[band]['find_freq']['resonance'])
+            save_name.format(timestamp, band, 'resonance'))
+        save_to_txt(path, self.freq_resp[band]['find_freq']['resonance'])
         self.pub.register_file(path, 'resonances', format='txt')
 
         # Call plotting
@@ -3601,7 +3559,7 @@ class SmurfTuneMixin(SmurfBase):
                 subband=np.arange(self.get_number_sub_bands(band)),
                 save_plot=save_plot,
                 show_plot=show_plot,
-                save_name=save_name.replace('.txt', plotname_append +
+                save_name=save_name.replace('_{}.txt', plotname_append +
                                             '.png').format(timestamp, band))
 
 
@@ -3644,7 +3602,7 @@ class SmurfTuneMixin(SmurfBase):
             if filename is not None:
                 f, resp = np.load(filename)
 
-            cm = plt.cm.get_cmap('viridis')
+            cm = plt.colormaps['viridis']
             plt.figure(figsize=(10,4))
 
             for i, sb in enumerate(subband):
@@ -3722,16 +3680,10 @@ class SmurfTuneMixin(SmurfBase):
 
         I = self.get_eta_scan_results_real(band, count=n_step*n_channels)
         I = np.asarray(I)
-        idx = np.where( I > 2**23 )
-        I[idx] = I[idx] - 2**24
-        I /= 2**23
         I = I.reshape(n_channels, n_step)
 
         Q = self.get_eta_scan_results_imag(band, count=n_step*n_channels)
         Q = np.asarray(Q)
-        idx = np.where( Q > 2**23 )
-        Q[idx] = Q[idx] - 2**24
-        Q /= 2**23
         Q = Q.reshape(n_channels, n_step)
 
         resp_scan = I + 1j*Q
@@ -3877,8 +3829,6 @@ class SmurfTuneMixin(SmurfBase):
         self.set_eta_scan_freq(band, freq)
         self.set_eta_scan_amplitude(band, tone_power)
         self.set_eta_scan_channel(band, subchan)
-        self.set_eta_scan_dwell(band, 0)
-
         self.set_run_eta_scan(band, 1)
 
         I = self.get_eta_scan_results_real(band, count=len(freq))
@@ -3891,13 +3841,6 @@ class SmurfTuneMixin(SmurfBase):
         for index in range(len(freq)):
             Ielem = I[index]
             Qelem = Q[index]
-            if Ielem > 2**23:
-                Ielem = Ielem - 2**24
-            if Qelem > 2**23:
-                Qelem = Qelem - 2**24
-
-            Ielem /= 2**23
-            Qelem /= 2**23
 
             response[index] = Ielem + 1j*Qelem
 
@@ -3992,7 +3935,7 @@ class SmurfTuneMixin(SmurfBase):
 
         n_res = len(input_res)
         for i, f in enumerate(input_res):
-            self.log(f'freq {f:5.4f} - {i+1} of {n_res}')
+            self.log(f'freq {f:5.4f} - {i+1} of {n_res}', self.LOG_INFO)
             # fillers for now
             f_min = f
             freq  = None
@@ -4034,16 +3977,10 @@ class SmurfTuneMixin(SmurfBase):
 
         I = self.get_eta_scan_results_real(band, count=n_step*n_channels)
         I = np.asarray(I)
-        idx = np.where( I > 2**23 )
-        I[idx] = I[idx] - 2**24
-        I /= 2**23
         I = I.reshape(n_channels, n_step)
 
         Q = self.get_eta_scan_results_imag(band, count=n_step*n_channels)
         Q = np.asarray(Q)
-        idx = np.where( Q > 2**23 )
-        Q[idx] = Q[idx] - 2**24
-        Q /= 2**23
         Q = Q.reshape(n_channels, n_step)
 
         resp = I + 1j*Q
@@ -4061,6 +3998,12 @@ class SmurfTuneMixin(SmurfBase):
                 eta_phase_deg = np.angle(eta)*180/np.pi
                 eta_mag = np.abs(eta)
                 eta_scaled = eta_mag / subband_half_width
+                if eta_scaled > 1:
+                    self.log(f"setup_notches: Measured eta {eta_scaled} > 1. Clipping to 1.")
+                    eta_scaled = 1
+                    eta /= eta_mag
+                    eta *= subband_half_width
+                    eta_mag = subband_half_width
 
                 abs_resp = np.abs(resp_s)
                 idx = np.ravel(np.where(abs_resp == np.min(abs_resp)))[0]
@@ -4098,14 +4041,6 @@ class SmurfTuneMixin(SmurfBase):
                                       frequ,
                                       tone_power)
 
-                idx = np.where( Iu > 2**23 )
-                Iu[idx] = Iu[idx] - 2**24
-                Iu /= 2**23
-
-                idx = np.where( Qu > 2**23 )
-                Qu[idx] = Qu[idx] - 2**24
-                Qu /= 2**23
-
                 # The eta_scan has a different convention for
                 # inphase/quadrature.  This remaps it to match the
                 # convention used by serialFindFreq, which we use for
@@ -4123,6 +4058,12 @@ class SmurfTuneMixin(SmurfBase):
                 eta_phase_degu = np.angle(etau)*180/np.pi
                 eta_magu = np.abs(etau)
                 eta_scaledu = eta_magu / subband_half_width
+                if eta_scaledu > 1:
+                    self.log(f"setup_notches: Measured eta {eta_scaledu} > 1. Clipping to 1.")
+                    eta_scaledu = 1
+                    etau /= eta_magu
+                    etau *= subband_half_width
+                    eta_magu = subband_half_width
 
                 abs_respu = np.abs(respu_s)
                 idx = np.ravel(np.where(abs_respu == np.min(abs_respu)))[0]
@@ -4330,6 +4271,12 @@ class SmurfTuneMixin(SmurfBase):
         elif filename is not None and last_tune:
             self.log('filename explicitly given. Overriding last_tune bool in load_tune.')
 
+        if filename is None or not os.path.exists(filename):
+            self.log(
+                f'Tune file {filename} not found. Skipping load.',
+                self.LOG_ERROR)
+            return None
+
         fs = np.load(filename, allow_pickle=True).item()
         self.log('Done loading tuning')
 
@@ -4360,10 +4307,17 @@ class SmurfTuneMixin(SmurfBase):
     @set_action()
     def last_tune(self):
         """
-        Returns the full path to the most recent tuning file.
+        Returns the full path to the most recent tuning file, or None
+        if no tune files are found.
         """
-        return np.sort(glob.glob(os.path.join(self.tune_dir,
-                                              '*_tune.npy')))[-1]
+        tune_files = glob.glob(os.path.join(self.tune_dir,
+                                            '*_tune.npy'))
+        if len(tune_files) == 0:
+            self.log(
+                f'No tune files found in {self.tune_dir}',
+                self.LOG_ERROR)
+            return None
+        return np.sort(tune_files)[-1]
 
     @set_action()
     def optimize_lms_delay(self, band, lms_delays=None,
@@ -4512,7 +4466,7 @@ class SmurfTuneMixin(SmurfBase):
     @set_action()
     def estimate_lms_freq(self, band, reset_rate_khz,
                           fraction_full_scale=None,
-                          new_epics_root=None, channel=None,
+                          channel=None,
                           make_plot=False):
         """
         Attempts to estimate the carrier (phi0) rate for all channels
@@ -4530,10 +4484,6 @@ class SmurfTuneMixin(SmurfBase):
             Passed on to the internal tracking_setup call - the
             fraction of full scale exercised by the flux ramp.
             Defaults to value in cfg.
-        new_epics_root : str or None, optional, default None
-            Passed on to internal tracking_setup call ; If using a
-            different RTM to flux ramp, the epics root of the pyrogue
-            server controlling that RTM.
         channel : int array or None, optional, default None
             Passed on to the internal flux_mod2 call.  Which channels
             (if any) to plot.
@@ -4553,8 +4503,7 @@ class SmurfTuneMixin(SmurfBase):
         self.set_feedback_enable(band, 0)
         f, df, sync = self.tracking_setup(band, 0, make_plot=False,
             flux_ramp=True, fraction_full_scale=fraction_full_scale,
-            reset_rate_khz=reset_rate_khz, lms_freq_hz=0,
-            new_epics_root=new_epics_root)
+            reset_rate_khz=reset_rate_khz, lms_freq_hz=0)
 
         s = self.flux_mod2(band, df, sync,
                            make_plot=make_plot, channel=channel)
@@ -4564,8 +4513,7 @@ class SmurfTuneMixin(SmurfBase):
 
     @set_action()
     def estimate_flux_ramp_amp(self, band, n_phi0, write_log=True,
-                               reset_rate_khz=None,
-                               new_epics_root=None, channel=None):
+                               reset_rate_khz=None, channel=None):
         """
         This is like estimate_lms_freq, except it changes the
         flux ramp amplitude instead of the flux ramp frequency.
@@ -4601,8 +4549,7 @@ class SmurfTuneMixin(SmurfBase):
 
         f, df, sync = self.tracking_setup(band, 0, make_plot=False,
             flux_ramp=True, fraction_full_scale=start_fraction_full_scale,
-            reset_rate_khz=reset_rate_khz, lms_freq_hz=0,
-            new_epics_root=new_epics_root)
+            reset_rate_khz=reset_rate_khz, lms_freq_hz=0)
 
         # Set feedback to original value
         self.set_feedback_enable(band, old_feedback)
@@ -4977,7 +4924,7 @@ class SmurfTuneMixin(SmurfBase):
 
                 path = os.path.join(self.output_dir,
                     save_name.format(timestamp, str(band),'resonance'))
-                np.savetxt(path, freq_dict[band]['find_freq']['resonance'])
+                save_to_txt(path, freq_dict[band]['find_freq']['resonance'])
                 self.pub.register_file(path, 'resonances', format='txt')
 
         return freq_dict

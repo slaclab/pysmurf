@@ -1,9 +1,19 @@
+# dynamic package version
+python/pysmurf/_version.py
+
 *.pyc
 *.dat
 *.png
 
+# Cython build artifacts
+*.c
+*.cpp
+*.so
+*.html
+
 # Editor
 *~
+\#*
 .idea/
 *.swp
 
@@ -26,4 +36,14 @@ wheels/
 .installed.cfg
 *.egg
 
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
 */.ipynb_checkpoints/
+
+# Other cleanup
+.DS_Store
+\#*#
+*~
+scratch/untitled.txt
+scratch/*/trash/
+scratch/talk2splendaq/

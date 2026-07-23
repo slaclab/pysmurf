@@ -28,11 +28,12 @@ class DevBoardEth(Common):
     def __init__(self, *,
                  ip_addr        = "",
                  config_file    = None,
-                 epics_prefix   = "EpicsPrefix",
                  polling_en     = True,
                  pv_dump_file   = "",
                  disable_bay0   = False,
                  disable_bay1   = False,
+                 is_rfsoc       = False,
+                 is_prespectra  = False,
                  txDevice       = None,
                  configure      = False,
                  server_port    = 0,
@@ -51,7 +52,9 @@ class DevBoardEth(Common):
                                    commType     = "eth-rssi-interleaved",
                                    pcieRssiLink = 0, # Not needed
                                    disableBay0  = disable_bay0,
-                                   disableBay1  = disable_bay1)
+                                   disableBay1  = disable_bay1,
+                                   isRFSOC      = is_rfsoc,
+                                   isPreSpectra = is_prespectra)
 
         # Create stream interfaces
         self._ddr_streams = []
@@ -68,10 +71,13 @@ class DevBoardEth(Common):
         # Setup base class
         Common.__init__(self,
                         config_file    = config_file,
-                        epics_prefix   = epics_prefix,
                         polling_en     = polling_en,
                         pv_dump_file   = pv_dump_file,
                         txDevice       = txDevice,
                         configure      = configure,
                         server_port    = server_port,
                         **kwargs)
+
+        # Add the RSSI interface to the device tree so that its _start()
+        # method is called during Root.start(), opening the RSSI link.
+        self.add(self._stream)

@@ -9,14 +9,30 @@
 #-----------------------------------------------------------------------------
 
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = [
+    "hatch-vcs",
+    "hatchling",
+    "Cython>=0.29.0",
+    "numpy>=1.19.0",
+    "setuptools",
+]
+build-backend = "hatchling.build"
 
 [project]
-name = "pysmurf"
+name = "pysmurf-slac"
 dynamic = ["version"]
 description = "The python control software for SMuRF"
 readme = "README.md"
+license-files = ["LICEN[CS]E*"]
+requires-python = ">=3.10"
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
 dependencies = [
     "matplotlib",
     "numpy",
@@ -26,10 +42,41 @@ dependencies = [
     "schema",
     "scipy",
     "seaborn",
+    "Cython",
 ]
 
-[tool.setuptools.packages.find]
-where = ["python"]
+[project.urls]
+"Bug Tracker" = "https://github.com/slaclab/pysmurf/issues"
+Documentation = "https://pysmurf.readthedocs.io"
+Homepage = "https://github.com/slaclab/pysmurf"
+"Source Code" = "https://github.com/slaclab/pysmurf"
 
-[tool.setuptools.dynamic]
-version = {attr = "pysmurf.__version__"}
+[tool.hatch.version]
+source = "vcs"
+
+# closest scheme to versioneer behavior, avoids auto-incremented version number
+# https://setuptools-scm.readthedocs.io/en/latest/usage/#default-versioning-scheme
+[tool.hatch.version.raw-options]
+version_scheme = "no-guess-dev"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "python/pysmurf/_version.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/python",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "/python/pysmurf",
+]
+# include cython extensions
+artifacts = [
+    "python/pysmurf/**/*.so",
+    "python/pysmurf/**/*.pyd",
+]
+
+# build cython extensions
+[tool.hatch.build.hooks.custom]
+path = "hatch_build.py"

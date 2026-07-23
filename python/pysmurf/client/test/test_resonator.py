@@ -13,11 +13,11 @@ import pysmurf.client
 
 @pytest.fixture(scope='session')
 def smurf_control():
-    epics_prefix = 'smurf_server_s5'
+    server_port = 9000
     config_file = os.path.join('/usr/local/src/pysmurf/',
                                'cfg_files/stanford/',
                                'experiment_fp30_cc02-03_lbOnlyBay0.cfg' )
-    S = pysmurf.client.SmurfControl(epics_root=epics_prefix,
+    S = pysmurf.client.SmurfControl(server_port=server_port,
                                     cfg_file=config_file,
                                     setup=False,
                                     make_logfile=False,

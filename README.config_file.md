@@ -49,7 +49,7 @@ The 4K and 50K amplifier bias values. This also holds the conversion between vol
 
 ## pic_to_bias_group
 
-The relation between PIC on the cryocard and bias group pair. See the documenation [here](https://confluence.slac.stanford.edu/pages/viewpage.action?spaceKey=SMuRF&title=Cryostat+board).
+The relation between PIC on the cryocard and bias group pair. See the documentation [here](https://confluence.slac.stanford.edu/pages/viewpage.action?spaceKey=SMuRF&title=Cryostat+board).
 
 ## bias_group_to_pair
 

@@ -18,7 +18,7 @@
 #-----------------------------------------------------------------------------
 
 from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
-import pyrogue
+import pyrogue.interfaces
 import rogue.protocols.srp
 
 import pysmurf
@@ -28,11 +28,12 @@ from pysmurf.core.roots.Common import Common
 class EmulationRoot(Common):
     def __init__(self, *,
                  config_file    = None,
-                 epics_prefix   = "EpicsPrefix",
                  polling_en     = True,
                  pv_dump_file   = "",
                  disable_bay0   = False,
                  disable_bay1   = False,
+                 is_rfsoc       = False,
+                 is_prespectra  = False,
                  txDevice       = None,
                  server_port    = 0,
                  **kwargs):
@@ -43,7 +44,9 @@ class EmulationRoot(Common):
         # Instantiate Fpga top level
         self._fpga = FpgaTopLevel( memBase      = self._srp,
                                    disableBay0  = disable_bay0,
-                                   disableBay1  = disable_bay1)
+                                   disableBay1  = disable_bay1,
+                                   isRFSOC      = is_rfsoc,
+                                   isPreSpectra = is_prespectra)
 
         # Create ddr stream interfaces for base class
         self._ddr_streams = [rogue.interfaces.stream.Master()] * 4
@@ -54,7 +57,6 @@ class EmulationRoot(Common):
         # Setup base class
         Common.__init__(self,
                         config_file    = config_file,
-                        epics_prefix   = epics_prefix,
                         polling_en     = polling_en,
                         pv_dump_file   = pv_dump_file,
                         txDevice       = txDevice,

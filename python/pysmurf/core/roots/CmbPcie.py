@@ -16,12 +16,23 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
 import pyrogue
 import rogue.hardware.axi
 import rogue.protocols.srp
 
 from pysmurf.core.roots.Common import Common
+
+
+# For RFSoC systems the FpgaTopLevel subclass that defaults isRFSOC=True is used.
+# For standard ATCA systems the BpEthGen2 class is used directly.
+# The import is deferred to a function so the correct zip/PYTHONPATH is already
+# in place before the import is attempted.
+def _import_fpga_top_level(is_rfsoc=False):
+    if is_rfsoc:
+        from CryoDet._MicrowaveMuxZcu208 import FpgaTopLevel
+    else:
+        from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+    return FpgaTopLevel
 
 class CmbPcie(Common):
     def __init__(self, *,
@@ -29,17 +40,21 @@ class CmbPcie(Common):
                  pcie_dev_rssi  = "/dev/datadev_0",
                  pcie_dev_data  = "/dev/datadev_1",
                  config_file    = None,
-                 epics_prefix   = "EpicsPrefix",
                  polling_en     = True,
                  pv_dump_file   = "",
                  disable_bay0   = False,
                  disable_bay1   = False,
+                 is_rfsoc       = False,
+                 is_prespectra  = False,
                  enable_pwri2c  = False,
                  txDevice       = None,
                  configure      = False,
                  VariableGroups = None,
                  server_port    = 0,
                  **kwargs):
+
+        # Set this once, before creating any instances
+        rogue.hardware.axi.AxiStreamDma.zeroCopyDisable(pcie_dev_rssi)
 
         # TDEST 0 routed to streamr0 (SRPv3)
         self._srpStream = rogue.hardware.axi.AxiStreamDma(pcie_dev_rssi,(pcie_rssi_lane*0x100 + 0),True)
@@ -48,13 +63,20 @@ class CmbPcie(Common):
         self._srp = rogue.protocols.srp.SrpV3()
         pyrogue.streamConnectBiDir(self._srp, self._srpStream)
 
-        # Instantiate Fpga top level
+        # Instantiate Fpga top level. Import is deferred until here so that the
+        # correct pyrogue zip is already on sys.path before the import is attempted.
+        # For RFSoC systems this resolves to CryoDet._MicrowaveMuxZcu208.FpgaTopLevel
+        # (which defaults isRFSOC=True); for ATCA systems to _MicrowaveMuxBpEthGen2.
+        FpgaTopLevel = _import_fpga_top_level(is_rfsoc)
+
         # In order to be backwards compatible for now, also support
         # FpgaTopLevel which doesn't have the enablePwrI2C argument.
         try:
             self._fpga = FpgaTopLevel( memBase      = self._srp,
                                        disableBay0  = disable_bay0,
                                        disableBay1  = disable_bay1,
+                                       isRFSOC      = is_rfsoc,
+                                       isPreSpectra = is_prespectra,
                                        enablePwrI2C = enable_pwri2c)
         except TypeError as e:
             print(f"TypeError calling FpgaTopLevel: {e}")
@@ -63,7 +85,9 @@ class CmbPcie(Common):
             print("Staring the server without using the 'enablePwrI2C' option.")
             self._fpga = FpgaTopLevel( memBase      = self._srp,
                                        disableBay0  = disable_bay0,
-                                       disableBay1  = disable_bay1)
+                                       disableBay1  = disable_bay1,
+                                       isRFSOC      = is_rfsoc,
+                                       isPreSpectra = is_prespectra)
 
         # Create stream interfaces
         self._ddr_streams = []
@@ -72,7 +96,6 @@ class CmbPcie(Common):
         # channels 0, 1, 4, 5.
         for i in [0, 1, 4, 5]:
             tmp = rogue.hardware.axi.AxiStreamDma(pcie_dev_rssi,(pcie_rssi_lane*0x100 + 0x80 + i), True)
-            tmp.setZeroCopyEn(False)
             self._ddr_streams.append(tmp)
 
         # Streaming interface stream
@@ -82,7 +105,6 @@ class CmbPcie(Common):
         # Setup base class
         Common.__init__(self,
                         config_file    = config_file,
-                        epics_prefix   = epics_prefix,
                         polling_en     = polling_en,
                         pv_dump_file   = pv_dump_file,
                         txDevice       = txDevice,

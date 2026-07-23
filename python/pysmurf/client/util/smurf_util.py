@@ -28,6 +28,14 @@ from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util.SmurfFileReader import SmurfStreamReader
 from pysmurf.client.util.pub import set_action
+from pysmurf.client.util import tools
+
+# Try to import optimized Cython version, fall back to pure Python if not available
+try:
+    from pysmurf.client.util.stream_data_reader import read_stream_data_cython, parse_tes_bias_from_headers
+    CYTHON_AVAILABLE = True
+except ImportError:
+    CYTHON_AVAILABLE = False
 
 class SmurfUtilMixin(SmurfBase):
 
@@ -37,35 +45,89 @@ class SmurfUtilMixin(SmurfBase):
             write_log=True):
         """Takes raw debugging data.
 
+        Supports three acquisition modes, selected by the ``IQstream`` and
+        ``rf_iq`` arguments. The two arguments map to two distinct firmware
+        registers (``iqStreamEnable`` and ``rfIQStreamEnable``) that route
+        data from different points in the DSP chain:
+
+        - ``IQstream=0``, ``rf_iq=False`` -- f / df mode. Returns the
+          tracking-loop output: resonator frequency and frequency error
+          per processed channel.
+        - ``IQstream=1``, ``rf_iq=False`` (default) -- demodulated I/Q
+          mode. Returns the channelized baseband in-phase and
+          quadrature components (after the DDS mixer and CIC, at the
+          tracking-loop input). The first two return values are then
+          I and Q rather than f and df.
+        - ``rf_iq=True`` -- RF I/Q mode. Returns the channelized
+          baseband I/Q for a single channel before the per-channel DDS
+          correction (i.e. the analysis filterbank output). Use this
+          when you need the raw resonator response (e.g. eta scans,
+          noise vs. flux-ramp-frequency studies). Requires ``channel``
+          to be specified; ``IQstream`` is forced to ``False``
+          internally and the ``rfIQStreamEnable`` register is toggled
+          around the acquisition.
+
+        The debug data path also has an exponential-average low-pass
+        filter (see :func:`set_debug_data_filter_cutoff`) applied in
+        normal and singleChannelReadout(Opt1) modes, and optional
+        counter-substitution registers that replace data channels with
+        timing diagnostics (see :func:`set_debug_timing_override`,
+        :func:`set_counter_select`).
+
         Args
         ----
         band : int
             The band to take data on.
         channel : int or None, optional, default None
-            The channel to take debug data on in single_channel_mode.
+            The channel to take debug data on. Required for
+            ``rf_iq=True`` and for either ``single_channel_readout``
+            mode. If ``None``, single-channel readout is disabled.
         nsamp : int, optional, default 2**19
             The number of samples to take.
         filename : str or None, optional, default None
             The name of the file to save to.
         IQstream : int, optional, default 1
-            Whether to take the raw IQ stream.
+            Selects the ``iqStreamEnable`` mode for the demodulated
+            datapath. ``1`` returns demodulated I/Q; ``0`` returns
+            f/df. Ignored when ``rf_iq=True`` (forced to ``0``).
         single_channel_readout : int, optional, default 1
-            Whether to look at one channel.
+            Single-channel readout option (``1`` or ``2``) when
+            ``channel`` is provided. Selects between the two
+            single-channel readout firmware paths.
         debug : bool, optional, default False
             Whether to take data in debug mode.
         rf_iq : bool, optional, default False
-            Return the RF IQ. Must provide channel.
+            If ``True``, enable the ``rfIQStreamEnable`` datapath and
+            return undemodulated RF baseband I/Q for ``channel``. Must
+            provide ``channel``. Mutually exclusive with ``IQstream``;
+            when ``True`` the supplied ``IQstream`` value is overridden
+            to ``False``.
         write_log : bool, optional, default True
             Whether to write low-level commands to the log file.
 
         Returns
         -------
         f : float array
-            The frequency response.
+            First data stream. Tracking frequency if
+            ``IQstream=0`` and ``rf_iq=False``; demodulated in-phase
+            component (I) if ``IQstream=1`` and ``rf_iq=False``;
+            RF baseband in-phase component (I) if ``rf_iq=True``.
         df : float array
-            The frequency error.
+            Second data stream. Tracking frequency error if
+            ``IQstream=0`` and ``rf_iq=False``; demodulated quadrature
+            component (Q) if ``IQstream=1`` and ``rf_iq=False``;
+            RF baseband quadrature component (Q) if ``rf_iq=True``.
         sync : float array
-            The sync count.
+            The sync (flux-ramp strobe) count.
+
+        See Also
+        --------
+        :func:`decode_data` : Decodes take_debug_data output in multi-channel mode.
+        :func:`decode_single_channel` : Decodes take_debug_data output in single-channel mode.
+        :func:`set_debug_data_filter_cutoff` : Controls the low-pass filter on the debug datapath.
+        :func:`set_decimation` : Sets the debug-path decimation rate (affects sample rate in multi-channel mode).
+        :func:`set_debug_timing_override` : Substitutes Counter0 into a data channel for timing debug.
+        :func:`set_counter_select` : Substitutes flux-ramp frame counter into I/Q for timing debug.
 
         """
         # Set proper single channel readout
@@ -111,12 +173,8 @@ class SmurfUtilMixin(SmurfBase):
         dchannel = 0 # I don't really know what this means and I'm sorry -CY
         self.setup_daq_mux(dtype, dchannel, nsamp, band=band, debug=debug)
         self.log('Data acquisition in progress...', self.LOG_USER)
-        char_array = [ord(c) for c in data_filename] # convert to ascii
-        write_data = np.zeros(300, dtype=int)
-        for j in np.arange(len(char_array)):
-            write_data[j] = char_array[j]
 
-        self.set_streamdatawriter_datafile(write_data) # write this
+        self.set_streamdatawriter_datafile(data_filename)
 
         #self.set_streamdatawriter_open('True') # str and not bool
         self.set_streamdatawriter_open(True)
@@ -266,15 +324,6 @@ class SmurfUtilMixin(SmurfBase):
         sol = root_scalar(lambda fc_hz : alpha_float-self.compute_exp_avg_alpha(fc_hz,fs_hz), bracket=[0, fs_hz/2.])
         return sol.root
 
-    # the JesdWatchdog will check if an instance of the JesdWatchdog is already
-    # running and kill itself if there is
-    def start_jesd_watchdog(self):
-        import pysmurf.client.watchdog.JesdWatchdog as JesdWatchdog
-        import subprocess
-        import sys
-        subprocess.Popen([sys.executable,JesdWatchdog.__file__])
-
-    # Shawn needs to make this better and add documentation.
     @set_action()
     def estimate_phase_delay(self, band, nsamp=2**19, make_plot=True,
             show_plot=True, save_plot=True, save_data=True, n_scan=5,
@@ -852,7 +901,7 @@ class SmurfUtilMixin(SmurfBase):
             Whether to register the data file with the pysmurf
             publisher.
         IQ_mode : bool, optional, default to False
-            Whether or not you want to take data in IQ streaming mode. 
+            Whether or not you want to take data in IQ streaming mode.
             You must have S._caget(f'{S.app_core}modeStream')=1.
 
 
@@ -975,6 +1024,7 @@ class SmurfUtilMixin(SmurfBase):
             Time in seconds to wait after filter reset.
         IQ_mode : bool, optional, defaulte False
             Whether to take data in IQ streaming mode. Need S._caget(f'{S.app_core}modeStream')=1
+
         Returns
         -------
         data_filename : str
@@ -1030,9 +1080,20 @@ class SmurfUtilMixin(SmurfBase):
 
                 channel_mask = self.make_channel_mask(bands, smurf_chans, IQ_mode=IQ_mode)
                 self.set_channel_mask(channel_mask)
+
+                # In IQ mode, build the original channel list for the
+                # mask/freq files (one entry per physical channel).  The
+                # IQ stream indices sent to the ChannelMapper are an
+                # internal detail and should not be written to disk.
+                if IQ_mode:
+                    file_mask = self.make_channel_mask(bands, smurf_chans,
+                                                      IQ_mode=False)
+                else:
+                    file_mask = channel_mask
             else:
                 channel_mask = np.atleast_1d(channel_mask)
                 self.set_channel_mask(channel_mask)
+                file_mask = channel_mask
 
             time.sleep(0.5)
 
@@ -1071,18 +1132,20 @@ class SmurfUtilMixin(SmurfBase):
 
 
             # Save mask file as text file. Eventually this will be in the
-            # raw data output
+            # raw data output.  In IQ mode, file_mask contains the original
+            # absolute channel numbers (band*n_chan + ch) rather than the
+            # IQ stream indices used by the ChannelMapper.
             mask_fname = os.path.join(data_filename.replace('.dat',
                 '_mask.txt'))
-            np.savetxt(mask_fname, channel_mask, fmt='%i')
+            tools.save_to_txt(mask_fname, file_mask, fmt='%i')
             self.pub.register_file(mask_fname, 'mask')
             self.log(mask_fname)
 
             if make_freq_mask:
                 if write_log:
                     self.log("Writing frequency mask.")
-                freq_mask = self.make_freq_mask(channel_mask)
-                np.savetxt(os.path.join(data_filename.replace('.dat',
+                freq_mask = self.make_freq_mask(file_mask)
+                tools.save_to_txt(os.path.join(data_filename.replace('.dat',
                     '_freq.txt')), freq_mask, fmt='%4.4f')
                 self.pub.register_file(
                     os.path.join(data_filename.replace('.dat', '_freq.txt')),
@@ -1109,7 +1172,7 @@ class SmurfUtilMixin(SmurfBase):
         self.close_data_file(write_log=write_log)
 
         if register_file:
-            datafile = self.get_data_file_name().tostring().decode()
+            datafile = self.get_data_file_name()
             if datafile:
                 self.log(f"Registering File {datafile}")
                 self.pub.register_file(datafile, 'data', format='dat')
@@ -1122,7 +1185,7 @@ class SmurfUtilMixin(SmurfBase):
                          return_header=False,
                          return_tes_bias=False, write_log=True,
                          n_max=2048, make_freq_mask=False,
-                         gcp_mode=False, IQ_mode=True):
+                         gcp_mode=False, IQ_mode=False, fast_reader=True):
         """
         Loads data taken with the function stream_data_on.
         Gives back the resonator data in units of phase. Also
@@ -1156,7 +1219,10 @@ class SmurfUtilMixin(SmurfBase):
         gcp_mode (bool) : Indicates that the data was written in GCP mode. This
             is the legacy data mode which was depracatetd in Rogue 4.
         IQ_mode : bool, optional, default False
-            Whether data was taken with IQ stream mode:  S._caget(f'{S.app_core}modeStream')=1 
+            Whether data was taken with IQ stream mode:  S._caget(f'{S.app_core}modeStream')=1
+        fast_reader : bool, optional, default True
+            Use a cython-optimized file reader. Will fallback on python reader if cython
+            is not available, but this is much slower.
 
         Ret:
         ----
@@ -1184,120 +1250,146 @@ class SmurfUtilMixin(SmurfBase):
         if channel is not None:
             self.log(f'Only reading channel {channel}')
 
-        # Flag to indicate we are about the read the fist frame from the disk
-        # The number of channel will be extracted from the first frame and the
-        # data structures will be build based on that
-        first_read = True
-        with SmurfStreamReader(datafile,
-                isRogue=True, metaEnable=True) as file:
-            for header, data in file.records():
-                if first_read:
-                    # Update flag, so that we don't do this code again
-                    first_read = False
+        # Use fully Cython-optimized version if available
+        if CYTHON_AVAILABLE and fast_reader:
 
-                    # Read in all used channels by default
-                    if channel is None:
-                        channel = np.arange(header.number_of_channels)
+            # This version does ALL file I/O in C
+            t, phase, headers, _meta = read_stream_data_cython(
+                datafile,
+                channel=channel,
+                IQ_mode=IQ_mode,
+            )
+            header_dict = {}
+            if return_header:
+                # parse into dict for backwards compatibility
+                for k in headers.dtype.fields:
+                    if k[:8] != "_padding":
+                        header_dict[k] = headers[k]
+            tes_bias = parse_tes_bias_from_headers(headers)
 
-                    channel = np.ravel(np.asarray(channel))
-                    n_chan = len(channel)
+        # Pure Python fallback
+        else:
+            if fast_reader:
+                self.log(
+                    'Fast Cython reader not available. Falling back on slow reader.',
+                    self.LOG_ERROR
+                )
+                fast_reader = False  # will impact conversion later
+            # Flag to indicate we are about the read the fist frame from the disk
+            # The number of channel will be extracted from the first frame and the
+            # data structures will be build based on that
+            first_read = True
+            with SmurfStreamReader(datafile,
+                    isRogue=True, metaEnable=True) as file:
+                for header, data in file.records():
+                    if first_read:
+                        # Update flag, so that we don't do this code again
+                        first_read = False
 
-                    # Indexes for input channels
-                    channel_mask = np.zeros(n_chan, dtype=int)
-                    for i, c in enumerate(channel):
-                        channel_mask[i] = c
+                        # Read in all used channels by default
+                        if channel is None:
+                            channel = np.arange(header.number_of_channels)
 
-                    #initialize data structure
-                    phase=list()
-                    if IQ_mode:
-                        if n_chan % 2 != 0:
-                            self.log("WARNING: it seems unlikely this dataset was taken in IQ streaming mode: there are an odd number of channels stored.")
-                            self.log("removing last channel")
-                            channel = channel[:-1]
-                        for _,_ in enumerate(channel[::2]):
-                            phase.append(list())
-                        ## IQ mode will log consecutive channels,
-                        ## with channel A & channel A+1 corresponding to I and Q
-                        ## want to condense those 2 channels into the original IQ data.
-                        for i,j in enumerate(channel[::2]):
-                            phase[i].append(data[j]+1j*data[j+1])
+                        channel = np.ravel(np.asarray(channel))
+                        n_chan = len(channel)
+
+                        # Indexes for input channels
+                        channel_mask = np.zeros(n_chan, dtype=int)
+                        for i, c in enumerate(channel):
+                            channel_mask[i] = c
+
+                        #initialize data structure
+                        phase=list()
+                        if IQ_mode:
+                            if n_chan % 2 != 0:
+                                self.log("WARNING: it seems unlikely this dataset was taken in IQ streaming mode: there are an odd number of channels stored.")
+                                self.log("removing last channel")
+                                channel = channel[:-1]
+                            for _,_ in enumerate(channel[::2]):
+                                phase.append(list())
+                            ## IQ mode will log consecutive channels,
+                            ## with channel A & channel A+1 corresponding to I and Q
+                            ## want to condense those 2 channels into the original IQ data.
+                            for i,j in enumerate(channel[::2]):
+                                phase[i].append(data[j]+1j*data[j+1])
+                        else:
+                            for _,_ in enumerate(channel):
+                                phase.append(list())
+                            for i,_ in enumerate(channel):
+                                phase[i].append(data[i])
+
+                        t = [header.timestamp]
+                        if return_header or return_tes_bias:
+                            tmp_tes_bias = np.array(header.tesBias)
+                            tes_bias = np.zeros((0,16))
+
+                        # Get header values if requested
+                        if return_header or return_tes_bias:
+                            tmp_header_dict = {}
+                            header_dict = {}
+                            for i, h in enumerate(header._fields):
+                                tmp_header_dict[h] = np.array(header[i])
+                                header_dict[h] = np.array([],
+                                                          dtype=type(header[i]))
+                            tmp_header_dict['tes_bias'] = np.array([header.tesBias])
+
+
+                        # Already loaded 1 element
+                        counter = 1
                     else:
-                        for _,_ in enumerate(channel):
-                            phase.append(list())
-                        for i,_ in enumerate(channel):
-                            phase[i].append(data[i])
+                        if IQ_mode:
+                            for i,j in enumerate(channel[::2]):
+                                phase[i].append(data[j]+1j*data[j+1])
+                        else:
+                            for i in range(n_chan):
+                                phase[i].append(data[i])
 
-                    t = [header.timestamp]
-                    if return_header or return_tes_bias:
-                        tmp_tes_bias = np.array(header.tesBias)
-                        tes_bias = np.zeros((0,16))
+                        t.append(header.timestamp)
 
-                    # Get header values if requested
-                    if return_header or return_tes_bias:
-                        tmp_header_dict = {}
-                        header_dict = {}
-                        for i, h in enumerate(header._fields):
-                            tmp_header_dict[h] = np.array(header[i])
-                            header_dict[h] = np.array([],
-                                                      dtype=type(header[i]))
-                        tmp_header_dict['tes_bias'] = np.array([header.tesBias])
+                        if return_header or return_tes_bias:
+                            for i, h in enumerate(header._fields):
+                                tmp_header_dict[h] = np.append(tmp_header_dict[h],
+                                                           header[i])
+                            tmp_tes_bias = np.vstack((tmp_tes_bias, header.tesBias))
 
+                        if counter % n_max == n_max - 1:
+                            if write_log:
+                                self.log(f'{counter+1} elements loaded')
 
-                    # Already loaded 1 element
-                    counter = 1
-                else:
-                    if IQ_mode:
-                        for i,j in enumerate(channel[::2]):
-                            phase[i].append(data[j]+1j*data[j+1])
-                    else:
-                        for i in range(n_chan):
-                            phase[i].append(data[i])
+                            if return_header:
+                                for k in header_dict.keys():
+                                    header_dict[k] = np.append(header_dict[k],
+                                                               tmp_header_dict[k])
+                                    tmp_header_dict[k] = \
+                                        np.array([],
+                                                 dtype=type(header_dict[k][0]))
+                                print(np.shape(tes_bias), np.shape(tmp_tes_bias))
+                                tes_bias = np.vstack((tes_bias, tmp_tes_bias))
+                                tmp_tes_bias = np.zeros((0, 16))
 
-                    t.append(header.timestamp)
+                            elif return_tes_bias:
+                                tes_bias = np.vstack((tes_bias, tmp_tes_bias))
+                                tmp_tes_bias = np.zeros((0, 16))
 
-                    if return_header or return_tes_bias:
-                        for i, h in enumerate(header._fields):
-                            tmp_header_dict[h] = np.append(tmp_header_dict[h],
-                                                       header[i])
-                        tmp_tes_bias = np.vstack((tmp_tes_bias, header.tesBias))
+                        counter += 1
 
-                    if counter % n_max == n_max - 1:
-                        if write_log:
-                            self.log(f'{counter+1} elements loaded')
+            phase=np.array(phase)
+            t=np.array(t)
 
-                        if return_header:
-                            for k in header_dict.keys():
-                                header_dict[k] = np.append(header_dict[k],
-                                                           tmp_header_dict[k])
-                                tmp_header_dict[k] = \
-                                    np.array([],
-                                             dtype=type(header_dict[k][0]))
-                            print(np.shape(tes_bias), np.shape(tmp_tes_bias))
-                            tes_bias = np.vstack((tes_bias, tmp_tes_bias))
-                            tmp_tes_bias = np.zeros((0, 16))
-
-                        elif return_tes_bias:
-                            tes_bias = np.vstack((tes_bias, tmp_tes_bias))
-                            tmp_tes_bias = np.zeros((0, 16))
-
-                    counter += 1
-
-        phase=np.array(phase)
-        t=np.array(t)
-
-        if return_header:
+        # These are handled earlier in the Cython reader
+        if return_header and not fast_reader:
             for k in header_dict.keys():
                 header_dict[k] = np.append(header_dict[k],
                     tmp_header_dict[k])
             tes_bias = np.vstack((tes_bias, tmp_tes_bias))
             tes_bias = np.transpose(tes_bias)
-
-        elif return_tes_bias:
+        elif return_tes_bias and not fast_reader:
             tes_bias = np.vstack((tes_bias, tmp_tes_bias))
             tes_bias = np.transpose(tes_bias)
 
         # rotate and transform to phase
-        if not IQ_mode:
+        # the cython reader handles this already
+        if not IQ_mode and not fast_reader:
             phase = phase.astype(float) / 2**15 * np.pi
 
         if np.size(phase) == 0:
@@ -1597,14 +1689,14 @@ class SmurfUtilMixin(SmurfBase):
         """
         # Ask mitch why this is what it is...
         if bay == 0:
-            stream0 = self.epics_root + ":AMCc:Stream0"
-            stream1 = self.epics_root + ":AMCc:Stream1"
+            stream0 = "AMCc.Stream0.Data"
+            stream1 = "AMCc.Stream1.Data"
         else:
-            stream0 = self.epics_root + ":AMCc:Stream2"
-            stream1 = self.epics_root + ":AMCc:Stream3"
+            stream0 = "AMCc.Stream2.Data"
+            stream1 = "AMCc.Stream3.Data"
 
         pvs = [stream0, stream1]
-        sg  = SyncGroup(pvs, skip_first=True)
+        sg  = SyncGroup(pvs, self._client)
 
         # trigger PV
         if not hw_trigger:
@@ -1612,7 +1704,6 @@ class SmurfUtilMixin(SmurfBase):
         else:
             self.set_arm_hw_trigger(bay, 1, write_log=write_log)
 
-        time.sleep(.1)
         sg.wait()
 
         vals = sg.get_values()
@@ -1642,12 +1733,12 @@ class SmurfUtilMixin(SmurfBase):
         adc_max   = int(np.max((adc.real.max(), adc.imag.max())))
         adc_min   = int(np.min((adc.real.min(), adc.imag.min())))
         saturated = ((adc_max > 31000) | (adc_min < -31000))
-        self.log(f'ADC{band} max count: {adc_max}')
-        self.log(f'ADC{band} min count: {adc_min}')
+        self.log(f'ADC{band} max count: {adc_max}', self.LOG_INFO)
+        self.log(f'ADC{band} min count: {adc_min}', self.LOG_INFO)
         if saturated:
             self.log(f'\033[91mADC{band} saturated\033[00m') # color red
         else:
-            self.log(f'\033[92mADC{band} not saturated\033[00m') # color green
+            self.log(f'\033[92mADC{band} not saturated\033[00m', self.LOG_INFO) # color green
         return saturated
 
     @set_action()
@@ -1670,12 +1761,12 @@ class SmurfUtilMixin(SmurfBase):
         dac_max   = int(np.max((dac.real.max(), dac.imag.max())))
         dac_min   = int(np.min((dac.real.min(), dac.imag.min())))
         saturated = ((dac_max > 31000) | (dac_min < -31000))
-        self.log(f'DAC{band} max count: {dac_max}')
-        self.log(f'DAC{band} min count: {dac_min}')
+        self.log(f'DAC{band} max count: {dac_max}', self.LOG_INFO)
+        self.log(f'DAC{band} min count: {dac_min}', self.LOG_INFO)
         if saturated:
             self.log(f'\033[91mDAC{band} saturated\033[00m') # color red
         else:
-            self.log(f'\033[92mDAC{band} not saturated\033[00m') # color green
+            self.log(f'\033[92mDAC{band} not saturated\033[00m', self.LOG_INFO) # color green
         return saturated
 
     @set_action()
@@ -1945,10 +2036,9 @@ class SmurfUtilMixin(SmurfBase):
         self.set_data_buffer_size(bay, size, write_log=True)
         for daq_num in np.arange(2):
             s = self.get_waveform_start_addr(bay, daq_num, convert=True,
-                write_log=debug)
+                write_log=write_log)
             e = s + 4*size
-            self.set_waveform_end_addr(bay, daq_num, e, convert=True,
-                write_log=debug)
+            self.set_waveform_end_addr(bay, daq_num, e, write_log=write_log)
             if debug:
                 self.log(f'DAQ number {daq_num}: start {s} - end {e}')
 
@@ -2093,14 +2183,10 @@ class SmurfUtilMixin(SmurfBase):
         band : int
             The band that is to be turned off.
         """
-        # Warning ; you might think using the
-        # set_amplitude_scale_array function would be fast than this
-        # but it is apparently not!
-        self.set_amplitude_scales(band, 0, **kwargs)
         n_channels = self.get_number_channels(band)
-        self.set_feedback_enable_array(
-            band, np.zeros(n_channels, dtype=int), **kwargs)
-        self.set_cfg_reg_ena_bit(0, wait_after=.2, **kwargs)
+        zeros = np.zeros(n_channels, dtype=np.uint32)
+        self.set_amplitude_scale_array(band, zeros, **kwargs)
+        self.set_feedback_enable_array(band, zeros, **kwargs)
 
     def channel_off(self, band, channel, **kwargs):
         """
@@ -2140,8 +2226,8 @@ class SmurfUtilMixin(SmurfBase):
         if desired_feedback_limit_mhz > subband_bandwidth/2:
             desired_feedback_limit_mhz = subband_bandwidth/2
 
-        desired_feedback_limit_dec = np.floor(desired_feedback_limit_mhz/
-            (subband_bandwidth/2**16.))
+        desired_feedback_limit_dec = int(np.floor(desired_feedback_limit_mhz/
+            (subband_bandwidth/2**16.)))
 
         self.set_feedback_limit(band, desired_feedback_limit_dec, **kwargs)
 
@@ -2201,40 +2287,7 @@ class SmurfUtilMixin(SmurfBase):
             raise ValueError(which_jesd_down)
 
 
-    def jesd_decorator(decorated):
-        def jesd_decorator_function(self):
-            # check JESDs
-            (jesd_tx_ok0, jesd_rx_ok0, jesd_status) = self.check_jesd(silent_if_valid=True)
-
-            # if either JESD is down, try to fix
-            if not (jesd_rx_ok0 and jesd_tx_ok0):
-                which_jesd_down0='Jesd Rx and Tx are both down'
-                if (jesd_rx_ok0 or jesd_tx_ok0):
-                    which_jesd_down0 = ('Jesd Rx is down' if
-                        jesd_tx_ok0 else 'Jesd Tx is down')
-
-                self.log(f'{which_jesd_down0} ... will attempt to recover.',
-                         self.LOG_ERROR)
-
-                # attempt to recover ; if it fails it will assert
-                self.recover_jesd(recover_jesd_rx=(not jesd_rx_ok0),
-                    recover_jesd_tx=(not jesd_tx_ok0))
-
-                # rely on recover to assert if it failed
-                self.log('Successfully recovered Jesd but may need to redo' +
-                    ' some setup ... rerun command at your own risk.',
-                    self.LOG_USER)
-
-            # don't continue running the desired command by default.
-            # just because Jesds are back doesn't mean we're in a sane
-            # state.  User may need to relock/etc.
-            if (jesd_rx_ok0 and jesd_tx_ok0):
-                decorated()
-
-        return jesd_decorator_function
-
-    def check_jesd(self, bay, silent_if_valid=False,
-                   max_timeout_sec=60, get_timeout_sec=5):
+    def check_jesd(self, bay, silent_if_valid=False, max_timeout_sec=60):
         """Checks JESD status for requested bay.
 
         Queries the Jesd tx and rx and compares the data_valid and
@@ -2250,12 +2303,6 @@ class SmurfUtilMixin(SmurfBase):
         max_timeout_sec : float, optional, default 60.0
             Seconds to wait for JESD health check to complete before
             giving up.  Passed to
-            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_check_jesd`
-        caget_timeout_sec : float, optional, default 5.0
-            Seconds to wait for each poll of the JESD health check
-            status register (see
-            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_jesd_status`).
-            Passed to
             :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_check_jesd`
 
         Returns
@@ -2299,7 +2346,7 @@ class SmurfUtilMixin(SmurfBase):
                 self.log("JESD Rx Okay", self.LOG_USER)
 
         # New checks introduced
-        status = self.set_check_jesd()
+        status = self.set_check_jesd(max_timeout_sec)
 
         return (jesd_tx_ok, jesd_rx_ok, status)
 
@@ -2318,26 +2365,28 @@ class SmurfUtilMixin(SmurfBase):
         git_hash = self.get_fpga_git_hash()
         build_stamp = self.get_fpga_build_stamp()
 
-        git_hash = ''.join([chr(y) for y in git_hash]) # convert from int to ascii
-        build_stamp = ''.join([chr(y) for y in build_stamp])
-
         self.log("Build stamp: " + str(build_stamp), self.LOG_USER)
         self.log("FPGA version: Ox" + str(fpga_version), self.LOG_USER)
         self.log("FPGA uptime: " + str(uptime), self.LOG_USER)
 
-        jesd_tx_enable = self.get_jesd_tx_enable()
-        jesd_tx_valid = self.get_jesd_tx_data_valid()
-        if jesd_tx_enable != jesd_tx_valid:
-            self.log("JESD Tx DOWN", self.LOG_USER)
-        else:
-            self.log("JESD Tx Okay", self.LOG_USER)
+        jesd_tx_enable = [False, False]
+        jesd_tx_valid = [False, False]
+        jesd_rx_enable = [False, False]
+        jesd_rx_valid = [False, False]
+        for bay in range(2):
+            jesd_tx_enable[bay] = self.get_jesd_tx_enable(bay)
+            jesd_tx_valid[bay] = self.get_jesd_tx_data_valid(bay)
+            if jesd_tx_enable[bay] != jesd_tx_valid[bay]:
+                self.log(f"JESD Tx DOWN on BAY {bay}", self.LOG_USER)
+            else:
+                self.log(f"JESD Tx Okay on BAY {bay}", self.LOG_USER)
 
-        jesd_rx_enable = self.get_jesd_rx_enable()
-        jesd_rx_valid = self.get_jesd_rx_data_valid()
-        if jesd_rx_enable != jesd_rx_valid:
-            self.log("JESD Rx DOWN", self.LOG_USER)
-        else:
-            self.log("JESD Rx Okay", self.LOG_USER)
+            jesd_rx_enable[bay] = self.get_jesd_rx_enable(bay)
+            jesd_rx_valid[bay] = self.get_jesd_rx_data_valid(bay)
+            if jesd_rx_enable[bay] != jesd_rx_valid[bay]:
+                self.log(f"JESD Rx DOWN on BAY {bay}", self.LOG_USER)
+            else:
+                self.log(f"JESD Rx Okay on BAY {bay}", self.LOG_USER)
 
         # dict containing all values
         ret = {
@@ -2515,16 +2564,25 @@ class SmurfUtilMixin(SmurfBase):
         tracking_setup only returns data for the processed
         channels. Therefore every channel is not returned.
 
+        The firmware processes the channels nearest to DC within its
+        DSP bandwidth. When two channels are equidistant from DC
+        (at the bandwidth boundary), the firmware includes the negative
+        frequency and excludes the positive (asymmetric: lower bound
+        inclusive, upper bound exclusive).
+
         Args
         ----
         channelorderfile : str or None, optional, default None
             Path to a file that contains one channel per line.
         """
-        n_proc = self.get_number_processed_channels()
-        n_chan = self.get_number_channels()
-        n_cut = (n_chan - n_proc)//2
-        return np.sort(self.get_channel_order(
-            channel_orderfile=channel_orderfile)[n_cut:-n_cut])
+        band = self._bands[0]
+        n_proc = self.get_number_processed_channels(band)
+        tone_freq_offset = self.get_tone_frequency_offset_mhz(band)
+        # Select the n_proc channels nearest to DC. Tie-break:
+        # firmware uses -Fdsp/2 <= freq < Fdsp/2, so at equal |freq|
+        # the negative frequency is included and positive excluded.
+        sort_key = np.abs(tone_freq_offset) + (tone_freq_offset > 0) * 1e-10
+        return np.sort(np.argsort(sort_key)[:n_proc])
 
     def get_subband_from_channel(self, band, channel, channelorderfile=None,
             yml=None):
@@ -2558,6 +2616,10 @@ class SmurfUtilMixin(SmurfBase):
 
         chanOrder = self.get_channel_order(band,channelorderfile)
         idx = np.where(chanOrder == channel)[0]
+
+        if len(idx) != 1:
+            raise ValueError(f"Did not find exactly one channel index. Found {idx}.")
+        idx = idx[0]
 
         subband = idx // n_chanpersubband
 
@@ -2631,8 +2693,19 @@ class SmurfUtilMixin(SmurfBase):
         return subband_chans
 
     def iq_to_phase(self, i, q):
-        """
-        Changes IQ to phase
+        """Converts I/Q data to unwrapped phase.
+
+        Args
+        ----
+        i : array-like
+            In-phase component.
+        q : array-like
+            Quadrature component.
+
+        Returns
+        -------
+        numpy.ndarray
+            Unwrapped phase in radians.
         """
         return np.unwrap(np.arctan2(q, i))
 
@@ -2711,8 +2784,12 @@ class SmurfUtilMixin(SmurfBase):
 
         dac_idx = np.ravel(np.where(bias_order == bias_group))
 
-        dac_positive = dac_positives[dac_idx][0]
-        dac_negative = dac_negatives[dac_idx][0]
+        if len(dac_idx) != 1:
+            raise ValueError(f"Did not find exactly one DAC index. Found {dac_idx}.")
+        dac_idx = dac_idx[0]
+
+        dac_positive = dac_positives[dac_idx]
+        dac_negative = dac_negatives[dac_idx]
 
         volts_pos = volt / 2
         volts_neg = - volt / 2
@@ -2769,8 +2846,12 @@ class SmurfUtilMixin(SmurfBase):
 
                 bias_group_idx = np.ravel(np.where(bias_order == bg))
 
-                dac_positive = dac_positives[bias_group_idx][0] - 1 # freakin Mitch
-                dac_negative = dac_negatives[bias_group_idx][0] - 1 # 1 vs 0 indexing
+                if len(bias_group_idx) != 1:
+                    raise ValueError(f"Did not find exactly one bias group index. Found {bias_group_idx}.")
+                bias_group_idx = bias_group_idx[0]
+
+                dac_positive = dac_positives[bias_group_idx] - 1 # freakin Mitch
+                dac_negative = dac_negatives[bias_group_idx] - 1 # 1 vs 0 indexing
 
                 volts_pos = bias_group_volt_array[bg] / 2
                 volts_neg = - bias_group_volt_array[bg] / 2
@@ -2789,9 +2870,18 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def set_tes_bias_off(self, **kwargs):
-        """
-        Turns off all of the DACs assigned to a TES bias group in the
-        pysmurf configuration file.
+        r"""Sets all TES bias groups to zero volts.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to
+            :func:`set_tes_bias_bipolar_array`.
+
+        See Also
+        --------
+        :func:`set_tes_bias_bipolar_array` : Set individual group voltages.
+        :func:`all_off` : Turn off biases, tones, and flux ramp.
         """
         self.set_tes_bias_bipolar_array(np.zeros(self._n_bias_groups), **kwargs)
 
@@ -2828,8 +2918,13 @@ class SmurfUtilMixin(SmurfBase):
         dac_negatives = self.bias_group_to_pair[:,2]
 
         dac_idx = np.ravel(np.where(bias_order == bias_group))
-        dac_positive = dac_positives[dac_idx][0]-1
-        dac_negative = dac_negatives[dac_idx][0]-1
+
+        if len(dac_idx) != 1:
+            raise ValueError(f"Did not find exactly one DAC index. Found {dac_idx}.")
+        dac_idx = dac_idx[0]
+
+        dac_positive = dac_positives[dac_idx]-1
+        dac_negative = dac_negatives[dac_idx]-1
 
         volt_array = self.get_rtm_slow_dac_volt_array(**kwargs)
         volts_pos = volt_array[dac_positive]
@@ -2873,8 +2968,13 @@ class SmurfUtilMixin(SmurfBase):
 
         for idx in np.arange(n_bias_groups):
             dac_idx = np.ravel(np.where(bias_order == idx))
-            dac_positive = dac_positives[dac_idx][0] - 1
-            dac_negative = dac_negatives[dac_idx][0] - 1
+
+            if len(dac_idx) != 1:
+                raise ValueError(f"Did not find exactly one DAC index. Found {dac_idx}.")
+            dac_idx = dac_idx[0]
+
+            dac_positive = dac_positives[dac_idx] - 1
+            dac_negative = dac_negatives[dac_idx] - 1
 
             bias_vals_pos[idx] = volts_array[dac_positive]
             bias_vals_neg[idx] = volts_array[dac_negative]
@@ -3254,7 +3354,7 @@ class SmurfUtilMixin(SmurfBase):
             An array of SMuRF channel numbers.  Must be the same
             length as band.
         IQ_mode : Bool, optiona, default False
-            Applies to IQ stream mode with S._caget(f'{S.app_core}modeStream')=1 
+            Applies to IQ stream mode with S._caget(f'{S.app_core}modeStream')=1
 
         Returns
         -------
@@ -3276,15 +3376,15 @@ class SmurfUtilMixin(SmurfBase):
                 for ch in smurf_chans[k]:
                     output_chans = np.append(output_chans,
                                              ch + n_chan*k)
-        elif smurf_chans is not None and IQ_mode == True:
+        elif smurf_chans is not None and IQ_mode:
             keys = smurf_chans.keys() # the band numbers
             for k in keys:
                 n_chan = self.get_number_channels(k)
-                new_n_bands = 4 # len(self._bands)//2 ? 
+                new_n_bands = 4 # len(self._bands)//2 ?
                 for ch in smurf_chans[k]:
                     output_chans = np.append(output_chans, (k % new_n_bands) * 2*n_chan  + 2 * ch)
                     output_chans = np.append(output_chans, (k % new_n_bands) * 2*n_chan  + 2 * ch + 1)
-        
+
         return output_chans
 
 
@@ -3433,7 +3533,7 @@ class SmurfUtilMixin(SmurfBase):
         self.log(f'Generating gcp mask file. {len(gcp_chans)} ' +
                  'channels added')
 
-        np.savetxt(self.smurf_to_mce_mask_file, gcp_chans, fmt='%i')
+        tools.save_to_txt(self.smurf_to_mce_mask_file, gcp_chans, overwrite=True, fmt='%i')
 
         if read_gcp_mask:
             self.read_smurf_to_gcp_config()
@@ -3671,8 +3771,15 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def all_off(self):
-        """
-        Turns off everything. Does band off, flux ramp off, then TES bias off.
+        """Turns off all output: tones, flux ramp, and TES biases.
+
+        Calls :func:`band_off` for each band, :func:`flux_ramp_off`,
+        then :func:`set_tes_bias_off`.
+
+        See Also
+        --------
+        :func:`set_tes_bias_off` : Zero TES biases only.
+        :func:`flux_ramp_off` : Disable flux ramp only.
         """
         self.log('Turning off tones')
         bands = self._bands
@@ -3683,9 +3790,7 @@ class SmurfUtilMixin(SmurfBase):
         self.flux_ramp_off()
 
         self.log('Turning off all TES biases')
-        n_bias_groups = self._n_bias_groups
-        for bg in np.arange(n_bias_groups):
-            self.set_tes_bias_bipolar(bg, 0)
+        self.set_tes_bias_off()
 
 
     def mask_num_to_gcp_num(self, mask_num):
@@ -4165,7 +4270,6 @@ class SmurfUtilMixin(SmurfBase):
         start_hardware_logging : Starts hardware logging thread.
         """
         d={}
-        d['epics_root']=lambda:self.epics_root
         d['ctime']=self.get_timestamp
         d['fpga_temp']=self.get_fpga_temp
         d['fpgca_vccint']=self.get_fpga_vccint
@@ -4237,8 +4341,12 @@ class SmurfUtilMixin(SmurfBase):
 
         dac_idx = np.ravel(np.where(bias_order == bias_group))
 
-        dac_positive = dac_positives[dac_idx][0]
-        dac_negative = dac_negatives[dac_idx][0]
+        if len(dac_idx) != 1:
+            raise ValueError(f"Did not find exactly one DAC index. Found {dac_idx}.")
+        dac_idx = dac_idx[0]
+
+        dac_positive = dac_positives[dac_idx]
+        dac_negative = dac_negatives[dac_idx]
 
         # https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+firmware#SMuRFfirmware-RTMDACarbitrarywaveforms
         # Target the two bipolar DACs assigned to this bias group:
@@ -4787,7 +4895,7 @@ class SmurfUtilMixin(SmurfBase):
 
         # Timing triggers (only used with external timing system)
         ecre = self.get_evr_channel_reg_enable(0)
-        etdt = self.get_evr_trigger_dest_type(0)
+        etdt = self.get_evr_trigger_dest_type(0, as_string=True)
         te = self.get_trigger_enable(0)
 
         # LMKs
@@ -4803,15 +4911,17 @@ class SmurfUtilMixin(SmurfBase):
         # External reference timing mode configuration
         if ( cbar == [0x0, 0x0, 0x1, 0x1] and
              rsm == 0 and
-             all([lmks[bay][0x146]==0x10 for bay in self.bays]) and
-             all([lmks[bay][0x147]==0x1a for bay in self.bays]) ):
+             (len(self.bays) == 0 or
+              (all([lmks[bay][0x146]==0x10 for bay in self.bays]) and
+               all([lmks[bay][0x147]==0x1a for bay in self.bays]))) ):
             return 'ext_ref'
 
         # Fiber or backplane timing mode configurations
         if ( rsm == 1 and
-             ( ecre == 1 and etdt == 0 and te == 1 ) and
-             all([lmks[bay][0x146]==0x8 for bay in self.bays]) and
-             all([lmks[bay][0x147]==0xa for bay in self.bays]) ):
+             ( ecre == 1 and etdt == "All" and te == 1 ) and
+             (len(self.bays) == 0 or
+              (all([lmks[bay][0x146]==0x8 for bay in self.bays]) and
+               all([lmks[bay][0x147]==0xa for bay in self.bays]))) ):
 
             # Fiber timing mode configuration
             if ( cbar == [0x0, 0x0, 0x0, 0x0] ):
@@ -4965,11 +5075,17 @@ class SmurfUtilMixin(SmurfBase):
             # listen to, the delay, width, and polarity of the trigger
             # to generate.  The "Enable" registers just turn on each
             # of these two components.
+            #
+            # From Tristan PM: In rogue 4, EPICS was incorrectly parsing
+            # the EvrV2ChannelReg.DestType enum field which resulted in
+            # All being mapped to 0. It is actually defined to correspond
+            # to 2. This appears as a subtle issue when using rogue 6 to
+            # communicate with the server.
 
             #  EvrV2CoreTriggers EvrV2ChannelReg[0] EnableReg True
             self.set_evr_channel_reg_enable(0, True, write_log=write_log)
             #  EvrV2CoreTriggers EvrV2ChannelReg[0] DestType All
-            self.set_evr_trigger_dest_type(0, 0, write_log=write_log)
+            self.set_evr_trigger_dest_type(0, "All", write_log=write_log)
             #  EvrV2CoreTriggers EVrV2TriggerReg[0] Enable Trig True
             self.set_trigger_enable(0, True, write_log=write_log)
 

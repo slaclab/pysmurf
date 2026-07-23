@@ -17,12 +17,14 @@
 import time
 import os
 
-from ..base.logger import SmurfLogger
-
+import numpy as np
 try:
-    import epics
+    import pyrogue.interfaces
+    ROGUE_AVAILABLE  = True
 except ModuleNotFoundError:
-    print("cryo_card.py - epics not found.")
+    ROGUE_AVAILABLE  = False
+
+from ..base.logger import SmurfLogger
 
 def write_csv(filename, header, line):
     should_write_header = os.path.exists(filename)
@@ -32,7 +34,7 @@ def write_csv(filename, header, line):
         f.write(line+'\n')
 
 class CryoCard():
-    def __init__(self, readpv_in, writepv_in, log=None):
+    def __init__(self, readpv_in, writepv_in, log=None, server_addr="localhost", server_port=9000):
         """
         Interact with the cryocard via the PIC. To interact via the RTM, use SmurfCommandMixin.
         Needs to be compatible with the C02 and C04 cryocards.
@@ -41,8 +43,13 @@ class CryoCard():
         Ref https://github.com/slaclab/smurfc/blob/C04/firmware/src/ccard.h
         """
 
-        self.readpv = epics.PV(readpv_in)
-        self.writepv = epics.PV(writepv_in)
+        if not ROGUE_AVAILABLE:
+            raise ImportError(
+                "pyrogue is required to use the CryoCard class. Use offline mode or install pyrogue."
+            )
+        self._client = pyrogue.interfaces.VirtualClient(addr=server_addr, port=server_port)
+        self.readpv = self._client.root.getNode(readpv_in)
+        self.writepv = self._client.root.getNode(writepv_in)
 
         self.fw_version_address = 0x0
         self.relay_address = 0x2
@@ -56,7 +63,6 @@ class CryoCard():
         self.temperature_offset =.25
         self.bias_scale = 1.0
         self.max_retries = 5 #number of re-tries waiting for response
-        self.timeout = 5  # timeout in between retries
         self.retry = 0 # counts nubmer of retries
         self.busy_retry = 0  # counts number of retries due to relay busy status
         self.list_of_c02_amps = ['50k', 'hemt']
@@ -66,18 +72,13 @@ class CryoCard():
         # basic logging capacity
         self.log = SmurfLogger() if log is None else log
 
-    def do_read(self, address, use_monitor=False):
+    def do_read(self, address):
         r"""Writes query to cryostat card PIC and reads reply.
 
         Args
         ----
         address : int
             Address of PIC register to read.
-        use_monitor : bool, optional, default False
-            Passed directly to the underlying pyepics `epics.caget`
-            function call.  This was added to maintain default
-            behavior because this option was changed from default
-            `False` to default `True` in later versions of pyepics.
 
         Returns
         -------
@@ -86,23 +87,24 @@ class CryoCard():
             typically means no cryostat card is connected).
         """
         #need double write to make sure buffer is updated
-        self.writepv.put(cmd_make(1, address, 0))
+        self.do_write(address, 0, read=1)
         for self.retry in range(0, self.max_retries):
-            self.writepv.put(cmd_make(1, address, 0))
-            data = self.readpv.get(use_monitor=use_monitor, timeout=self.timeout)
+            self.do_write(address, 0, read=1)
+            data = self.readpv.get()
             if data is None:
-                self.log(f"CryoCard.do_read: EPICS PV timed out after {self.timeout}s.")
+                self.log("CryoCard.do_read failed get a response.")
             else:
                 addrrb = cmd_address(data)
                 if (addrrb == address):
                     return (data)
             self.log(
-                f"CryoCard.do_read failed, retry {self.retry + 1} / {self.max_retries}."
+                f"CryoCard.do_read failed, retry {self.retry + 1} / {self.max_retries}.",
+                self.log.levels["info"]
             )
 
-        raise Exception(f"Failed to read address 0x{address:X} after {self.max_retries} attempts.")
+        raise RuntimeError(f"CryoCard.do_read reached max retries on address {address}.")
 
-    def do_write(self, address, value):
+    def do_write(self, address, value, read=0):
         """Write the given value directly to the address on the PIC. Make sure
         you know if the value should be base-16, base-10, or base-2. There are
         higher abstractions that might be more useful for what you're trying to
@@ -111,20 +113,57 @@ class CryoCard():
         :param address the address on the PIC (e.g. 0x2)
         :returns the response from caput
         """
-        return self.writepv.put(cmd_make(0, address, value))
+        # not all integer types are accepted
+        return self.writepv.set(np.uint32(cmd_make(read, address, value)))
 
-    def write_relays(self, relay):  # relay is the bit partern to set
-        self.writepv.put(cmd_make(0, self.relay_address, relay))
+    def write_relays(self, relay):
+        """Writes the relay bit pattern to the cryostat card.
+
+        Writes the pattern twice with a 100 ms delay to ensure the
+        PIC processes the command reliably.
+
+        Args
+        ----
+        relay : int
+            Relay bit pattern.  Bits [11:0] (C04/C05) or [15:0]
+            (C02) control TES bias relays, bit 16 controls AC/DC
+            flux ramp coupling.  The PIC masks the value to valid
+            bits for the connected card.
+
+        See Also
+        --------
+        :func:`read_relays` : Read back the relay state.
+        :func:`set_relay_bit` : Set a single relay bit.
+        """
+        self.do_write(self.relay_address, relay)
         time.sleep(0.1)
-        self.writepv.put(cmd_make(0, self.relay_address, relay))
+        self.do_write(self.relay_address, relay)
 
     def read_relays(self):
+        """Reads the current relay state from the cryostat card.
+
+        Polls the PIC relay register, retrying up to max_retries
+        times if the busy flag (bit 19) is set, indicating relays
+        are still moving.
+
+        Returns
+        -------
+        int
+            Relay bit pattern (19-bit, bits [18:0]).  Returns 80000
+            if relays are still busy after all retries.
+
+        See Also
+        --------
+        :func:`write_relays` : Write the relay state.
+        :func:`get_relay_bit` : Read a single relay bit.
+        """
         for self.busy_retry in range(0, self.max_retries):
             data = self.do_read(self.relay_address)
             if ~(data & 0x80000):  # check that not moving
                 return (data & 0x7FFFF)
-                time.sleep(0.1) # wait for relays to move
-        return (80000) # busy flag still set
+            else:
+                time.sleep(0.1)  # wait for relays to move
+        return (80000)  # busy flag still set
 
     def set_relay_bit(self, bit, value):
         """
@@ -189,9 +228,16 @@ class CryoCard():
 
 
     def read_ac_dc_relay_status(self):
-        """
-        Read the relay for the flux ramp coupling mode, which is either AC
-        or DC. 0 is DC coupled, 3 is AC coupled. This is historical.
+        """Reads the flux ramp AC/DC coupling relay state.
+
+        Returns
+        -------
+        int
+            0 for DC coupled, 3 for AC coupled (legacy convention).
+
+        See Also
+        --------
+        :func:`set_ac_dc_relay` : Set the coupling mode.
         """
 
         # 1 is DC coupled, 0 is AC coupled.
@@ -206,21 +252,58 @@ class CryoCard():
         elif bit == 0:
             return 3
 
-    def delatch_bit(self, bit): # bit is the pattern for the desired relay, eg 0x4 for 100
+    def delatch_bit(self, bit):
+        """Pulses a relay bit to delatch a TES bias relay.
+
+        Momentarily sets the specified bit(s) high for 100 ms, then
+        restores the original relay state.  Used to trigger the
+        delatching coil on latching TES bias relays.
+
+        Args
+        ----
+        bit : int
+            Bit pattern to OR into the current relay state
+            (e.g. 0x4 to pulse bit 2).
+
+        See Also
+        --------
+        :func:`set_relay_bit` : Set a relay bit persistently.
+        """
         current_relay = self.read_relays()
         set_relay = current_relay + bit
         self.write_relays(set_relay)
         time.sleep(0.1)
-        self.write_relays(current_relay) # return to original state
+        self.write_relays(current_relay)
 
     def read_temperature(self):
+        """Reads the cryostat card board temperature.
+
+        Reads the PIC ADC channel connected to the on-board
+        temperature sensor and converts to degrees Celsius.
+
+        Returns
+        -------
+        float
+            Board temperature in degrees C.
+        """
         data = self.do_read(self.temperature_address)
         volts = (data & 0xFFFFF) * self.adc_scale
         return ((volts - self.temperature_offset) * self.temperature_scale)
 
     def read_cycle_count(self):
+        """Reads the PIC SPI transaction counter.
+
+        A diagnostic counter that increments each time the cryostat
+        card PIC processes an SPI command from the FPGA.  Useful for
+        verifying communication with the PIC is working.
+
+        Returns
+        -------
+        int
+            Transaction count (20-bit).
+        """
         data = self.do_read(self.cycle_count_address)
-        return (cmd_data(data))  # do we have the right addres
+        return (cmd_data(data))
 
     def write_ps_en(self, enables):
         """
@@ -239,7 +322,7 @@ class CryoCard():
         -------
         Nothing
         """
-        self.writepv.put(cmd_make(0, self.ps_en_address, enables))
+        self.do_write(self.ps_en_address, enables)
 
     def read_ps_en(self):
         """
@@ -297,16 +380,36 @@ class CryoCard():
         return self.do_read(self.optical_address)
 
     def write_optical(self, value):
-        """
+        """Sets the optical transmitter enable bits on the cryostat card.
+
+        Args
+        ----
+        value : int
+            2-bit bitmask.  Bit 0 enables TX1, bit 1 enables TX2.
+
+        See Also
+        --------
+        :func:`read_optical` : Read the current enable state.
         """
         return self.do_write(self.optical_address, value)
 
     def get_volt(self, address):
-        """
-        Given some address on the PIC, read that address,
-        convert to volts. Not all addresses on the PIC are
-        volt measurements, so you should know what you're
-        doing.
+        """Reads a PIC ADC address and converts to volts.
+
+        Low-level function used internally by amplifier current
+        measurement functions.  Not all PIC addresses are ADC
+        readings — only call with addresses that return raw ADC
+        values.
+
+        Args
+        ----
+        address : int
+            PIC register address to read.
+
+        Returns
+        -------
+        float
+            Voltage in volts.
         """
 
         bits = self.do_read(address)
@@ -315,9 +418,16 @@ class CryoCard():
         return volts
 
     def assert_amps_match_this_cryocard(self, list_of_amps):
-        """
-        Assert the given list of amplifiers match this type of
-        cryocard.
+        """Asserts amplifier names are valid for the connected cryostat card.
+
+        Raises AssertionError if any amplifier name in the list
+        belongs to a different card revision than the one connected
+        (e.g. passing 'hemt1' when a C02 card is detected).
+
+        Args
+        ----
+        list_of_amps : list of str
+            Amplifier names to validate.
         """
         major, minor, patch = self.get_fw_version()
 
@@ -342,4 +452,4 @@ def cmd_data(data):  # returns data
     return (data & 0xFFFFF)
 
 def cmd_make(read, address, data):
-    return ((read << 31) | ((address << 20) & 0x7FFF00000) | (data & 0xFFFFF))
+    return (read << 31) | ((address << 20) & 0x7FFF00000) | (data & 0xFFFFF)

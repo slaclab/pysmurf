@@ -19,6 +19,7 @@ import time
 import numpy as np
 
 import pysmurf.client
+from pysmurf.client.util import tools
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
@@ -162,7 +163,7 @@ def set_port(S, slot, port):
         slots = np.append(slots, slot)
         ports = np.append(ports, port)
 
-    np.savetxt(slot_port_file, np.array([slots, ports]).T, fmt='%i %i')
+    tools.save_to_txt(slot_port_file, np.array([slots, ports]).T, overwrite=True, fmt='%i %i')
 
 
 def get_port(S, slot):
@@ -198,7 +199,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--epics-prefix', help='The epics root',
+    parser.add_argument('--server-port', help='The Server Port',
                         action='store', default=None, type=str)
 
     # Offline mode
@@ -336,9 +337,9 @@ if __name__ == "__main__":
     if n_cmds > 1:
         sys.exit(0)
 
-    epics_prefix = args.epics_prefix
+    server_port = args.server_port
 
-    S = pysmurf.client.SmurfControl(epics_root=epics_prefix,
+    S = pysmurf.client.SmurfControl(server_port=server_port,
         cfg_file=cfg_filename, smurf_cmd_mode=True, setup=False,
         offline=offline)
 

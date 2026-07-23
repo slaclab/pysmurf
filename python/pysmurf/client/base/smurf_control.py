@@ -50,8 +50,6 @@ class SmurfControl(SmurfCommandMixin,
 
     Args
     ----
-    epics_root : str, optional, default None
-       The epics root to be used.
     cfg_file : str, optional, default None
        Config file path.  Must be provided if not on offline mode.
     data_dir : str, optional, default None
@@ -72,10 +70,6 @@ class SmurfControl(SmurfCommandMixin,
        implemented here are in smurf_cmd.py.
     no_dir :  bool, optional, default False
        Whether to make a skip making a directory.
-    shelf_manager : str, optional, default 'shm-smrf-sp01'
-       Shelf manager ip or network name.  Usually each SMuRF server is
-       connected one-to-one with a SMuRF crate, and the default shelf
-       manager name is configured to be 'shm-smrf-sp01'
     validate_config : bool, optional, default True
        Whether to check if the input config file is correct.
 
@@ -96,19 +90,12 @@ class SmurfControl(SmurfCommandMixin,
     initialize
     """
 
-    def _skipifrfsoc(func):
-        def skipper(*args,**kwargs):
-            print(f'Function {func.__name__} called, but not implemented on RFSoC.  Skipping call and returning None!')
-            result = None
-            if not self.is_rfsoc:
-                result  = func(*args,**kwargs)
-            return result
-    
-    def __init__(self, epics_root=None,
-                 cfg_file=None, data_dir=None, name=None, make_logfile=True,
+
+
+    def __init__(self, cfg_file=None, data_dir=None, name=None, make_logfile=True,
                  setup=False, offline=False, smurf_cmd_mode=False,
-                 no_dir=False, shelf_manager='shm-smrf-sp01',
-                 validate_config=True, data_path_id=None, **kwargs):
+                 shelf_manager='shm-smrf-sp01', no_dir=False, validate_config=True,
+                 data_path_id=None, **kwargs):
         """Constructor for the SmurfControl class.
 
         See the SmurfControl class docstring for more details.
@@ -138,23 +125,6 @@ class SmurfControl(SmurfCommandMixin,
 
         # Save shelf manager - Should this be in the config?
         self.shelf_manager = shelf_manager
-        
-        # Setting epics_root
-        #
-        # self.epics_root is already populated by the above call to
-        # copy_config_to_properties() from the pysmurf configuration
-        # file (if a configuration file is provided).
-        #
-        # Override epics_root from pysmurf configuration file if user
-        # provides a different one.
-        if epics_root is not None:
-            # If user provides an epics root, override whatever's in
-            # the pysmurf cfg file with it.
-            self.epics_root = epics_root
-        # In offline mode, epics root is not needed.
-        if offline:
-            self.epics_root = ''
-        # Done setting epics_root
 
         super().__init__(offline=offline, **kwargs)
 
@@ -282,8 +252,8 @@ class SmurfControl(SmurfCommandMixin,
                 self.log.set_logfile(None)
 
             # Is this an RFSoC?
-            self.is_rfsoc = (True if 'Zcu' in self.get_fpga_build_stamp() else False)            
-                
+            self.is_rfsoc = (True if 'Zcu' in self.get_fpga_build_stamp() else False)
+
             # Which bays were enabled on pysmurf server startup?
             self.bays = self.which_bays()
 
@@ -316,7 +286,7 @@ class SmurfControl(SmurfCommandMixin,
             # configuration file.
 
             # Check if an unusable band is defined in the pysmurf cfg
-            # file.            
+            # file.
             for band in self._bands:
                 if band not in usable_bands:
                     self.log(f'ERROR : band {band} is present in ' +
@@ -338,7 +308,7 @@ class SmurfControl(SmurfCommandMixin,
                 self.freq_resp[band]['lock_status'] = {}
 
         if setup:
-            success = self.setup(payload_size=payload_size, **kwargs)
+            success = self.setup(payload_size=payload_size)
             # Log an error if system setup failed.
             if not success:
                 self.log(
@@ -464,12 +434,12 @@ class SmurfControl(SmurfCommandMixin,
             dacs = [0, 1]
             for val in [1, 0]:
                 for bay in self.bays:
-                    
+
                     # In newer software versions, setDefaults disables
                     # DBG:enable after loading the defaults.yml.  This
                     # makes sure we can reset the RF DACs.
                     self.set_dbg_enable(bay, True)
-                    
+
                     # Reset all RF DACs in use.
                     for dac in dacs:
                         self.set_dac_reset(
@@ -669,22 +639,19 @@ class SmurfControl(SmurfCommandMixin,
             self.set_trigger_enable(0, 1, write_log=write_log)
             ## only sets enable, but is initialized to True already by
             ## default, and crashing for unknown reasons in rogue 4.
-            self.set_evr_channel_reg_enable(0, True, write_log=write_log)
+
+            # setting to All ignores other flags not relevant to this application
+            self.set_evr_trigger_dest_type(0, "All", write_log=write_log)
             self.set_evr_trigger_channel_reg_dest_sel(0,
-                                                      0x20000,
+                                                      0x0,
                                                       write_log=write_log)
 
             self.set_enable_ramp_trigger(1, write_log=write_log)
 
             if not self.is_rfsoc:
-                # 0x1 selects fast flux ramp, 0x0 selects slow flux ramp.  The
-                # slow flux ramp only existed on the first rev of RTM boards,
-                # C0, and wasn't ever really used.
-                self.set_select_ramp(0x1, write_log=write_log)
-                
                 self.set_cpld_reset(0, write_log=write_log)
                 self.cpld_toggle(write_log=write_log)
-                
+
             self.all_off()
 
             # Make sure flux ramp starts off
@@ -701,7 +668,7 @@ class SmurfControl(SmurfCommandMixin,
             self.set_channel_mask([0])
 
             try:
-                if not self.is_rfsoc:                
+                if not self.is_rfsoc:
                     ## Removed this because better error handling for cc
                     ## communication in
                     ## https://github.com/slaclab/pysmurf/pull/794 Causes this
@@ -709,7 +676,7 @@ class SmurfControl(SmurfCommandMixin,
                     ## cryostat card connected.
                     ## also read the temperature of the CC
                     self.log(f"Cryocard temperature = {self.C.read_temperature()}")
-                    
+
                     # If C02, set the gate voltages to the default.
                     # If C04, also set the drain voltages to zero.
                     self.set_amp_defaults()

@@ -378,9 +378,6 @@ class SmurfConfig:
         ##### Building full validation schema
         schema_dict = {}
 
-        # Only used if none specified in pysmurf instantiation
-        schema_dict['epics_root'] = And(str, len)
-
         #### Start specifiying init schema
         # init must be present
         schema_dict['init'] = {}
