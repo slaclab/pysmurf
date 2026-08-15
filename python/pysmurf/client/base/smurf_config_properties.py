@@ -136,6 +136,7 @@ class SmurfConfigPropertiesMixin:
         self._ultrascale_temperature_limit_degC = None
         self._data_out_mux = None
         self._dsp_enable = None
+        self._payload_size = None
 
         # AMC
         self._amplitude_scale = None
@@ -277,6 +278,7 @@ class SmurfConfigPropertiesMixin:
         ## Carrier
         self.dsp_enable = smurf_init_config['dspEnable']
         self.ultrascale_temperature_limit_degC = config.get('ultrascale_temperature_limit_degC')
+        self.payload_size = config.get('payload_size')
         self.data_out_mux = {
             band:smurf_init_config[f'band_{band}']['data_out_mux']
             for band in bands}
@@ -1925,6 +1927,39 @@ class SmurfConfigPropertiesMixin:
         self._ultrascale_temperature_limit_degC = value
 
     ## End ultrascale_temperature_limit_degC property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start payload_size property definition
+
+    # Getter
+    @property
+    def payload_size(self):
+        """Default payload size used by :func:`SmurfControl.setup`.
+
+        Specified in the pysmurf configuration file as the optional
+        top-level key `payload_size`.  If `None` (key absent),
+        :func:`SmurfControl.setup` falls back to its built-in default
+        of 2048.  A value of `0` lets rogue auto-size the payload from
+        the channel mask.  An explicit `payload_size` kwarg passed to
+        :func:`SmurfControl.setup` or :func:`SmurfControl.initialize`
+        always overrides this value.
+
+        See issue #299.
+
+        See Also
+        --------
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_payload_size`
+
+        """
+        return self._payload_size
+
+    # Setter
+    @payload_size.setter
+    def payload_size(self, value):
+        self._payload_size = value
+
+    ## End payload_size property definition
     ###########################################################################
 
     ###########################################################################
