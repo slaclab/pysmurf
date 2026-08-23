@@ -32,6 +32,8 @@ class EmulationRoot(Common):
                  pv_dump_file   = "",
                  disable_bay0   = False,
                  disable_bay1   = False,
+                 is_rfsoc       = False,
+                 is_prespectra  = False,
                  txDevice       = None,
                  server_port    = 0,
                  **kwargs):
@@ -42,7 +44,9 @@ class EmulationRoot(Common):
         # Instantiate Fpga top level
         self._fpga = FpgaTopLevel( memBase      = self._srp,
                                    disableBay0  = disable_bay0,
-                                   disableBay1  = disable_bay1)
+                                   disableBay1  = disable_bay1,
+                                   isRFSOC      = is_rfsoc,
+                                   isPreSpectra = is_prespectra)
 
         # Create ddr stream interfaces for base class
         self._ddr_streams = [rogue.interfaces.stream.Master()] * 4

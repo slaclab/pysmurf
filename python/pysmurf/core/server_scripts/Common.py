@@ -55,7 +55,7 @@ def process_args(args):
     # set up a handler with timestamps
     handler = logging.StreamHandler()
     handler.setLevel(args.log_level)
-    formatter = logging.Formatter("[%(asctime)s] %(levelname)s:%(name)s: %(msg)s")
+    formatter = logging.Formatter("[%(asctime)s] %(levelname)s:%(name)s: %(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
@@ -190,6 +190,16 @@ def make_parser(parser=None):
                        )
     group.add_argument('--disable-bay1', action='store_true',
                        help="Disable the instantiation of devices for Bay 1"
+                       )
+    group.add_argument('--is-rfsoc', action='store_true',
+                       help="Hardware is RFSoC."
+                       )
+    group.add_argument('--rfsoc-mgmt-ip', dest='rfsoc_ip', default="10.0.1.200",
+                       help="IP address of the RFSoC embedded-processor management interface. "
+                            "Only used when --is-rfsoc is set. Defaults to '10.0.1.200'."
+                       )
+    group.add_argument('--is-prespectra', action='store_true',
+                       help="Running PreSpectra firmware."
                        )
     group.add_argument('--enable-em22xx', action='store_true',
                        help="Enable the EM22xx power monitor"
