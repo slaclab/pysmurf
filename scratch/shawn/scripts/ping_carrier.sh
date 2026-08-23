@@ -2,7 +2,6 @@
 
 quiet=false
 
-# Parse options to the `pip` command
 while getopts ":q" opt; do
   case ${opt} in
     q )
@@ -13,15 +12,32 @@ done
 shift $((OPTIND -1))
 
 if [ "$quiet" = true ] ; then
-    # Stripped down version for parallelization which returns exit value
-    ## 0 if ping fails or 1 if ping succeeds
     timeout 0.2 ping -c 1 $1 >/dev/null && exit 1
     exit 0
-else 
-    printf "%s" "waiting for $1 ..."
+else
+    CYAN='\033[0;36m'
+    BGREEN='\033[1;32m'
+    BOLD='\033[1m'
+    DIM='\033[2m'
+    RESET='\033[0m'
+
+    frames=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
+    i=0
+    start=$(date +%s)
+
+    printf "\033[?25l"
+    trap 'printf "\033[?25h"' EXIT
+
     while ! timeout 0.2 ping -c 1 -n $1 &> /dev/null
     do
-	printf "%c" "."
+        elapsed=$(( $(date +%s) - start ))
+        printf "\r\033[K  ${CYAN}%s${RESET} Waiting for ${BOLD}%s${RESET} ${DIM}(%ds)${RESET}" \
+            "${frames[$i]}" "$1" "$elapsed" >&2
+        i=$(( (i + 1) % ${#frames[@]} ))
+        sleep 0.3
     done
-    printf "\n%s\n"  "$1 is online"
+
+    elapsed=$(( $(date +%s) - start ))
+    printf "\r\033[K  ${BGREEN}✓${RESET} ${BOLD}%s${RESET} is online ${DIM}(%ds)${RESET}\n" "$1" "$elapsed"
+    printf "\033[?25h"
 fi
