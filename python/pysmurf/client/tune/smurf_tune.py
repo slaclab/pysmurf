@@ -1538,7 +1538,7 @@ class SmurfTuneMixin(SmurfBase):
         Args
         ----
         f : float
-            The frequency to search for a subband.
+            The frequency in MHz to search for a subband.
         band : int
             The band to identify.
         as_offset : bool, optional, default True
@@ -1635,7 +1635,7 @@ class SmurfTuneMixin(SmurfBase):
         return freqs, subbands, channels, groups
 
     @set_action()
-    def assign_channels(self, freq, band=None, bandcenter=None,
+    def assign_channels(self, freq, band,
             channel_per_subband=4, as_offset=True, min_offset=0.1,
             new_master_assignment=False):
         """
@@ -1644,15 +1644,11 @@ class SmurfTuneMixin(SmurfBase):
         Args
         ----
         freq : float array
-            The frequency of the resonators. This is not the same as
-            the frequency output from full_band_resp. This is only
-            where the resonators are.
-
-        band : int or None, optional, default None
+            The frequency of the resonators in MHz. This is not the
+            same as the frequency output from full_band_resp. This is
+            only where the resonators are.
+        band : int
             The band to assign channels.
-        bandcenter : float array or None, optional, default None
-            The frequency center of the band. Must supply band or
-            subband center.
         channel_per_subband : int, optional, default 4
             The number of channels to assign per subband.
         as_offset : bool, optional, default True
@@ -1678,10 +1674,6 @@ class SmurfTuneMixin(SmurfBase):
             The frequency offset from the subband center.
         """
         freq = np.sort(freq)  # Just making sure its in sequential order
-
-        if band is None and bandcenter is None:
-            self.log('Must have band or bandcenter', self.LOG_ERROR)
-            raise ValueError('Must have band or bandcenter')
 
         subbands = np.zeros(len(freq), dtype=int)
         channels = -1 * np.ones(len(freq), dtype=int)
