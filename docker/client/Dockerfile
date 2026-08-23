@@ -17,7 +17,14 @@ RUN pip3 install --no-cache-dir \
     PyYAML \
     pillow \
     seaborn \
-    jupyter \
+    jupyterlab \
+    notebook \
+    ipykernel \
+    ipywidgets \
+    ipympl \
+    jupyter-resource-usage \
+    plotly \
+    tqdm \
     pytest \
     GitPython \
     schema \
