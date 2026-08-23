@@ -18,6 +18,7 @@ RUN pip3 install --no-cache-dir \
     pillow \
     seaborn \
     jupyterlab \
+    notebook \
     ipykernel \
     ipywidgets \
     ipympl \
