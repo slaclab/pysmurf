@@ -4,7 +4,7 @@ Installation
 Requirements
 ------------
 
-- Python >= 3.8
+- Python >= 3.10
 - A running SMuRF rogue server (for hardware interaction)
 
 Dependencies (installed automatically): numpy, scipy, matplotlib,

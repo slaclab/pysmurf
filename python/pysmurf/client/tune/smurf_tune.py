@@ -2378,7 +2378,7 @@ class SmurfTuneMixin(SmurfBase):
 
         unique_subband = np.unique(subband)
 
-        cm = plt.get_cmap('viridis')
+        cm = plt.colormaps['viridis']
 
         timestamp = self.get_timestamp()
 
@@ -3011,7 +3011,7 @@ class SmurfTuneMixin(SmurfBase):
         scale = 1.0E3
 
         fig, ax = plt.subplots(1)
-        cm = plt.get_cmap('viridis')
+        cm = plt.colormaps['viridis']
         for j, k in enumerate(keys):
             sync = dat['data'][k]['sync']
             df = dat['data'][k]['df']
@@ -3602,7 +3602,7 @@ class SmurfTuneMixin(SmurfBase):
             if filename is not None:
                 f, resp = np.load(filename)
 
-            cm = plt.cm.get_cmap('viridis')
+            cm = plt.colormaps['viridis']
             plt.figure(figsize=(10,4))
 
             for i, sb in enumerate(subband):

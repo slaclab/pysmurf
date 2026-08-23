@@ -17,6 +17,7 @@
 import os
 import time
 import subprocess
+from typing import Literal
 
 import numpy as np
 from packaging import version
@@ -584,7 +585,7 @@ class SmurfCommandMixin(SmurfBase):
         n_processed_channels=int(0.8125*n_channels)
         return n_processed_channels
 
-    def set_defaults_pv(self, max_timeout_sec=60.0, **kwargs):
+    def set_defaults_pv(self, max_timeout_sec=300.0, **kwargs):
         r"""Loads the default configuration.
 
         Calls the rogue `setDefaults` command, which loads the default
@@ -597,9 +598,11 @@ class SmurfCommandMixin(SmurfBase):
 
         Args
         ----
-        max_timeout_sec : float, optional, default 400.0
+        max_timeout_sec : float, optional, default 300.0
             Seconds to wait for system to configure before giving up.
             Only used for pysmurf core code versions >= 4.1.0.
+            The underlying process will give up after 240s by default,
+            so if a shorter timeout is set here, it may not complete.
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to
             all `_caget` calls.
@@ -633,10 +636,10 @@ class SmurfCommandMixin(SmurfBase):
             # once complete.
             start_time = time.time()
 
-            # Start by calling the 'setDefaults' command. Set the 'wait' flag
-            # to wait for the command to finish, although the server usually
-            # gets unresponsive during setup and the connection is lost.
-            self._caput('AMCc.setDefaults', 1, wait_done=True, **kwargs)
+            # Start by calling the 'setDefaults' command.
+            # This is now implemented as a rogue Process, so this call will
+            # return immediately, and the wait loop that follows will begin
+            self._caput('AMCc.setDefaults.Start', 1, **kwargs)
 
             # Now let's wait until the process is finished. We define a maximum
             # time we will wait, 400 seconds in this case
@@ -1197,7 +1200,38 @@ class SmurfCommandMixin(SmurfBase):
 
     # name changed in Rogue 4 from WriteState to SaveState.  Keeping
     # the write_state function for backwards compatibilty.
-    _save_state_reg = "AMCc.SaveState"
+    # In rogue 6 this has moved to a process to avoid timing out
+    # on a long-running command
+    _save_state_reg = "AMCc.SaveConfigProcess"
+
+    def _save_state_or_config(
+        self, fname: str, mode: Literal["Config", "Status"], timeout: float = 180.0,
+        **kwargs
+    ):
+        # write out to a file
+        self._caput(self._save_state_reg + ".SaveMode", "File", **kwargs)
+        self._caput(self._save_state_reg + ".ConfigFile", fname, **kwargs)
+
+        # select state or config
+        self._caput(self._save_state_reg + ".DataType", mode, **kwargs)
+
+        # start the process
+        self._caput(self._save_state_reg + ".Start", 1, **kwargs)
+
+        # wait for process to complete
+        start = time.time()
+
+        def keep_waiting():
+            if (timeout == 0) or ((time.time() - start) <= timeout):
+                return True
+            raise TimeoutError(f"SaveConfigProcess timed out after {timeout}s.")
+
+        while self._caget(self._save_state_reg + ".Running") and keep_waiting():
+            time.sleep(0.1)
+        # Check the return value from 'SaveConfigProcess'.
+        msg = self._caget(self._save_state_reg + ".Message")
+        if msg != "Done":
+            raise RuntimeError(f"SaveConfigProcess failed with '{msg}'")
 
     def save_state(self, val, **kwargs):
         """
@@ -1208,15 +1242,13 @@ class SmurfCommandMixin(SmurfBase):
         val : str
             The path (including file name) to write the yml file to.
         """
-        self._caput(self._save_state_reg, val, **kwargs)
+        self._save_state_or_config(val, "Status", **kwargs)
 
     # alias older rogue 3 write_state function to save_state
     write_state = save_state
 
     # name changed in Rogue 4 from WriteConfig to SaveConfig.  Keeping
     # the write_config function for backwards compatibilty.
-    _save_config_reg = "AMCc.SaveConfig"
-
     def save_config(self, val, **kwargs):
         """
         Writes the current (un-masked) PyRogue settings to a yml file.
@@ -1226,7 +1258,7 @@ class SmurfCommandMixin(SmurfBase):
         val : str
             The path (including file name) to write the yml file to.
         """
-        self._caput(self._save_config_reg, val, **kwargs)
+        self._save_state_or_config(val, "Config", **kwargs)
 
     # alias older rogue 3 write_config function to save_config
     write_config = save_config
