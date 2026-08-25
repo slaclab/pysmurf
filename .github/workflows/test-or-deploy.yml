@@ -271,46 +271,6 @@ jobs:
 
   # Deploy
 
-  # Deploy new release notes to GitHub
-  deploy-release-notes:
-    name: Generate Release Notes
-    runs-on: ubuntu-24.04
-    needs: [test-docs, test-server, test-client]  # Run only if all tests passed
-    if: startsWith(github.ref, 'refs/tags/')      # Run only on tagged releases
-    steps:
-      # Checkout the code
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
-
-      # Get the git tag from the environmental variables
-      # It will used to tag the docker image
-      - name: Get release tag
-        id: get_tag
-        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
-
-      # Setup python3
-      - name: Setup python 3.12
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: 3.12
-
-      # Install dependencies of the releaseGen.py script
-      - name: Install dependencies
-        run: |
-          python -m pip install \
-            GitPython \
-            PyGithub
-
-      # Generate a release using the releaseGen.py script
-      - name: Generate release notes
-        env:
-          REPO_SLUG: ${{ github.repository }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.get_tag.outputs.tag }}
-        run: python releaseGen.py
-
   # Server docker
   deploy-server:
     name: Build Server Docker Image
