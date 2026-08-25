@@ -681,11 +681,11 @@ class SmurfTuneMixin(SmurfBase):
                 att_dc = self.get_att_dc(band)
                 self.log(f'UC (DAC) att: {att_uc}', self.LOG_INFO)
                 self.log(f'DC (ADC) att: {att_dc}', self.LOG_INFO)
-                if att_uc > 0:
+                if att_uc is not None and att_uc > 0:
                     scale = (10**(-att_uc/2/20))
                     self.log(f'UC attenuator > 0. Scaling by {scale:4.3f}', self.LOG_INFO)
                     dac *= scale
-                if att_dc > 0:
+                if att_dc is not None and att_dc > 0:
                     scale = (10**(att_dc/2/20))
                     self.log(f'DC attenuator > 0. Scaling by {scale:4.3f}', self.LOG_INFO)
                     adc *= scale
@@ -1538,9 +1538,12 @@ class SmurfTuneMixin(SmurfBase):
         Args
         ----
         f : float
-            The frequency to search for a subband.
+            The frequency in MHz to search for a subband.
         band : int
             The band to identify.
+        as_offset : bool, optional, default True
+            Whether to return subband centers as an offset from the band
+            center (passed through to ``get_subband_centers``).
 
         Returns
         -------
@@ -1632,7 +1635,7 @@ class SmurfTuneMixin(SmurfBase):
         return freqs, subbands, channels, groups
 
     @set_action()
-    def assign_channels(self, freq, band=None, bandcenter=None,
+    def assign_channels(self, freq, band,
             channel_per_subband=4, as_offset=True, min_offset=0.1,
             new_master_assignment=False):
         """
@@ -1641,20 +1644,25 @@ class SmurfTuneMixin(SmurfBase):
         Args
         ----
         freq : float array
-            The frequency of the resonators. This is not the same as
-            the frequency output from full_band_resp. This is only
-            where the resonators are.
-
-        band : int or None, optional, default None
+            The frequency of the resonators in MHz. This is not the
+            same as the frequency output from full_band_resp. This is
+            only where the resonators are.
+        band : int
             The band to assign channels.
-        band_center : float array or None, optional, default None
-            The frequency center of the band. Must supply band or
-            subband center.
         channel_per_subband : int, optional, default 4
             The number of channels to assign per subband.
+        as_offset : bool, optional, default True
+            Whether subband centers are computed as offsets from the
+            band center (passed through to ``get_subband_centers`` and
+            ``get_closest_subband``).
         min_offset : float, optional, default 0.1
             The minimum offset between two resonators in MHz.  If
             closer, then both are ignored.
+        new_master_assignment : bool, optional, default False
+            If True, assign each resonator to its closest subband and
+            write a fresh master assignment file for this band. If
+            False (default), match resonators against the existing
+            master assignment loaded via ``get_master_assignment``.
 
         Returns
         -------
@@ -1666,10 +1674,6 @@ class SmurfTuneMixin(SmurfBase):
             The frequency offset from the subband center.
         """
         freq = np.sort(freq)  # Just making sure its in sequential order
-
-        if band is None and bandcenter is None:
-            self.log('Must have band or bandcenter', self.LOG_ERROR)
-            raise ValueError('Must have band or bandcenter')
 
         subbands = np.zeros(len(freq), dtype=int)
         channels = -1 * np.ones(len(freq), dtype=int)
@@ -2288,7 +2292,6 @@ class SmurfTuneMixin(SmurfBase):
                                   write_log=write_log)
         self.set_eta_scan_amplitude(band, tone_power, write_log=write_log)
         self.set_eta_scan_freq(band, freq, write_log=write_log)
-        self.set_eta_scan_dwell(band, 0, write_log=write_log)
 
         self.set_run_eta_scan(band, 1, wait_done=False, write_log=write_log)
         pvs = [self._cryo_root(band) + self._eta_scan_results_real_reg,
@@ -2379,7 +2382,7 @@ class SmurfTuneMixin(SmurfBase):
 
         unique_subband = np.unique(subband)
 
-        cm = plt.get_cmap('viridis')
+        cm = plt.colormaps['viridis']
 
         timestamp = self.get_timestamp()
 
@@ -2571,7 +2574,11 @@ class SmurfTuneMixin(SmurfBase):
             registers and contribute to incrased noise.
             Too high of lms_gain will overflow the register and greatly incrase noise.
         return_data : bool, optional, default True
-            Whether or not to return f, df, sync.
+            If True, take debug data (via take_debug_data) and
+            return (f, df, sync).  If False AND make_plot is also
+            False, the debug data acquisition is skipped entirely,
+            saving time.  Used internally by track_and_check, which
+            does not need the returned arrays.
         feedback_start_frac : float or None, optional, default None
             The fraction of the full flux ramp at which to stop
             applying feedback in each flux ramp cycle.  Must be in
@@ -2584,6 +2591,23 @@ class SmurfTuneMixin(SmurfBase):
             Whether to setup the flux ramp.
         plotname_append : str, optional, default ''
             Optional string to append plots with.
+
+        Returns
+        -------
+        f : float array or None
+            The frequency response per channel from take_debug_data.
+            Only returned when return_data=True.  None on the early
+            error path (both meas_lms_freq and meas_flux_ramp_amp
+            requested).
+        df : float array or None
+            The frequency error per channel.  Same conditions as f.
+        sync : float array or None
+            The sync count from the flux ramp.  Same conditions as f.
+
+        Notes
+        -----
+        When return_data=False this function returns None (no
+        tuple).
         """
         if reset_rate_khz is None:
             reset_rate_khz = self._reset_rate_khz
@@ -3012,7 +3036,7 @@ class SmurfTuneMixin(SmurfBase):
         scale = 1.0E3
 
         fig, ax = plt.subplots(1)
-        cm = plt.get_cmap('viridis')
+        cm = plt.colormaps['viridis']
         for j, k in enumerate(keys):
             sync = dat['data'][k]['sync']
             df = dat['data'][k]['df']
@@ -3240,7 +3264,6 @@ class SmurfTuneMixin(SmurfBase):
         FastSlowRstValue = np.floor((2**self._num_flux_ramp_counter_bits) *
             (1 - fractionFullScale)/2)
 
-        KRelay = 3 #where do these values come from
         PulseWidth = 64
         DebounceWidth = 255
         RampSlope = 0
@@ -3249,7 +3272,6 @@ class SmurfTuneMixin(SmurfBase):
 
         self.set_low_cycle(LowCycle, write_log=write_log)
         self.set_high_cycle(HighCycle, write_log=write_log)
-        self.set_k_relay(KRelay, write_log=write_log)
         self.set_ramp_max_cnt(rampMaxCnt, write_log=write_log)
         self.set_pulse_width(PulseWidth, write_log=write_log)
         self.set_debounce_width(DebounceWidth, write_log=write_log)
@@ -3605,7 +3627,7 @@ class SmurfTuneMixin(SmurfBase):
             if filename is not None:
                 f, resp = np.load(filename)
 
-            cm = plt.cm.get_cmap('viridis')
+            cm = plt.colormaps['viridis']
             plt.figure(figsize=(10,4))
 
             for i, sb in enumerate(subband):
@@ -3835,8 +3857,6 @@ class SmurfTuneMixin(SmurfBase):
         self.set_eta_scan_freq(band, freq)
         self.set_eta_scan_amplitude(band, tone_power)
         self.set_eta_scan_channel(band, subchan)
-        self.set_eta_scan_dwell(band, 0)
-
         self.set_run_eta_scan(band, 1)
 
         I = self.get_eta_scan_results_real(band, count=len(freq))

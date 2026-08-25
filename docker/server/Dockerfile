@@ -1,4 +1,4 @@
-FROM ghcr.io/slaclab/smurf-rogue:R5.0.1
+FROM ghcr.io/slaclab/smurf-rogue:R5.1.0
 
 # Install Xvfb for virtual display support when running with GUI (-g)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -41,7 +41,7 @@ WORKDIR pysmurf
 RUN pip3 install -e ./
 RUN mkdir build
 WORKDIR build
-RUN cmake -DCMAKE_PREFIX_PATH=/usr/local/lib .. && make -j4
+RUN cmake -DCMAKE_PREFIX_PATH=/usr/local/lib -DCMAKE_BUILD_TYPE=RelWithDebInfo .. && make -j4
 ENV PYTHONPATH=/usr/local/src/pysmurf/lib:${PYTHONPATH}
 ENV SMURF_DIR=/usr/local/src/pysmurf
 
