@@ -2100,8 +2100,11 @@ class SmurfUtilMixin(SmurfBase):
         # now set all the PV's
         self.set_center_frequency_mhz_channel(band, channel, freq)
         self.set_amplitude_scale_channel(band, channel, ampl)
-        self.set_eta_phase_degree_channel(band, channel, phase)
+        # eta is held as Cartesian etaI/etaQ, so setting the phase of a channel
+        # whose magnitude is still zero writes (0, 0) and discards the phase.
+        # Magnitude first.
         self.set_eta_mag_scaled_channel(band, channel, eta_mag)
+        self.set_eta_phase_degree_channel(band, channel, phase)
 
     @set_action()
     def which_on(self, band):
