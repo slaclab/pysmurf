@@ -249,7 +249,7 @@ jobs:
           python -m build --sdist
 
       - name: Build wheel
-        uses: pypa/cibuildwheel@1828c10ab37f080699c7b81cea34097c684a7074 # v4.2.0
+        uses: pypa/cibuildwheel@e090b81e30c4d855ea63bf4b6e59204c09a101ae # v4.2.1
         env:
           CIBW_BUILD: cp310-manylinux_x86_64
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
