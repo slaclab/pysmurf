@@ -111,6 +111,9 @@ class SmurfBase:
             atexit.register(self._client.stop)
             if atca_monitor:
                 self._atca = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._atca_port)
+                # Set a 30s timeout. And warn every 5s.  Without this a wedged
+                # atca_monitor can block reads (e.g. hardware logging) forever.
+                self._atca.setTimeout(5000, 30000)  # ms
                 if self._atca.root is None:
                     self.log(f"Could not connect to ATCA monitor at port {self._atca_port}.")
                 self._atca._monEnable = False
