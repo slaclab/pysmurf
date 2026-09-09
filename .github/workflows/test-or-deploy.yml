@@ -30,11 +30,11 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # Setup python3
       - name: setup python 3.12
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: 3.12
 
@@ -60,7 +60,7 @@ jobs:
       # We use ssh key authentication to be able to access other private
       # repositories (like the firmware repository).
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         #with:
         #  ssh-key: ${{ secrets.SLACLAB_KEY }}
 
@@ -85,11 +85,11 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # Setup python 3.12
       - name: Setup python 3.12
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: 3.12
 
@@ -114,11 +114,11 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # Setup Docker build environment
       - name: Set up docker build enviroment
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
 
       # Extract the branch name.
       # - For PR, the branch name is "github.head_ref"
@@ -188,11 +188,11 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # Setup Docker build environment
       - name: Set up docker build enviroment
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
 
       # Extract the branch name.
       # - For PR, the branch name is "github.head_ref"
@@ -239,7 +239,7 @@ jobs:
     needs: [test-docs, test-server, test-client]  # Run only if all tests passed
     steps:
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0  # fetch all tags
 
@@ -249,7 +249,7 @@ jobs:
           python -m build --sdist
 
       - name: Build wheel
-        uses: pypa/cibuildwheel@294735312765b09d24a2fbec22660ce817587d55 # v4.1.0
+        uses: pypa/cibuildwheel@e090b81e30c4d855ea63bf4b6e59204c09a101ae # v4.2.1
         env:
           CIBW_BUILD: cp310-manylinux_x86_64
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
@@ -258,6 +258,11 @@ jobs:
       - name: Collect dist files
         run: cp wheelhouse/*.whl dist/
 
+      - name: Validate metadata
+        run: |
+          pip install twine
+          twine check dist/*
+
       - name: Upload dist
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -265,46 +270,6 @@ jobs:
           path: dist/
 
   # Deploy
-
-  # Deploy new release notes to GitHub
-  deploy-release-notes:
-    name: Generate Release Notes
-    runs-on: ubuntu-24.04
-    needs: [test-docs, test-server, test-client]  # Run only if all tests passed
-    if: startsWith(github.ref, 'refs/tags/')      # Run only on tagged releases
-    steps:
-      # Checkout the code
-      - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-        with:
-          fetch-depth: 0
-
-      # Get the git tag from the environmental variables
-      # It will used to tag the docker image
-      - name: Get release tag
-        id: get_tag
-        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
-
-      # Setup python3
-      - name: Setup python 3.12
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: 3.12
-
-      # Install dependencies of the releaseGen.py script
-      - name: Install dependencies
-        run: |
-          python -m pip install \
-            GitPython \
-            PyGithub
-
-      # Generate a release using the releaseGen.py script
-      - name: Generate release notes
-        env:
-          REPO_SLUG: ${{ github.repository }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.get_tag.outputs.tag }}
-        run: python releaseGen.py
 
   # Server docker
   deploy-server:
@@ -317,17 +282,17 @@ jobs:
       # We use ssh key authentication to be able to access other private
       # repositories (like the firmware repository).
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         #with:
         #  ssh-key: ${{ secrets.SLACLAB_KEY }}
 
       # Setup docker build environment
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
 
       # Login to Dockerhub
       - name: Login to Dockerhub
-        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ghcr.io
           username: slacrherbst
@@ -356,7 +321,7 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # Get the git tag from the environmental variables
       # It will used to tag the docker image
@@ -366,11 +331,11 @@ jobs:
 
       # Setup Docker build environment
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
 
       # Login to Dockerhub
       - name: Login to Dockerhub
-        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ghcr.io
           username: slacrherbst
@@ -405,4 +370,4 @@ jobs:
         path: dist/
 
     - name: publish package distributions to PyPI
-      uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
+      uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1

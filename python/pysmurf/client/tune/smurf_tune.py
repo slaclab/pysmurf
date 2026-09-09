@@ -408,11 +408,13 @@ class SmurfTuneMixin(SmurfBase):
         # Read back new eta parameters and populate freq_resp
         subband_half_width = self.get_digitizer_frequency_mhz(band)/\
             self.get_number_sub_bands(band)
+        # get_eta_phase_array returns radians, so no conversion belongs here.
+        # The 'eta_phase' resonance key set below is in degrees, matching
+        # setup_notches and the eta_phase_deg argument of plot_eta_fit.
         eta_phase = self.get_eta_phase_array(band)
         eta_scaled = self.get_eta_mag_array(band)
         eta_mag = eta_scaled * subband_half_width
-        eta = eta_mag * np.cos(np.deg2rad(eta_phase)) + \
-            1.j * np.sin(np.deg2rad(eta_phase))
+        eta = eta_mag * np.exp(1.j * eta_phase)
 
         # Get the result twice. Pass it to the resonance dict
         chs = self.get_eta_scan_result_channel(band)
@@ -420,7 +422,7 @@ class SmurfTuneMixin(SmurfBase):
 
         for i, ch in enumerate(chs):
             if ch != -1:
-                resonances[i]['eta_phase'] = eta_phase[ch]
+                resonances[i]['eta_phase'] = np.rad2deg(eta_phase[ch])
                 resonances[i]['eta_scaled'] = eta_scaled[ch]
                 resonances[i]['eta_mag'] = eta_mag[ch]
                 resonances[i]['eta'] = eta[ch]
@@ -1538,9 +1540,12 @@ class SmurfTuneMixin(SmurfBase):
         Args
         ----
         f : float
-            The frequency to search for a subband.
+            The frequency in MHz to search for a subband.
         band : int
             The band to identify.
+        as_offset : bool, optional, default True
+            Whether to return subband centers as an offset from the band
+            center (passed through to ``get_subband_centers``).
 
         Returns
         -------
@@ -1632,7 +1637,7 @@ class SmurfTuneMixin(SmurfBase):
         return freqs, subbands, channels, groups
 
     @set_action()
-    def assign_channels(self, freq, band=None, bandcenter=None,
+    def assign_channels(self, freq, band,
             channel_per_subband=4, as_offset=True, min_offset=0.1,
             new_master_assignment=False):
         """
@@ -1641,20 +1646,25 @@ class SmurfTuneMixin(SmurfBase):
         Args
         ----
         freq : float array
-            The frequency of the resonators. This is not the same as
-            the frequency output from full_band_resp. This is only
-            where the resonators are.
-
-        band : int or None, optional, default None
+            The frequency of the resonators in MHz. This is not the
+            same as the frequency output from full_band_resp. This is
+            only where the resonators are.
+        band : int
             The band to assign channels.
-        band_center : float array or None, optional, default None
-            The frequency center of the band. Must supply band or
-            subband center.
         channel_per_subband : int, optional, default 4
             The number of channels to assign per subband.
+        as_offset : bool, optional, default True
+            Whether subband centers are computed as offsets from the
+            band center (passed through to ``get_subband_centers`` and
+            ``get_closest_subband``).
         min_offset : float, optional, default 0.1
             The minimum offset between two resonators in MHz.  If
             closer, then both are ignored.
+        new_master_assignment : bool, optional, default False
+            If True, assign each resonator to its closest subband and
+            write a fresh master assignment file for this band. If
+            False (default), match resonators against the existing
+            master assignment loaded via ``get_master_assignment``.
 
         Returns
         -------
@@ -1666,10 +1676,6 @@ class SmurfTuneMixin(SmurfBase):
             The frequency offset from the subband center.
         """
         freq = np.sort(freq)  # Just making sure its in sequential order
-
-        if band is None and bandcenter is None:
-            self.log('Must have band or bandcenter', self.LOG_ERROR)
-            raise ValueError('Must have band or bandcenter')
 
         subbands = np.zeros(len(freq), dtype=int)
         channels = -1 * np.ones(len(freq), dtype=int)
@@ -1984,7 +1990,10 @@ class SmurfTuneMixin(SmurfBase):
                 center_freq[ch] = self.freq_resp[band]['resonances'][k]['offset']
                 amplitude_scale[ch] = tone_power
                 feedback_enable[ch] = 1
-                eta_phase[ch] = self.freq_resp[band]['resonances'][k]['eta_phase']
+                # the 'eta_phase' resonance key is degrees; the array setter
+                # below takes radians
+                eta_phase[ch] = np.deg2rad(
+                    self.freq_resp[band]['resonances'][k]['eta_phase'])
                 eta_mag[ch] = self.freq_resp[band]['resonances'][k]['eta_scaled']
                 counter += 1
 
@@ -1995,9 +2004,13 @@ class SmurfTuneMixin(SmurfBase):
             write_log=write_log, log_level=self.LOG_INFO)
         self.set_feedback_enable_array(band, feedback_enable.astype(int),
             write_log=write_log, log_level=self.LOG_INFO)
-        self.set_eta_phase_array(band, eta_phase, write_log=write_log,
-            log_level=self.LOG_INFO)
+        # eta is held in firmware as Cartesian etaI/etaQ, so each setter
+        # recomputes from the other's current value: setting the phase of a
+        # channel whose magnitude is still zero writes (0, 0) and discards the
+        # phase. Magnitude must therefore be written first.
         self.set_eta_mag_array(band, eta_mag, write_log=write_log,
+            log_level=self.LOG_INFO)
+        self.set_eta_phase_array(band, eta_phase, write_log=write_log,
             log_level=self.LOG_INFO)
 
         self.log(
@@ -2570,7 +2583,11 @@ class SmurfTuneMixin(SmurfBase):
             registers and contribute to incrased noise.
             Too high of lms_gain will overflow the register and greatly incrase noise.
         return_data : bool, optional, default True
-            Whether or not to return f, df, sync.
+            If True, take debug data (via take_debug_data) and
+            return (f, df, sync).  If False AND make_plot is also
+            False, the debug data acquisition is skipped entirely,
+            saving time.  Used internally by track_and_check, which
+            does not need the returned arrays.
         feedback_start_frac : float or None, optional, default None
             The fraction of the full flux ramp at which to stop
             applying feedback in each flux ramp cycle.  Must be in
@@ -2583,6 +2600,23 @@ class SmurfTuneMixin(SmurfBase):
             Whether to setup the flux ramp.
         plotname_append : str, optional, default ''
             Optional string to append plots with.
+
+        Returns
+        -------
+        f : float array or None
+            The frequency response per channel from take_debug_data.
+            Only returned when return_data=True.  None on the early
+            error path (both meas_lms_freq and meas_flux_ramp_amp
+            requested).
+        df : float array or None
+            The frequency error per channel.  Same conditions as f.
+        sync : float array or None
+            The sync count from the flux ramp.  Same conditions as f.
+
+        Notes
+        -----
+        When return_data=False this function returns None (no
+        tuple).
         """
         if reset_rate_khz is None:
             reset_rate_khz = self._reset_rate_khz
@@ -2963,8 +2997,12 @@ class SmurfTuneMixin(SmurfBase):
 
         ret = {}
 
+        # get_eta_phase_array is radians; the rotation below is applied in
+        # degrees, so keep a degrees copy for the arithmetic and the radians
+        # original for restoring the register at the end.
         eta_phase0 = self.get_eta_phase_array(band)
-        ret['eta_phase0'] = eta_phase0
+        eta_phase0_deg = np.rad2deg(eta_phase0)
+        ret['eta_phase0'] = eta_phase0  # radians, as read from the register
         ret['band'] = band
         n_channels = self.get_number_channels(band)
 
@@ -2977,10 +3015,10 @@ class SmurfTuneMixin(SmurfBase):
 
         for _, r in enumerate(rot_ang):
             self.log(f'Rotating {r:3.1f} deg')
-            eta_phase = np.zeros_like(eta_phase0)
+            eta_phase = np.zeros_like(eta_phase0_deg)
             for c in np.arange(n_channels):
-                eta_phase[c] = tools.limit_phase_deg(eta_phase0[c] + r)
-            self.set_eta_phase_array(band, eta_phase)
+                eta_phase[c] = tools.limit_phase_deg(eta_phase0_deg[c] + r)
+            self.set_eta_phase_array(band, np.deg2rad(eta_phase))
 
             d, df, sync = self.tracking_setup(band,0,
                 reset_rate_khz=reset_rate_khz,
@@ -2994,7 +3032,7 @@ class SmurfTuneMixin(SmurfBase):
             ret['data'][r]['sync'] = sync
 
         self.set_feedback_enable_array(band, old_fb)
-        self.set_eta_phase_array(2, eta_phase0)
+        self.set_eta_phase_array(band, eta_phase0)
 
         return ret
 
@@ -4848,7 +4886,10 @@ class SmurfTuneMixin(SmurfBase):
             band_outputs[band]['amplitudes'] = list(self.get_amplitude_scale_array(band).astype(float))
             band_outputs[band]['freqs'] = list(self.get_center_frequency_array(band))
             band_outputs[band]['eta_mag'] = list(self.get_eta_mag_array(band))
-            band_outputs[band]['eta_phase'] = list(self.get_eta_phase_array(band))
+            # 'eta_phase' is degrees everywhere it is consumed; the array
+            # getter returns radians
+            band_outputs[band]['eta_phase'] = list(
+                np.rad2deg(self.get_eta_phase_array(band)))
         self.config.update_subkey('outputs', 'band_outputs', band_outputs)
 
         # dump to file

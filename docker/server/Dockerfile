@@ -41,7 +41,7 @@ WORKDIR pysmurf
 RUN pip3 install -e ./
 RUN mkdir build
 WORKDIR build
-RUN cmake -DCMAKE_PREFIX_PATH=/usr/local/lib .. && make -j4
+RUN cmake -DCMAKE_PREFIX_PATH=/usr/local/lib -DCMAKE_BUILD_TYPE=RelWithDebInfo .. && make -j4
 ENV PYTHONPATH=/usr/local/src/pysmurf/lib:${PYTHONPATH}
 ENV SMURF_DIR=/usr/local/src/pysmurf
 

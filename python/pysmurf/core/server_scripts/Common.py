@@ -55,7 +55,7 @@ def process_args(args):
     # set up a handler with timestamps
     handler = logging.StreamHandler()
     handler.setLevel(args.log_level)
-    formatter = logging.Formatter("[%(asctime)s] %(levelname)s:%(name)s: %(msg)s")
+    formatter = logging.Formatter("[%(asctime)s] %(levelname)s:%(name)s: %(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
