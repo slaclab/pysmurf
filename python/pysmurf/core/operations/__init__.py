@@ -22,7 +22,6 @@
 #-----------------------------------------------------------------------------
 
 from pysmurf.core.operations._NewSerialGradientDescent import NewSerialGradientDescent
-from pysmurf.core.operations._ParrallelEtaScan import ParrallelEtaScan
 from pysmurf.core.operations._SerialEtaScan import SerialEtaScan
 from pysmurf.core.operations._SerialFindFreq import SerialFindFreq
 from pysmurf.core.operations._SerialGradientDescent import SerialGradientDescent

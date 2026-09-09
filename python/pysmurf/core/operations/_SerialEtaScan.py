@@ -8,7 +8,9 @@
 # Description:
 #    Moved verbatim from cryo-det, where it lived at
 #    firmware/python/CryoDet/DspCoreLib/CryoDetCmbHcd/_SerialEtaScan.py
-#    as of commit 31b6fbfe (== tag MicrowaveMuxBpEthGen2_v2.5.1).
+#    as of commit e3dc359c (main after PR #80). The move was taken from
+#    31b6fbfe (== tag MicrowaveMuxBpEthGen2_v2.5.1) and #80's changes applied
+#    on top as a separate commit, so the two can be reviewed apart.
 #
 #    The class body below is byte-identical to that file. Only this header and
 #    the comment above __all__ differ. Do not "clean up" this module: the
@@ -108,8 +110,10 @@ class SerialEtaScan(pr.Process):
                     self._log.warning(f"Channel {channel}: eta = {etaMagScaled}. Clipping to {eta_max}.")
                     etaMagScaled = eta_max
 
-                self.parent.CryoChannel[channel].etaPhaseDegree.set( etaPhaseDegree )
+                # magnitude before phase, so this does not depend on the
+                # etaMag = 1 seeded at the top of the routine still being there
                 self.parent.CryoChannel[channel].etaMagScaled.set( etaMagScaled )
+                self.parent.CryoChannel[channel].etaPhaseDegree.set( etaPhaseDegree )
 
             amplitudeScale[failed_ch] = 0
             self.parent.amplitudeScale.set( amplitudeScale )

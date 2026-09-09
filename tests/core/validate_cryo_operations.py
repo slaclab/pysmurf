@@ -11,7 +11,7 @@
 #
 # Needs no hardware and no CryoDet package: it builds throwaway pyrogue devices
 # that stand in for one band's CryoChannels, so it can run anywhere rogue is
-# importable. What it covers is that the attach puts all 31 nodes where they
+# importable. What it covers is that the attach puts all 29 nodes where they
 # belong, and that a CryoDet package which still defines them itself is refused
 # with a message that says so.
 #
@@ -66,6 +66,13 @@ FIRMWARE_RELEASES = {
     'v2.5.1': (),
 }
 
+# Nodes every released package carries that pysmurf does not own: cryo-det PR
+# #80 deleted the never-used ParrallelEtaScan after v2.5.1, and pysmurf's copy
+# followed it. A released package still has them, so the stand-ins add them
+# too; they must neither block the refusal nor be mistaken for something the
+# attach should have provided.
+RETIRED_NODES = ('ParrallelEtaScan', 'runParallelEtaScan')
+
 
 # --------------------------------------------------------------------------
 # fixtures
@@ -108,6 +115,9 @@ def add_firmware_operations(ch, skip=()):
             ch.add(pr.LocalCommand(name=name, function=lambda: None))
         else:
             ch.add(pr.LocalVariable(name=name, value=0))
+    # every release also has the ParrallelEtaScan pair pysmurf retired
+    ch.add(pr.Device(name=RETIRED_NODES[0]))
+    ch.add(pr.LocalCommand(name=RETIRED_NODES[1], function=lambda: None))
 
 
 # --------------------------------------------------------------------------
@@ -115,13 +125,15 @@ def add_firmware_operations(ch, skip=()):
 # --------------------------------------------------------------------------
 
 def check_fresh_attach():
-    """A stripped device gets all 31 nodes, in cryo-det's original order."""
+    """A stripped device gets all 29 nodes, in cryo-det's original order."""
     ch = make_cryo_channels()
     before = set(ch.nodes)
     ops.attach_cryo_operations(ch)
     added = [n for n in ch.nodes if n not in before]
     assert added == list(ops.OPERATION_NODES), f"added: {added}"
-    assert len(added) == 31, f"expected 31 nodes, got {len(added)}"
+    assert len(added) == 29, f"expected 29 nodes, got {len(added)}"
+    for name in RETIRED_NODES:
+        assert name not in ch.nodes, f"{name} was retired by cryo-det #80"
 
 
 def check_old_package_is_refused():
@@ -147,7 +159,7 @@ def check_old_package_is_refused():
 def check_every_real_release_is_refused():
     """Not just the newest package -- every released one predates the strip.
 
-    Each of these is missing a different subset of the 31 nodes, so this also
+    Each of these is missing a different subset of the 29 nodes, so this also
     pins down that the refusal keys on *any* node being present rather than on
     all of them.
     """
@@ -167,7 +179,7 @@ def check_every_real_release_is_refused():
 
 
 def check_any_single_node_is_enough_to_refuse():
-    """One leftover node out of the 31 is a refusal, not a partial attach.
+    """One leftover node out of the 29 is a refusal, not a partial attach.
 
     Every name is checked individually because the collision surface is the
     whole node table: a node left out of the OPERATION_* tuples would be
@@ -193,7 +205,7 @@ def check_any_single_node_is_enough_to_refuse():
 
 
 def check_unrelated_nodes_do_not_block_the_attach():
-    """Only the 31 names matter; the rest of CryoChannels is not our business.
+    """Only the 29 names matter; the rest of CryoChannels is not our business.
 
     cryo-det keeps a large hardware map on this device, plus one LocalVariable
     (setCenterFrequencyDelay) that stayed behind. None of it may be mistaken for
@@ -274,7 +286,7 @@ def check_attach_all_propagates_errors():
 
 
 def check_exists_matches_add():
-    """_exists() must agree with Device.add() on all 31 names.
+    """_exists() must agree with Device.add() on all 29 names.
 
     This is the whole basis of the pre-attach check: if the two predicates could
     ever disagree, "would this collide?" would stop predicting "did it?".

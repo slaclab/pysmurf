@@ -9,8 +9,8 @@
 #    Attaches the resonator-tuning operations to each band's CryoChannels
 #    device at server startup.
 #
-#    These 31 nodes -- 19 tuning-parameter LocalVariables, 5 pr.Process
-#    devices, and 7 dispatch commands -- used to be added by cryo-det's
+#    These 29 nodes -- 19 tuning-parameter LocalVariables, 4 pr.Process
+#    devices, and 6 dispatch commands -- used to be added by cryo-det's
 #    CryoChannels.__init__ (firmware/python/CryoDet/DspCoreLib/CryoDetCmbHcd/
 #    _CryoChannels.py). Because cryo-det ships as firmware, every algorithm
 #    tweak cost a firmware release cycle. Moving them here decouples the two.
@@ -20,9 +20,12 @@
 #    with the same name, type, mode and description, so SmurfControl and
 #    sodetlib keep working with no client-side change. The variable
 #    definitions and command bodies below are transcribed verbatim from
-#    cryo-det commit 31b6fbfe (== tag MicrowaveMuxBpEthGen2_v2.5.1); the only
+#    cryo-det commit e3dc359c (main after PR #80, which removed the unused
+#    ParrallelEtaScan and fixed loadTuneFile's eta write order); the only
 #    edit is the mechanical rewrite of 'self' -> 'ch', since these are now
-#    functions taking the device rather than methods of it.
+#    functions taking the device rather than methods of it. The move itself
+#    was taken from 31b6fbfe (== tag MicrowaveMuxBpEthGen2_v2.5.1); #80 was
+#    applied on top as its own commit so the two can be reviewed apart.
 #
 #    scripts/stage1_source_identity.py checks that mechanically, and it must
 #    stay passing. See docs/stage1_ops_out_of_cryo_det.md.
@@ -59,7 +62,6 @@ import numpy as np
 import pyrogue as pr
 
 from ._NewSerialGradientDescent import NewSerialGradientDescent
-from ._ParrallelEtaScan import ParrallelEtaScan
 from ._SerialEtaScan import SerialEtaScan
 from ._SerialFindFreq import SerialFindFreq
 from ._SerialGradientDescent import SerialGradientDescent
@@ -73,7 +75,7 @@ __all__ = [
     'attach_cryo_operations',
 ]
 
-# The 31 node names this module owns, in the order cryo-det added them. These
+# The 29 node names this module owns, in the order cryo-det added them. These
 # are the collision surface, so a node added by _attach() and left out of these
 # tuples would be invisible to the pre-attach check.
 OPERATION_VARIABLES = (
@@ -98,13 +100,12 @@ OPERATION_VARIABLES = (
     'UseNewSerialGradientDescent',
 )
 
-# Node names come from the class names, so the misspelling in ParrallelEtaScan
-# is load-bearing -- it is a documented rogue path, not a typo to fix here.
+# Node names come from the class names, so they are documented rogue paths
+# and not something to rename here.
 OPERATION_PROCESSES = (
     'SerialGradientDescent',
     'NewSerialGradientDescent',
     'SerialEtaScan',
-    'ParrallelEtaScan',
     'SerialFindFreq',
 )
 
@@ -114,7 +115,6 @@ OPERATION_COMMANDS = (
     'setAmplitudeScales',
     'runSerialGradientDescent',
     'runSerialEtaScan',
-    'runParallelEtaScan',
     'runSerialFindFreq',
 )
 
@@ -202,7 +202,7 @@ def attach_all_cryo_operations(fpga, *, n_bands=8):
 
 
 def _attach(cryo_channels):
-    """Add all 31 operation nodes, in cryo-det's original order."""
+    """Add all 29 operation nodes, in cryo-det's original order."""
     _add_local_variables(cryo_channels)
     _add_processes(cryo_channels)
     _add_commands(cryo_channels)
@@ -370,12 +370,11 @@ def _add_processes(ch):
     ch.add(SerialGradientDescent())
     ch.add(NewSerialGradientDescent())
     ch.add(SerialEtaScan())
-    ch.add(ParrallelEtaScan())
     ch.add(SerialFindFreq(ch._n_channels, ch._freqSpanMHz))
 
 
 def _add_commands(ch):
-    """Add the 7 operation dispatch commands.
+    """Add the 6 operation dispatch commands.
 
     In cryo-det these were closures decorated with ``@self.command(...)``.
     That decorator is exactly ``self.add(pr.LocalCommand(function=func,
@@ -415,8 +414,15 @@ def _add_commands(ch):
 
                     ch.CryoChannel[channel].amplitudeScale.set( value=drive, write=False )
                     ch.CryoChannel[channel].centerFrequencyMHz.set( value=centerFreq, write=False )
-                    ch.CryoChannel[channel].etaPhaseDegree.set( value=etaPhase, write=False )
+                    # magnitude before phase: etaMag and etaPhase are a
+                    # polar view of one Cartesian etaI/etaQ pair, and each
+                    # setter recomputes from the other's current value. On a
+                    # channel whose etaI/etaQ are still zero - a band that
+                    # has not been tuned since reset, which is exactly when
+                    # a tune gets loaded - setting the phase first writes
+                    # (0, 0) and the phase is silently discarded.
                     ch.CryoChannel[channel].etaMagScaled.set( value=etaMagScaled, write=False )
+                    ch.CryoChannel[channel].etaPhaseDegree.set( value=etaPhase, write=False )
                     ch.CryoChannel[channel].feedbackEnable.set( value=1, write=False )
 
                 # write to HW, block transaction
@@ -524,15 +530,6 @@ def _add_commands(ch):
         name        = "runSerialEtaScan",
         description = "Run serial eta scan",
         function    = runSerialEtaScan,
-    ))
-
-    def runParallelEtaScan():
-        ch.ParrallelEtaScan.Start()
-
-    ch.add(pr.LocalCommand(
-        name        = "runParallelEtaScan",
-        description = "Run parallel eta scan",
-        function    = runParallelEtaScan,
     ))
 
     def runSerialFindFreq():
