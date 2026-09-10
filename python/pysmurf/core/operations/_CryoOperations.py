@@ -131,7 +131,8 @@ def _exists(dev, name):
     return name in dev.__dir__() or name in getattr(dev, '_anodes', {})
 
 
-def attach_cryo_operations(cryo_channels, *, label=None):
+def attach_cryo_operations(cryo_channels: pr.Device, *,
+                           label: str | None = None) -> None:
     """Add the operations to one band's ``CryoChannels`` device.
 
     Must be called after the device is in the tree but before ``Root.start()``:
@@ -170,7 +171,7 @@ def attach_cryo_operations(cryo_channels, *, label=None):
         len(OPERATION_NODES), label)
 
 
-def attach_all_cryo_operations(fpga, *, n_bands=8):
+def attach_all_cryo_operations(fpga: pr.Device, *, n_bands: int = 8) -> list[int]:
     """Attach the operations to every band present under ``fpga``.
 
     Returns the sorted list of band indices that were attached, for logging.
