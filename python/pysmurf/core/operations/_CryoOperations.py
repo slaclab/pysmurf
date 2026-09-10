@@ -454,7 +454,8 @@ def _add_commands(ch):
             # workaround for rogue local variables, RTH not sure if still needed
             # list objects get written as string, not list of float when set by GUI
             if isinstance(freqs, str):
-                freqs = eval(freqs)
+                import ast
+                freqs = ast.literal_eval(freqs)
 
             ch.CryoChannel[subChan].amplitudeScale.set(ampl)
             ch.CryoChannel[subChan].etaMagScaled.set(value=1)
