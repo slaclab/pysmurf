@@ -35,6 +35,16 @@ In this test, the script disables the `Unwrapper` from the [SmurfProcessor](../.
 
 Finally, the script compares the original wrapped signal to the result at the output of the [SmurfProcessor](../../python/pysmurf/core/devices/_SmurfProcessor.py), calculating the RMSE between them. The test fails if the resulting RMSE is not `0`.
 
+### validate_cryo_operations.py
+
+This script validates [pysmurf.core.operations](../../python/pysmurf/core/operations)' attachment of the cryo channel operations to a `CryoChannels` device.
+
+Unlike the other scripts here it does not exercise the [SmurfProcessor](../../python/pysmurf/core/devices/_SmurfProcessor.py) data path. It builds throwaway pyrogue devices that stand in for one band's `CryoChannels` (512 channels over a +/-1.2 MHz span), so it needs neither hardware nor an installed CryoDet package and runs anywhere `rogue` is importable.
+
+The script performs 12 checks, covering that the attach places all 29 nodes where they belong, that command arguments and descriptions survive the move, that `attach_all` skips bands with no `CryoChannels` and propagates errors from the ones it does find, and that a CryoDet package which still defines these nodes itself is refused with a message saying so. The test fails if any check fails.
+
+It does not check that the operations themselves work against real firmware; that needs a carrier.
+
 ### profile_smurf_processor.py
 
 This script can be used to profile different section of the [SmurfProcessor](../../src/smurf/core/processors/SmurfProcessor.cpp) C++ device. In order to get profile data, the SMuRF processor needs to be modified by adding `TimerWithStats` objects (available in [Timer.h](../../include/smurf/core/common/Timer.h)) in the appropriated places.

@@ -180,6 +180,15 @@ jobs:
           docker container exec server \
             /bin/bash -c "/usr/local/src/pysmurf/tests/core/validate_base_tx.py"
 
+      # - Run the 'validate_cryo_operations.py' test script.
+      #   Needs no hardware and no CryoDet package: it builds stand-in pyrogue
+      #   devices for one band's CryoChannels, so the whole attach is checked
+      #   here rather than only on a carrier.
+      - name: Validate the cryo operations attachment
+        run: |
+          docker container exec server \
+            /bin/bash -c "/usr/local/src/pysmurf/tests/core/validate_cryo_operations.py"
+
   # Client tests
   test-client:
     name: Client Tests

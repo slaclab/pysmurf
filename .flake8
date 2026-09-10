@@ -52,3 +52,17 @@ rst-directives =
 extend-ignore =
     # Ignore f-strings, we like them:
     SFS301,
+#############################################################
+# The four resonator-tuning Process classes were moved here verbatim from the
+# cryo-det firmware repository, which has no flake8 gate. Their bodies are kept
+# byte-identical to the originals on purpose: that is what proves the move did
+# not change any behaviour, and scripts/stage1_source_identity.py checks it.
+# So the placeholder-free f-strings they arrived with (`f"Done"`) are exempted
+# here rather than edited. Drop these entries as the bodies get cleaned up.
+# See docs/stage1_ops_out_of_cryo_det.md in the development notes.
+#############################################################
+per-file-ignores =
+    python/pysmurf/core/operations/_SerialGradientDescent.py:F541
+    python/pysmurf/core/operations/_NewSerialGradientDescent.py:F541
+    python/pysmurf/core/operations/_SerialEtaScan.py:F541
+    python/pysmurf/core/operations/_SerialFindFreq.py:F541
