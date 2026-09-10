@@ -360,7 +360,7 @@ def _add_local_variables(ch):
 
 
 def _add_processes(ch):
-    """Add the 5 background pr.Process devices.
+    """Add the 4 background pr.Process devices.
 
     SerialFindFreq reads its sweep geometry from the device that owns it, so
     the constants stay where the hardware map defines them. The other four
