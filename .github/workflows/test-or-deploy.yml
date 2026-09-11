@@ -189,6 +189,64 @@ jobs:
           docker container exec server \
             /bin/bash -c "/usr/local/src/pysmurf/tests/core/validate_cryo_operations.py"
 
+      # - Fetch the pyrogue ZIP of each released firmware the client supports.
+      #   Filenames come from 'definitions.sh', so a firmware release is
+      #   updated in one place. These are assets of private repositories, so
+      #   this step needs the token that reaches them and cannot run on a pull
+      #   request from a fork.
+      - name: Fetch the released pyrogue packages
+        id: fw_zips
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.SWH76_TOKEN }}
+        run: |
+          zips="${GITHUB_WORKSPACE}/fw_zips"
+          mkdir -p "${zips}"
+          cd docker/server/
+          . definitions.sh
+          . validate.sh
+          umux_zip=""
+          rfsoc_zip=""
+          for entry in "${FW_SYSTEMS[@]}"; do
+            IFS='|' read -r sys_name sys_repo sys_tag sys_fw_files sys_zip <<< "${entry}"
+            sys_zip="${sys_zip:-rogue_${sys_tag}.zip}"
+            if [ "${sys_name}" = "umux" ] && [ -z "${umux_zip}" ]; then
+              which=umux
+            elif [ "${sys_name}" = "rfsoc" ] && [ -z "${rfsoc_zip}" ] \
+                 && [[ "${sys_zip}" != *PreSpectra* ]]; then
+              which=rfsoc
+            else
+              continue
+            fi
+            if [[ "${sys_zip}" = /* ]]; then
+              cp "${sys_zip}" "${zips}/" || exit 1
+              path="${zips}/$(basename "${sys_zip}")"
+            else
+              (cd "${zips}" && get_private_asset "${sys_repo}" "${sys_tag}" "${sys_zip}") || exit 1
+              path="${zips}/${sys_zip}"
+            fi
+            if [ "${which}" = umux ]; then umux_zip="${path}"; else rfsoc_zip="${path}"; fi
+          done
+          [ -n "${umux_zip}" ] || { echo "no umux pyrogue ZIP in FW_SYSTEMS"; exit 1; }
+          [ -n "${rfsoc_zip}" ] || { echo "no rfsoc pyrogue ZIP in FW_SYSTEMS"; exit 1; }
+          echo "umux=${umux_zip}" >> "$GITHUB_OUTPUT"
+          echo "rfsoc=${rfsoc_zip}" >> "$GITHUB_OUTPUT"
+
+      # - Run the 'validate_client_emulated.py' test script against each
+      #   released firmware tree. It serves an emulated tree over ZMQ and
+      #   connects to it as a client connects to a deployed server, so the
+      #   client is exercised over its real transport with no hardware.
+      - name: Validate the cryodaq client on the released firmware trees
+        run: |
+          docker container cp "${{ steps.fw_zips.outputs.umux }}" server:/tmp/umux.zip
+          docker container cp "${{ steps.fw_zips.outputs.rfsoc }}" server:/tmp/rfsoc.zip
+          docker container exec server \
+            /bin/bash -c "/usr/local/src/pysmurf/tests/cryodaq/validate_client_emulated.py \
+              --zip /tmp/umux.zip"
+          docker container exec server \
+            /bin/bash -c "/usr/local/src/pysmurf/tests/cryodaq/validate_client_emulated.py \
+              --zip /tmp/rfsoc.zip --rfsoc"
+
   # Client tests
   test-client:
     name: Client Tests
@@ -198,6 +256,11 @@ jobs:
       # Checkout the code
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # Check that the cryodaq client keeps to its layer boundaries. Reads
+      # source with 'ast' only, so it needs neither rogue nor a container.
+      - name: Check the cryodaq layer boundaries
+        run: python3 tests/cryodaq/check_boundaries.py
 
       # Setup Docker build environment
       - name: Set up docker build enviroment
