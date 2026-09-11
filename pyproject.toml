@@ -70,6 +70,7 @@ include = [
 [tool.hatch.build.targets.wheel]
 packages = [
     "/python/pysmurf",
+    "/python/cryodaq",
 ]
 # include cython extensions
 artifacts = [
