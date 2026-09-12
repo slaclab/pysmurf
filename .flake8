@@ -1,6 +1,6 @@
 [flake8]
 import-order-style = pep8
-application-import-names = pysmurf, smurf
+application-import-names = pysmurf, smurf, cryodaq
 exclude = __init__.py, rogue_plugin.py
 #############################################################
 # Note: Command to remove white space at the end of lines
@@ -53,13 +53,12 @@ extend-ignore =
     # Ignore f-strings, we like them:
     SFS301,
 #############################################################
-# The four resonator-tuning Process classes were moved here verbatim from the
-# cryo-det firmware repository, which has no flake8 gate. Their bodies are kept
-# byte-identical to the originals on purpose: that is what proves the move did
-# not change any behaviour, and scripts/stage1_source_identity.py checks it.
-# So the placeholder-free f-strings they arrived with (`f"Done"`) are exempted
-# here rather than edited. Drop these entries as the bodies get cleaned up.
-# See docs/stage1_ops_out_of_cryo_det.md in the development notes.
+# The four resonator-tuning Process classes came from the cryo-det firmware
+# repository, which has no flake8 gate, and their bodies are still byte-for-byte
+# what arrived: keeping them so is what lets the move be checked against the
+# original. The placeholder-free f-strings they use for status messages
+# (`f"Done"`) are therefore exempted here rather than edited. Drop each entry
+# when that file's body is cleaned up.
 #############################################################
 per-file-ignores =
     python/pysmurf/core/operations/_SerialGradientDescent.py:F541
