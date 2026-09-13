@@ -4809,17 +4809,16 @@ class SmurfUtilMixin(SmurfBase):
                 results_dict[bay][band%4]={}
                 amc_sn=self.get_amc_sn(bay=bay,use_shell=True)
                 results_dict[bay]['amc_sn']=amc_sn
-                # Pull the A0# loading code out of the serial number rather
+                # Pull the A## loading code out of the serial number rather
                 # than assuming it is the second '-' delimited field.  A long
                 # asset tag gets truncated by the fixed width FRU field (e.g.
                 # '30C03A01-176' -> '30C03A01'), so amc_sn may have no '-' in
                 # the expected place; split('-')[1] would then raise or return
-                # garbage.  Fall back to amc_type=None (-> get_band_center_mhz).
-                amc_type=None
-                for tok in str(amc_sn).split('-'):
-                    if len(tok)==3 and tok[0]=='A' and tok[1:].isdigit():
-                        amc_type=tok
-                        break
+                # garbage.  Match the loading code anywhere in the serial so
+                # it is still recovered from a truncated tag, and fall back to
+                # amc_type=None (-> get_band_center_mhz) if there is no match.
+                amc_type_match=re.search(r'A\d{2}', str(amc_sn))
+                amc_type=amc_type_match.group(0) if amc_type_match else None
 
                 # Sometimes the rogue zip files don't properly set the
                 # correct band center frequency if e.g. a LB is
