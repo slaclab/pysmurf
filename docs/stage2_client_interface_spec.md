@@ -86,10 +86,16 @@ one that talks to hardware. `connect()` **takes no configuration file** —
 `SmurfControl.__init__`'s `ValueError('Must provide config file.')` (`base/smurf_control.py:95`) is
 the behaviour being removed.
 
-Which platform the server belongs to is decided by the **shape of its tree**: each map declares one
-register path that a tree of its generation has, and `connect` takes the first that matches. Never by
-a firmware string or a start-up flag — `SmurfApplication.StartupArguments` is
-`' '.join(sys.argv[1:])` (`core/_SmurfApplication.py:53`) and says whatever the operator typed.
+Which platform the server belongs to is decided by the **firmware loaded on the FPGA** — *revised
+2026-09-14*: each map lists the firmware image names it covers, `connect` reads the build stamp
+(`AmcCarrierCore.AxiVersion.BuildStamp`) and takes the image name from it, and firmware no map claims
+is refused quoting what it read. Never by a start-up flag —
+`SmurfApplication.StartupArguments` is `' '.join(sys.argv[1:])` (`core/_SmurfApplication.py:53`) and
+says whatever the operator typed.
+
+A tree with no firmware behind it reports an empty stamp — a register emulation reads as zeros — and
+is refused too. Its platform is declared instead, `connect(..., platform_name=...)`, which is the one
+way past identification and is meant to look deliberate.
 
 ### 2.2 Connect versus reattach — *revised 2026-09-11*
 
@@ -438,31 +444,46 @@ geometry is the addition SPECTRA forces.
 the caveat that this must not become cumbersome as platform diversity grows — which is what the
 2026-09-11 revision acts on. The rules that decision fixed all survive, in a cheaper form:
 
-- *Never inferred from the platform's name or firmware string.* Now stronger: a platform is identified
-  by one register path its tree has, and the core branches on nothing at all. `is_rfsoc` remains what
-  the grep gate forbids.
+- *Never inferred from the platform's name or firmware string.* Amended 2026-09-14, and the amendment
+  is narrower than it looks. What that rule was aimed at is branching on something the **caller**
+  supplies — an `is_rfsoc` flag, a name in a configuration file — and that is still forbidden;
+  `is_rfsoc` remains what the grep gate refuses. Identification now reads the build stamp the FPGA
+  reports, which is not a string about the platform but a measurement of it, taken from the system in
+  hand. The rule that survives is therefore *identity comes from the tree, never from the caller's
+  configuration*, and the core still branches on nothing at all.
 - *A new capability is not a new subclass or a new root.* Now it is not even a new record: it is
   entries in a map, and their absence on a tree that lacks the hardware needs no expression.
 - *An operation depends on a capability or does not.* A name resolves or raises `UnresolvedName`
   naming the path that was not there. There is nowhere to put a partial-support flag.
-- *A whole new generation of hardware is a second module in the map registry* — reached by its own
-  probe path, not by a branch inside the first. The ATCA carrier and the RFSoC turn out to need only
-  one module between them, because their trees differ by omission.
+- *A whole new generation of hardware is a second module in the map registry* — recognised by the
+  firmware it runs, not by a branch inside the first. The ATCA carrier and the RFSoC are two such
+  modules as of 2026-09-14, sharing one register table between them.
 
-**One map for two generations is provisional, and the trigger for splitting it is named.** That the
-carrier and the RFSoC share `platform/_umux.py` is a fact about their *register paths* at firmware
-v2.5.1 / v3.2.1, not a claim that they are one platform. Divergence between them is concentrated in
-**procedure**, not paths: `is_rfsoc` appears in 26 places in today's client and **7 of those are inside
-`setup()`** (proposal §Measured), so bring-up ordering, what is configured and in what sequence are
-where the two genuinely part company. Stage 2 touches none of that, which is why one module suffices
-here. When `setup()` and the other bring-up procedures move server-side (stage 5), the expectation is
-that the map splits — either into two modules behind their own probe paths, or into a shared table plus
-a per-generation one — and the rule that makes that safe is the one above: a branch on platform
-identity inside a module is the failure mode, not the fix. Stage 7 (`cryodaq.platform` and RFSoC
-parity) is where the split has to be settled either way; carrying two generations in one module past
-that point needs a positive argument, not silence. **Flagged 2026-09-11 (Tristan)**, on reviewing the
-rebuilt structure: *"they will diverge more when we get to implementing `setup()` and other operations.
-We should avoid creating another situation where different platforms are not well separated."*
+**The carrier and the RFSoC are two platforms sharing one register table** — *decided 2026-09-14, in
+review*. Divergence between them is concentrated in **procedure**, not paths: `is_rfsoc` appears in 26
+places in today's client and **7 of those are inside `setup()`** (proposal §Measured), so bring-up
+ordering, what is configured and in what sequence are where the two genuinely part company. Their
+register paths agree, and `platform/_atca.py` and `platform/_rfsoc.py` accordingly take their table
+from `platform/_umux.py` and differ in the firmware each claims. What that buys before `setup()` moves
+(stage 5) is the seam it will need: the two are told apart from the beginning, so the procedures land
+against platforms that already exist rather than forcing a split at the moment they are written. The
+rule that makes it safe is the one above — a branch on platform identity inside a module is the failure
+mode, not the fix.
+
+The RFSoC entry's **register table is validated, its firmware image names are not.** The RFSoC's own
+firmware package is a subclass of the carrier's that defaults `isRFSOC` on and does nothing else, so its
+tree can be built without that package and the emulated gate identifies `umux-rfsoc` on it with an empty
+bay scope. The three image names the map claims, on the other hand, are derived from the build targets of
+the two RFSoC firmware repositories rather than read off a board — no RFSoC is reachable from where this
+work is done. Confirming them is stage 7's (`cryodaq.platform` and RFSoC parity), and until then an RFSoC
+whose stamp says something else is refused by name rather than mis-identified.
+
+**Asked for 2026-09-11, then decided 2026-09-14 (Tristan)**, on reviewing the rebuilt structure:
+*"they will diverge more when we get to implementing `setup()` and other operations. We should avoid
+creating another situation where different platforms are not well separated."* And on the review of the
+implementation: *"RFSoC and ATCA should be separate platforms: although the trees are very similar, the
+omitted hardware registers are indicative that the hardware is different and as such will require a
+different series of initialisation steps."*
 
 ### 7.2 Modality — *provisional*
 
@@ -619,7 +640,9 @@ below.
 - **Where the map lives.** It is one module of data per hardware generation under `cryodaq.platform`,
   and it is the only place a register path appears (§3.1). Firmware team: should that table be
   generated from, or checked against, something cryo-det publishes — rather than maintained here and
-  validated against the released pyrogue package in CI, which is what it does today?
+  checked against a firmware tree by hand, which is what it does today? Nothing checks it against a
+  firmware package in CI: no released package can build the tree that check would need, so the gate is
+  deferred rather than in place.
 - **The flux-ramp group homed in the modality** (`flux_ramp_setup`, `set_fixed_flux_ramp_bias`,
   `estimate_lms_freq`, `optimize_lms_delay`): SO, is anything in `uxm_setup`/`uxm_relock` calling
   these in a way that assumes they are unconditional core operations?
@@ -752,7 +775,7 @@ those rows' notes is answered by §3.1 rather than still open. Appendix B's rows
 | `overbias_tes_all` | `smurf_util.py:3080` | application | µMUX | procedure | registered application operation `overbias_tes` |
 | `pA_per_phi0` | `smurf_config_properties.py:401` | application | µMUX | state | public face of `_pA_per_phi0` |
 | `play_sine_tes` | `smurf_util.py:3912` | application | µMUX | procedure | application operation over the platform's `bias_lines.waveform` capability. **Ambiguous:** RTM arb waveform, see `set_rtm_arb_waveform_*` |
-| `plot_dir` | `smurf_control.py:192` | utility | general | state | `sess.paths.plots` |
+| `plot_dir` | `smurf_control.py:192` | utility | general | state | `sess.paths.plot` |
 | `pub` | `base_class.py:126` | utility | general | utility | `sess.pub`; stays a pysmurf `Publisher` on the shim (decision 5) |
 | `read_adc_data` | `smurf_util.py:1773` | core | general | procedure | raw-IQ capture (the raw-IQ modality's primitive) |
 | `read_stream_data` | `smurf_util.py:1183` | core | general | analysis | `read_stream(path) -> timestreams` |
