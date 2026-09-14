@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #-----------------------------------------------------------------------------
-# Title      : Cryodaq Platform Map: microwave-multiplexed readout
+# Title      : Cryodaq Platform Registers: microwave-multiplexed readout
 #-----------------------------------------------------------------------------
 # File       : _umux.py
 # Created    : 2026-09-11
@@ -16,16 +16,13 @@
 #    here imports rogue; a client resolves a name to a path through
 #    cryodaq.platform and does the reading itself.
 #
-#    The ATCA carrier and the RFSoC both use this map. Their trees differ by
-#    omission -- an RFSoC has no per-bay data links and no RF front end -- so
-#    the names those registers back simply do not resolve there, which a caller
-#    sees as an index-free scope rather than as a broken name.
-#
-#    That the two share a map is a fact about their register paths and not a
-#    claim that they are one platform. Where they diverge is in procedure --
-#    bring-up ordering, what has to be configured and in what sequence -- so a
-#    generation whose procedures differ, and not only its paths, belongs in a
-#    module of its own here rather than behind a branch in this one.
+#    The platforms of this generation share these registers and take them from
+#    here; each of them names the firmware it runs and is a module of its own,
+#    because what separates them is procedure -- bring-up ordering, what has to
+#    be configured and in what sequence -- rather than the paths below. Their
+#    trees also differ by omission, one having per-bay data links and an RF front
+#    end the other does not, so a name those registers back does not resolve
+#    everywhere; a caller sees that as an index-free scope, not a broken name.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -36,7 +33,7 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-__all__ = ['NAME', 'PROBE', 'REGISTERS', 'WITNESS', 'SCOPES']
+__all__ = ['REGISTERS', 'WITNESS', 'SCOPES', 'BUILD_STAMP']
 
 # --------------------------------------------------------------------------
 # register paths, as templates over the indexed scopes
@@ -167,11 +164,6 @@ OPS_COMMANDS = {
 # --------------------------------------------------------------------------
 # the map
 # --------------------------------------------------------------------------
-
-# What this map is called, and the one path whose presence identifies a tree as
-# belonging to it: the per-band signal processing every such readout has.
-NAME = 'umux'
-PROBE = BAND.format(band=0)
 
 # Which indices an indexed scope has is a property of the tree, not of this
 # file: each scope lists the path templates whose presence proves an index, and

@@ -17,11 +17,15 @@
 #    index the tree does not have, raises UnresolvedName rather than returning
 #    None.
 #
-#    One map covers one generation of hardware, however many boards share it. A
-#    platform is identified by the shape of its tree, never by a firmware string
-#    or a command-line flag. Nothing here reads or writes a register: the
-#    functions that need to know what is in a tree take a `has(path)` predicate
-#    and the caller does the reading.
+#    A platform is identified by the firmware tag its FPGA reports -- the image
+#    name in the build stamp -- which each map lists the tags it covers. Identity
+#    is therefore taken from the system in hand and never from a caller's flag or
+#    configuration file; a tree with no firmware behind it, such as a register
+#    emulation, has no tag to read and its platform has to be declared.
+#
+#    Nothing here reads or writes a register: the functions that need to know
+#    what is in a tree take a `has(path)` predicate, or a `read(path)` for the
+#    one value identification turns on, and the caller does the reading.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -37,11 +41,11 @@ from dataclasses import dataclass
 from typing import (Any, Callable, Dict, List, Mapping, Sequence, Tuple)
 
 from cryodaq._errors import ConnectError, UnresolvedName
-from cryodaq.platform import _umux
+from cryodaq.platform import _atca, _rfsoc, _umux
 
-__all__ = ['PlatformMap', 'MAPS', 'identify', 'parse', 'expand', 'indices',
-           'witness_names', 'VALUE', 'COMMAND', 'PROCESS', 'KINDS',
-           'MAX_SCOPE_INDEX']
+__all__ = ['PlatformMap', 'MAPS', 'identify', 'by_name', 'tag_of', 'parse',
+           'expand', 'indices', 'witness_names', 'VALUE', 'COMMAND', 'PROCESS',
+           'KINDS', 'MAX_SCOPE_INDEX', 'TAG_PATH']
 
 # What kind of node a name reaches: a value is read and written, a command is
 # called, a process is started and polled.
@@ -50,10 +54,16 @@ COMMAND = 'command'
 PROCESS = 'process'
 KINDS = (VALUE, COMMAND, PROCESS)
 
-# How far an index is probed for when enumerating a scope. Probing stops at the
-# first absent index after at least one present one, so this is a ceiling rather
-# than an assumption about how the firmware is built.
+# How far an index is probed for when enumerating a scope. Every index below it
+# is probed, with no stopping at the first gap: a firmware mask may leave one out
+# and keep a higher one, so a gap is a fact about the tree rather than the end of
+# the scope.
 MAX_SCOPE_INDEX = 32
+
+# Where a system reports the firmware it is running. Every generation supported
+# here carries an AMC carrier core, so one path serves them all; a generation
+# that reports its firmware elsewhere makes this a property of each map.
+TAG_PATH = _umux.BUILD_STAMP
 
 _SEGMENT = re.compile(r'^([A-Za-z_][A-Za-z0-9_]*)(?:\[(\d+|\*)\])?$')
 
@@ -112,10 +122,11 @@ class PlatformMap:
     Parameters
     ----------
     name : str
-        Short identifier, e.g. ``umux``.
-    probe : str
-        A register path this platform has and others do not; how a tree is
-        recognised as belonging to this map.
+        Short identifier, e.g. ``umux-atca``.
+    tags : tuple of str
+        The firmware image names this platform runs; how a tree is recognised as
+        belonging to this map. More than one where several firmware lines share
+        a platform's registers and its bring-up.
     registers : mapping
         Name pattern to ``(path template, kind)``.
     witness : tuple of str
@@ -125,7 +136,7 @@ class PlatformMap:
     """
 
     name: str
-    probe: str
+    tags: Tuple[str, ...]
     registers: Mapping[str, Tuple[str, str]]
     witness: Tuple[str, ...]
     scopes: Mapping[str, Tuple[Tuple[str, ...], Tuple[str, ...]]]
@@ -175,41 +186,94 @@ class PlatformMap:
 
 def _from_module(module: Any) -> PlatformMap:
     """Build the map a platform module declares as data."""
-    return PlatformMap(name=module.NAME, probe=module.PROBE,
+    return PlatformMap(name=module.NAME, tags=tuple(module.TAGS),
                        registers=dict(module.REGISTERS),
                        witness=tuple(module.WITNESS),
                        scopes=dict(module.SCOPES))
 
 
-# Every supported platform generation, in the order a tree is tested against
-# them. A generation whose register paths, or whose bring-up and configuration
-# procedures, genuinely differ arrives as another module here -- never as a
-# branch inside one. Two generations sharing a module is a statement that they
-# are the same platform, so it is worth re-earning each time one is added.
-MAPS = (_from_module(_umux),)
+# Every supported platform. One module per platform, and a platform is a set of
+# firmware that shares both a register map and a bring-up procedure -- so two
+# that read the same registers but have to be configured differently are two
+# entries here, however much of their table they share.
+MAPS = (_from_module(_atca), _from_module(_rfsoc))
 
 
-def identify(root: Any) -> PlatformMap:
-    """Return the map whose probe register this tree has.
+def tag_of(stamp: Any) -> str:
+    """The firmware image name in a build stamp.
 
     Parameters
     ----------
-    root : object
-        A rogue root, local or over a client; only ``getNode`` is used.
+    stamp : str or None
+        A build stamp as the firmware reports it, e.g.
+        ``MicrowaveMuxBpEthGen2: Vivado v2020.2, host (os), Built ... by ...``.
+
+    Returns
+    -------
+    str
+        The image name, or ``''`` when there is nothing to read -- which is what
+        an emulated register space reports, its memory being zeros.
+    """
+    if not stamp:
+        return ''
+    # The register is a fixed-width character buffer, so a stamp arrives padded
+    # and an unwritten one is padding alone.
+    text = str(stamp).split('\x00')[0].strip()
+    return text.split(':')[0].strip()
+
+
+def by_name(name: str) -> PlatformMap:
+    """The map called ``name``.
 
     Raises
     ------
     ConnectError
-        If no supported map recognises the tree.
+        If no map goes by it.
     """
     for candidate in MAPS:
-        try:
-            if root.getNode(candidate.probe) is not None:
-                return candidate
-        except Exception:                                       # noqa: BLE001
-            continue
-    tried = ', '.join(f"{m.name} ({m.probe})" for m in MAPS)
-    raise ConnectError(f"no supported platform map recognises this tree; tried {tried}")
+        if candidate.name == name:
+            return candidate
+    known = ', '.join(m.name for m in MAPS)
+    raise ConnectError(f"no platform called {name!r}; cryodaq has {known}")
+
+
+def identify(read: Callable[[str], Any], *, declared: Any = None) -> PlatformMap:
+    """Return the map for the firmware a tree is running.
+
+    Parameters
+    ----------
+    read : callable
+        ``read(path) -> value``, answered against the tree in hand. Called once,
+        for the build stamp.
+    declared : str, optional
+        A platform name, for a tree whose firmware cannot say what it is: a
+        register emulation reports an empty stamp, and a bench system may run
+        firmware not yet listed here. Given, nothing is read.
+
+    Returns
+    -------
+    PlatformMap
+
+    Raises
+    ------
+    ConnectError
+        If the tree reports no firmware and none was declared, or reports
+        firmware no map claims.
+    """
+    if declared is not None:
+        return by_name(declared)
+    tag = tag_of(read(TAG_PATH))
+    if not tag:
+        raise ConnectError(
+            f"this tree reports no firmware at {TAG_PATH}, so its platform "
+            f"cannot be identified; declare one of "
+            f"{', '.join(repr(m.name) for m in MAPS)} instead")
+    for candidate in MAPS:
+        if tag in candidate.tags:
+            return candidate
+    known = ', '.join(f"{t} ({m.name})" for m in MAPS for t in m.tags)
+    raise ConnectError(f"firmware {tag!r} belongs to no platform cryodaq knows; "
+                       f"it has {known}")
 
 
 def indices(pmap: PlatformMap, has: Callable[[str], bool], scope: str,
@@ -230,8 +294,10 @@ def indices(pmap: PlatformMap, has: Callable[[str], bool], scope: str,
     Returns
     -------
     tuple of int
-        The indices present, in order; empty when the tree has none, which is
-        how a platform without the hardware behind them is seen.
+        The indices present, in order, gaps included -- a disabled bay or a
+        firmware band mask leaves one out without ending the scope. Empty when
+        the tree has none, which is how a platform without the hardware behind
+        them is seen.
     """
     if scope not in pmap.scopes:
         raise KeyError(f"{pmap.name} has no scope {scope!r}")
@@ -244,8 +310,6 @@ def indices(pmap: PlatformMap, has: Callable[[str], bool], scope: str,
         values = dict(fixed, **{scope: i})
         if any(has(_fill(t, values)) for t in templates):
             present.append(i)
-        elif present:
-            break
     return tuple(present)
 
 

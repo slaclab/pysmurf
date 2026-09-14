@@ -238,12 +238,15 @@ class Session:
         return node
 
     def _has(self, path: str) -> bool:
-        """Whether this tree has a node at ``path``; answers are cached."""
+        """Whether this tree has a node at ``path``; answers are cached.
+
+        A path the tree does not have is reported as absent by ``getNode``
+        itself. Anything raised here is the link failing rather than an answer
+        about the tree, and is left to propagate: cached as an absence it would
+        quietly shrink every later name listing, witness and validation.
+        """
         if path not in self._present:
-            try:
-                self._present[path] = self.root.getNode(path) is not None
-            except Exception:                                   # noqa: BLE001
-                self._present[path] = False
+            self._present[path] = self.root.getNode(path) is not None
         return self._present[path]
 
     # ------------------------------------------------------------------
@@ -380,9 +383,13 @@ class Session:
         running = self._at(f"{path}.{PROCESS_RUNNING}", name)
         deadline = time.monotonic() + timeout
         while running.get():
-            if time.monotonic() >= deadline:
+            left = deadline - time.monotonic()
+            if left <= 0:
                 raise TimeoutError(f"{name!r} still running after {timeout:g} s")
-            time.sleep(poll)
+            # Sleeping the whole interval would carry the wait past the bound the
+            # caller asked for, by up to one interval -- or by all of it, where
+            # the interval is the longer of the two.
+            time.sleep(min(poll, left))
 
     def stop(self, name: str) -> None:
         """Ask the process a name reaches to stop. It may take a moment to notice."""
@@ -519,6 +526,7 @@ class Session:
 
 
 def connect(target: str, *, timeout: Optional[float] = None, monitor: bool = True,
+            platform_name: Optional[str] = None,
             publisher: Optional[Any] = None,
             paths: Union[Paths, str, Path, None] = None,
             logger: Optional[logging.Logger] = None) -> Session:
@@ -536,6 +544,11 @@ def connect(target: str, *, timeout: Optional[float] = None, monitor: bool = Tru
         stall.
     monitor : bool
         Keep rogue's link monitor running; it is what notices a dead server.
+    platform_name : str, optional
+        Which platform this is, for a system whose firmware cannot say: an
+        emulated register space reports an empty build stamp, and a bench system
+        may run firmware not yet listed in the maps. Left out, and it should be,
+        the firmware is asked.
     publisher : object, optional
         Something with ``register_file`` and ``publish``; nothing is published
         without one.
@@ -551,8 +564,8 @@ def connect(target: str, *, timeout: Optional[float] = None, monitor: bool = Tru
     Raises
     ------
     ConnectError
-        If the target does not parse, no server answers it, or its tree matches
-        no supported platform map.
+        If the target does not parse, no server answers it, or the firmware it
+        reports belongs to no supported platform.
     """
     host, port = endpoint_of(target)
     endpoint = f"{host}:{port}"
@@ -569,7 +582,13 @@ def connect(target: str, *, timeout: Optional[float] = None, monitor: bool = Tru
             client._monEnable = False
         if not client.linked:
             raise ConnectError(f"the client at {endpoint} did not link")
-        pmap = platform.identify(client.root)
+
+        def read(path: str) -> Any:
+            """One register, for identification, before there is a session."""
+            node = client.root.getNode(path)
+            return None if node is None else node.get()
+
+        pmap = platform.identify(read, declared=platform_name)
         return Session(client, pmap, endpoint=endpoint, publisher=publisher,
                        paths=paths, logger=logger)
     except BaseException:
