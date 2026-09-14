@@ -156,7 +156,7 @@ def check_every_offered_name_resolves():
 def check_node_kinds_match_the_map():
     """A name the map calls a process is a process, a command a command, a value a value."""
     wrong = []
-    for name in SESSION.names():
+    for name in SESSION.validate().resolved:
         declared = SESSION.pmap.kind(name)
         node = SESSION.node(name)
         if node.isinstance(pr.Process):
@@ -193,8 +193,10 @@ def check_the_scopes_are_the_ones_this_tree_has():
         assert SESSION.indices('dc', bay=attenuated[0]), 'up-converters but no down-converters'
     else:
         assert bays == (), f"an RFSoC tree has no bays, found {list(bays)}"
-        offered = [name for name in SESSION.names() if name.startswith('bay[')]
-        assert not offered, f"bay names offered without bays: {offered[:4]}"
+        report = SESSION.validate()
+        offered = [name for name in report.resolved if name.startswith('bay[')]
+        tried = [name for name, _ in report.unresolved if name.startswith('bay[')]
+        assert not offered + tried, f"bay names without bays: {(offered + tried)[:4]}"
 
 
 def check_the_witness_set_reads_back():
@@ -235,6 +237,35 @@ def precheck_a_platform_can_be_declared_when_the_firmware_cannot_say():
         with cryodaq.connect(ENDPOINT, platform_name=EXPECTED_PLATFORM[RFSOC]) as session:
             assert session.pmap.name == EXPECTED_PLATFORM[RFSOC], session.pmap.name
             assert session.get('application.configured') is not None
+
+
+def precheck_a_request_deadline_is_installed_on_the_client():
+    """A session opened with a bound still connects and reads.
+
+    What cannot be checked here is the bound firing: rogue takes it write-only
+    (there is no accessor to read it back), and tripping it needs a server that
+    stops answering. So this holds the deadline to not breaking a live one.
+    """
+    with cryodaq.connect(ENDPOINT, timeout=20.0) as session:
+        assert session.get('application.configured') is not None
+    with cryodaq.connect(ENDPOINT, timeout=None) as session:
+        assert session.get('application.configured') is not None
+
+
+def precheck_a_deadline_that_is_not_a_duration_is_refused():
+    """Zero and negative are refused rather than silently meaning forever.
+
+    rogue reads a zero deadline as no deadline, which is the opposite of what a
+    caller passing zero is asking for.
+    """
+    for bad in (0, -1.0):
+        try:
+            session = cryodaq.connect(ENDPOINT, timeout=bad)
+        except ValueError as e:
+            assert 'timeout' in str(e), f"the error does not name the argument: {e}"
+        else:
+            session.close()
+            raise AssertionError(f"timeout={bad!r} was accepted")
 
 
 def precheck_declaring_a_platform_that_does_not_exist_is_refused():

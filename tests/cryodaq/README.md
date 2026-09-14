@@ -72,17 +72,18 @@ removed and `--zip` a ZIP built from one.
 Because an emulated register space reads back zeros, the tree reports no firmware and so has no
 platform. The script writes the build stamp of the platform it is building into the emulated memory
 before connecting, so that identification runs here the same way it runs against a crate instead of
-being handed the answer. Three further checks cover the path around it: a tree with a blank stamp is
-refused, a declared platform connects anyway, and a platform name that does not exist is refused.
+being handed the answer. Five further checks cover the path around it: a tree with a blank stamp is
+refused, a declared platform connects anyway, a platform name that does not exist is refused, a
+request deadline does not stop a working session, and a deadline that is not a duration is refused.
 They run one at a time before the session below opens, because pyrogue caches a client per address
 and port — two sessions on one endpoint are one transport, and closing either closes both.
 
-The fourteen checks cover the map against the tree (every offered name resolves; each node is the
-kind the map declares; the twenty contract names are present on every band; the witness registers
-read back; the indexed scopes are the ones this tree has) and the session over the connection (what
-the server says it is; read and write by name, whole and by array index; a command; a process under
-a bounded wait; the whole tree still reachable through `session.root`; a wrong name and a wrong kind
-each refused with an exception that says which).
+The fifteen checks over that session cover the map against the tree (every name the map offers
+resolves; each node is the kind the map declares; the twenty contract names are present on every band;
+the witness registers read back; the indexed scopes are the ones this tree has) and the session itself
+(what the server says it is; read and write by name, whole and by array index; a command; a process
+under a bounded wait; the whole tree still reachable through `session.root`; a wrong name and a wrong
+kind each refused with an exception that says which).
 
 Run it once per platform: the ATCA carrier by default, the RFSoC with `--rfsoc`. The RFSoC firmware's
 own package is a subclass of this one that does nothing but default `isRFSOC` on, so the flag builds
