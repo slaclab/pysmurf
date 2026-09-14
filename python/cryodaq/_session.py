@@ -39,8 +39,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import (Any, Dict, Iterable, Iterator, List, Optional, Tuple, Union)
 
-import pyrogue.interfaces
-
 from cryodaq import platform
 from cryodaq._errors import ConnectError, UnresolvedName
 
@@ -71,6 +69,14 @@ DEFAULT_DATA_DIR = '/data'
 
 # How often a bounded wait asks a process whether it is still running.
 POLL_INTERVAL_S = 0.2
+
+# How long one request may stay unanswered before it is a failed link rather than
+# a busy server, and how often to say so while waiting. rogue leaves a linked
+# client retrying forever; the client this replaces overrode that with these two
+# values, and they remain the default because a request that has gone unanswered
+# for half a minute is not going to be answered.
+DEFAULT_TIMEOUT_S = 30.0
+WARN_INTERVAL_S = 5.0
 
 # Child nodes every rogue Process carries.
 PROCESS_START = 'Start'
@@ -363,6 +369,12 @@ class Session:
         also true before it starts: a process short enough to finish inside one
         poll interval is indistinguishable here from one that did nothing. What
         happened is in the process's own ``Message``.
+
+        ``wait`` bounds how long the process is given, and each read of
+        ``Running`` is bounded separately by the session's ``timeout``. A link
+        that stops answering therefore ends the wait as a transport failure
+        rather than a ``TimeoutError``, and only a session opened with
+        ``timeout=None`` can wait on one indefinitely.
         """
         path, kind = self.pmap.entry(name)
         node = self._at(path, name)
@@ -422,8 +434,13 @@ class Session:
         """
         return platform.indices(self.pmap, self._has, scope, **fixed)
 
-    def names(self) -> Iterator[str]:
-        """Every semantic name this tree offers, indices filled in from the tree."""
+    def _candidates(self) -> Iterator[str]:
+        """Every name the map offers this tree, indices filled in from the tree.
+
+        What the map claims, not what resolves: an index the tree has does not
+        promise that every name scoped by it is in this build. Which of these
+        are real is exactly what ``validate`` reports.
+        """
         for pattern in self.pmap.patterns:
             for name in platform.expand(self.pmap, self._has, pattern):
                 yield name
@@ -437,11 +454,11 @@ class Session:
         Parameters
         ----------
         names : iterable of str, optional
-            What to check; everything this tree offers by default.
+            What to check; every name the map offers this tree by default.
         """
         resolved: List[str] = []
         unresolved: List[Tuple[str, str]] = []
-        for name in (self.names() if names is None else names):
+        for name in (self._candidates() if names is None else names):
             try:
                 path, _ = self.pmap.entry(name)
                 if not self._has(path):
@@ -480,7 +497,7 @@ class Session:
         try:
             return self.get(name)
         except UnresolvedName as e:
-            log.debug("description: %s", e)
+            self.log.debug("description: %s", e)
             return None
 
     def _read_description(self) -> Dict[str, Any]:
@@ -525,7 +542,8 @@ class Session:
         return f"<Session {self.endpoint} {self.pmap.name} {state}>"
 
 
-def connect(target: str, *, timeout: Optional[float] = None, monitor: bool = True,
+def connect(target: str, *, timeout: Optional[float] = DEFAULT_TIMEOUT_S,
+            monitor: bool = True,
             platform_name: Optional[str] = None,
             publisher: Optional[Any] = None,
             paths: Union[Paths, str, Path, None] = None,
@@ -539,9 +557,11 @@ def connect(target: str, *, timeout: Optional[float] = None, monitor: bool = Tru
         server anywhere -- including an emulated one, which is a rogue tree
         served over the same sockets. There is no configuration file.
     timeout : float, optional
-        Seconds a single request may stay outstanding before rogue calls the
-        link stalled. Off by default, as rogue has it: a long process is not a
-        stall.
+        Seconds a single request may stay unanswered before it fails and the
+        link is called stalled. This bounds one request, not one operation:
+        waiting for a long process polls its ``Running`` flag, so a tuning run
+        may take as long as it likes. ``None`` waits forever, which is what
+        rogue does when nothing asks otherwise.
     monitor : bool
         Keep rogue's link monitor running; it is what notices a dead server.
     platform_name : str, optional
@@ -566,7 +586,17 @@ def connect(target: str, *, timeout: Optional[float] = None, monitor: bool = Tru
     ConnectError
         If the target does not parse, no server answers it, or the firmware it
         reports belongs to no supported platform.
+    ValueError
+        If ``timeout`` is neither positive nor None.
     """
+    if timeout is not None and timeout <= 0:
+        raise ValueError(f"timeout must be positive or None, not {timeout!r}")
+    try:
+        import pyrogue.interfaces
+    except ImportError as e:                                    # pragma: no cover
+        raise ImportError(
+            "connecting needs rogue, which arrives with the smurf server image "
+            "rather than from a package index; cryodaq itself does not") from e
     host, port = endpoint_of(target)
     endpoint = f"{host}:{port}"
     try:
@@ -575,6 +605,16 @@ def connect(target: str, *, timeout: Optional[float] = None, monitor: bool = Tru
     except Exception as e:                                      # noqa: BLE001
         raise ConnectError(f"no server at {endpoint}: {e}") from e
     try:
+        # Linking leaves rogue's own policy in place -- warn once a second and
+        # then retry forever -- so the bound goes on here, and on every connect
+        # rather than only on one that asks for it: rogue keeps a single client
+        # per endpoint, so a bound left by an earlier session would otherwise
+        # still be in force for a caller who wanted none. In milliseconds, and a
+        # zero deadline reads as no deadline, so a sub-millisecond bound rounds
+        # up to one instead of down to forever.
+        warn = WARN_INTERVAL_S if timeout is None else min(WARN_INTERVAL_S, timeout)
+        client.setTimeout(max(1, int(warn * 1000)),
+                          0 if timeout is None else max(1, int(timeout * 1000)))
         if not monitor:
             # The monitor thread is what notices a dead server; a caller who
             # turns it off is asking for the historical behaviour of not being

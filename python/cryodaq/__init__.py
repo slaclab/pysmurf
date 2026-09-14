@@ -18,9 +18,9 @@
 #            print(sess.node('band[0].ops.gradient_descent').Message.get())
 #
 #    Connecting needs rogue, which arrives with the smurf image rather than from
-#    an index, so the session is imported on first use: `import cryodaq` and the
-#    platform maps work anywhere, and the rogue import fails where it is really
-#    needed instead of at the top of the package.
+#    an index. It is imported by connect() and nowhere else, so the package, the
+#    platform maps and the client-side bookkeeping work anywhere Python does, and
+#    the rogue import fails where it is really needed rather than on import.
 #
 #    The client is a thin layer over rogue's own client: a session holds one, and
 #    `session.root` is the server's tree, whole and unwrapped. What the client
@@ -43,32 +43,12 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-import importlib
-from typing import Any
-
 from cryodaq import platform
 from cryodaq._errors import ConnectError, CryodaqError, UnresolvedName
+from cryodaq._session import (LOG_ERROR, LOG_INFO, LOG_USER, NullPublisher,
+                              Paths, Session, ValidationReport, connect,
+                              endpoint_of)
 from cryodaq.platform import COMMAND, PROCESS, VALUE, PlatformMap
-
-# Everything the session module offers, resolved on first use. The names are
-# listed rather than discovered so that a typo is an AttributeError here and not
-# a rogue import failure somewhere else.
-_SESSION_NAMES = ('LOG_ERROR', 'LOG_INFO', 'LOG_USER', 'NullPublisher', 'Paths',
-                  'Session', 'ValidationReport', 'connect', 'endpoint_of')
-
-
-def __getattr__(name: str) -> Any:
-    """Import the session on first use, so the package itself needs no rogue."""
-    if name in _SESSION_NAMES:
-        value = getattr(importlib.import_module('cryodaq._session'), name)
-        globals()[name] = value             # once resolved, no lookup next time
-        return value
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
-
-def __dir__() -> list:
-    return sorted(list(globals()) + list(_SESSION_NAMES))
-
 
 __all__ = [
     # the interface
