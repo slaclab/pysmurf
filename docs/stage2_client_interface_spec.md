@@ -74,7 +74,7 @@ generality axis.
 ### 2.1 Construction and target — *revised 2026-09-11*
 
 ```python
-sess = cryodaq.connect(target, *, timeout=None, monitor=True)
+sess = cryodaq.connect(target, *, timeout=30.0, monitor=True)
 ```
 
 `target` is an **endpoint**, in one of two forms: `"host:port"`, or `"crate:<slot>"` as shorthand for
@@ -127,11 +127,14 @@ The session is a **context manager** (pysmurf #1005): `with cryodaq.connect(t) a
 transport on exit and `sess.close()` does the same explicitly. The primitive exists — `VirtualClient`
 has `__enter__`/`__exit__`, and `stop()` clears its `(addr, port)` singleton (`_Virtual.py:750-780`).
 Transport policy is a **session parameter, not a global** (pysmurf #990, sodetlib #328): the link
-monitor is *on* by default and `connect(timeout=…)` sets rogue's own request-stall policy, replacing
-today's `_monEnable = False` and the fixed warn-5 s / fail-30 s pair (`base/base_class.py:107-109`).
-Stall reporting is rogue's, not re-wrapped here (§6). Long server work — a Process, `setup` — is
-awaited with a bounded, polled wait on the process's own `Running` flag (§4.1), never a blocking call
-with a single timeout, which is the failure mode of pysmurf #1015.
+monitor is *on* by default, replacing today's `_monEnable = False`, and `connect(timeout=…)` is the
+bound on **one request** — today's fixed warn-5 s / fail-30 s pair (`base/base_class.py:106-109`)
+becomes the default of an argument, which is what #990 asks for. It is set on the client when the
+client is made, as today, and `timeout=None` is the way to ask for rogue's own behaviour of waiting
+indefinitely. Stall reporting is rogue's, not re-wrapped here (§6). Long server work — a Process,
+`setup` — is awaited with a polled wait on the process's own `Running` flag (§4.1), never a blocking
+call with a single timeout, which is the failure mode of pysmurf #1015: the request bound and the
+operation bound are different numbers, and a tuning run is limited by neither.
 
 One bound to state: rogue caches one client per `(addr, port)` and `stop()` tears it down
 (`_Virtual.py:750-780`), so two sessions opened on the same server in one process share a client and
@@ -153,7 +156,7 @@ is re-posed in §10.
 | `sess.get(name, *, index=-1)` / `sess.set(name, value, *, index=-1, check=True)` | semantic names (§3) | `_caget` / `_caput` (`command/smurf_command.py:141,49`) over register paths | a map lookup then `getNode(path).get()`; `index` is rogue's own, and is how one channel of a per-band array is reached |
 | `sess.node(name)` | the rogue node | `S.\_root.getNode(path)` at each call site | for everything rogue offers that a name cannot express |
 | `sess.call(name, *args, wait=None)` | the command's return value, or the process node | one method per operation, ~740 of them | §4.1 |
-| `sess.names()` / `sess.validate()` / `sess.indices(scope)` | names this tree offers; a `getNode` loop; the indices of a scope | none — discovery is reading the source | §3.2 |
+| `sess.validate()` / `sess.indices(scope)` | which of the map's names reach this tree, and why the rest do not; the indices of a scope | none — discovery is reading the source | §3.2 |
 | `sess.witness()` | mapping | the stage-1 witness reads, by hand | §2.2 |
 | `sess.paths` | `data`, `output`, `tune`, `plot`, `status` | `data_dir`, `output_dir`, `tune_dir`, `plot_dir`, `status_dir`, `base_dir`, `date`, `name` (`smurf_control.py:185-249`) | client-side bookkeeping; not sent to the server |
 | `sess.log` | logger with `LOG_USER`/`LOG_INFO`/`LOG_ERROR` levels | `SmurfLogger` (`base/logger.py`), constants `base_class.py:64-72` | unchanged in kind |
@@ -202,8 +205,9 @@ register-name constants in `command/smurf_command.py`, with band-index arithmeti
 and nothing checking them against firmware. That is the duplication the proposal removes, and a map
 re-grows it unless it is kept small on purpose. Rule: **a name enters the map only when a core
 operation or the generated shim needs it.** One indexed entry covers every band; the map lives in
-`cryodaq.platform` and nowhere else; and CI validates every entry against both released firmware
-packages, so an entry that drifts fails a build rather than a night on the crate. Everything not in
+`cryodaq.platform` and nowhere else; and CI is to validate every entry against both released firmware
+packages, so an entry that drifts fails a build rather than a night on the crate — the gate is stage
+3's, and §10 says why it cannot be built yet. Everything not in
 the map is reached through `sess.root` — the tree itself, which is also what the shim's
 `_caget`/`_caput` forwarders need. The table above is a starter set, to be pared or extended at
 stage 3.
@@ -218,11 +222,14 @@ resolver protocol. That is kick-off decision 1 **narrowed twice**: on 2026-09-10
 one-round-trip enumeration through an attribute rogue does not expose — was dropped and no rogue issue
 filed; on 2026-09-11 the client-side object model went too.
 
-`sess.names()` lists what this tree offers, expanding each pattern over the indices the tree turns out
-to have. `sess.validate()` is an expert tool — a `getNode` per name, a few hundred round trips, never
-on the normal path — and reports each failure with the name, the path tried and why. Whether the map
-matches released firmware is a **CI job** over the two pyrogue packages, not a runtime feature.
-Resolution failure raises `UnresolvedName`; it never returns `None`.
+`sess.validate()` is an expert tool — it expands each pattern over the indices the tree turns out to
+have, one `getNode` per name, a few hundred round trips, never on the normal path — and reports each
+failure with the name, the path tried and why. There is deliberately **no** method that lists names
+without checking them: what the map offers a platform and what a particular build of that platform's
+firmware actually carries are not the same set, and a list that did not say which it was would invite
+callers to iterate names that cannot resolve. Whether the map matches released firmware is a **CI job**
+over the two pyrogue packages — the intended gate, deferred to stage 3 (§10). Resolution failure raises
+`UnresolvedName`; it never returns `None`.
 
 Stage 2 fixes the syntax and this contract; the map's *content* is stage 3's. The 20 `CONTRACT`
 names of `scripts/stage1_client_check.py` are its first entries.
@@ -245,7 +252,9 @@ sess.stop("band[4].ops.gradient_descent")                  # its own Stop
 callable through `VirtualClient`) and returns what the command returned. For a process it calls the
 process's own `Start` and, with `wait=<seconds>`, polls the server's own `Running` until it clears or
 the bound expires — `TimeoutError` then, with the process untouched and pollable. It returns the
-process node. It invents no verdict: what happened is in `Message`, which is the server's word for it.
+process node. `wait` bounds the process; each read of `Running` is bounded separately by the session's
+`timeout` (§2.1), so a link that stops answering ends the wait as a transport failure rather than as a
+`TimeoutError`, and only a session opened with `timeout=None` can wait on one indefinitely. It invents no verdict: what happened is in `Message`, which is the server's word for it.
 
 Dropped from revision 1, with the reason: `OperationSpec` and `Provider` (a declaration layer over
 nodes rogue already describes — `node.description` is the documentation, and what exists is what the
@@ -411,7 +420,7 @@ call, poll a process) lives there, because that would be the same work in two la
 
 Capabilities are therefore **discovered, not declared**. A scope is enumerated by asking the tree which
 indices it has: an RFSoC has no `AppTopJesd[*]` and no `MicrowaveMuxCore[*]`, so `sess.indices('bay')`
-is empty there and every `bay[…]` name is simply absent from `sess.names()`. That is the same fact the
+is empty there and no `bay[…]` name is even a candidate for `sess.validate()`. That is the same fact the
 capability records carried, obtained from the tree instead of from a second description of it that
 could disagree with it. Revision 1's typed records (`Geometry`, `Bays`, `Firmware`, `Transport`,
 `Timing`, `Attenuators`, `DataLinks`, `BiasLines`, `Cryocard`, `Amplifiers`, `FluxRamp`), the
@@ -516,8 +525,9 @@ tree with `attach_all_cryo_operations` wired into `Common.__init__` — and the 
 that puts there. Read the rest of this section as the design for that later step, with two
 corrections from the 2026-09-11 revision: the client no longer holds `OperationSpec` or `Provider`
 (§4.1), so whatever the attach declares is for the *server's* benefit, and the *Discovery* and
-*Progress and status* rows are answered by the tree itself — `sess.names()` and the process's own
-child nodes — rather than by a client-side catalog view or handle.
+*Progress and status* rows are answered by the tree itself — the map's own entries, checked against it
+by `sess.validate()`, and the process's own child nodes — rather than by a client-side catalog view or
+handle.
 
 A **provider** is what the server composition attaches; the µMUX modality of `cryodaq` is one,
 `pysmurf` (the TES operations) is another. Stage 1 left exactly one, hard-wired: `Common.__init__`
@@ -599,7 +609,7 @@ From the proposal's boundary checks, the three that fall at stage 2:
 Plus the two CI tests — compat contract (§8) and import-direction (§7.3) — and the skeleton's
 hardware conditions from the proposal's stage-2 entry, which this document does not restate.
 
-**Where they stand, 2026-09-11.** Conditions 1 and 2 were met by Appendices A and B and the
+**Where they stand.** Conditions 1 and 2 were met by Appendices A and B and the
 classification checker, on `58ff4e41`, and the 2026-09-11 revision does not touch them. Condition 3
 lands with the package and is one of six rules in `tests/cryodaq/check_boundaries.py`; the revision
 adds two: **a register path appears only under `cryodaq.platform`** — now the main boundary rule, and
@@ -607,7 +617,14 @@ what "the client does not know the register map" means mechanically — and **`c
 neither rogue nor pyrogue**, which is what makes the map a map and not a second client. The rule
 revision 1 carried, that pyrogue is imported only under `cryodaq.platform`, is **inverted and gone**:
 the client is a rogue client, so confining rogue to one module was an artificial boundary that bought a
-wrapper layer and no separation (Tristan, 2026-09-11).
+wrapper layer and no separation (Tristan, 2026-09-11). A third check joined them on 2026-09-14, on the
+platform layer's own decisions: which platform a system is identified as, and which indices of a scope
+a tree has.
+
+Of the two CI tests, **import-direction is in place** as one of those rules; the **compat contract test
+is deferred to stage 3**, because the shim it would test does not exist yet — the contract is specified
+in §8 and nothing generates it here. That deferral is recorded with its discharge conditions in the
+stage report, not resolved by this document.
 
 The hardware conditions the proposal's stage-2 entry sets are met on the live slot-4 carrier at firmware
 `0x2050000`: the platform-resolved endpoint (`crate:4`), 402 of 402 offered names resolving with none
