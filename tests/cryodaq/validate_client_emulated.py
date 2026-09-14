@@ -11,15 +11,29 @@
 # does, and that a session can read, write and run over the connection.
 #
 # It builds an emulated root over a CryoDet package -- a checkout with
-# --cryo-det, or a released pyrogue ZIP with --zip -- and serves it on a local
-# port, then connects to it exactly as a client connects to a deployed server.
+# --cryo-det, or a pyrogue ZIP with --zip -- and serves it on a local port, then
+# connects to it exactly as a client connects to a deployed server.
+#
+# The package has to be one whose tuning operations the server attaches rather
+# than the firmware: a package that defines them itself is refused before a tree
+# exists, and every released package so far defines them. So --zip takes a ZIP
+# built from a package where they have been removed, and --cryo-det a checkout of
+# one; a release off the shelf will not work here and says so when tried.
 # There is one route in and it is the real one: no in-process shortcut, so what
 # is exercised here is the code that talks to a crate.
 #
-# Run it once per supported tree: the ATCA carrier by default, the RFSoC
-# generation with --rfsoc. Both use one map, and their trees differ by omission,
-# so the scope check names what each is expected to have and fails if either
-# changes.
+# Run it once per platform: the ATCA carrier by default, the RFSoC with --rfsoc.
+# The RFSoC firmware's own package is a subclass of this one that does nothing but
+# default isRFSOC on, so setting the flag here builds that platform's tree without
+# needing its repository on the path -- and what the flag changes is the JESD and
+# signal-generator configuration, which is why the RFSoC has no bays. The scope
+# check names what each platform is expected to have and fails if either changes.
+#
+# An emulated register space reads back zeros, so the build stamp a platform is
+# identified by is blank. The stamp of the platform being built is therefore
+# written into the emulated memory before the client connects, so that
+# identification here runs the same way it runs against a crate rather than being
+# handed the answer, and so that the RFSoC run identifies as an RFSoC.
 #
 # What it cannot show: that an operation does anything useful. The emulated
 # memory reads back zeros, so a tuning process has nothing to tune. What is
@@ -36,6 +50,7 @@
 #-----------------------------------------------------------------------------
 
 import argparse
+import contextlib
 import os
 import socket
 import sys
@@ -43,6 +58,7 @@ import sys
 import pyrogue as pr
 
 import cryodaq
+from cryodaq import platform
 
 # How long a tuning process gets before the bounded wait gives up. Nothing here
 # has resonators to find, so a run that has not ended in this long is a stall,
@@ -81,15 +97,39 @@ CONTRACT_NAMES = (
     'band[{band}].ops.load_tune_file',
 )
 
-# What each supported tree is expected to have. The two generations share one
-# map and differ by omission: an RFSoC has neither the per-bay data links nor
-# the RF front end that carries the attenuators, so its bay scope is empty and
-# every bay name is withheld rather than offered broken.
+# Which platform each run is expected to be, and the firmware image whose name
+# says so -- both keyed by args.rfsoc. The image is one that platform really has;
+# a name no map claims would be refused, which is the point of the check.
+EXPECTED_PLATFORM = {False: 'umux-atca', True: 'umux-rfsoc'}
+EXPECTED_IMAGE = {False: 'MicrowaveMuxBpEthGen2',
+                  True: 'MicrowaveMuxZcu208_BaseBand'}
+
+# What each is expected to have, so that the difference between them is asserted
+# by name rather than noticed: an RFSoC has neither the per-bay data links nor the
+# RF front end that carries the attenuators.
 EXPECTED_BAYS = {False: True, True: False}      # keyed by args.rfsoc
 
 # Set by main() once the tree is up and a session is open.
 SESSION = None
+ROOT = None
+ENDPOINT = None
 RFSOC = False
+
+
+def stamp_for(image):
+    """A build stamp in the shape the firmware reports one, for ``image``."""
+    return (f"{image}: Vivado v2020.2, emulated (no host), "
+            f"Built Thu Jan  1 00:00:00 AM UTC 1970 by nobody")
+
+
+@contextlib.contextmanager
+def blank_build_stamp():
+    """Leave the tree reporting no firmware, as an untouched emulation does."""
+    write_build_stamp(ROOT, '\x00' * 256)
+    try:
+        yield
+    finally:
+        write_build_stamp(ROOT, stamp_for(EXPECTED_IMAGE[RFSOC]))
 
 
 # --------------------------------------------------------------------------
@@ -97,8 +137,8 @@ RFSOC = False
 # --------------------------------------------------------------------------
 
 def check_the_platform_map_was_identified():
-    """The tree was recognised by its shape, and the session says which map it uses."""
-    assert SESSION.pmap.name == 'umux', SESSION.pmap.name
+    """The tree was recognised by its firmware, and the session says which map it uses."""
+    assert SESSION.pmap.name == EXPECTED_PLATFORM[RFSOC], SESSION.pmap.name
     assert len(SESSION.pmap) >= 60, f"only {len(SESSION.pmap)} patterns in the map"
     assert SESSION.description['platform'] == SESSION.pmap.name
 
@@ -168,8 +208,56 @@ def check_the_witness_set_reads_back():
 
 
 # --------------------------------------------------------------------------
+# connecting: what happens before there is a session
+#
+# These run one at a time, each opening and closing its own session, before the
+# long-lived session below exists -- because pyrogue caches a client per address
+# and port, so two sessions on one endpoint are one transport and closing either
+# closes both. That is a property of the transport rather than of these checks,
+# and it is why they cannot simply join the group after it.
+# --------------------------------------------------------------------------
+
+def precheck_a_tree_that_reports_no_firmware_is_refused():
+    """With nothing in the stamp there is no platform, and connecting says so."""
+    with blank_build_stamp():
+        try:
+            session = cryodaq.connect(ENDPOINT)
+        except cryodaq.ConnectError as e:
+            assert 'declare' in str(e), f"the error does not say what to do: {e}"
+        else:
+            session.close()
+            raise AssertionError(f"identified as {session.pmap.name} with no firmware")
+
+
+def precheck_a_platform_can_be_declared_when_the_firmware_cannot_say():
+    """The way past the refusal, for a tree with no firmware behind it."""
+    with blank_build_stamp():
+        with cryodaq.connect(ENDPOINT, platform_name=EXPECTED_PLATFORM[RFSOC]) as session:
+            assert session.pmap.name == EXPECTED_PLATFORM[RFSOC], session.pmap.name
+            assert session.get('application.configured') is not None
+
+
+def precheck_declaring_a_platform_that_does_not_exist_is_refused():
+    try:
+        session = cryodaq.connect(ENDPOINT, platform_name='no-such-platform')
+    except cryodaq.ConnectError as e:
+        assert EXPECTED_PLATFORM[RFSOC] in str(e), f"the error does not list what is known: {e}"
+    else:
+        session.close()
+        raise AssertionError('an unknown platform name was accepted')
+
+
+# --------------------------------------------------------------------------
 # the session over the connection
 # --------------------------------------------------------------------------
+
+def check_the_platform_is_identified_from_the_firmware():
+    """The session found its platform by reading the stamp, not by being told."""
+    assert SESSION.pmap.name == EXPECTED_PLATFORM[RFSOC], SESSION.pmap.name
+    stamp = SESSION.description['firmware_build_stamp']
+    assert platform.tag_of(stamp) in SESSION.pmap.tags, \
+        f"identified as {SESSION.pmap.name} from {stamp!r}"
+
 
 def check_the_description_says_what_the_server_is():
     """Connecting recorded where the tree came from and what it says about itself."""
@@ -305,40 +393,92 @@ def free_port():
     return base
 
 
+def write_build_stamp(root, stamp):
+    """Put a build stamp in the emulated memory, so the tree can be identified.
+
+    The emulator answers from a dictionary of bytes, and unwritten addresses read
+    as zero -- which is why an emulated tree reports no firmware at all. Writing
+    the stamp where the register reads from gives identification the same thing to
+    work with here as on a crate. The register is read-only from the tree's side,
+    as it is in the firmware, so this goes in underneath it.
+    """
+    node = root.getNode(platform.TAG_PATH)
+    assert node is not None, f"the tree has no {platform.TAG_PATH}"
+    for offset, byte in enumerate(stamp.encode()):
+        root._srp._data[node.address + offset] = byte
+    # The block was read once while the tree was built, and cached what it found
+    # then: zeros. Without a forced re-read the stamp would never be seen.
+    assert platform.tag_of(node.get(read=True)) == platform.tag_of(stamp), \
+        'the build stamp did not read back'
+
+
 def emulation_root(args, port):
     """Build the emulated root over the CryoDet package, serving on ``port``."""
     add_library_paths(args)
     from pysmurf.core.roots.EmulationRoot import EmulationRoot
+    # is_rfsoc is the package's own construction flag, and all it does is leave
+    # out the JESD lanes and signal generators -- so the tree is this package
+    # without its bays, not the RFSoC firmware's tree. See the header.
     root = EmulationRoot(config_file='', polling_en=False, pv_dump_file='',
                          disable_bay0=False, disable_bay1=False,
                          is_rfsoc=args.rfsoc, is_prespectra=False, server_port=port)
     root.start()
+    write_build_stamp(root, stamp_for(EXPECTED_IMAGE[args.rfsoc]))
     return root
 
 
+def collect(prefix):
+    """The checks whose names start with ``prefix``, in a fixed order."""
+    return sorted((name[len(prefix):], fn) for name, fn in globals().items()
+                  if name.startswith(prefix))
+
+
+def run(checks):
+    """Run each check, reporting one line apiece; return the names that failed."""
+    failed = []
+    for name, fn in checks:
+        try:
+            fn()
+        except Exception as e:                                   # noqa: BLE001
+            failed.append(name)
+            print(f"  FAIL  {name}")
+            print(f"          {type(e).__name__}: {e}")
+        else:
+            print(f"  ok    {name}")
+    return failed
+
+
 def main():
-    global SESSION, RFSOC
+    global SESSION, ROOT, ENDPOINT, RFSOC
     ap = argparse.ArgumentParser(
         description='Drive a cryodaq session against an emulated firmware tree.')
     source = ap.add_mutually_exclusive_group(required=True)
-    source.add_argument('--cryo-det', help='a CryoDet checkout')
-    source.add_argument('--zip', help='a released pyrogue ZIP')
+    source.add_argument('--cryo-det', help='a CryoDet checkout with the tuning '
+                                           'operations removed')
+    source.add_argument('--zip', help='a pyrogue ZIP built from such a checkout; a '
+                                      'released ZIP still defines the operations '
+                                      'and is refused before a tree is built')
     ap.add_argument('--rfsoc', action='store_true',
-                    help='the RFSoC tree instead of the carrier')
+                    help='the RFSoC platform instead of the ATCA carrier: its own '
+                         'firmware package is this one with isRFSOC defaulted on, '
+                         'so the flag builds that tree without needing it')
     ap.add_argument('--port', type=int, default=None,
                     help='port to serve the emulated tree on (a free one by default)')
     args = ap.parse_args()
     RFSOC = args.rfsoc
 
-    label = ('RFSoC' if args.rfsoc else 'carrier') + ' tree from ' + (args.zip or args.cryo_det)
+    label = ('RFSoC' if args.rfsoc else 'carrier') + ' tree'
+    label += ' from ' + (args.zip or args.cryo_det)
     port = args.port or free_port()
-    endpoint = f"localhost:{port}"
-    checks = sorted((name[len('check_'):], fn)
-                    for name, fn in globals().items()
-                    if name.startswith('check_'))
+    endpoint = ENDPOINT = f"localhost:{port}"
+    prechecks = collect('precheck_')
+    checks = collect('check_')
     failed = []
-    root = emulation_root(args, port)
+    root = ROOT = emulation_root(args, port)
     try:
+        print(f"Validating the cryodaq client on the {label} "
+              f"({len(prechecks)} + {len(checks)} checks)")
+        failed += run(prechecks)
         # Nothing here runs the server's own configuration procedure, so the
         # flag it would leave is set first, through the same interface, and the
         # session the checks use then finds a configured server as a client
@@ -347,19 +487,12 @@ def main():
             boot.set('application.configured', True)
         with cryodaq.connect(endpoint) as session:
             SESSION = session
-            print(f"Validating the cryodaq client on the {label} "
-                  f"({len(session.pmap)} patterns, {len(checks)} checks)")
-            print(f"  {endpoint}: bands {list(session.indices('band'))}, "
+            print(f"  {endpoint}: platform {session.pmap.name} from "
+                  f"{platform.tag_of(session.description['firmware_build_stamp'])!r}, "
+                  f"{len(session.pmap)} patterns, "
+                  f"bands {list(session.indices('band'))}, "
                   f"bays {list(session.indices('bay'))}")
-            for name, fn in checks:
-                try:
-                    fn()
-                except Exception as e:                          # noqa: BLE001
-                    failed.append(name)
-                    print(f"  FAIL  {name}")
-                    print(f"          {type(e).__name__}: {e}")
-                else:
-                    print(f"  ok    {name}")
+            failed += run(checks)
             session.set('application.configured', False)
     finally:
         root.stop()

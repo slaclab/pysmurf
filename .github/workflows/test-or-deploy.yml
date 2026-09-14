@@ -204,6 +204,12 @@ jobs:
       - name: Check the cryodaq layer boundaries
         run: python3 tests/cryodaq/check_boundaries.py
 
+      # Check the platform layer's own logic: which platform a system is
+      # identified as, and which indices of a scope a tree has. Answered from
+      # supplied values, so this needs no tree and no rogue either.
+      - name: Check the cryodaq platform maps
+        run: python3 tests/cryodaq/check_platform_map.py
+
       # Setup Docker build environment
       - name: Set up docker build enviroment
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
@@ -243,6 +249,14 @@ jobs:
         run: |
           docker container exec client \
             /bin/bash -c "python3 -c 'import matplotlib; matplotlib.use(\"Agg\"); import pysmurf.client'"
+
+      # - Try to import the cryodaq module in the client container, which is
+      #   where it is used from and the first place a packaging or import
+      #   problem in it would show.
+      - name: Test importing the cryodaq module
+        run: |
+          docker container exec client \
+            /bin/bash -c "python3 -c 'import cryodaq; cryodaq.connect'"
 
   # Build
 

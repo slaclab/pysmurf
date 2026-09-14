@@ -98,6 +98,19 @@ def imported_modules(tree):
             yield node.module or '', node.level
 
 
+def imported_from(tree):
+    """Yield (dotted module name, imported name, level) for every `from` import.
+
+    The imported name matters as well as the module it came from: `from
+    cryodaq.platform import _umux` reaches a map module exactly as `import
+    cryodaq.platform._umux` does, and the module name alone does not show it.
+    """
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                yield node.module or '', alias.name, node.level
+
+
 def strings(tree):
     for node in ast.walk(tree):
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
@@ -141,6 +154,14 @@ def violations(package):
                        (level == 1 and name.startswith('platform.')))
             if private and not platform:
                 found.append(('imports', f"{rel}: reaches into {name}"))
+        for module, name, level in imported_from(tree):
+            # `from cryodaq.platform import _umux`. A public name out of the
+            # package is how the client is meant to reach the maps, so only a
+            # private one is a violation.
+            reaches_map = (module in ('cryodaq.platform', 'platform') and
+                           name.startswith('_'))
+            if reaches_map and not platform:
+                found.append(('imports', f"{rel}: reaches into {module}.{name}"))
         for lineno, ident in identifiers(tree):
             if ident in APPLICATION_NAMES:
                 found.append(('application', f"{rel}:{lineno} identifier {ident!r}"))
@@ -193,6 +214,11 @@ def check_rules_fire_on_a_bad_package():
     bad_client = (
         "import pysmurf\n"
         "from .platform._umux import REGISTERS\n"
+        # The same reach written so that the module name alone looks public.
+        "from cryodaq.platform import _atca\n"
+        # Legal, and must stay legal: the public lookup is how the client is
+        # meant to reach a map.
+        "from cryodaq.platform import parse\n"
         "def f(is_rfsoc, x):\n"
         "    n = 512\n"
         "    return 'AMCc.FpgaTopLevel.AppTop', x.bias_group, n\n"
@@ -215,11 +241,14 @@ def check_rules_fire_on_a_bad_package():
     expected = {'imports', 'application', 'geometry', 'paths'}
     assert rules == expected, f"rules fired: {sorted(rules)}, expected {sorted(expected)}"
     details = '\n'.join(d for _, d in found)
-    for needle in ('imports pysmurf', 'reaches into', 'imports sodetlib',
+    for needle in ('imports pysmurf', 'reaches into platform._umux',
+                   'reaches into cryodaq.platform._atca', 'imports sodetlib',
                    'imports pyrogue inside cryodaq.platform',
                    "identifier 'is_rfsoc'", "identifier 'bias_group'",
                    "mentions 'tes'", 'literal 512', 'literal 614.4', 'register path'):
         assert needle in details, f"rule for {needle!r} did not fire:\n{details}"
+    assert 'platform.parse' not in details, \
+        f"the public map lookup was reported as a violation:\n{details}"
 
 
 # --------------------------------------------------------------------------
