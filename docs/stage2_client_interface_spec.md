@@ -114,32 +114,53 @@ to reports `SystemConfigured` false, because nothing has set it up. A client tha
 a precondition would have been unusable against the only server there was — and unusable, in
 particular, for setting it up.
 
-### 2.3 Lifetime and transport policy — *revised 2026-09-11*
+### 2.3 Lifetime and transport policy — *revised 2026-09-15*
 
-pyrogue is a dependency of every module here, because the client **is** a rogue client: the session
-holds a `VirtualClient` and `sess.root` is the server's tree as rogue presents it, whole and
-unwrapped. Anything rogue can do with a node — a variable's units, a process's `Progress`, a device's
-children, a YAML dump — is available without going through this interface at all. What the interface
-adds over `root.getNode()` is a name that means the same thing on every platform, and it adds nothing
-else.
+pyrogue is a dependency of `connect()` and of nothing else here, and the session it returns **is** a
+rogue client: it holds a `VirtualClient` and `sess.root` is the server's tree as rogue presents it,
+whole and unwrapped. The import sits at that one call site, so the package, the platform maps, the
+endpoint arithmetic and the capture paths work on a machine that has no rogue — which is where the maps
+get reviewed and where CI runs — while everything a session does needs the rogue the smurf image
+brings. Nothing here comes from a package index by that name. Anything rogue can do with a node — a
+variable's units, a process's `Progress`, a device's children, a YAML dump — is available without going
+through this interface at all. What the interface adds over `root.getNode()` is a name that means the
+same thing on every platform, and it adds nothing else.
 
 The session is a **context manager** (pysmurf #1005): `with cryodaq.connect(t) as sess:` closes the
 transport on exit and `sess.close()` does the same explicitly. The primitive exists — `VirtualClient`
 has `__enter__`/`__exit__`, and `stop()` clears its `(addr, port)` singleton (`_Virtual.py:750-780`).
-Transport policy is a **session parameter, not a global** (pysmurf #990, sodetlib #328): the link
-monitor is *on* by default, replacing today's `_monEnable = False`, and `connect(timeout=…)` is the
-bound on **one request** — today's fixed warn-5 s / fail-30 s pair (`base/base_class.py:106-109`)
-becomes the default of an argument, which is what #990 asks for. It is set on the client when the
-client is made, as today, and `timeout=None` is the way to ask for rogue's own behaviour of waiting
+Transport policy is a **connect argument, not a global** (pysmurf #990, sodetlib #328): the link monitor
+is left running where today's client turns it off (`_monEnable = False`), and `connect(timeout=…)` is
+the bound on **one request** — today's fixed warn-5 s / fail-30 s pair (`base/base_class.py:106-109`)
+becomes the default of an argument, which is what #990 asks for. It is set on the client when the client
+is made, as today, and `timeout=None` is the way to ask for rogue's own behaviour of waiting
 indefinitely. Stall reporting is rogue's, not re-wrapped here (§6). Long server work — a Process,
 `setup` — is awaited with a polled wait on the process's own `Running` flag (§4.1), never a blocking
 call with a single timeout, which is the failure mode of pysmurf #1015: the request bound and the
 operation bound are different numbers, and a tuning run is limited by neither.
 
-One bound to state: rogue caches one client per `(addr, port)` and `stop()` tears it down
-(`_Virtual.py:750-780`), so two sessions opened on the same server in one process share a client and
-the first `close()` ends both. Documented rather than worked around; it is rogue's semantics and the
-alternative is a second cache of our own.
+One bound to state, and it is the sharpest edge in this section: rogue caches one client per
+`(addr, port)` and `stop()` tears it down (`_Virtual.py:750-780`), so two sessions opened on the same
+server in one process share a client — and therefore share one transport policy and one lifetime. The
+first `close()` ends both, and **the last `connect()` sets the deadline and the monitor for both**: a
+session opened with 30 s and a session opened with 1 s cannot coexist on one endpoint, whatever the
+argument says. Since a policy that is per session in the signature and per endpoint in fact will
+mislead somebody, a `connect()` that changes either value logs a warning naming what it changed and
+what it changed it from. That is the whole mitigation; a program that needs two policies at once needs
+two processes.
+
+Concurrency is why this is stated rather than dismissed. The usual case is one session in one process,
+where none of it can arise; the case that matters is an agent holding several clients in threads —
+`socs`'s `pysmurf_controller` — where a second session opened against the same server would quietly
+retune the first one's bounds. Serialising sessions per endpoint, or giving each one its own policy,
+needs a second cache of our own or a change in rogue, and neither is worth it for a case that is
+already unusual: rogue's semantics stand, with the change made audible.
+
+For the same reason `monitor=True` promises only that this session does not stop the monitor. rogue's
+monitor loop exits when the flag goes down and nothing starts it again (`_Virtual.py:611`), so on a
+client that a `SmurfControl` in the same process has already disabled there is no thread left to
+re-enable; `connect()` reports that it found one stopped instead of setting a flag that would claim a
+monitor which is not running.
 
 **Provisional shape.** One session per system. The transport is kept separable inside the session
 so that a connection object holding several systems can be added later without changing any
@@ -176,13 +197,14 @@ today's register-path template each replaces (`base/base_class.py:132-224`):
 
 | Semantic name | Today | Kind of node |
 |---|---|---|
-| `band[b].tone.amplitude` | `{band_root}.CryoChannels.amplitudeScaleArray` (`get/set_amplitude_scale_array`) | array variable |
-| `band[b].tone.frequency_offset` | `…CryoChannels.centerFrequencyArray` | array variable |
+| `band[b].tone.amplitude` | `{band_root}.CryoChannels.amplitudeScale` (`get/set_amplitude_scale_array`) | array variable |
+| `band[b].tone.frequency` | `…CryoChannels.centerFrequencyMHz` (`get/set_center_frequency_array`) | array variable |
+| `band[b].tone.frequency_offset` | `…toneFrequencyOffsetMHz` (`get_tone_frequency_offset_mhz`) | array variable |
 | `band[b].feedback.enable` | `…feedbackEnable`, `…feedbackEnableArray` | variable, array |
-| `band[b].eta.mag`, `band[b].eta.phase` | `…etaMagArray`, `…etaPhaseArray` | array variables |
+| `band[b].eta.mag`, `band[b].eta.phase` | `…etaMag`, `…etaPhase` (`get/set_eta_mag_array`, `…_phase_array`) | array variables |
 | `band[b].delay_us` | `…bandDelayUs` — a stage-1 witness | variable |
-| `band[b].ops.gradient_descent` | `…CryoChannels.runSerialGradientDescent` — a stage-1 Process | Process |
-| `stream.downsample.factor`, `stream.filter.disable` | `SmurfProcessor.Downsampler.Factor`, `…Filter.Disable` | variables |
+| `band[b].ops.gradient_descent`, `band[b].ops.start_gradient_descent` | `…CryoChannels.SerialGradientDescent` — a stage-1 Process — and `…runSerialGradientDescent`, the command that starts it, which is what a caller runs today | Process, command |
+| `stream.downsample.factor`, `stream.filter.disable` | `SmurfProcessor.Downsampler.InternalFactor`, `…Filter.Disable` | variables |
 | `flux_ramp.rate_khz`, `flux_ramp.fraction_full_scale` | `RtmCryoDet.RampMaxCnt`, `…LTC1668RawDacData` | modality-scoped |
 | `firmware.build_stamp`, `firmware.git_hash` | `AxiVersion.BuildStamp`, `…GitHash` | platform-scoped |
 
@@ -750,7 +772,7 @@ those rows' notes is answered by §3.1 rather than still open. Appendix B's rows
 | `get_att_dc` | `smurf_command.py:4994` | platform | general | capability | attenuators. **Ambiguous:** the draft lists `set_attenuation` under core tones; RFSoC eval boards have none — proposed as an optional platform capability |
 | `get_att_uc` | `smurf_command.py:4921` | platform | general | capability | as `get_att_dc` |
 | `get_band_center_mhz` | `smurf_command.py:4303` | platform | general | capability | geometry: `platform.geometry.band_centers_mhz` |
-| `get_center_frequency_array` | `smurf_command.py:3236` | core | general | access | `band[b].tone.frequency_offset` |
+| `get_center_frequency_array` | `smurf_command.py:3236` | core | general | access | `band[b].tone.frequency` |
 | `get_center_frequency_mhz_channel` | `smurf_command.py:4670` | core | general | access | per-channel form of the above |
 | `get_channel_frequency_mhz` | `smurf_command.py:4338` | platform | general | capability | geometry: channelizer bin width |
 | `get_closest_subband` | `smurf_tune.py:1536` | core | general | analysis | arithmetic over `platform.geometry` |
@@ -942,7 +964,7 @@ is the expected result for a TES procedure:
 | `relock`, `setup_notches`, `load_tune`, `save_tune`, `full_band_ampl_sweep`, `all_off` | core procedures of §4.2 (`relock(sess, band)`, `setup_notches(sess, band, assignment)`, `load_tune(sess, path)`, `save_tune(sess) -> path`, the sweep behind `find_freq`, `band_off` over all bands) |
 | `run_serial_gradient_descent`, `run_serial_eta_scan` | `sess.invoke("band[b].ops.gradient_descent")`, `…eta_scan` — the stage-1 Processes, registered by the first provider (§7.3) |
 | `set_gradient_descent_{max_iters, converge_hz, step_hz}` | `Param`s of `gradient_descent`; set-then-run keeps working through the parameter nodes (§7.3, *Inputs*) |
-| `{get,set}_{amplitude_scale, center_frequency, eta_mag, eta_phase, feedback_enable}_array`, `get_tone_frequency_offset_mhz`, `set_synthesis_scale`, `set_band_delay_us`, `{get,set}_feedback_enable` | `sess.get`/`sess.set` on `band[b].tone.amplitude`, `.tone.frequency_offset`, `.eta.mag`, `.eta.phase`, `.feedback.enable`, `.tone.synthesis_scale`, `.delay_us` |
+| `{get,set}_{amplitude_scale, center_frequency, eta_mag, eta_phase, feedback_enable}_array`, `get_tone_frequency_offset_mhz`, `set_synthesis_scale`, `set_band_delay_us`, `{get,set}_feedback_enable` | `sess.get`/`sess.set` on `band[b].tone.amplitude`, `.tone.frequency`, `.tone.frequency_offset`, `.eta.mag`, `.eta.phase`, `.feedback.enable`, `.tone.synthesis_scale`, `.delay_us` |
 | `set_downsample_factor`, `set_filter_disable` | `sess.set` on the stream names (`set_downsample(sess, factor)`, filter stage) |
 | `get_band_center_mhz`, `get_subband_from_channel`, `channel_to_freq` | `platform.geometry.band_centers_mhz`; arithmetic over `platform.geometry`; the derived name `band[b].channel[c].frequency_mhz` (§3.1, ambiguous in Appendix A) |
 | `set_att_uc`, `set_att_dc` | optional capability `attenuators` (§7.1); `uxm_relock` runs only where it is present |
