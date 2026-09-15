@@ -139,28 +139,24 @@ indefinitely. Stall reporting is rogue's, not re-wrapped here (§6). Long server
 call with a single timeout, which is the failure mode of pysmurf #1015: the request bound and the
 operation bound are different numbers, and a tuning run is limited by neither.
 
-One bound to state, and it is the sharpest edge in this section: rogue caches one client per
-`(addr, port)` and `stop()` tears it down (`_Virtual.py:750-780`), so two sessions opened on the same
-server in one process share a client — and therefore share one transport policy and one lifetime. The
-first `close()` ends both, and **the last `connect()` sets the deadline and the monitor for both**: a
-session opened with 30 s and a session opened with 1 s cannot coexist on one endpoint, whatever the
-argument says. Since a policy that is per session in the signature and per endpoint in fact will
-mislead somebody, a `connect()` that changes either value logs a warning naming what it changed and
-what it changed it from. That is the whole mitigation; a program that needs two policies at once needs
-two processes.
+One limit to state, and it is the sharpest edge in this section: **concurrent sessions on one endpoint
+in one process are not supported.** rogue caches one client per `(addr, port)` and `stop()` tears it
+down (`_Virtual.py:750-780`), so two sessions opened on the same server in one process do not get a
+socket each — they get one, and with it one lifetime and one transport policy. The first `close()` ends
+both, and the last `connect()` sets the deadline and the monitor for both: a session opened with 30 s
+and a session opened with 1 s cannot coexist on one endpoint, whatever the argument says. This is
+rogue's semantics, and the alternative is bookkeeping of our own — a lock, a policy registry, endpoint
+refcounting — which would be a second, partial cache beside rogue's, out of step with any other client
+in the same process (a `SmurfControl` sets its own timeout on that same singleton and would be invisible
+to it). So the limit is documented in `connect()` and stated here, and nothing pretends otherwise: a
+program that needs two independent sessions on one server needs two processes. The usual case is one
+session in one process, where none of this can arise; the case to keep in mind is an agent holding
+clients in threads — `socs`'s `pysmurf_controller`.
 
-Concurrency is why this is stated rather than dismissed. The usual case is one session in one process,
-where none of it can arise; the case that matters is an agent holding several clients in threads —
-`socs`'s `pysmurf_controller` — where a second session opened against the same server would quietly
-retune the first one's bounds. Serialising sessions per endpoint, or giving each one its own policy,
-needs a second cache of our own or a change in rogue, and neither is worth it for a case that is
-already unusual: rogue's semantics stand, with the change made audible.
-
-For the same reason `monitor=True` promises only that this session does not stop the monitor. rogue's
-monitor loop exits when the flag goes down and nothing starts it again (`_Virtual.py:611`), so on a
-client that a `SmurfControl` in the same process has already disabled there is no thread left to
-re-enable; `connect()` reports that it found one stopped instead of setting a flag that would claim a
-monitor which is not running.
+`monitor=True` is therefore not a promise that a monitor is running, only that this session does not
+stop one. rogue's monitor loop exits when the flag goes down and nothing starts it again
+(`_Virtual.py:611`), so on a client that a `SmurfControl` in the same process has already disabled there
+is no thread left to re-enable.
 
 **Provisional shape.** One session per system. The transport is kept separable inside the session
 so that a connection object holding several systems can be added later without changing any
@@ -507,7 +503,10 @@ tree can be built without that package and the emulated gate identifies `umux-rf
 bay scope. The three image names the map claims, on the other hand, are derived from the build targets of
 the two RFSoC firmware repositories rather than read off a board — no RFSoC is reachable from where this
 work is done. Confirming them is stage 7's (`cryodaq.platform` and RFSoC parity), and until then an RFSoC
-whose stamp says something else is refused by name rather than mis-identified.
+whose stamp says something else is refused by name rather than mis-identified. Confirmed as the plan on
+2026-09-15 (Tristan): *"ok to delay nailing down the exact tags until we have a system to test with"* —
+the map says so in place, so the names are read as a derivation awaiting a measurement, and `platform_name=`
+names the platform meanwhile.
 
 **Asked for 2026-09-11, then decided 2026-09-14 (Tristan)**, on reviewing the rebuilt structure:
 *"they will diverge more when we get to implementing `setup()` and other operations. We should avoid

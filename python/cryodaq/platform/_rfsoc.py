@@ -47,6 +47,13 @@ NAME = 'umux-rfsoc'
 # Not to be confused with the release archives, which are named for the family
 # (rogue_MicrowaveMuxZcu208_v3.2.1.zip) and not for the image inside them; the
 # family name is not what a build stamp reports and is deliberately absent here.
+#
+# Until an RFSoC is available to read a build stamp from, these names are the
+# derivation and not a measurement: they are to be confirmed against a live
+# system, and corrected here if what it reports differs. A name that is wrong
+# fails safe -- identification refuses a system it does not recognise rather
+# than mapping it to the wrong platform -- and until then `platform_name=` names
+# the platform for a system whose firmware is not listed.
 TAGS = (
     'MicrowaveMuxZcu208_BaseBand',
     'MicrowaveMuxZcu208_HighOrderNyquist',
