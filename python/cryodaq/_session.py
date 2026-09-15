@@ -78,13 +78,6 @@ POLL_INTERVAL_S = 0.2
 DEFAULT_TIMEOUT_S = 30.0
 WARN_INTERVAL_S = 5.0
 
-# rogue keeps one client per (addr, port) in a process, so the request deadline
-# and the link monitor belong to the endpoint and not to the session that asked
-# for them: the last connect wins, for every session already open on it. What
-# each endpoint was last asked for, so that a session changing another's bounds
-# is said out loud rather than done quietly.
-_POLICY: Dict[str, Tuple[Optional[float], bool]] = {}
-
 # Child nodes every rogue Process carries.
 PROCESS_START = 'Start'
 PROCESS_STOP = 'Stop'
@@ -535,10 +528,6 @@ class Session:
         on the same server from this process.
         """
         client, self._client = self._client, None
-        # Stopping clears rogue's client for this endpoint, so the policy that
-        # was installed on it goes with it: the next connect starts from rogue's
-        # own defaults and has nobody left to disturb.
-        _POLICY.pop(self.endpoint, None)
         if client is not None:
             client.stop()
 
@@ -572,13 +561,13 @@ def connect(target: str, *, timeout: Optional[float] = DEFAULT_TIMEOUT_S,
         link is called stalled. This bounds one request, not one operation:
         waiting for a long process polls its ``Running`` flag, so a tuning run
         may take as long as it likes. ``None`` waits forever, which is what
-        rogue does when nothing asks otherwise. The deadline is the endpoint's
-        rather than this session's -- see *Notes*.
+        rogue does when nothing asks otherwise. Set on the client at connect,
+        as the client this replaces set it -- see *Notes*.
     monitor : bool
         Leave rogue's link monitor running; it is what notices a dead server.
         False turns it off, which is what the client this replaces did. True
-        does not turn one back on: rogue's monitor loop ends for good when
-        something else stops it, and a session that finds it stopped says so.
+        does not turn one back on: rogue's monitor loop ends for good once the
+        flag drops, so nothing can restart a monitor another client stopped.
     platform_name : str, optional
         Which platform this is, for a system whose firmware cannot say: an
         emulated register space reports an empty build stamp, and a bench system
@@ -606,14 +595,13 @@ def connect(target: str, *, timeout: Optional[float] = DEFAULT_TIMEOUT_S,
 
     Notes
     -----
-    ``timeout`` and ``monitor`` are transport policy, and transport policy is the
-    endpoint's: rogue keeps one client per ``(addr, port)`` in a process, so a
-    second session on the same server shares the first one's socket and the last
-    connect decides both values for all of them. Sessions on one endpoint
-    therefore cannot hold different deadlines, and a connect that changes one
-    logs a warning naming what it changed rather than doing it silently. Nothing
-    here prevents it: a program that wants two policies at once needs two
-    processes.
+    **One session per server per process.** rogue keeps one client per
+    ``(addr, port)``, so a second session on the same server does not get a
+    socket of its own: it gets the first one's, and ``timeout`` and ``monitor``
+    are set on that shared client, so the last connect decides both for every
+    session holding it -- and closing any one of them ends the transport under
+    all the others. Concurrent sessions on one endpoint are not supported;
+    a program that wants two needs two processes.
     """
     host, port = endpoint_of(target)
     endpoint = f"{host}:{port}"
@@ -629,26 +617,15 @@ def connect(target: str, *, timeout: Optional[float] = DEFAULT_TIMEOUT_S,
             "connecting needs rogue, which arrives with the smurf server image "
             "rather than from a package index; cryodaq itself does not") from e
     try:
-        client = pyrogue.interfaces.VirtualClient(addr=host, port=port,
-                                                  requestStallTimeout=timeout)
+        client = pyrogue.interfaces.VirtualClient(addr=host, port=port)
     except Exception as e:                                      # noqa: BLE001
         raise ConnectError(f"no server at {endpoint}: {e}") from e
     try:
-        said = logger or log
-        previous = _POLICY.get(endpoint)
-        if previous is not None and previous != (timeout, monitor):
-            said.warning(
-                "%s: timeout %s and monitor %s replace timeout %s and monitor "
-                "%s; one client serves this endpoint, so this is now the policy "
-                "of every session open on it",
-                endpoint, timeout, monitor, previous[0], previous[1])
-        _POLICY[endpoint] = (timeout, monitor)
-        # Linking leaves rogue's own policy in place -- warn once a second and
-        # then retry forever -- so the bound goes on here, and on every connect
-        # rather than only on one that asks for it: a bound left by an earlier
-        # session would otherwise still be in force for a caller who wanted
-        # none. In milliseconds, and a zero deadline reads as no deadline, so a
-        # sub-millisecond bound rounds up to one instead of down to forever.
+        # Linking leaves rogue's own request policy in place -- warn once a
+        # second and then retry forever -- so the bound goes on the client here,
+        # where the client this replaces put it. In milliseconds, and a zero
+        # deadline reads as no deadline, so a sub-millisecond bound rounds up to
+        # one instead of down to forever.
         warn = WARN_INTERVAL_S if timeout is None else min(WARN_INTERVAL_S, timeout)
         client.setTimeout(max(1, int(warn * 1000)),
                           0 if timeout is None else max(1, int(timeout * 1000)))
@@ -657,17 +634,6 @@ def connect(target: str, *, timeout: Optional[float] = DEFAULT_TIMEOUT_S,
             # turns it off is asking for the historical behaviour of not being
             # told.
             client._monEnable = False
-        else:
-            # rogue's monitor loop exits on the flag and nothing starts it
-            # again, so a client this process already shares with something that
-            # turned the monitor off has none left to re-enable -- setting the
-            # flag back would claim a thread that is not there. Say so instead.
-            thread = getattr(client, '_monThread', None)
-            if thread is None or not thread.is_alive():
-                said.warning(
-                    "%s: the link monitor was stopped by something else sharing "
-                    "this endpoint and cannot be restarted; a dead server will "
-                    "not be noticed until a request fails", endpoint)
         if not client.linked:
             raise ConnectError(f"the client at {endpoint} did not link")
 
@@ -680,6 +646,5 @@ def connect(target: str, *, timeout: Optional[float] = DEFAULT_TIMEOUT_S,
         return Session(client, pmap, endpoint=endpoint, publisher=publisher,
                        paths=paths, logger=logger)
     except BaseException:
-        _POLICY.pop(endpoint, None)
         client.stop()
         raise
