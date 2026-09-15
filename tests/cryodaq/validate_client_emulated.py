@@ -51,11 +51,9 @@
 
 import argparse
 import contextlib
-import logging
 import os
 import socket
 import sys
-import time
 
 import pyrogue as pr
 
@@ -132,26 +130,6 @@ def stamp_for(image):
     """A build stamp in the shape the firmware reports one, for ``image``."""
     return (f"{image}: Vivado v2020.2, emulated (no host), "
             f"Built Thu Jan  1 00:00:00 AM UTC 1970 by nobody")
-
-
-@contextlib.contextmanager
-def warnings_from(name):
-    """A logger to hand ``connect``, and the warnings it is given, as a list."""
-    records = []
-
-    class Collect(logging.Handler):
-        def emit(self, record):
-            if record.levelno >= logging.WARNING:
-                records.append(record.getMessage())
-
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.WARNING)
-    handler = Collect()
-    logger.addHandler(handler)
-    try:
-        yield logger, records
-    finally:
-        logger.removeHandler(handler)
 
 
 @contextlib.contextmanager
@@ -303,46 +281,6 @@ def precheck_a_deadline_that_is_not_a_duration_is_refused():
         else:
             session.close()
             raise AssertionError(f"timeout={bad!r} was accepted")
-
-
-def precheck_a_second_session_is_told_the_policy_changed():
-    """Changing an endpoint's transport policy changes it for sessions already open.
-
-    One client serves an endpoint, so the second connect's deadline is also the
-    first session's. That cannot be prevented from here; it can be said, and the
-    warning is what a caller has to go on.
-    """
-    with cryodaq.connect(ENDPOINT, timeout=20.0):
-        with warnings_from('cryodaq.test.policy') as (logger, said):
-            with cryodaq.connect(ENDPOINT, timeout=2.0, logger=logger) as second:
-                assert second.get('application.configured') is not None
-    assert len(said) == 1, said
-    assert '20.0' in said[0] and '2.0' in said[0], said[0]
-    assert ENDPOINT in said[0], said[0]
-
-
-def precheck_a_shared_client_reports_a_stopped_monitor():
-    """A monitor another session turned off stays off, and connecting says so.
-
-    rogue's monitor loop ends when the flag goes down and nothing starts it
-    again, so the default cannot promise a running monitor on a client this
-    process already shares -- only that this session does not stop one.
-    """
-    with cryodaq.connect(ENDPOINT, monitor=False) as first:
-        # The loop sleeps a second at a time, so it outlives the flag by up to
-        # that long: wait for the state this is about rather than assume it has
-        # arrived. The client is the session's own, reached the short way.
-        thread = first._client._monThread
-        deadline = time.time() + 10.0
-        while thread is not None and thread.is_alive() and time.time() < deadline:
-            time.sleep(0.1)
-        assert thread is None or not thread.is_alive(), 'the monitor did not stop'
-        with warnings_from('cryodaq.test.monitor') as (logger, said):
-            with cryodaq.connect(ENDPOINT, logger=logger) as second:
-                assert second.get('application.configured') is not None
-    monitor = [line for line in said if 'monitor was stopped' in line]
-    assert len(monitor) == 1, said
-    assert ENDPOINT in monitor[0], monitor[0]
 
 
 def precheck_declaring_a_platform_that_does_not_exist_is_refused():

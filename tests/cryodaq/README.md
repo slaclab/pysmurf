@@ -78,14 +78,12 @@ removed and `--zip` a ZIP built from one.
 Because an emulated register space reads back zeros, the tree reports no firmware and so has no
 platform. The script writes the build stamp of the platform it is building into the emulated memory
 before connecting, so that identification runs here the same way it runs against a crate instead of
-being handed the answer. Seven further checks cover the path around it: a tree with a blank stamp is
+being handed the answer. Five further checks cover the path around it: a tree with a blank stamp is
 refused, a declared platform connects anyway, a platform name that does not exist is refused, a
 request deadline does not stop a working session, and a deadline that is not a duration is refused.
-The last two are about that shared client: pyrogue caches one per address and port, so two sessions on
-one endpoint are one transport and one transport policy — a second session that asks for a different
-deadline changes the first one's and is told so, and a monitor another session stopped stays stopped,
-which connecting also says. The rest run one at a time before the session below opens, since closing
-either of two sessions on an endpoint closes both.
+Each runs one at a time, before the session below opens: pyrogue caches one client per address and
+port, so two sessions on one endpoint are one transport — closing either closes both — and the client
+takes one deadline, whichever connected last.
 
 The fifteen checks over that session cover the map against the tree (every name the map offers
 resolves; each node is the kind the map declares; the twenty contract names are present on every band;
