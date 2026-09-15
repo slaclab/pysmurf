@@ -51,9 +51,11 @@
 
 import argparse
 import contextlib
+import logging
 import os
 import socket
 import sys
+import time
 
 import pyrogue as pr
 
@@ -65,9 +67,12 @@ from cryodaq import platform
 # not slow progress.
 PROCESS_TIMEOUT_S = 30.0
 
-# The band every session check works on. One is enough: the names are per band by
-# construction and the map checks resolve all of them on every band.
-BAND = 0
+# The band every session check works on, chosen by main() from the bands the tree
+# reports. One is enough: the names are per band by construction and the map
+# checks resolve all of them on every band. It is not band 0 by assumption --
+# which band a tree has is the tree's business, and a build without band 0 is a
+# tree this client is expected to work on.
+BAND = None
 
 # The twenty names the client contract reaches on every band: the tuning
 # operations, their parameters, their results and the flag that says one is
@@ -109,6 +114,13 @@ EXPECTED_IMAGE = {False: 'MicrowaveMuxBpEthGen2',
 # RF front end that carries the attenuators.
 EXPECTED_BAYS = {False: True, True: False}      # keyed by args.rfsoc
 
+# The bands both trees have: the two are built from one firmware package, which
+# defines eight either way. Asserted rather than derived, so a package that
+# stopped defining one would fail here instead of quietly narrowing every check
+# that iterates the bands. A tree whose bands are sparse or start above zero is
+# legal and is covered by check_platform_map.py; this is what these trees are.
+EXPECTED_BANDS = tuple(range(8))
+
 # Set by main() once the tree is up and a session is open.
 SESSION = None
 ROOT = None
@@ -120,6 +132,26 @@ def stamp_for(image):
     """A build stamp in the shape the firmware reports one, for ``image``."""
     return (f"{image}: Vivado v2020.2, emulated (no host), "
             f"Built Thu Jan  1 00:00:00 AM UTC 1970 by nobody")
+
+
+@contextlib.contextmanager
+def warnings_from(name):
+    """A logger to hand ``connect``, and the warnings it is given, as a list."""
+    records = []
+
+    class Collect(logging.Handler):
+        def emit(self, record):
+            if record.levelno >= logging.WARNING:
+                records.append(record.getMessage())
+
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.WARNING)
+    handler = Collect()
+    logger.addHandler(handler)
+    try:
+        yield logger, records
+    finally:
+        logger.removeHandler(handler)
 
 
 @contextlib.contextmanager
@@ -182,9 +214,14 @@ def check_the_client_contract_is_covered():
 
 
 def check_the_scopes_are_the_ones_this_tree_has():
-    """Band and bay indices are discovered, and the expected generation difference holds."""
+    """Band and bay indices are discovered, and the expected generation difference holds.
+
+    The bands are asserted against what this package builds, not against a rule
+    that they run from zero without gaps: a tree may have neither, and the
+    platform layer's own checks cover the sparse and gapped cases.
+    """
     bands = SESSION.indices('band')
-    assert bands == tuple(range(len(bands))) and bands, bands
+    assert bands == EXPECTED_BANDS, bands
     bays = SESSION.indices('bay')
     if EXPECTED_BAYS[RFSOC]:
         assert bays, 'a carrier tree has bays with data links or an RF front end'
@@ -266,6 +303,46 @@ def precheck_a_deadline_that_is_not_a_duration_is_refused():
         else:
             session.close()
             raise AssertionError(f"timeout={bad!r} was accepted")
+
+
+def precheck_a_second_session_is_told_the_policy_changed():
+    """Changing an endpoint's transport policy changes it for sessions already open.
+
+    One client serves an endpoint, so the second connect's deadline is also the
+    first session's. That cannot be prevented from here; it can be said, and the
+    warning is what a caller has to go on.
+    """
+    with cryodaq.connect(ENDPOINT, timeout=20.0):
+        with warnings_from('cryodaq.test.policy') as (logger, said):
+            with cryodaq.connect(ENDPOINT, timeout=2.0, logger=logger) as second:
+                assert second.get('application.configured') is not None
+    assert len(said) == 1, said
+    assert '20.0' in said[0] and '2.0' in said[0], said[0]
+    assert ENDPOINT in said[0], said[0]
+
+
+def precheck_a_shared_client_reports_a_stopped_monitor():
+    """A monitor another session turned off stays off, and connecting says so.
+
+    rogue's monitor loop ends when the flag goes down and nothing starts it
+    again, so the default cannot promise a running monitor on a client this
+    process already shares -- only that this session does not stop one.
+    """
+    with cryodaq.connect(ENDPOINT, monitor=False) as first:
+        # The loop sleeps a second at a time, so it outlives the flag by up to
+        # that long: wait for the state this is about rather than assume it has
+        # arrived. The client is the session's own, reached the short way.
+        thread = first._client._monThread
+        deadline = time.time() + 10.0
+        while thread is not None and thread.is_alive() and time.time() < deadline:
+            time.sleep(0.1)
+        assert thread is None or not thread.is_alive(), 'the monitor did not stop'
+        with warnings_from('cryodaq.test.monitor') as (logger, said):
+            with cryodaq.connect(ENDPOINT, logger=logger) as second:
+                assert second.get('application.configured') is not None
+    monitor = [line for line in said if 'monitor was stopped' in line]
+    assert len(monitor) == 1, said
+    assert ENDPOINT in monitor[0], monitor[0]
 
 
 def precheck_declaring_a_platform_that_does_not_exist_is_refused():
@@ -480,7 +557,7 @@ def run(checks):
 
 
 def main():
-    global SESSION, ROOT, ENDPOINT, RFSOC
+    global SESSION, ROOT, ENDPOINT, RFSOC, BAND
     ap = argparse.ArgumentParser(
         description='Drive a cryodaq session against an emulated firmware tree.')
     source = ap.add_mutually_exclusive_group(required=True)
@@ -518,10 +595,11 @@ def main():
             boot.set('application.configured', True)
         with cryodaq.connect(endpoint) as session:
             SESSION = session
+            BAND = session.indices('band')[0]
             print(f"  {endpoint}: platform {session.pmap.name} from "
                   f"{platform.tag_of(session.description['firmware_build_stamp'])!r}, "
                   f"{len(session.pmap)} patterns, "
-                  f"bands {list(session.indices('band'))}, "
+                  f"bands {list(session.indices('band'))} (checks on {BAND}), "
                   f"bays {list(session.indices('bay'))}")
             failed += run(checks)
             session.set('application.configured', False)

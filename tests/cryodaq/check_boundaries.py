@@ -6,9 +6,11 @@
 # Created    : 2026-09-11
 #-----------------------------------------------------------------------------
 # Description:
-# Static checks that the cryodaq package keeps to its layer boundaries. They
-# read source with `ast` only, so they need neither rogue nor hardware and run
-# anywhere Python does.
+# Checks that the cryodaq package keeps to its layer boundaries. Most of them
+# read source with `ast`; the last two import the package and use the part of it
+# that is meant to work with nothing installed. Neither rogue nor hardware is
+# needed, so this runs anywhere Python does -- and where rogue is absent it also
+# shows that the package does not quietly need it.
 #
 # Register-path boundary: a rogue register path appears only under
 # cryodaq.platform. This is the firmware/software boundary, and it is what
@@ -23,6 +25,11 @@
 # the readout core never imports an application -- and the client reaches the
 # platform layer through the cryodaq.platform package, never one of its map
 # modules.
+#
+# Runtime surface: importing the package, resolving an endpoint, building the
+# capture paths and looking up a map all work with nothing installed. rogue is a
+# dependency of connect() alone, and connect() judges its arguments before it
+# reaches for one, so a mistyped target is reported as a mistyped target.
 #
 # Application boundary: the identifiers is_rfsoc, tes, bias_group and
 # pA_per_phi0 do not appear anywhere under cryodaq.
@@ -46,6 +53,7 @@
 
 import argparse
 import ast
+import importlib
 import pathlib
 import re
 import sys
@@ -208,6 +216,46 @@ def check_no_geometry_literals():
 
 def check_register_paths_only_in_platform():
     report('paths')
+
+
+def _imported():
+    """The package under check, imported from where it is.
+
+    Every check above reads source; the two below run it. What they are for is
+    the claim the source cannot make on its own -- that the package needs
+    nothing but Python until a session is opened -- and the only way to see it
+    is to import the package somewhere rogue is not, which is what CI does.
+    """
+    if str(PACKAGE.parent) not in sys.path:
+        sys.path.insert(0, str(PACKAGE.parent))
+    return importlib.import_module(PACKAGE.name)
+
+
+def check_the_dependency_free_surface_works():
+    cryodaq = _imported()
+    assert cryodaq.endpoint_of('crate:4') == ('localhost', 9012), \
+        cryodaq.endpoint_of('crate:4')
+    assert cryodaq.endpoint_of('a-server:9099') == ('a-server', 9099), \
+        cryodaq.endpoint_of('a-server:9099')
+    paths = cryodaq.Paths.under('/tmp/nowhere', name='boundaries')
+    assert paths.tune.is_relative_to('/tmp/nowhere'), paths.tune
+    assert cryodaq.platform.by_name('umux-atca').patterns, 'the map is empty'
+
+
+def check_connect_judges_its_arguments_before_needing_rogue():
+    cryodaq = _imported()
+    for bad, expect, needle in (('not-an-endpoint', cryodaq.ConnectError, 'not-an-endpoint'),
+                                ('crate:4', ValueError, 'timeout')):
+        kwargs = {'timeout': 0} if expect is ValueError else {}
+        try:
+            session = cryodaq.connect(bad, **kwargs)
+        except expect as e:
+            assert needle in str(e), f"the error does not name {needle!r}: {e}"
+        except ImportError as e:                                # pragma: no cover
+            raise AssertionError(f"rogue was needed to refuse {bad!r}: {e}") from e
+        else:
+            session.close()
+            raise AssertionError(f"{bad!r} was accepted")
 
 
 def check_rules_fire_on_a_bad_package():

@@ -200,7 +200,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # Check that the cryodaq client keeps to its layer boundaries. Reads
-      # source with 'ast' only, so it needs neither rogue nor a container.
+      # source with 'ast', and imports the package to use the part of it that is
+      # meant to work with nothing installed -- so it needs neither rogue nor a
+      # container, and here, where rogue is absent, it proves that too.
       - name: Check the cryodaq layer boundaries
         run: python3 tests/cryodaq/check_boundaries.py
 

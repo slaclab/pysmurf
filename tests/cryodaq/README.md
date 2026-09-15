@@ -13,9 +13,9 @@ executable that prints one `ok` or `FAIL` line per check and exits non-zero if a
 
 ### check_boundaries.py
 
-This script checks the layer boundaries of [cryodaq](../../python/cryodaq) statically. It parses the
-package with `ast` and imports nothing from it, so it needs neither rogue nor a CryoDet package and
-runs anywhere Python does.
+This script checks the layer boundaries of [cryodaq](../../python/cryodaq). Five rules parse the
+package with `ast`; two more import it and use the part of it that is meant to work with nothing
+installed. Neither needs rogue or a CryoDet package, so this runs anywhere Python does.
 
 Five rules, one check each:
 
@@ -36,6 +36,12 @@ Five rules, one check each:
 A sixth check is the script's own selftest: it runs all five rules over a synthetic package that
 breaks each of them and fails if any rule passes it. A boundary check that cannot fail is not
 evidence.
+
+The last two watch the same boundary from the other side, by running the package instead of reading
+it: importing it, resolving an endpoint, building the capture paths and looking up a map all work
+with nothing installed, and `connect` judges its arguments — a target that does not parse, a deadline
+that is not a duration — before it reaches for rogue. Both hold wherever this runs; where rogue is
+absent, as in CI, they also show that the package does not quietly need it.
 
 ### check_platform_map.py
 
@@ -72,18 +78,23 @@ removed and `--zip` a ZIP built from one.
 Because an emulated register space reads back zeros, the tree reports no firmware and so has no
 platform. The script writes the build stamp of the platform it is building into the emulated memory
 before connecting, so that identification runs here the same way it runs against a crate instead of
-being handed the answer. Five further checks cover the path around it: a tree with a blank stamp is
+being handed the answer. Seven further checks cover the path around it: a tree with a blank stamp is
 refused, a declared platform connects anyway, a platform name that does not exist is refused, a
 request deadline does not stop a working session, and a deadline that is not a duration is refused.
-They run one at a time before the session below opens, because pyrogue caches a client per address
-and port — two sessions on one endpoint are one transport, and closing either closes both.
+The last two are about that shared client: pyrogue caches one per address and port, so two sessions on
+one endpoint are one transport and one transport policy — a second session that asks for a different
+deadline changes the first one's and is told so, and a monitor another session stopped stays stopped,
+which connecting also says. The rest run one at a time before the session below opens, since closing
+either of two sessions on an endpoint closes both.
 
 The fifteen checks over that session cover the map against the tree (every name the map offers
 resolves; each node is the kind the map declares; the twenty contract names are present on every band;
 the witness registers read back; the indexed scopes are the ones this tree has) and the session itself
 (what the server says it is; read and write by name, whole and by array index; a command; a process
 under a bounded wait; the whole tree still reachable through `session.root`; a wrong name and a wrong
-kind each refused with an exception that says which).
+kind each refused with an exception that says which). The per-band ones work on a band the session
+reports rather than on band 0: a tree whose bands start higher is legal, and the run's header line
+records which band was used.
 
 Run it once per platform: the ATCA carrier by default, the RFSoC with `--rfsoc`. The RFSoC firmware's
 own package is a subclass of this one that does nothing but default `isRFSOC` on, so the flag builds
