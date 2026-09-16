@@ -4341,7 +4341,16 @@ class SmurfUtilMixin(SmurfBase):
         fmt=''
         counter=0
         for key, value in d.items():
-            columns.append(str(value()))
+            # Isolate each getter so one misbehaving read (e.g. a wedged or
+            # disconnected atca_monitor) can neither stall nor kill the
+            # hardware logging thread.  Substitute NaN and keep logging.
+            try:
+                col=str(value())
+            except Exception as e:
+                self.log(f'Hardware log getter {key} failed: {e}',
+                         self.LOG_ERROR)
+                col=str(float('nan'))
+            columns.append(col)
             names.append(key)
             fmt+=('{0['+f'{counter}'+']:<20}')
             counter+=1
@@ -4800,7 +4809,16 @@ class SmurfUtilMixin(SmurfBase):
                 results_dict[bay][band%4]={}
                 amc_sn=self.get_amc_sn(bay=bay,use_shell=True)
                 results_dict[bay]['amc_sn']=amc_sn
-                amc_type=amc_sn.split('-')[1]
+                # Pull the A## loading code out of the serial number rather
+                # than assuming it is the second '-' delimited field.  A long
+                # asset tag gets truncated by the fixed width FRU field (e.g.
+                # '30C03A01-176' -> '30C03A01'), so amc_sn may have no '-' in
+                # the expected place; split('-')[1] would then raise or return
+                # garbage.  Match the loading code anywhere in the serial so
+                # it is still recovered from a truncated tag, and fall back to
+                # amc_type=None (-> get_band_center_mhz) if there is no match.
+                amc_type_match=re.search(r'A\d{2}', str(amc_sn))
+                amc_type=amc_type_match.group(0) if amc_type_match else None
 
                 # Sometimes the rogue zip files don't properly set the
                 # correct band center frequency if e.g. a LB is
