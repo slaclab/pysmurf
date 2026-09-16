@@ -217,9 +217,11 @@ class Session:
         self.log = logger or logging.getLogger('cryodaq')
         self.pub = publisher if publisher is not None else NullPublisher()
         self.paths = paths if isinstance(paths, Paths) else Paths.under(paths)
-        # Whether a path is in this tree does not change while the session is
-        # open, so the answers are kept: enumerating a scope asks repeatedly.
+        # Whether a path is in this tree, and what access it declares, do not
+        # change while the session is open, so the answers are kept: enumerating
+        # a scope asks repeatedly, and each mode costs a request of its own.
         self._present: Dict[str, bool] = {}
+        self._modes: Dict[str, str] = {}
         self.description = self._read_description()
         self.log.log(LOG_INFO, "session on %s: %s platform, bands %s, %s",
                      endpoint, pmap.name, list(self.indices('band')),
@@ -254,6 +256,21 @@ class Session:
         if path not in self._present:
             self._present[path] = self.root.getNode(path) is not None
         return self._present[path]
+
+    def _mode_of(self, path: str, node: Any) -> str:
+        """The access a tree declares for a node -- ``RO``, ``WO`` or ``RW``.
+
+        Asked because a write to a read-only node is not refused by anything
+        below: a firmware register drops it where the transaction is built and a
+        server-side value keeps it, so a status register can be made to disagree
+        with the system it describes. A node that declares no access is taken as
+        writable, which is how one was treated before this was asked. Answers
+        are cached with the same warrant as ``_has`` -- what a tree declares does
+        not change while a session is open -- and reading one costs a request.
+        """
+        if path not in self._modes:
+            self._modes[path] = str(getattr(node, 'mode', 'RW'))
+        return self._modes[path]
 
     # ------------------------------------------------------------------
     # names
@@ -299,8 +316,11 @@ class Session:
             raise UnresolvedName(name, pattern=path, reason=f"a {kind}; use call() or node()")
         return self._at(path, name).get(index=index)
 
-    def set(self, name: str, value: Any, *, index: int = -1, check: bool = True) -> None:
+    def set(self, name: str, value: Any, *, index: int = -1) -> None:
         """Write the value a semantic name reaches.
+
+        The write is verified and waited for, which is what rogue does unasked;
+        a caller who wants otherwise has the node itself through ``node()``.
 
         Parameters
         ----------
@@ -311,22 +331,23 @@ class Session:
             as one of its labels.
         index : int
             For a register that is an array, the element to write.
-        check : bool
-            Verify the write landed before returning.
 
         Raises
         ------
         UnresolvedName
-            If the name is not a value in this tree.
+            If the name is not a value in this tree, or is one this tree
+            declares read-only.
         """
         path, kind = self.pmap.entry(name)
         if kind != platform.VALUE:
             raise UnresolvedName(name, pattern=path, reason=f"a {kind}; use call() or node()")
         node = self._at(path, name)
+        if self._mode_of(path, node) == 'RO':
+            raise UnresolvedName(name, pattern=path, reason='read-only in this tree')
         if isinstance(value, str) and getattr(node, 'enum', None):
             node.setDisp(value, index=index)
         else:
-            node.set(value, index=index, check=check)
+            node.set(value, index=index)
 
     def call(self, name: str, *args: Any, wait: Optional[float] = None,
              poll: float = POLL_INTERVAL_S) -> Any:
@@ -571,8 +592,10 @@ def connect(target: str, *, timeout: Optional[float] = DEFAULT_TIMEOUT_S,
     platform_name : str, optional
         Which platform this is, for a system whose firmware cannot say: an
         emulated register space reports an empty build stamp, and a bench system
-        may run firmware not yet listed in the maps. Left out, and it should be,
-        the firmware is asked.
+        may run firmware not yet listed in the maps. Given, the firmware is not
+        read at all and the name is taken as it stands -- so a wrong one is a
+        wrong register map, seen as names that do not resolve. Left out, and it
+        should be, the firmware is asked.
     publisher : object, optional
         Something with ``register_file`` and ``publish``; nothing is published
         without one.
@@ -588,8 +611,9 @@ def connect(target: str, *, timeout: Optional[float] = DEFAULT_TIMEOUT_S,
     Raises
     ------
     ConnectError
-        If the target does not parse, no server answers it, or the firmware it
-        reports belongs to no supported platform.
+        If the target does not parse, no platform goes by ``platform_name``, no
+        server answers, or the firmware the tree reports belongs to no supported
+        platform.
     ValueError
         If ``timeout`` is neither positive nor None.
 
@@ -607,9 +631,13 @@ def connect(target: str, *, timeout: Optional[float] = DEFAULT_TIMEOUT_S,
     endpoint = f"{host}:{port}"
     if timeout is not None and timeout <= 0:
         raise ValueError(f"timeout must be positive or None, not {timeout!r}")
-    # Both arguments are judged above, before the one import that needs anything
-    # outside this package: a caller who has mistyped a target should be told
-    # that, whether or not the machine this runs on has rogue.
+    # A named platform is a lookup in a table this package carries, so it is
+    # answered here with the rest: naming a platform and discovering one are two
+    # questions, and only the second needs a tree.
+    declared = platform.by_name(platform_name) if platform_name is not None else None
+    # Every argument is judged above, before the one import that needs anything
+    # outside this package: a caller who has mistyped a target or a platform
+    # should be told that, whether or not the machine this runs on has rogue.
     try:
         import pyrogue.interfaces
     except ImportError as e:                                    # pragma: no cover
@@ -636,13 +664,13 @@ def connect(target: str, *, timeout: Optional[float] = DEFAULT_TIMEOUT_S,
             client._monEnable = False
         if not client.linked:
             raise ConnectError(f"the client at {endpoint} did not link")
-
-        def read(path: str) -> Any:
-            """One register, for identification, before there is a session."""
-            node = client.root.getNode(path)
-            return None if node is None else node.get()
-
-        pmap = platform.identify(read, declared=platform_name)
+        if declared is not None:
+            # An override worth being able to find afterwards: the map is this
+            # caller's word, and the firmware on the board was never asked.
+            (logger or log).info(
+                "%s: platform declared as %s; its firmware was not read",
+                endpoint, declared.name)
+        pmap = declared if declared is not None else platform.identify(client.root)
         return Session(client, pmap, endpoint=endpoint, publisher=publisher,
                        paths=paths, logger=logger)
     except BaseException:

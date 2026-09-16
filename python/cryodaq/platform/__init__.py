@@ -237,18 +237,19 @@ def by_name(name: str) -> PlatformMap:
     raise ConnectError(f"no platform called {name!r}; cryodaq has {known}")
 
 
-def identify(read: Callable[[str], Any], *, declared: Any = None) -> PlatformMap:
+def identify(tree: Any) -> PlatformMap:
     """Return the map for the firmware a tree is running.
+
+    Discovery only: the answer comes from the hardware every time. A caller who
+    knows which platform this is, because the tree cannot say, names it and gets
+    ``by_name`` instead -- the two questions are two functions.
 
     Parameters
     ----------
-    read : callable
-        ``read(path) -> value``, answered against the tree in hand. Called once,
-        for the build stamp.
-    declared : str, optional
-        A platform name, for a tree whose firmware cannot say what it is: a
-        register emulation reports an empty stamp, and a bench system may run
-        firmware not yet listed here. Given, nothing is read.
+    tree : object
+        The server's tree, as a session's ``root`` is. ``getNode(path)`` and
+        ``get()`` on what it returns are all that is asked of it, so this needs
+        no rogue import; the build stamp is read once.
 
     Returns
     -------
@@ -257,12 +258,10 @@ def identify(read: Callable[[str], Any], *, declared: Any = None) -> PlatformMap
     Raises
     ------
     ConnectError
-        If the tree reports no firmware and none was declared, or reports
-        firmware no map claims.
+        If the tree reports no firmware, or reports firmware no map claims.
     """
-    if declared is not None:
-        return by_name(declared)
-    tag = tag_of(read(TAG_PATH))
+    node = tree.getNode(TAG_PATH)
+    tag = tag_of(None if node is None else node.get())
     if not tag:
         raise ConnectError(
             f"this tree reports no firmware at {TAG_PATH}, so its platform "
