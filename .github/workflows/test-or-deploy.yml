@@ -46,9 +46,10 @@ jobs:
             flake8-sfs \
             flake8-import-order
 
-      # Run Flake 8 tests
+      # Run Flake 8 tests. tests/cryodaq/ is linted with the package it checks;
+      # tests/core/ is not yet clean and is left for the change that cleans it.
       - name: Flake8
-        run: flake8 --count python/
+        run: flake8 --count python/ tests/cryodaq/
 
   # Validate the server docker image definitions
   docker-definitions:

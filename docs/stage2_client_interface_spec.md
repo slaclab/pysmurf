@@ -19,8 +19,10 @@ records of the refactor and are kept with it rather than in this repository, as 
 >
 > - **One transport.** An emulated system is a rogue tree served over the same sockets as a real one,
 >   so `connect()` takes an endpoint and nothing else, and the emulated route is gone (§2.1).
-> - **The client is a rogue client.** `session.root` is the server's tree, unwrapped; pyrogue is a
->   dependency of the whole package rather than something confined to one module (§2.3).
+> - **The client is a rogue client.** `session.root` is the server's tree, unwrapped, and operations are
+>   rogue nodes rather than objects of ours. pyrogue is a runtime dependency of `connect()`, its one use
+>   site, and of nothing else here — importing the package, reading a map, building paths and parsing an
+>   endpoint all work without it (§2.3).
 > - **Operations are rogue nodes.** No `OperationSpec`, `Provider`, `Param`, `Result` or `Handle`:
 >   `call()` starts a command or a process and the caller reads the process itself (§4.1).
 > - **The platform is a map and nothing else.** Per-platform data — paths, names, witness set, how to
@@ -94,8 +96,14 @@ is refused quoting what it read. Never by a start-up flag —
 says whatever the operator typed.
 
 A tree with no firmware behind it reports an empty stamp — a register emulation reads as zeros — and
-is refused too. Its platform is declared instead, `connect(..., platform_name=...)`, which is the one
-way past identification and is meant to look deliberate.
+is refused too. Its platform is named instead, `connect(..., platform_name=...)`, and *revised
+2026-09-15* that is **not a way past identification but a different question**: naming a platform is a
+lookup in a table this package carries, so `connect` answers it with the rest of its arguments, before
+it needs a server or rogue at all, and identification is never reached. `platform.identify` therefore
+discovers and only discovers — it takes a tree and reads the stamp, with no argument that can overrule
+what the hardware says. The consequence is stated where the argument is documented: a name is taken as
+it stands, so a wrong one gives the wrong register map, and that shows up as names which do not resolve
+rather than as a wrong value. `connect` logs the override for the same reason.
 
 ### 2.2 Connect versus reattach — *revised 2026-09-11*
 
@@ -170,7 +178,7 @@ is re-posed in §10.
 | `sess.root` | the rogue tree | `S.\_root` via `VirtualClient` (`base/base_class.py:107`) | the whole server, unwrapped; the expert route and the escape hatch |
 | `sess.pmap` | `PlatformMap` (§7.1) | `is_rfsoc`, `bays`, `crate_id`, `slot_number` set in `initialize()` (`smurf_control.py:255-262`) | which map this tree was recognised as; data, no hardware access |
 | `sess.description` | mapping | `SmurfConfig` (`base/smurf_config.py`) held client-side; `SystemConfigured` server-side only (`roots/Common.py:379,404`) | what the server says it is, read once at connect; sidecar is stage 4 |
-| `sess.get(name, *, index=-1)` / `sess.set(name, value, *, index=-1, check=True)` | semantic names (§3) | `_caget` / `_caput` (`command/smurf_command.py:141,49`) over register paths | a map lookup then `getNode(path).get()`; `index` is rogue's own, and is how one channel of a per-band array is reached |
+| `sess.get(name, *, index=-1)` / `sess.set(name, value, *, index=-1)` | semantic names (§3) | `_caget` / `_caput` (`command/smurf_command.py:141,49`) over register paths | a map lookup then `getNode(path).get()`; `index` is rogue's own, and is how one channel of a per-band array is reached. `set` is verified and blocking, rogue's own defaults, and **refuses a name the tree declares read-only** — nothing below refuses it, and where the value is the server's own the write would land |
 | `sess.node(name)` | the rogue node | `S.\_root.getNode(path)` at each call site | for everything rogue offers that a name cannot express |
 | `sess.call(name, *args, wait=None)` | the command's return value, or the process node | one method per operation, ~740 of them | §4.1 |
 | `sess.validate()` / `sess.indices(scope)` | which of the map's names reach this tree, and why the rest do not; the indices of a scope | none — discovery is reading the source | §3.2 |
@@ -517,9 +525,9 @@ different series of initialisation steps."*
 
 ### 7.2 Modality — *provisional*
 
-A modality is **how a channel is tracked and at what rate and format it is emitted**. At stage 2 it
-is a **discriminated configuration value carried by the session** (`sess.description.modality`),
-not a class hierarchy: the three known values are `flux_ramp` (today's µMUX tracking — the only one
+A modality is **how a channel is tracked and at what rate and format it is emitted**. It is a
+**discriminated configuration value**, not a class hierarchy: the three known values are `flux_ramp`
+(today's µMUX tracking — the only one
 the compat contract protects), `raw_iq` and `direct`. Each names the processor-chain stages it
 enables (every `_SmurfProcessor.py` stage already has a `Disable`), the per-channel rate and format
 it emits (`DownsamplerExternalBitmask` is already per-channel), and the operations it registers
@@ -527,6 +535,13 @@ it emits (`DownsamplerExternalBitmask` is already per-channel), and the operatio
 `optimize_lms_delay` belong to `flux_ramp` and are meaningless elsewhere). `tracking_setup` takes
 the modality as an argument. A class is the natural implementation later; the interface commits
 only to the discriminated value so the skeleton is not blocked on it.
+
+**Nothing carries it yet, and the interface does not pretend to** — *stated 2026-09-15*. An earlier
+draft of this section had the session carrying it; it does not. `sess.description` is what the server
+says it is, read once at connect, and it has no modality entry: the value belongs to configuration
+rather than to what a tree reports, and where it lives is the seam the processor-chain work opens. When
+it arrives it is read as `sess.description['modality']` — a mapping key, since `description` is a
+mapping and not an object.
 
 This section is the least settled in the document and is expected to change as the skeleton meets
 the processor chain. What is binding now is only the paragraph below — the list of what the API must
