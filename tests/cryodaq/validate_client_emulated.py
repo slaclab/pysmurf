@@ -119,6 +119,12 @@ EXPECTED_BAYS = {False: True, True: False}      # keyed by args.rfsoc
 # legal and is covered by check_platform_map.py; this is what these trees are.
 EXPECTED_BANDS = tuple(range(8))
 
+# The one name below whose register the server owns and only reports: it is the
+# state a configuration run leaves, so the tree is put in that state from the
+# server's side and a client asking to write it is refused.
+CONFIGURED_NAME = 'application.configured'
+CONFIGURED_PATH = 'AMCc.SmurfApplication.SystemConfigured'
+
 # Set by main() once the tree is up and a session is open.
 SESSION = None
 ROOT = None
@@ -326,6 +332,26 @@ def check_reading_and_writing_by_name():
         SESSION.set(name, original)
 
 
+def check_a_read_only_name_is_refused():
+    """A name the tree only reports cannot be written through the interface.
+
+    Nothing below refuses this: rogue takes the write, drops it silently where a
+    firmware register would be built into a transaction, and keeps it where the
+    value is the server's own -- which is this name, so the write would land and
+    a server would then report a configuration it never ran. The value is read
+    back afterwards because that is the half which fails if the refusal goes.
+    """
+    before = SESSION.get(CONFIGURED_NAME)
+    try:
+        SESSION.set(CONFIGURED_NAME, not before)
+    except cryodaq.UnresolvedName as e:
+        assert CONFIGURED_NAME in str(e), f"the error does not name it: {e}"
+        assert 'read-only' in str(e), f"the error does not say why: {e}"
+    else:
+        raise AssertionError(f"{CONFIGURED_NAME} was written through the client")
+    assert SESSION.get(CONFIGURED_NAME) == before, 'the refused write landed anyway'
+
+
 def check_an_array_is_reached_by_index():
     """A per-channel register is one array, and a channel is an index into it."""
     name = f"band[{BAND}].tone.amplitude"
@@ -458,6 +484,21 @@ def write_build_stamp(root, stamp):
         'the build stamp did not read back'
 
 
+def set_configured(root, configured):
+    """Leave the tree saying the system is configured, as the server leaves it.
+
+    The flag is the server's own to set -- read-only from a client, as it is from
+    anywhere else the value is only reported -- so this goes in on the server
+    side of the socket, next to the tree, exactly as the build stamp above does.
+    Nothing here runs the configuration sequence; what the checks need is a
+    session that finds the state one would have left.
+    """
+    node = root.getNode(CONFIGURED_PATH)
+    assert node is not None, f"the tree has no {CONFIGURED_PATH}"
+    node.set(configured)
+    assert node.get() is configured, 'the configured flag did not take'
+
+
 def emulation_root(args, port):
     """Build the emulated root over the CryoDet package, serving on ``port``."""
     add_library_paths(args)
@@ -526,11 +567,9 @@ def main():
               f"({len(prechecks)} + {len(checks)} checks)")
         failed += run(prechecks)
         # Nothing here runs the server's own configuration procedure, so the
-        # flag it would leave is set first, through the same interface, and the
-        # session the checks use then finds a configured server as a client
-        # normally would.
-        with cryodaq.connect(endpoint) as boot:
-            boot.set('application.configured', True)
+        # flag it would leave is set on the server side first, and the session
+        # the checks use then finds a configured server as a client would.
+        set_configured(root, True)
         with cryodaq.connect(endpoint) as session:
             SESSION = session
             BAND = session.indices('band')[0]
@@ -540,7 +579,7 @@ def main():
                   f"bands {list(session.indices('band'))} (checks on {BAND}), "
                   f"bays {list(session.indices('bay'))}")
             failed += run(checks)
-            session.set('application.configured', False)
+        set_configured(root, False)
     finally:
         root.stop()
 

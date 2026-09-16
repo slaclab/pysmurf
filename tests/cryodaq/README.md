@@ -52,8 +52,9 @@ without building a tree — it needs no rogue and runs in a second.
 * **Identification** — a platform is the firmware it runs. Each map lists the firmware image names it
   covers, the name is taken from the build stamp, and firmware matching no map is refused quoting what
   it read and listing what is known. A system whose firmware cannot say what it is — an emulated
-  register space reads as zeros — is refused too, and its platform has to be declared instead; that is
-  the one way past identification and it is meant to look deliberate.
+  register space reads as zeros — is refused too, and its platform is named instead. That is a lookup
+  by name rather than a second way through identification: the two are separate functions, and the
+  checks hold them apart by asserting that identification only ever reads the tree.
 * **Scope enumeration** — gapped, sparse, empty and full index ranges. A firmware mask may leave an
   index out and keep a higher one, so a gap does not end a scope: collapsing one silently drops real
   hardware out of every name listing and witness that follows.
@@ -85,14 +86,19 @@ Each runs one at a time, before the session below opens: pyrogue caches one clie
 port, so two sessions on one endpoint are one transport — closing either closes both — and the client
 takes one deadline, whichever connected last.
 
-The fifteen checks over that session cover the map against the tree (every name the map offers
+The sixteen checks over that session cover the map against the tree (every name the map offers
 resolves; each node is the kind the map declares; the twenty contract names are present on every band;
 the witness registers read back; the indexed scopes are the ones this tree has) and the session itself
-(what the server says it is; read and write by name, whole and by array index; a command; a process
-under a bounded wait; the whole tree still reachable through `session.root`; a wrong name and a wrong
-kind each refused with an exception that says which). The per-band ones work on a band the session
-reports rather than on band 0: a tree whose bands start higher is legal, and the run's header line
-records which band was used.
+(what the server says it is; read and write by name, whole and by array index; a name the tree declares
+read-only refused, and the value read back to show the refusal was the only thing that stopped it; a
+command; a process under a bounded wait; the whole tree still reachable through `session.root`; a wrong
+name and a wrong kind each refused with an exception that says which). The per-band ones work on a band
+the session reports rather than on band 0: a tree whose bands start higher is legal, and the run's
+header line records which band was used.
+
+The session the checks use finds a configured server, and the flag that says so is set on the tree
+directly rather than through the client — the server owns that value and a client is refused it, the
+same reason the build stamp goes in underneath the register too.
 
 Run it once per platform: the ATCA carrier by default, the RFSoC with `--rfsoc`. The RFSoC firmware's
 own package is a subclass of this one that does nothing but default `isRFSOC` on, so the flag builds

@@ -15,8 +15,9 @@
 # names it covers, the name is taken from the build stamp, and firmware that
 # matches nothing is refused by name rather than guessed at. A system whose
 # firmware cannot say what it is -- an emulated register space reads as zeros --
-# has its platform declared instead, which is the one way past the check and is
-# meant to look deliberate.
+# has its platform named instead, which is a lookup by name and not a second way
+# through identification: the two are separate functions and the checks below
+# hold them apart.
 #
 # Scope enumeration: which band, bay or attenuator indices exist is a property of
 # the tree, discovered by probing. A firmware mask may leave an index out and keep
@@ -53,12 +54,22 @@ LIVE_STAMP = ('MicrowaveMuxBpEthGen2: Vivado v2020.2, rdsrv403 '
 EMPTY_STAMP = '\x00' * 256
 
 
-def reader(stamp):
-    """A `read(path)` that answers with one build stamp and nothing else."""
-    def read(path):
-        assert path == platform.TAG_PATH, f"identification read {path!r}"
-        return stamp
-    return read
+def tree(stamp):
+    """A tree that carries one build stamp and no other node.
+
+    Identification asks a tree for a node and reads it, which is all of rogue's
+    interface it uses -- so this stands in for one in two methods.
+    """
+    class Node:
+        def get(self):
+            return stamp
+
+    class Tree:
+        def getNode(self, path):
+            assert path == platform.TAG_PATH, f"identification read {path!r}"
+            return Node()
+
+    return Tree()
 
 
 def presence(*indices):
@@ -94,19 +105,19 @@ def check_each_map_is_identified_by_its_own_firmware():
     for pmap in platform.MAPS:
         for tag in pmap.tags:
             stamp = f"{tag}: Vivado v2020.2, host (os), Built today by someone"
-            got = platform.identify(reader(stamp))
+            got = platform.identify(tree(stamp))
             assert got is pmap, f"{tag!r} identified as {got.name}, not {pmap.name}"
 
 
 def check_the_live_carrier_stamp_identifies_the_carrier():
     assert platform.tag_of(LIVE_STAMP) == 'MicrowaveMuxBpEthGen2'
-    assert platform.identify(reader(LIVE_STAMP)).name == 'umux-atca'
+    assert platform.identify(tree(LIVE_STAMP)).name == 'umux-atca'
 
 
 def check_a_tree_with_no_firmware_is_refused():
     for stamp in (EMPTY_STAMP, '', None, '   '):
         try:
-            pmap = platform.identify(reader(stamp))
+            pmap = platform.identify(tree(stamp))
         except ConnectError as e:
             assert 'declare' in str(e), f"the error does not say what to do: {e}"
         else:
@@ -116,7 +127,7 @@ def check_a_tree_with_no_firmware_is_refused():
 def check_unknown_firmware_is_refused_by_name():
     stamp = 'SomeFutureImage: Vivado v2020.2, host (os), Built today by someone'
     try:
-        pmap = platform.identify(reader(stamp))
+        pmap = platform.identify(tree(stamp))
     except ConnectError as e:
         assert 'SomeFutureImage' in str(e), f"the error does not quote the firmware: {e}"
         for known in platform.MAPS[0].tags:
@@ -125,12 +136,23 @@ def check_unknown_firmware_is_refused_by_name():
         raise AssertionError(f"unknown firmware was identified as {pmap.name}")
 
 
-def check_a_declared_platform_is_taken_without_reading():
-    def refuse(path):
-        raise AssertionError('a declared platform still read the tree')
+def check_identification_only_ever_reads_the_tree():
+    """Naming a platform and discovering one are two functions, and stay two.
 
+    A declaration reaches ``by_name`` and never ``identify``, so there is no path
+    by which a tree that says which firmware it runs can be overruled from the
+    outside, and none by which a tree that says nothing is guessed at.
+    """
     for pmap in platform.MAPS:
-        assert platform.identify(refuse, declared=pmap.name) is pmap
+        try:
+            platform.identify(tree(EMPTY_STAMP), declared=pmap.name)
+        except TypeError:
+            pass
+        except ConnectError:
+            raise AssertionError('identify still takes a declared platform')
+        else:
+            raise AssertionError('identify still takes a declared platform')
+        assert platform.by_name(pmap.name) is pmap
 
 
 def check_a_declared_platform_that_does_not_exist_is_refused():
