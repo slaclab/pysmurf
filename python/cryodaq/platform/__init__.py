@@ -23,9 +23,13 @@
 #    configuration file; a tree with no firmware behind it, such as a register
 #    emulation, has no tag to read and its platform has to be declared.
 #
-#    Nothing here reads or writes a register: the functions that need to know
-#    what is in a tree take a `has(path)` predicate, or a `read(path)` for the
-#    one value identification turns on, and the caller does the reading.
+#    Nothing here writes a register, and the functions that ask what is in a
+#    tree take a `has(path)` predicate rather than the tree: the caller does the
+#    reading. Identification is the one exception and is deliberate -- it takes
+#    the tree and reads the build stamp itself, because a platform that could be
+#    told what it is would not be discovering anything. It reads that one
+#    register and no other, through `getNode` and `get` alone, so a tree here is
+#    duck-typed and no rogue is imported.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -65,7 +69,10 @@ MAX_SCOPE_INDEX = 32
 # that reports its firmware elsewhere makes this a property of each map.
 TAG_PATH = _umux.BUILD_STAMP
 
-_SEGMENT = re.compile(r'^([A-Za-z_][A-Za-z0-9_]*)(?:\[(\d+|\*)\])?$')
+# Matched with fullmatch, not match: `$` also matches just before a trailing
+# newline, so a name carrying one -- out of a file, off a command line -- would
+# otherwise parse and then be formatted into a register path.
+_SEGMENT = re.compile(r'([A-Za-z_][A-Za-z0-9_]*)(?:\[(\d+|\*)\])?')
 
 
 def parse(name: str) -> Tuple[str, Dict[str, int]]:
@@ -93,7 +100,7 @@ def parse(name: str) -> Tuple[str, Dict[str, int]]:
     pattern: List[str] = []
     found: Dict[str, int] = {}
     for segment in name.split('.'):
-        m = _SEGMENT.match(segment)
+        m = _SEGMENT.fullmatch(segment)
         if m is None:
             raise UnresolvedName(name, reason=f"bad segment {segment!r}")
         ident, index = m.groups()

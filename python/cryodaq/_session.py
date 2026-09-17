@@ -389,7 +389,12 @@ class Session:
         A wait ends when the server says the process is not running, which is
         also true before it starts: a process short enough to finish inside one
         poll interval is indistinguishable here from one that did nothing. What
-        happened is in the process's own ``Message``.
+        happened is in the process's own ``Message``. The ambiguity is the
+        server's and not a stale read -- ``Running`` is a local variable on the
+        server, rogue's ``get`` reads by default, and the client proxies each
+        call, so every poll crosses the wire and returns what the server holds
+        at that moment. The window is elsewhere: rogue raises the flag in the
+        worker thread rather than in ``Start``, which returns before it.
 
         ``wait`` bounds how long the process is given, and each read of
         ``Running`` is bounded separately by the session's ``timeout``. A link
@@ -592,10 +597,12 @@ def connect(target: str, *, timeout: Optional[float] = DEFAULT_TIMEOUT_S,
     platform_name : str, optional
         Which platform this is, for a system whose firmware cannot say: an
         emulated register space reports an empty build stamp, and a bench system
-        may run firmware not yet listed in the maps. Given, the firmware is not
-        read at all and the name is taken as it stands -- so a wrong one is a
-        wrong register map, seen as names that do not resolve. Left out, and it
-        should be, the firmware is asked.
+        may run firmware not yet listed in the maps. Given, the name is taken as
+        it stands and identification never runs -- so a wrong one is a wrong
+        register map, seen as names that do not resolve. The firmware registers
+        are still read, for the description every session reports; what they say
+        is not compared against the name. Left out, and it should be, the
+        firmware is what decides.
     publisher : object, optional
         Something with ``register_file`` and ``publish``; nothing is published
         without one.
@@ -616,6 +623,10 @@ def connect(target: str, *, timeout: Optional[float] = DEFAULT_TIMEOUT_S,
         platform.
     ValueError
         If ``timeout`` is neither positive nor None.
+    ImportError
+        If rogue is not installed. Everything above is judged first, so a
+        mistyped target or platform is reported as such even here; opening the
+        transport is the step that cannot be reached, and it is the only one.
 
     Notes
     -----
@@ -666,10 +677,12 @@ def connect(target: str, *, timeout: Optional[float] = DEFAULT_TIMEOUT_S,
             raise ConnectError(f"the client at {endpoint} did not link")
         if declared is not None:
             # An override worth being able to find afterwards: the map is this
-            # caller's word, and the firmware on the board was never asked.
+            # caller's word. The firmware registers are read a moment later for
+            # the description, so what is skipped is the comparison, not the
+            # read -- say that, or the log claims more than it knows.
             (logger or log).info(
-                "%s: platform declared as %s; its firmware was not read",
-                endpoint, declared.name)
+                "%s: platform declared as %s; the firmware it reports was not "
+                "consulted", endpoint, declared.name)
         pmap = declared if declared is not None else platform.identify(client.root)
         return Session(client, pmap, endpoint=endpoint, publisher=publisher,
                        paths=paths, logger=logger)
