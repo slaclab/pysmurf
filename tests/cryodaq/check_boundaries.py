@@ -38,6 +38,11 @@
 # (614.4, 2.4, bare 128 and 512) do not appear anywhere under cryodaq; geometry
 # is read from the hardware at run time.
 #
+# Publisher substitutability: the null publisher a session falls back to spells
+# its parameters the way pysmurf's Publisher spells them, so a caller that passes
+# them by keyword gets the same call on either. Compared by parsing both files,
+# because importing pysmurf's would pull in its plotting dependencies.
+#
 # The last check writes a deliberately non-compliant package to a temporary
 # directory and confirms every rule fires on it, so a rule that silently stops
 # matching is itself a failure.
@@ -218,6 +223,39 @@ def check_register_paths_only_in_platform():
     report('paths')
 
 
+def _parameter_names(tree, class_name, method):
+    """The positional parameter names of one method of one class, from source."""
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == class_name:
+            for item in node.body:
+                if isinstance(item, ast.FunctionDef) and item.name == method:
+                    return [a.arg for a in item.args.args]
+    raise AssertionError(f"{class_name}.{method} was not found")
+
+
+def check_the_null_publisher_matches_the_real_one():
+    """The stand-in publisher takes the same parameter names as the real one.
+
+    A caller passing them by keyword -- sodetlib does, at ``util.py:85`` -- gets a
+    ``TypeError`` from a stand-in that renamed them, so the names are part of the
+    interface and not an implementation detail. Compared from source rather than
+    by importing either one: this script runs where neither rogue nor pysmurf's
+    plotting dependencies are installed.
+    """
+    pub = REPO / 'python' / 'pysmurf' / 'client' / 'util' / 'pub.py'
+    real = ast.parse(pub.read_text())
+    null = ast.parse((PACKAGE / '_session.py').read_text())
+    for method in ('register_file', 'publish'):
+        want = _parameter_names(real, 'Publisher', method)
+        got = _parameter_names(null, 'NullPublisher', method)
+        # The stand-in takes **kwargs for the rest, so what has to match is the
+        # names it spells out, in order, from the front.
+        assert want[:len(got)] == got, \
+            (f"NullPublisher.{method}{tuple(got)} does not match "
+             f"Publisher.{method}{tuple(want)}: a keyword call that works on one "
+             f"raises TypeError on the other")
+
+
 def _imported():
     """The package under check, imported from where it is.
 
@@ -244,12 +282,12 @@ def check_the_dependency_free_surface_works():
 
 def check_connect_judges_its_arguments_before_needing_rogue():
     cryodaq = _imported()
-    # A named platform belongs here with the target and the deadline: it is a
-    # lookup in a table this package carries, so nothing about it needs a tree.
-    # The three together are every argument that can be judged without one.
+    # A named platform belongs here with the target: it is a lookup in a table
+    # this package carries, so nothing about it needs a tree. The deadline is
+    # deliberately not here -- its range is the transport's, so an unusable one is
+    # refused by rogue rather than a second time by this package, and there is
+    # nothing to see for it without rogue installed.
     cases = (('not-an-endpoint', {}, cryodaq.ConnectError, 'not-an-endpoint'),
-             ('crate:4', {'timeout': 0}, ValueError, 'timeout'),
-             ('crate:4', {'timeout': float('inf')}, ValueError, 'timeout'),
              ('crate:4', {'platform_name': 'no-such-platform'},
               cryodaq.ConnectError, 'no-such-platform'))
     for bad, kwargs, expect, needle in cases:
