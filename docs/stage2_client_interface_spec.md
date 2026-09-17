@@ -175,11 +175,11 @@ is re-posed in §10.
 
 | Attribute | Shape | Today | Note |
 |---|---|---|---|
-| `sess.root` | the rogue tree | `S.\_root` via `VirtualClient` (`base/base_class.py:107`) | the whole server, unwrapped; the expert route and the escape hatch |
+| `sess.root` | the rogue tree | `S._root` via `VirtualClient` (`base/base_class.py:107`) | the whole server, unwrapped; the expert route and the escape hatch |
 | `sess.pmap` | `PlatformMap` (§7.1) | `is_rfsoc`, `bays`, `crate_id`, `slot_number` set in `initialize()` (`smurf_control.py:255-262`) | which map this tree was recognised as; data, no hardware access |
 | `sess.description` | mapping | `SmurfConfig` (`base/smurf_config.py`) held client-side; `SystemConfigured` server-side only (`roots/Common.py:379,404`) | what the server says it is, read once at connect; sidecar is stage 4 |
 | `sess.get(name, *, index=-1)` / `sess.set(name, value, *, index=-1)` | semantic names (§3) | `_caget` / `_caput` (`command/smurf_command.py:141,49`) over register paths | a map lookup then `getNode(path).get()`; `index` is rogue's own, and is how one channel of a per-band array is reached. `set` is verified and blocking, rogue's own defaults, and **refuses a name the tree declares read-only** — nothing below refuses it, and where the value is the server's own the write would land |
-| `sess.node(name)` | the rogue node | `S.\_root.getNode(path)` at each call site | for everything rogue offers that a name cannot express |
+| `sess.node(name)` | the rogue node | `S._root.getNode(path)` at each call site | for everything rogue offers that a name cannot express |
 | `sess.call(name, *args, wait=None)` | the command's return value, or the process node | one method per operation, ~740 of them | §4.1 |
 | `sess.validate()` / `sess.indices(scope)` | which of the map's names reach this tree, and why the rest do not; the indices of a scope | none — discovery is reading the source | §3.2 |
 | `sess.witness()` | mapping | the stage-1 witness reads, by hand | §2.2 |
@@ -558,12 +558,15 @@ This seam is **server-side** and stage 2 no longer opens it. Moving
 waits until the platform layer exists to attach against (Tristan, 2026-09-11: *"if we are not ready to
 implement platforms yet, this can wait"*). Until then the server stays the tree it is today — a rogue
 tree with `attach_all_cryo_operations` wired into `Common.__init__` — and the client reads the nodes
-that puts there. Read the rest of this section as the design for that later step, with two
+that puts there. Read the rest of this section as the design for that later step, with three
 corrections from the 2026-09-11 revision: the client no longer holds `OperationSpec` or `Provider`
-(§4.1), so whatever the attach declares is for the *server's* benefit, and the *Discovery* and
+(§4.1), so whatever the attach declares is for the *server's* benefit; the *Discovery* and
 *Progress and status* rows are answered by the tree itself — the map's own entries, checked against it
 by `sess.validate()`, and the process's own child nodes — rather than by a client-side catalog view or
-handle.
+handle; and the *Requires* row's `requires=` gate and the `CapabilityMissing` it raises are gone with
+the capability records (§7.1, §6), so what a provider may assume is that the names it uses resolve.
+`sess.operations` in the *Discovery* row is the same case: it is what that later step would add, and
+no session has it today.
 
 A **provider** is what the server composition attaches; the µMUX modality of `cryodaq` is one,
 `pysmurf` (the TES operations) is another. Stage 1 left exactly one, hard-wired: `Common.__init__`
@@ -647,15 +650,16 @@ hardware conditions from the proposal's stage-2 entry, which this document does 
 
 **Where they stand.** Conditions 1 and 2 were met by Appendices A and B and the
 classification checker, on `58ff4e41`, and the 2026-09-11 revision does not touch them. Condition 3
-lands with the package and is one of six rules in `tests/cryodaq/check_boundaries.py`; the revision
-adds two: **a register path appears only under `cryodaq.platform`** — now the main boundary rule, and
-what "the client does not know the register map" means mechanically — and **`cryodaq.platform` imports
-neither rogue nor pyrogue**, which is what makes the map a map and not a second client. The rule
-revision 1 carried, that pyrogue is imported only under `cryodaq.platform`, is **inverted and gone**:
-the client is a rogue client, so confining rogue to one module was an artificial boundary that bought a
-wrapper layer and no separation (Tristan, 2026-09-11). A third check joined them on 2026-09-14, on the
-platform layer's own decisions: which platform a system is identified as, and which indices of a scope
-a tree has.
+lands with the package and is one of the eight checks in `tests/cryodaq/check_boundaries.py`; two of
+them are the revision's: **a register path appears only under `cryodaq.platform`** — now the main
+boundary rule, and what "the client does not know the register map" means mechanically — and
+**`cryodaq.platform` imports neither rogue nor pyrogue**, which is what makes the map a map and not a
+second client. The rule revision 1 carried, that pyrogue is imported only under `cryodaq.platform`, is
+**inverted and gone**: the client is a rogue client, so confining rogue to one module was an artificial
+boundary that bought a wrapper layer and no separation (Tristan, 2026-09-11). Two of the eight do not
+read the package but run it, which is the only way to show that it needs nothing but Python until a
+session is opened. A second script joined the first on 2026-09-14, on the platform layer's own
+decisions: which platform a system is identified as, and which indices of a scope a tree has.
 
 Of the two CI tests, **import-direction is in place** as one of those rules; the **compat contract test
 is deferred to stage 3**, because the shim it would test does not exist yet — the contract is specified
@@ -730,13 +734,24 @@ Vocabularies: Layer `platform | core | application | utility`; Scope `µMUX | ge
 
 **The classification is unchanged by revision 2** — the layer, scope and kind of every name is the same,
 and `scripts/stage2_classification_check.py` still passes on it. What revision 2 changes is the
-*mechanism* the *New home / note* column names in a few rows, and rather than re-editing a reviewed
-artifact, the three translations are given once here: `sess.platform.raw(path)` is now `sess.root.getNode(path)`;
-`platform.geometry.<field>` is now the register name that field was read from (`band[b].center_mhz` and
-its four siblings, §3.1); a **derived** name — `channel_to_freq`, `which_on`,
-`get_subband_from_channel` — is a function over names the map has, not a map entry, and the question in
-those rows' notes is answered by §3.1 rather than still open. Appendix B's rows read the same way, with
-`sess.invoke(name)` as `sess.call(name)`.
+*mechanism* the *New home / note* column names in a few rows. Where the revision replaced a call with
+one that exists today the row now says the current one, because a reader trying the old one would get
+an `AttributeError`: `sess.platform.raw(path)` has become `sess.root.getNode(path)` and
+`sess.invoke(name)` has become `sess.call(name)`, in Appendix B too. Where what the row names is a
+design object the revision *removed* rather than replaced, the row is left as it stood — it is the
+record of what revision 1 proposed, and there is nothing yet to put in its place — and how to read it
+is given once here:
+
+- **`sess.platform.<capability>`** — a typed capability record, and §7.1 removed all eleven of them.
+  Read the capability as a family of names and the field as the register it is read from: the *Capability*
+  column of §7.1's inventory says which family, and nothing declares one. `platform.geometry.<field>`
+  is the case with names already: `band[b].center_mhz` and its four siblings (§3.1).
+- A **derived** name — `channel_to_freq`, `which_on`, `get_subband_from_channel` — is a function over
+  names the map has, not a map entry, so the question in those rows' notes is answered by §3.1 rather
+  than still open.
+
+Everything else in the appendices, and in the sections the top of the document lists as unrevised,
+reads as revision 1 wrote it.
 
 | Name | Today | Layer | Scope | Kind | New home / note |
 |---|---|---|---|---|---|
@@ -750,8 +765,8 @@ those rows' notes is answered by §3.1 rather than still open. Appendix B's rows
 | `_bands` | `smurf_config_properties.py:142` | core | general | state | bands to operate; `sess.description` |
 | `_bias_group_to_pair` | `smurf_config_properties.py:176` | application | µMUX | state | TES wiring; application config |
 | `_bias_line_resistance` | `smurf_config_properties.py:159` | application | µMUX | state | TES wiring; application config |
-| `_caget` | `smurf_command.py:141` | core | general | access | `sess.get(name)`; the shim forwards a *path* string to `sess.platform.raw(path)` with today's `count`/`index` behaviour (decision 6). **Ambiguous:** the raw accessor is expert-only — is that boundary enough? |
-| `_caput` | `smurf_command.py:49` | core | general | access | `sess.set(name, value)`; shim forwards to `platform.raw` with today's `wait_done`. **Ambiguous:** as `_caget` |
+| `_caget` | `smurf_command.py:141` | core | general | access | `sess.get(name)`; the shim forwards a *path* string to `sess.root.getNode(path)` with today's `count`/`index` behaviour (decision 6). **Ambiguous:** the raw route is the whole tree — is that boundary enough? |
+| `_caput` | `smurf_command.py:49` | core | general | access | `sess.set(name, value)`; shim forwards to `sess.root.getNode(path)` with today's `wait_done`. **Ambiguous:** as `_caget` |
 | `_cryo_root` | `base_class.py:327` | platform | general | access | register path prefix — no public home (register paths live only in `cryodaq.platform`); shim returns the resolved string. **Ambiguous** |
 | `_feedback_to_feedback_frac` | `smurf_tune.py:2470` | core | µMUX | state | flux-ramp modality derived value; set by `tracking_setup` |
 | `_high_low_current_ratio` | `smurf_config_properties.py:160` | application | µMUX | state | TES wiring; application config |
@@ -892,7 +907,7 @@ those rows' notes is answered by §3.1 rather than still open. Appendix B's rows
 | `take_stream_data` | `smurf_util.py:865` | core | general | procedure | `with stream(sess, …)` plus a timed wait |
 | `toggle_feedback` | `smurf_util.py:2128` | core | general | procedure | feedback off, wait, on |
 | `tracking_setup` | `smurf_tune.py:2494` | core | µMUX | procedure | today's is flux-ramp specific; becomes `tracking_setup(sess, band, modality, …)` |
-| `tune_file` | `smurf_tune.py:4283` | core | general | state | `sess.description.tune` / `last_tune` |
+| `tune_file` | `smurf_tune.py:4283` | core | general | state | `last_tune(sess)` — the tune record (§4.2), not a session attribute (§2.4) |
 | `unset_fixed_flux_ramp_bias` | `smurf_tune.py:3081` | core | µMUX | procedure | flux-ramp modality operation |
 | `which_bays` | `smurf_util.py:2437` | platform | general | capability | `sess.platform.bays` |
 | `which_on` | `smurf_util.py:2110` | core | general | access | derived name `band[b].channels_on`. **Ambiguous:** declared gap — derived names, as `channel_to_freq` |
@@ -942,9 +957,11 @@ Each axis partitions the 156 top-level names; the sub-attributes are not counted
 Thirteen, by name — the classification pass's real output:
 
 - `_caget`, `_caput`, `_cryo_root`, `_rtm_slow_dac_data_reg` — register-path access from the client.
-  Proposed: one expert accessor, `sess.platform.raw(path)` (§3.1), which the shim forwards to; no
-  path-string constants in the public interface. The question is whether an expert accessor on the
-  platform object is boundary enough, and what in `smurf_cmd.py` / `scratch/` relies on the constants.
+  The revision answers the *where* and leaves the question: there is no accessor of ours, expert or
+  otherwise, because `sess.root` is the tree and `getNode(path)` is rogue's own (§3.1), and the shim
+  forwards to that; no path-string constants in the public interface. The question is whether handing
+  back the whole tree is boundary enough, and what in `smurf_cmd.py` / `scratch/` relies on the
+  constants.
 - `channel_to_freq`, `which_on` — derived names; need catalog resolvers (§3.1, §10).
 - `get_att_dc` (and `_uc`, `set_att_*`) — attenuators as optional capability (§7.1, §10).
 - `set_rtm_arb_waveform_continuous` (and the other three), `set_dac_axil_addr`, `play_sine_tes` —
@@ -976,14 +993,14 @@ is the expected result for a TES procedure:
 | `uxm_relock.py` name | Lands as |
 |---|---|
 | `relock`, `setup_notches`, `load_tune`, `save_tune`, `full_band_ampl_sweep`, `all_off` | core procedures of §4.2 (`relock(sess, band)`, `setup_notches(sess, band, assignment)`, `load_tune(sess, path)`, `save_tune(sess) -> path`, the sweep behind `find_freq`, `band_off` over all bands) |
-| `run_serial_gradient_descent`, `run_serial_eta_scan` | `sess.invoke("band[b].ops.gradient_descent")`, `…eta_scan` — the stage-1 Processes, registered by the first provider (§7.3) |
+| `run_serial_gradient_descent`, `run_serial_eta_scan` | `sess.call("band[b].ops.gradient_descent")`, `…eta_scan` — the stage-1 Processes, registered by the first provider (§7.3) |
 | `set_gradient_descent_{max_iters, converge_hz, step_hz}` | `Param`s of `gradient_descent`; set-then-run keeps working through the parameter nodes (§7.3, *Inputs*) |
 | `{get,set}_{amplitude_scale, center_frequency, eta_mag, eta_phase, feedback_enable}_array`, `get_tone_frequency_offset_mhz`, `set_synthesis_scale`, `set_band_delay_us`, `{get,set}_feedback_enable` | `sess.get`/`sess.set` on `band[b].tone.amplitude`, `.tone.frequency`, `.tone.frequency_offset`, `.eta.mag`, `.eta.phase`, `.feedback.enable`, `.tone.synthesis_scale`, `.delay_us` |
 | `set_downsample_factor`, `set_filter_disable` | `sess.set` on the stream names (`set_downsample(sess, factor)`, filter stage) |
 | `get_band_center_mhz`, `get_subband_from_channel`, `channel_to_freq` | `platform.geometry.band_centers_mhz`; arithmetic over `platform.geometry`; the derived name `band[b].channel[c].frequency_mhz` (§3.1, ambiguous in Appendix A) |
 | `set_att_uc`, `set_att_dc` | optional capability `attenuators` (§7.1); `uxm_relock` runs only where it is present |
 | `set_mode_dc`, `set_mode_ac`, `set_rtm_arb_waveform_enable` | optional capabilities `cryocard` and `flux_ramp`; the modality owns the flux-ramp group (§7.2) |
-| `amplitude_scale`, `tune_file`, `freq_resp` | session state: tune config field; `sess.description.tune` / `last_tune(sess)` |
+| `amplitude_scale`, `tune_file`, `freq_resp` | the tune config field, and `last_tune(sess)` for the record — none of the three is a session attribute (§2.4) |
 | `_bad_mask` | the resonator-search exclusion mask — a field of the tune configuration (§5); the shim's property today |
 | `_cryo_root(b) + 'etaScanInProgress'` via `_caget` (line 98) and `_caput(…, 0)` (100, 125) | `sess.get("band[b].ops.in_progress")`; `sess.set("band[b].ops.in_progress", 0)` to clear a stale flag. `_cryo_root` disappears: no path is built on the client |
 | `log` | `sess.log` |
@@ -1000,5 +1017,6 @@ keep running unchanged through the shim (§8).
 
 ## Appendix C — deprecation notes for the shim
 
-Not test failures (decision 6). Filled as the classification settles; the first entries are the
-seven "no public home" names above and the `None`-when-offline return of `_caget`.
+Not test failures (decision 6). Filled as the classification settles; the first entries are the six
+names above with no public home — `_caget`, `_caput`, `_cryo_root`, `_rtm_slow_dac_data_reg`,
+`rtm_spi_max_root`, `get_timestamp` — and the `None`-when-offline return of `_caget`.
