@@ -483,9 +483,13 @@ and inventing our own two names for it here would only have hidden that it is no
 
 **A platform is a map, and what it lacks is a name that is not offered.** `cryodaq.platform` holds one
 module of data per generation of hardware — register path templates, the name table built from them,
-the witness set, and how to enumerate each indexed scope — plus the lookup over it. It reads no
-register and imports no rogue; a boundary check enforces both. Nothing that a client does (get, set,
-call, poll a process) lives there, because that would be the same work in two layers.
+the witness set, and how to enumerate each indexed scope — plus the lookup over it. It **writes** no
+register and imports no rogue, the second of which a boundary check enforces. It reads exactly one:
+`identify` takes a tree and reads the build stamp, which is the deliberate exception of §2.1 — a layer
+that could be *told* which platform it was looking at would not be discovering anything — and it reads
+that one register through `getNode` and `get` alone, which is why no rogue import is needed for it.
+Nothing else a client does (get, set, call, poll a process) lives there, because that would be the same
+work in two layers.
 
 Capabilities are therefore **discovered, not declared**. A scope is enumerated by asking the tree which
 indices it has: an RFSoC has no `AppTopJesd[*]` and no `MicrowaveMuxCore[*]`, so `sess.indices('bay')`
