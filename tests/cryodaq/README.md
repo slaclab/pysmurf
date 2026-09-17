@@ -13,11 +13,11 @@ executable that prints one `ok` or `FAIL` line per check and exits non-zero if a
 
 ### check_boundaries.py
 
-This script checks the layer boundaries of [cryodaq](../../python/cryodaq). Eight checks: five read
+This script checks the layer boundaries of [cryodaq](../../python/cryodaq). Nine checks: six read
 the package as source, two run it, and the last is the script's own selftest. None needs rogue or a
 CryoDet package, so this runs anywhere Python does.
 
-The rules the five source checks enforce — the first is that there is a package to read at all, and
+The rules five of the source checks enforce — the first is that there is a package to read at all, and
 the second covers the two import rules below it:
 
 * **Import direction** — nothing under `cryodaq` imports `pysmurf`, `smurf` or `sodetlib`: the
@@ -34,12 +34,19 @@ the second covers the two import rules below it:
   maps. This is the firmware/software boundary: it is what "the client does not know the register
   map" means mechanically.
 
+The sixth source check watches a different seam: the null publisher a session falls back to takes the
+same parameter *names* as pysmurf's real `Publisher`, compared by parsing both. A caller that passes
+them by keyword — sodetlib does — would get a `TypeError` from a stand-in that renamed them, so the
+names are interface and not detail. It reads source because this script runs where pysmurf's own
+plotting dependencies are not installed.
+
 The two that run the package watch the same boundary from the other side: importing it, resolving an
 endpoint, building the capture paths and looking up a map all work with nothing installed, and
 `connect` judges every argument it can judge without a tree — a target that does not parse, a
-deadline that is not a duration, a platform no map goes by — before it reaches for rogue. Both hold
-wherever this runs; where rogue is absent, as in CI, they also show that the package does not quietly
-need it.
+platform no map goes by — before it reaches for rogue. The request deadline is not one of them: its
+range belongs to the transport, so rogue refuses an unusable one and this client does not check it
+twice. Both hold wherever this runs; where rogue is absent, as in CI, they also show that the package
+does not quietly need it.
 
 The selftest runs the source rules over a synthetic package that breaks each of them and fails if any
 rule passes it. A boundary check that cannot fail is not evidence.
@@ -84,10 +91,10 @@ platform. The script writes the build stamp of the platform it is building into 
 before connecting, so that identification runs here the same way it runs against a crate instead of
 being handed the answer. Five further checks cover the path around it: a tree with a blank stamp is
 refused, a declared platform connects anyway, a platform name that does not exist is refused, a
-request deadline does not stop a working session, and a deadline that is not a duration is refused.
-Each runs one at a time, before the session below opens: pyrogue caches one client per address and
-port, so two sessions on one endpoint are one transport — closing either closes both — and the client
-takes one deadline, whichever connected last.
+request deadline does not stop a working session, and a deadline the transport cannot express is
+refused — by rogue, which is where that range lives. Each runs one at a time, before the session below
+opens: pyrogue caches one client per address and port, so two sessions on one endpoint are one
+transport — closing either closes both — and the client takes one deadline, whichever connected last.
 
 The eighteen checks over that session cover the map against the tree (every name the map offers
 resolves; each node is the kind the map declares; the twenty contract names are present on every band;

@@ -142,7 +142,16 @@ is left running where today's client turns it off (`_monEnable = False`), and `c
 the bound on **one request** — today's fixed warn-5 s / fail-30 s pair (`base/base_class.py:106-109`)
 becomes the default of an argument, which is what #990 asks for. It is set on the client when the client
 is made, as today, and `timeout=None` is the way to ask for rogue's own behaviour of waiting
-indefinitely. Stall reporting is rogue's, not re-wrapped here (§6). Long server work — a Process,
+indefinitely — the only way, because a deadline reaches rogue as a `uint32_t` number of milliseconds
+(`ZmqClient.cpp:244`), which is also where its range comes from: 1 to 4294967295 of them, so the top of
+the range is 4294967.295 s (49.7 days). Seconds are rounded **up** on the way, so a positive bound
+finer than a millisecond becomes one millisecond rather than none — the bottom of the range is a limit
+on resolution, not on what is accepted. **The client does not check that range**, it documents it.
+Rogue refuses what falls outside — `bp::extract<uint32_t>` at `:83` on a negative or an over-large
+value, its own `warnTime == 0` guard at `:248` on a zero, `math.ceil` on infinity and a NaN before
+either — and a thin client that re-checked it would be maintaining a copy of a limit it does not own,
+one that goes stale the day rogue widens the field. Stall reporting is rogue's, not re-wrapped here
+(§6). Long server work — a Process,
 `setup` — is awaited with a polled wait on the process's own `Running` flag (§4.1), never a blocking
 call with a single timeout, which is the failure mode of pysmurf #1015: the request bound and the
 operation bound are different numbers, and a tuning run is limited by neither.
@@ -201,7 +210,7 @@ is re-posed in §10.
 | `sess.witness()` | mapping | the stage-1 witness reads, by hand | §2.2 |
 | `sess.paths` | `data`, `output`, `tune`, `plot`, `status` | `data_dir`, `output_dir`, `tune_dir`, `plot_dir`, `status_dir`, `base_dir`, `date`, `name` (`smurf_control.py:185-249`) | client-side bookkeeping; not sent to the server |
 | `sess.log` | logger with `LOG_USER`/`LOG_INFO`/`LOG_ERROR` levels | `SmurfLogger` (`base/logger.py`), constants `base_class.py:64-72` | unchanged in kind |
-| `sess.pub` | publisher with `register_file` and `publish` | `util/pub.py:61`, constructed `base_class.py:126` | injected; a null publisher when none is given |
+| `sess.pub` | publisher with `register_file` and `publish` | `util/pub.py:61`, constructed `base_class.py:126` | injected; a null publisher when none is given, taking the same parameter *names* — sodetlib calls `publish(msgtype=…)` by keyword (`util.py:85`), so a stand-in that renamed them would be one only for positional calls |
 
 `freq_resp`, `tune_file` and the `SmurfConfigPropertiesMixin` wiring values are **not** session
 attributes: the first two are the tune record (`last_tune(sess)`, §4.3), the last are application
@@ -300,10 +309,13 @@ process node. `wait` bounds the process; each read of `Running` is bounded separ
 
 Both bounds are judged **before `Start`**, with `ValueError`: a bound that makes no sense should not be
 able to leave a process running behind a call that then failed on its way to waiting for it. `wait=0`
-reads the flag once and `wait=math.inf` waits as long as the process takes — a wait never leaves Python,
-unlike the request deadline of §2.1, which has to reach rogue as an integer number of milliseconds and so
-cannot be infinite. A negative wait is refused, and so is a `poll` that is not finite and positive: zero
-would spin on the transport rather than sleep between reads.
+reads the flag once — returning, or reporting the process still running, both of which are outcomes a
+caller has to expect from a wait of zero — and `wait=math.inf` waits as long as the process takes. A
+negative wait is refused, and so is a `poll` that is not finite and positive: zero would spin on the
+transport rather than sleep between reads. These two *are* checked here, where the request deadline of
+§2.1 is not, and the difference is whose limit it is: `wait` and `poll` never leave Python — they bound
+this client's own polling loop, so nothing else can judge them — while the deadline's range is the
+transport's and rogue enforces it.
 
 Dropped from revision 1, with the reason: `OperationSpec` and `Provider` (a declaration layer over
 nodes rogue already describes — `node.description` is the documentation, and what exists is what the
@@ -681,13 +693,13 @@ hardware conditions from the proposal's stage-2 entry, which this document does 
 
 **Where they stand.** Conditions 1 and 2 were met by Appendices A and B and the
 classification checker, on `58ff4e41`, and the 2026-09-11 revision does not touch them. Condition 3
-lands with the package and is one of the eight checks in `tests/cryodaq/check_boundaries.py`; two of
+lands with the package and is one of the nine checks in `tests/cryodaq/check_boundaries.py`; two of
 them are the revision's: **a register path appears only under `cryodaq.platform`** — now the main
 boundary rule, and what "the client does not know the register map" means mechanically — and
 **`cryodaq.platform` imports neither rogue nor pyrogue**, which is what makes the map a map and not a
 second client. The rule revision 1 carried, that pyrogue is imported only under `cryodaq.platform`, is
 **inverted and gone**: the client is a rogue client, so confining rogue to one module was an artificial
-boundary that bought a wrapper layer and no separation (Tristan, 2026-09-11). Two of the eight do not
+boundary that bought a wrapper layer and no separation (Tristan, 2026-09-11). Two of the nine do not
 read the package but run it, which is the only way to show that it needs nothing but Python until a
 session is opened. A second script joined the first on 2026-09-14, on the platform layer's own
 decisions: which platform a system is identified as, and which indices of a scope a tree has.
