@@ -76,7 +76,7 @@ generality axis.
 ### 2.1 Construction and target — *revised 2026-09-11*
 
 ```python
-sess = cryodaq.connect(target, *, timeout=30.0, monitor=True)
+def connect(target, *, timeout=30.0, monitor=True) -> Session: ...
 ```
 
 `target` is an **endpoint**, in one of two forms: `"host:port"`, or `"crate:<slot>"` as shorthand for
@@ -122,7 +122,7 @@ to reports `SystemConfigured` false, because nothing has set it up. A client tha
 a precondition would have been unusable against the only server there was — and unusable, in
 particular, for setting it up.
 
-### 2.3 Lifetime and transport policy — *revised 2026-09-15*
+### 2.3 Lifetime and transport policy — *revised 2026-09-17*
 
 pyrogue is a dependency of `connect()` and of nothing else here, and the session it returns **is** a
 rogue client: it holds a `VirtualClient` and `sess.root` is the server's tree as rogue presents it,
@@ -165,6 +165,22 @@ clients in threads — `socs`'s `pysmurf_controller`.
 stop one. rogue's monitor loop exits when the flag goes down and nothing starts it again
 (`_Virtual.py:611`), so on a client that a `SmurfControl` in the same process has already disabled there
 is no thread left to re-enable.
+
+**Leaving the monitor running is a promise to end it.** rogue starts that loop in a thread that is not a
+daemon (`_Virtual.py:512-514`), and CPython waits for such threads before it exits — so a session nobody
+closed does not merely leak a socket, it holds the interpreter open for good. Measured on this tree: a
+child that connects and returns without closing never exits, and the same child under `close()` is gone
+in two seconds. Today's client avoids this by turning the monitor off at connect and keeping an
+`atexit` handler for the socket (`base/base_class.py:106-111`); the handler is not what saves it, and
+could not be — **the wait for non-daemon threads happens before `atexit` runs**, so an `atexit` hook is
+already too late to stop the thread being waited for. Measured: registering `client.stop` with `atexit`
+leaves the hang exactly as it was. What today's client actually relies on is the eager `_monEnable =
+False`, which is to say it pays for a clean exit with the dead-server detection this section is keeping.
+So `connect()` registers the close with `threading._register_atexit`, which runs while stopping the
+client still means something. That name is CPython-internal — the stdlib's own `concurrent.futures` uses
+it for the same reason — so it is looked up rather than assumed, and a Python without it gets a warning
+and no monitor rather than a hang. The durable fix belongs upstream in one word (`daemon=True` on that
+thread), and is §10's to carry; a background poller has no business outliving the program.
 
 **Provisional shape.** One session per system. The transport is kept separable inside the session
 so that a connection object holding several systems can be added later without changing any
@@ -281,6 +297,13 @@ the bound expires — `TimeoutError` then, with the process untouched and pollab
 process node. `wait` bounds the process; each read of `Running` is bounded separately by the session's
 `timeout` (§2.1), so a link that stops answering ends the wait as a transport failure rather than as a
 `TimeoutError`, and only a session opened with `timeout=None` can wait on one indefinitely. It invents no verdict: what happened is in `Message`, which is the server's word for it.
+
+Both bounds are judged **before `Start`**, with `ValueError`: a bound that makes no sense should not be
+able to leave a process running behind a call that then failed on its way to waiting for it. `wait=0`
+reads the flag once and `wait=math.inf` waits as long as the process takes — a wait never leaves Python,
+unlike the request deadline of §2.1, which has to reach rogue as an integer number of milliseconds and so
+cannot be infinite. A negative wait is refused, and so is a `poll` that is not finite and positive: zero
+would spin on the transport rather than sleep between reads.
 
 Dropped from revision 1, with the reason: `OperationSpec` and `Provider` (a declaration layer over
 nodes rogue already describes — `node.description` is the documentation, and what exists is what the
@@ -428,6 +451,14 @@ The five in revision 1's table are gone, each with its cause:
 
 Rules: a failed lookup **raises**; the interface never returns `None` for "could not read" (the *shim*
 keeps today's `None`-when-offline because decision 6 says it preserves current usage). No sentinels.
+The rule is about a read the caller asked for **by name**: `get(name)` on a name this tree does not have
+raises, and never answers `None`. Two places carry a `None` and are not exceptions to it but a different
+question — `Session.description`'s optional fields and `witness()`'s per-name entries are *surveys*,
+asked over a list of names that a given tree may or may not have, where "this tree does not offer it" is
+the datum being collected and the alternative would be a survey that raises on its first absence. Both
+are read-only records, and neither is a value a caller asked for; that distinction is the rule, and it is
+stated here because a reader checking the rule against `_optional_get` will otherwise find a
+contradiction that is not one.
 Retries are transport policy set on the session, never written into individual operations — the
 cryocard's hand-rolled 5× loop is the pattern being retired. Bound stated honestly: rogue flattens
 every transport failure to bare `Exception` (`_Virtual.py:718`, `_ZmqServer.py:92-96`), so a caller who
@@ -710,6 +741,11 @@ below.
   whether it succeeded, and a run shorter than one poll interval is indistinguishable from one that
   never started. Firmware team: is a status code on `pyrogue.Process` something rogue would take, or
   should each algorithm write a machine-readable result to a register of its own?
+- **The link monitor's thread** (§2.3). rogue starts it as a non-daemon thread, so a client nobody
+  stopped holds the interpreter open, and the only hook that runs early enough to stop it is
+  CPython-internal. Firmware team: would rogue take `daemon=True` there? A background poller outliving
+  the program it polls for is nobody's intent, and one word upstream would delete the workaround here
+  and fix every other rogue client at the same time.
 - **`save_state`**: stage 4 replaces it with the published description. Does anyone need a
   client-callable "write the server's state to disk" after that?
 - **The per-band busy flag** (`band[b].ops.in_progress`, Appendix B): `uxm_relock.py` writes it to 0
