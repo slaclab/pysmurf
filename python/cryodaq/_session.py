@@ -200,16 +200,20 @@ class NullPublisher:
     """The publisher a session uses when the caller injects none: it records nothing.
 
     An application that publishes supplies its own object with the same two
-    methods; the session only ever calls them.
+    methods; the session only ever calls them. The parameters are named as the
+    publisher this stands in for names them, down to ``type`` shadowing the
+    builtin, because a stand-in a caller cannot pass keywords to is only a
+    stand-in for some of the calls.
     """
 
-    def register_file(self, path: str, kind: str, **kwargs: Any) -> None:
+    def register_file(self, path: str, type: str,           # noqa: A002
+                      **kwargs: Any) -> None:
         """Note that a file was written."""
-        log.debug("publisher: file %s (%s)", path, kind)
+        log.debug("publisher: file %s (%s)", path, type)
 
-    def publish(self, message: Any, kind: str = 'general', **kwargs: Any) -> None:
+    def publish(self, data: Any, msgtype: str = 'general', **kwargs: Any) -> None:
         """Note that something happened."""
-        log.debug("publisher: %s (%s)", message, kind)
+        log.debug("publisher: %s (%s)", data, msgtype)
 
 
 # --------------------------------------------------------------------------
@@ -667,9 +671,14 @@ def connect(target: str, *, timeout: Optional[float] = DEFAULT_TIMEOUT_S,
         waiting for a long process polls its ``Running`` flag, so a tuning run
         may take as long as it likes. ``None`` waits forever, which is what
         rogue does when nothing asks otherwise, and is the only way to ask for
-        it: a deadline has to be a finite number of milliseconds by the time it
-        reaches rogue. Set on the client at connect, as the client this replaces
-        set it -- see *Notes*.
+        it: the deadline reaches rogue as a ``uint32_t`` number of milliseconds,
+        rounded up, so the longest one is 4294967.295 s (49.7 days) and the
+        shortest is a millisecond -- anything positive but finer than that
+        becomes one millisecond rather than none. Rogue refuses the rest itself:
+        zero, negative, over-large, infinity, a NaN. A bound too short for a
+        round trip is not refused but simply expires, which on a link that is
+        working is a failure of the bound rather than of the link. Set on the
+        client at connect, as the client this replaces set it -- see *Notes*.
     monitor : bool
         Leave rogue's link monitor running; it is what notices a dead server.
         False turns it off, which is what the client this replaces did. True
@@ -706,8 +715,6 @@ def connect(target: str, *, timeout: Optional[float] = DEFAULT_TIMEOUT_S,
         If the target does not parse, no platform goes by ``platform_name``, no
         server answers, or the firmware the tree reports belongs to no supported
         platform.
-    ValueError
-        If ``timeout`` is neither a finite positive number nor None.
     ImportError
         If rogue is not installed. Everything above is judged first, so a
         mistyped target or platform is reported as such even here; opening the
@@ -733,20 +740,15 @@ def connect(target: str, *, timeout: Optional[float] = DEFAULT_TIMEOUT_S,
     """
     host, port = endpoint_of(target)
     endpoint = f"{host}:{port}"
-    # Finite as well as positive: a deadline goes to rogue as an integer number
-    # of milliseconds, and infinity does not become one -- so an unbounded wait
-    # is asked for by name, with None, and never by a float that would otherwise
-    # be refused only after a socket had been opened, and by the wrong exception.
-    if timeout is not None and not (timeout > 0 and math.isfinite(timeout)):
-        raise ValueError("timeout must be a finite positive number of seconds, "
-                         f"or None for no deadline, not {timeout!r}")
     # A named platform is a lookup in a table this package carries, so it is
     # answered here with the rest: naming a platform and discovering one are two
     # questions, and only the second needs a tree.
     declared = platform.by_name(platform_name) if platform_name is not None else None
-    # Every argument is judged above, before the one import that needs anything
-    # outside this package: a caller who has mistyped a target or a platform
-    # should be told that, whether or not the machine this runs on has rogue.
+    # The arguments this package can answer on its own are answered above, before
+    # the one import that needs anything outside it: a caller who has mistyped a
+    # target or a platform should be told that, whether or not the machine this
+    # runs on has rogue. The deadline is not one of them -- its range is the
+    # transport's, and rogue reports a deadline it cannot use.
     try:
         import pyrogue.interfaces
     except ImportError as e:                                    # pragma: no cover
@@ -760,12 +762,15 @@ def connect(target: str, *, timeout: Optional[float] = DEFAULT_TIMEOUT_S,
     try:
         # Linking leaves rogue's own request policy in place -- warn once a
         # second and then retry forever -- so the bound goes on the client here,
-        # where the client this replaces put it. In milliseconds, and a zero
-        # deadline reads as no deadline, so a sub-millisecond bound rounds up to
-        # one instead of down to forever.
+        # where the client this replaces put it. In milliseconds, rounded up so
+        # that a bound finer than one does not become no bound at all, and then
+        # passed on as it stands: rogue takes it as a uint32_t and refuses a
+        # zero, a negative or an over-large one itself, so what a deadline out of
+        # range gets is the transport's own complaint rather than a second
+        # opinion from here about a range this client does not own.
         warn = WARN_INTERVAL_S if timeout is None else min(WARN_INTERVAL_S, timeout)
-        client.setTimeout(max(1, int(warn * 1000)),
-                          0 if timeout is None else max(1, int(timeout * 1000)))
+        client.setTimeout(math.ceil(warn * 1000),
+                          0 if timeout is None else math.ceil(timeout * 1000))
         # The monitor thread is what notices a dead server; a caller who turns it
         # off is asking for the historical behaviour of not being told. It is
         # also not a daemon thread, so leaving it running is a promise to end it:
@@ -775,6 +780,11 @@ def connect(target: str, *, timeout: Optional[float] = DEFAULT_TIMEOUT_S,
         if not monitor or not _stop_when_the_interpreter_does(
                 client, endpoint, logger or log):
             client._monEnable = False
+        # Not a second opinion on rogue's handshake, which raises on its own and
+        # is already reported above: rogue hands back a cached client for an
+        # endpoint this process has connected to before, without a handshake, so
+        # a client whose server has since died arrives here linked=False and
+        # otherwise usable-looking.
         if not client.linked:
             raise ConnectError(f"the client at {endpoint} did not link")
         if declared is not None:
