@@ -352,6 +352,27 @@ def check_a_read_only_name_is_refused():
     assert SESSION.get(CONFIGURED_NAME) == before, 'the refused write landed anyway'
 
 
+def check_a_read_never_answers_from_a_cache():
+    """What the server holds now is what a read returns now.
+
+    Everything that waits on this interface depends on it: ``call(..., wait=…)``
+    polls a flag the server owns, and a poll that could answer from something
+    held on this side would end a wait on a value from before the process
+    started. rogue reads on every ``get`` and the client proxies each one, so a
+    value changed underneath -- here on the tree itself, which is the only way
+    to change this one -- is visible to the next read with nothing invalidated
+    in between.
+    """
+    before = SESSION.get(CONFIGURED_NAME)
+    try:
+        set_configured(ROOT, not before)
+        assert SESSION.get(CONFIGURED_NAME) == (not before), \
+            'a value changed on the server read back as the value before it'
+    finally:
+        set_configured(ROOT, before)
+    assert SESSION.get(CONFIGURED_NAME) == before, 'the restore was not seen either'
+
+
 def check_an_array_is_reached_by_index():
     """A per-channel register is one array, and a channel is an index into it."""
     name = f"band[{BAND}].tone.amplitude"

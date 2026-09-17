@@ -13,35 +13,36 @@ executable that prints one `ok` or `FAIL` line per check and exits non-zero if a
 
 ### check_boundaries.py
 
-This script checks the layer boundaries of [cryodaq](../../python/cryodaq). Five rules parse the
-package with `ast`; two more import it and use the part of it that is meant to work with nothing
-installed. Neither needs rogue or a CryoDet package, so this runs anywhere Python does.
+This script checks the layer boundaries of [cryodaq](../../python/cryodaq). Eight checks: five read
+the package as source, two run it, and the last is the script's own selftest. None needs rogue or a
+CryoDet package, so this runs anywhere Python does.
 
-Five rules, one check each:
+The rules the five source checks enforce — the first is that there is a package to read at all, and
+the second covers the two import rules below it:
 
-* **Register paths only in `cryodaq.platform`** — a rogue register path appears only in the platform
-  maps. This is the firmware/software boundary: it is what "the client does not know the register
-  map" means mechanically.
-* **The maps import no rogue** — a map is data, and the lookup over it is arithmetic on strings.
-  A map module that reached for a tree would be doing the client's work in the wrong layer.
 * **Import direction** — nothing under `cryodaq` imports `pysmurf`, `smurf` or `sodetlib`: the
   readout core never imports an application. The client reaches the platform layer through the
   `cryodaq.platform` package rather than one of its map modules.
+* **The maps import no rogue** — a map is data, and the lookup over it is arithmetic on strings.
+  A map module that reached for a tree would be doing the client's work in the wrong layer.
 * **No application names** — `is_rfsoc`, `tes`, `bias_group` and `pA_per_phi0` appear nowhere under
   `cryodaq`. Which detectors are wired where belongs to the application above it, and branching on
   platform identity is what a per-platform map exists to avoid.
 * **No geometry literals** — the channel counts, digitizer rates and bandwidths of one particular
   firmware are read from the tree, not written into the client.
+* **Register paths only in `cryodaq.platform`** — a rogue register path appears only in the platform
+  maps. This is the firmware/software boundary: it is what "the client does not know the register
+  map" means mechanically.
 
-A sixth check is the script's own selftest: it runs all five rules over a synthetic package that
-breaks each of them and fails if any rule passes it. A boundary check that cannot fail is not
-evidence.
+The two that run the package watch the same boundary from the other side: importing it, resolving an
+endpoint, building the capture paths and looking up a map all work with nothing installed, and
+`connect` judges every argument it can judge without a tree — a target that does not parse, a
+deadline that is not a duration, a platform no map goes by — before it reaches for rogue. Both hold
+wherever this runs; where rogue is absent, as in CI, they also show that the package does not quietly
+need it.
 
-The last two watch the same boundary from the other side, by running the package instead of reading
-it: importing it, resolving an endpoint, building the capture paths and looking up a map all work
-with nothing installed, and `connect` judges its arguments — a target that does not parse, a deadline
-that is not a duration — before it reaches for rogue. Both hold wherever this runs; where rogue is
-absent, as in CI, they also show that the package does not quietly need it.
+The selftest runs the source rules over a synthetic package that breaks each of them and fails if any
+rule passes it. A boundary check that cannot fail is not evidence.
 
 ### check_platform_map.py
 
@@ -55,6 +56,8 @@ without building a tree — it needs no rogue and runs in a second.
   register space reads as zeros — is refused too, and its platform is named instead. That is a lookup
   by name rather than a second way through identification: the two are separate functions, and the
   checks hold them apart by asserting that identification only ever reads the tree.
+* **Name syntax** — a name that carries whitespace, at either end, is not a name: every character
+  belongs to it, and one that did not would be formatted into a register path.
 * **Scope enumeration** — gapped, sparse, empty and full index ranges. A firmware mask may leave an
   index out and keep a higher one, so a gap does not end a scope: collapsing one silently drops real
   hardware out of every name listing and witness that follows.
@@ -86,13 +89,15 @@ Each runs one at a time, before the session below opens: pyrogue caches one clie
 port, so two sessions on one endpoint are one transport — closing either closes both — and the client
 takes one deadline, whichever connected last.
 
-The sixteen checks over that session cover the map against the tree (every name the map offers
+The seventeen checks over that session cover the map against the tree (every name the map offers
 resolves; each node is the kind the map declares; the twenty contract names are present on every band;
 the witness registers read back; the indexed scopes are the ones this tree has) and the session itself
 (what the server says it is; read and write by name, whole and by array index; a name the tree declares
 read-only refused, and the value read back to show the refusal was the only thing that stopped it; a
-command; a process under a bounded wait; the whole tree still reachable through `session.root`; a wrong
-name and a wrong kind each refused with an exception that says which). The per-band ones work on a band
+value changed on the tree underneath the session seen by the next read, which is what every bounded
+wait rests on; a command; a process under a bounded wait; the whole tree still reachable through
+`session.root`; a wrong name and a wrong kind each refused with an exception that says which). The
+per-band ones work on a band
 the session reports rather than on band 0: a tree whose bands start higher is legal, and the run's
 header line records which band was used.
 

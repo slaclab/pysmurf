@@ -244,18 +244,24 @@ def check_the_dependency_free_surface_works():
 
 def check_connect_judges_its_arguments_before_needing_rogue():
     cryodaq = _imported()
-    for bad, expect, needle in (('not-an-endpoint', cryodaq.ConnectError, 'not-an-endpoint'),
-                                ('crate:4', ValueError, 'timeout')):
-        kwargs = {'timeout': 0} if expect is ValueError else {}
+    # A named platform belongs here with the target and the deadline: it is a
+    # lookup in a table this package carries, so nothing about it needs a tree.
+    # The three together are every argument that can be judged without one.
+    cases = (('not-an-endpoint', {}, cryodaq.ConnectError, 'not-an-endpoint'),
+             ('crate:4', {'timeout': 0}, ValueError, 'timeout'),
+             ('crate:4', {'platform_name': 'no-such-platform'},
+              cryodaq.ConnectError, 'no-such-platform'))
+    for bad, kwargs, expect, needle in cases:
         try:
             session = cryodaq.connect(bad, **kwargs)
         except expect as e:
             assert needle in str(e), f"the error does not name {needle!r}: {e}"
         except ImportError as e:                                # pragma: no cover
-            raise AssertionError(f"rogue was needed to refuse {bad!r}: {e}") from e
+            raise AssertionError(
+                f"rogue was needed to refuse {bad!r} {kwargs!r}: {e}") from e
         else:
             session.close()
-            raise AssertionError(f"{bad!r} was accepted")
+            raise AssertionError(f"{bad!r} {kwargs!r} was accepted")
 
 
 def check_rules_fire_on_a_bad_package():

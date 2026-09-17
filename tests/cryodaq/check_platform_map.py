@@ -42,7 +42,7 @@ sys.path.insert(0, os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'python'))
 
 from cryodaq import platform                                    # noqa: E402
-from cryodaq._errors import ConnectError                         # noqa: E402
+from cryodaq._errors import ConnectError, UnresolvedName         # noqa: E402
 
 # A build stamp as an ATCA carrier running v2.5.1 reports it, verbatim from
 # artifacts of a live read, so the parsing below is checked against the real
@@ -219,6 +219,27 @@ def check_an_unknown_scope_is_an_error():
         pass
     else:
         raise AssertionError('an unknown scope was enumerated')
+
+
+def check_a_name_carrying_whitespace_is_refused():
+    """Every character of a name is part of it, including the last.
+
+    A name arrives from somewhere -- a file, a command line, a copied cell in a
+    table -- and arrives with what that somewhere put on the end. Anchoring a
+    segment with ``$`` is not enough on its own, because in Python it also
+    matches immediately before a final newline: the name would parse and the
+    stray character would then be formatted into a register path.
+    """
+    good = 'band[4].tone.amplitude'
+    platform.parse(good)                                     # the control
+    for trailer in ('\n', '\r\n', ' ', '\t'):
+        for name in (good + trailer, trailer + good):
+            try:
+                platform.parse(name)
+            except UnresolvedName:
+                pass
+            else:
+                raise AssertionError(f"{name!r} parsed")
 
 
 # --------------------------------------------------------------------------
