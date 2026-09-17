@@ -249,6 +249,7 @@ def check_connect_judges_its_arguments_before_needing_rogue():
     # The three together are every argument that can be judged without one.
     cases = (('not-an-endpoint', {}, cryodaq.ConnectError, 'not-an-endpoint'),
              ('crate:4', {'timeout': 0}, ValueError, 'timeout'),
+             ('crate:4', {'timeout': float('inf')}, ValueError, 'timeout'),
              ('crate:4', {'platform_name': 'no-such-platform'},
               cryodaq.ConnectError, 'no-such-platform'))
     for bad, kwargs, expect, needle in cases:

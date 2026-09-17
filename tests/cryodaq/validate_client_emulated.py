@@ -53,6 +53,7 @@ import argparse
 import contextlib
 import os
 import socket
+import subprocess
 import sys
 
 import pyrogue as pr
@@ -118,6 +119,12 @@ EXPECTED_BAYS = {False: True, True: False}      # keyed by args.rfsoc
 # that iterates the bands. A tree whose bands are sparse or start above zero is
 # legal and is covered by check_platform_map.py; this is what these trees are.
 EXPECTED_BANDS = tuple(range(8))
+
+# How long a child interpreter that opened a session gets to be gone. Generous
+# on purpose: connecting to this tree takes about a second and the close at exit
+# waits on the monitor thread, so anything near this bound is a hang and not a
+# slow machine.
+EXIT_DEADLINE_S = 30
 
 # The one name below whose register the server owns and only reports: it is the
 # state a configuration run leaves, so the tree is put in that state from the
@@ -274,12 +281,15 @@ def precheck_a_request_deadline_is_installed_on_the_client():
 
 
 def precheck_a_deadline_that_is_not_a_duration_is_refused():
-    """Zero and negative are refused rather than silently meaning forever.
+    """Zero, negative and non-finite are refused rather than silently meaning forever.
 
     rogue reads a zero deadline as no deadline, which is the opposite of what a
-    caller passing zero is asking for.
+    caller passing zero is asking for. Infinity asks for the same thing in good
+    faith, and the answer is the same: a deadline reaches rogue as an integer
+    number of milliseconds, so ``None`` is the way to ask for no deadline and the
+    refusal has to come before anything opens a socket over it.
     """
-    for bad in (0, -1.0):
+    for bad in (0, -1.0, float('inf'), float('-inf'), float('nan')):
         try:
             session = cryodaq.connect(ENDPOINT, timeout=bad)
         except ValueError as e:
@@ -397,12 +407,36 @@ def check_a_process_runs_under_a_bounded_wait():
 
     The emulated memory reads back zeros, so the run has nothing to tune and may
     end in failure; what must hold is that the wait is bounded, that it ends,
-    and that what happened is readable from the process itself.
+    and that what happened is readable from the process itself. The bounds
+    themselves are then checked, because a wait or a poll interval that cannot
+    mean anything has to be refused before a process is started rather than
+    after -- otherwise the call has left something running behind it.
     """
     name = f"band[{BAND}].ops.gradient_descent"
     node = SESSION.call(name, wait=PROCESS_TIMEOUT_S)
     assert not node.Running.get(), 'the wait returned with the process still running'
     print(f"          (the run reported: {node.Message.get()!r})")
+    # A bound that makes no sense is refused before Start, so the refusal is what
+    # the caller gets rather than a ValueError out of time.sleep once the process
+    # is already running. Each case names the argument at fault, so a guard that
+    # refused the right call for the wrong reason still fails here.
+    for kwargs, argument in (({'wait': -1}, 'wait'),
+                             ({'wait': float('nan')}, 'wait'),
+                             ({'poll': 0}, 'poll'),
+                             ({'poll': -0.5}, 'poll'),
+                             ({'poll': float('inf')}, 'poll'),
+                             ({'wait': 1, 'poll': 0}, 'poll')):
+        try:
+            SESSION.call(name, **kwargs)
+        except ValueError as e:
+            assert argument in str(e), \
+                f"the error does not name {argument!r}: call({kwargs}) -> {e}"
+        else:
+            raise AssertionError(f"call({kwargs}) was accepted")
+    # Zero is a legal wait: read the flag once and return. Infinity is legal too
+    # and is deliberately not exercised -- a wait with no bound cannot be given a
+    # deadline by the thing testing it, so it is asserted in the docstring only.
+    SESSION.call(name, wait=0)
 
 
 def check_both_gradient_descent_implementations_are_named():
@@ -452,6 +486,35 @@ def check_names_and_kinds_are_refused_when_wrong():
         assert 'value' in str(e), str(e)
     else:
         raise AssertionError('a value was called')
+
+
+def check_a_session_left_open_still_lets_the_interpreter_exit():
+    """Forgetting to close costs the transport nothing, and the process nothing.
+
+    The link monitor runs in a thread that is not a daemon, so the interpreter
+    waits for it on the way out; a session nobody closed would wait for good, and
+    the case is an interactive session, where nothing guarantees a ``close``.
+    It cannot be checked in this process -- what is being checked is an exit --
+    so a child opens a session, returns without closing it, and has to be gone
+    before the deadline. A child that hangs is the defect, and it is reported as
+    the timeout it is rather than as a failure to connect.
+    """
+    for kwargs in ({}, {'monitor': False}):
+        source = ('import cryodaq\n'
+                  f"session = cryodaq.connect({ENDPOINT!r}, **{kwargs!r})\n"
+                  "print(session.pmap.name)\n")
+        try:
+            done = subprocess.run([sys.executable, '-c', source], text=True,
+                                  timeout=EXIT_DEADLINE_S, capture_output=True)
+        except subprocess.TimeoutExpired:
+            raise AssertionError(
+                f"a child that connected with {kwargs or 'the defaults'} and never "
+                f"closed was still running after {EXIT_DEADLINE_S}s: an unclosed "
+                "session holds the interpreter open") from None
+        assert done.returncode == 0, \
+            f"the child exited {done.returncode}: {done.stderr.strip()[-400:]}"
+        assert EXPECTED_PLATFORM[RFSOC] in done.stdout, \
+            f"the child never connected: {done.stdout.strip()!r} {done.stderr.strip()[-200:]}"
 
 
 # --------------------------------------------------------------------------

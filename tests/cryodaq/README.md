@@ -89,14 +89,16 @@ Each runs one at a time, before the session below opens: pyrogue caches one clie
 port, so two sessions on one endpoint are one transport — closing either closes both — and the client
 takes one deadline, whichever connected last.
 
-The seventeen checks over that session cover the map against the tree (every name the map offers
+The eighteen checks over that session cover the map against the tree (every name the map offers
 resolves; each node is the kind the map declares; the twenty contract names are present on every band;
 the witness registers read back; the indexed scopes are the ones this tree has) and the session itself
 (what the server says it is; read and write by name, whole and by array index; a name the tree declares
 read-only refused, and the value read back to show the refusal was the only thing that stopped it; a
 value changed on the tree underneath the session seen by the next read, which is what every bounded
 wait rests on; a command; a process under a bounded wait; the whole tree still reachable through
-`session.root`; a wrong name and a wrong kind each refused with an exception that says which). The
+`session.root`; a wrong name and a wrong kind each refused with an exception that says which; a
+session a program never closed still letting the interpreter exit, which is checked in a child process
+because what it asserts is an exit). The
 per-band ones work on a band
 the session reports rather than on band 0: a tree whose bands start higher is legal, and the run's
 header line records which band was used.
