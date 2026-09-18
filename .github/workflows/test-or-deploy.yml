@@ -46,9 +46,10 @@ jobs:
             flake8-sfs \
             flake8-import-order
 
-      # Run Flake 8 tests
+      # Run Flake 8 tests. tests/cryodaq/ is linted with the package it checks;
+      # tests/core/ is not yet clean and is left for the change that cleans it.
       - name: Flake8
-        run: flake8 --count python/
+        run: flake8 --count python/ tests/cryodaq/
 
   # Validate the server docker image definitions
   docker-definitions:
@@ -199,6 +200,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+      # Check that the cryodaq client keeps to its layer boundaries. Reads
+      # source with 'ast', and imports the package to use the part of it that is
+      # meant to work with nothing installed -- so it needs neither rogue nor a
+      # container, and here, where rogue is absent, it proves that too.
+      - name: Check the cryodaq layer boundaries
+        run: python3 tests/cryodaq/check_boundaries.py
+
+      # Check the platform layer's own logic: which platform a system is
+      # identified as, and which indices of a scope a tree has. Answered from
+      # supplied values, so this needs no tree and no rogue either.
+      - name: Check the cryodaq platform maps
+        run: python3 tests/cryodaq/check_platform_map.py
+
       # Setup Docker build environment
       - name: Set up docker build enviroment
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
@@ -238,6 +252,14 @@ jobs:
         run: |
           docker container exec client \
             /bin/bash -c "python3 -c 'import matplotlib; matplotlib.use(\"Agg\"); import pysmurf.client'"
+
+      # - Try to import the cryodaq module in the client container, which is
+      #   where it is used from and the first place a packaging or import
+      #   problem in it would show.
+      - name: Test importing the cryodaq module
+        run: |
+          docker container exec client \
+            /bin/bash -c "python3 -c 'import cryodaq; cryodaq.connect'"
 
   # Build
 
