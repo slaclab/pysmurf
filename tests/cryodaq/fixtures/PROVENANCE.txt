@@ -1,0 +1,24 @@
+Tree-dump fixtures for tests/cryodaq/check_catalog_resolves.py
+
+Pruned from full dumps by scripts/stage3_make_fixtures.py: a row is kept when
+the device it sits in is one a catalog entry reaches, with every index of that
+device retained, and the per-channel arrays thinned to 2.
+Regenerate with that script; do not edit these by hand.
+
+pysmurf c5f24832 · cryo-det fe6a0f50
+
+atca.varlist.txt.gz
+  firmware        MicrowaveMuxBpEthGen2 v2.5.1, via EmulationRoot
+  from            artifacts/stage2/tree/E_atca_emul.varlist.txt
+  rows            3028 of 63589
+  bands           [0, 1, 2, 3, 4, 5, 6, 7]
+  front-end bays  [0, 1]
+  daq mux bays    [0, 1]
+
+rfsoc.varlist.txt.gz
+  firmware        MicrowaveMuxZcu208_BaseBand, via EmulationRoot --rfsoc
+  from            artifacts/stage2/tree/E_rfsoc_emul.varlist.txt
+  rows            1856 of 59977
+  bands           [0, 1, 2, 3, 4, 5, 6, 7]
+  front-end bays  none
+  daq mux bays    [0, 1]
