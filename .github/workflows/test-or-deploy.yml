@@ -213,6 +213,13 @@ jobs:
       - name: Check the cryodaq platform maps
         run: python3 tests/cryodaq/check_platform_map.py
 
+      # Resolve every catalog name against committed dumps of both firmware
+      # generations, so a name that no longer matches the firmware fails a build
+      # rather than a night on a crate. Reads the dumps out of the repository, so
+      # this needs nothing installed and runs on a fork's pull request too.
+      - name: Resolve the cryodaq names against firmware tree dumps
+        run: python3 tests/cryodaq/check_catalog_resolves.py
+
       # Setup Docker build environment
       - name: Set up docker build enviroment
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
@@ -260,6 +267,18 @@ jobs:
         run: |
           docker container exec client \
             /bin/bash -c "python3 -c 'import cryodaq; cryodaq.connect'"
+
+      # - Import the register layer and check it resolves names rather than building
+      #   paths. The client reaches registers through cryodaq.platform now, so an
+      #   install that left that package out would still import the client and then
+      #   fail on the first register access.
+      - name: Test the register layer resolves by name
+        run: |
+          docker container exec client \
+            /bin/bash -c "python3 -c 'from pysmurf.client.command.smurf_command \
+            import SmurfCommandMixin as M; \
+            assert hasattr(M, \"_get_by_name\") and hasattr(M, \"_resolve\"); \
+            import cryodaq.platform as p; assert p.MAPS'"
 
   # Build
 
