@@ -26,8 +26,10 @@
 # The RFSoC firmware's own package is a subclass of this one that does nothing but
 # default isRFSOC on, so setting the flag here builds that platform's tree without
 # needing its repository on the path -- and what the flag changes is the JESD and
-# signal-generator configuration, which is why the RFSoC has no bays. The scope
-# check names what each platform is expected to have and fails if either changes.
+# signal-generator configuration, which is why that platform has no RF front end and
+# no serial links to one. Both are bay-indexed even so, because the acquisition mux
+# is; what differs is what sits inside a bay. The scope check names what each platform
+# is expected to have and fails if either changes.
 #
 # An emulated register space reads back zeros, so the build stamp a platform is
 # identified by is blank. The stamp of the platform being built is therefore
@@ -108,10 +110,12 @@ EXPECTED_PLATFORM = {False: 'umux-atca', True: 'umux-rfsoc'}
 EXPECTED_IMAGE = {False: 'MicrowaveMuxBpEthGen2',
                   True: 'MicrowaveMuxZcu208_BaseBand'}
 
-# What each is expected to have, so that the difference between them is asserted
-# by name rather than noticed: an RFSoC has neither the per-bay data links nor the
-# RF front end that carries the attenuators.
-EXPECTED_BAYS = {False: True, True: False}      # keyed by args.rfsoc
+# What each is expected to have, so that the difference between them is asserted by
+# name rather than noticed. Both platforms have bays: the acquisition mux is indexed
+# by bay on either, which is why the scope is shared. What only the carrier has is
+# what sits inside a bay -- the RF front end carrying the attenuators, and the serial
+# links back from it -- so the difference is asserted there rather than on the scope.
+EXPECTED_FRONT_END = {False: True, True: False}      # keyed by args.rfsoc
 
 # The bands both trees have: the two are built from one firmware package, which
 # defines eight either way. Asserted rather than derived, so a package that
@@ -213,18 +217,35 @@ def check_the_scopes_are_the_ones_this_tree_has():
     """
     bands = SESSION.indices('band')
     assert bands == EXPECTED_BANDS, bands
+    # Both platforms are bay-indexed, because the acquisition mux is. A tree with no
+    # bays at all would mean the scope stopped being probed rather than that this
+    # platform lacks the hardware, so it fails on either.
     bays = SESSION.indices('bay')
-    if EXPECTED_BAYS[RFSOC]:
-        assert bays, 'a carrier tree has bays with data links or an RF front end'
+    assert bays, 'neither platform has a tree without bays; the scope found none'
+    if EXPECTED_FRONT_END[RFSOC]:
         attenuated = [b for b in bays if SESSION.indices('uc', bay=b)]
         assert attenuated, f"no bay of {list(bays)} carries attenuators"
         assert SESSION.indices('dc', bay=attenuated[0]), 'up-converters but no down-converters'
     else:
-        assert bays == (), f"an RFSoC tree has no bays, found {list(bays)}"
+        # No front end, so the scopes it provides are not declared at all -- asking for
+        # one is a KeyError and that is the map's statement of what this platform has,
+        # rather than a scope that exists and enumerates empty.
+        for scope in ('uc', 'dc'):
+            try:
+                SESSION.indices(scope, bay=bays[0])
+            except KeyError:
+                pass
+            else:
+                raise AssertionError(
+                    f'a platform with no RF front end declares the {scope!r} scope')
         report = SESSION.validate()
-        offered = [name for name in report.resolved if name.startswith('bay[')]
-        tried = [name for name, _ in report.unresolved if name.startswith('bay[')]
-        assert not offered + tried, f"bay names without bays: {(offered + tried)[:4]}"
+        def front_end_name(name):
+            return '.attenuator.' in name or '.jesd.' in name
+
+        front_end = [name for name in report.resolved if front_end_name(name)]
+        tried = [name for name, _ in report.unresolved if front_end_name(name)]
+        assert not front_end + tried, \
+            f"front-end names without a front end: {(front_end + tried)[:4]}"
 
 
 def check_the_witness_set_reads_back():

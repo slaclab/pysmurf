@@ -13,9 +13,9 @@ executable that prints one `ok` or `FAIL` line per check and exits non-zero if a
 
 ### check_boundaries.py
 
-This script checks the layer boundaries of [cryodaq](../../python/cryodaq). Nine checks: six read
-the package as source, two run it, and the last is the script's own selftest. None needs rogue or a
-CryoDet package, so this runs anywhere Python does.
+This script checks the layer boundaries of [cryodaq](../../python/cryodaq). Ten checks: six read the
+package as source, one reads what it carries that is not source, two run it, and the last is the
+script's own selftest. None needs rogue or a CryoDet package, so this runs anywhere Python does.
 
 The rules five of the source checks enforce — the first is that there is a package to read at all, and
 the second covers the two import rules below it:
@@ -33,6 +33,12 @@ the second covers the two import rules below it:
 * **Register paths only in `cryodaq.platform`** — a rogue register path appears only in the platform
   maps. This is the firmware/software boundary: it is what "the client does not know the register
   map" means mechanically.
+
+A seventh check applies that last rule to everything the package carries that is *not* source. The
+rule is enforced by reading string constants out of modules, so a register map shipped as data would
+satisfy it without being subject to it — and a register map is exactly the kind of thing that is
+easier to ship as data. Every non-source file outside the platform package is therefore read as text
+and held to the same rule; a binary file, which carries no path a client could use, is skipped.
 
 The sixth source check watches a different seam: the null publisher a session falls back to takes the
 same parameter *names* as pysmurf's real `Publisher`, compared by parsing both. A caller that passes
@@ -68,8 +74,72 @@ without building a tree — it needs no rogue and runs in a second.
 * **Scope enumeration** — gapped, sparse, empty and full index ranges. A firmware mask may leave an
   index out and keep a higher one, so a gap does not end a scope: collapsing one silently drops real
   hardware out of every name listing and witness that follows.
-* **What the maps share** — the platforms of one generation carry the same register table and no two
-  claim the same firmware.
+* **Caching a parse does not share its indices** — a name parses to the same answer every time, so the
+  answer is kept; what a cache risks is handing two callers the same dictionary, where one of them
+  changing it would corrupt what the other reads. A malformed name is also required to keep failing
+  rather than being answered from a cached exception.
+* **What the maps share** — the platforms of one generation share every register they can, and differ
+  only by the hardware one of them does not carry: a name in both maps means the same register in
+  both, and none is offered by the platform with fewer devices and not by the other. No two claim the
+  same firmware.
+* **A platform offers no name it cannot resolve** — every pattern fills to a path with no placeholder
+  left, and every scope a pattern carries is one that platform declares. A name whose scope belongs to
+  another platform's map would otherwise raise on its first call rather than at import.
+
+### check_catalog_resolves.py
+
+This script checks the register names against the firmware itself: every name is resolved through the
+platform layer — the same lookup a running client does — and every resulting path is looked up in a
+dump of the nodes a firmware package defines. The map is the contract between firmware and software,
+so an entry that has drifted fails a build here instead of a night on a crate. It reads its dumps out
+of the repository, so it needs nothing installed and runs where rogue is absent.
+
+The names the client reaches are read from its source with `ast` rather than from a table beside it.
+The accessors are hand-written, so the name each one resolves is in the call; a table of them would be
+a second description of the same code, and the failure it invites is the table going stale while both
+it and the code still pass. The reader refuses a file it cannot recognise at all, so a parser that
+stopped matching fails here rather than quietly checking nothing.
+
+* **Each platform offers only names its firmware has** — every name in a platform's map has to reach
+  a register on that platform. This is the same assertion for both rather than a special case for
+  one: a map is a statement of what a platform has, so a platform whose converters share the FPGA's
+  die does not offer the front-end names at all, and asking for one is an unresolved name rather than
+  a path that reaches nothing. Excluded are the tuning processes and the server's own configuration
+  procedure, whose nodes the *server* attaches: a dump records what a firmware package defines, so
+  those are absent from one by construction and their absence would say nothing.
+* **The platforms differ by the hardware one lacks** — which names are carrier-only is *derived* from
+  the two maps, not listed in this file, and then required to hold against the firmware: each must
+  resolve on the carrier and not on the other. Both directions are asserted, because two maps
+  offering the same names would make every comparison here vacuous, and a name offered by the
+  platform with fewer devices and not by the carrier would mean the sharing is backwards.
+* **The two dumps are different trees** — asserted directly, and asserted to differ by the per-bay
+  front end rather than merely to differ, because a comparison of a tree against itself would pass
+  every check above and prove nothing.
+* **The client reaches only names the map resolves** — the names are read out of the client's own
+  accessor calls, so what is checked is the code rather than a description of it, and a name that does
+  not resolve is a method that raises the first time it is called. Only this direction fails: the map
+  deliberately carries names no accessor reaches, because the operations use those directly.
+* **The client writes no register the firmware makes read-only** — whether a register may be written
+  is the firmware's statement, in the access mode it declares, so it is read from the dump rather than
+  from anything describing the dump. The tree refuses such a write at run time on a good day; this is
+  for the day it does not.
+* **The map declares the kind the firmware declares** — a name the map calls a value is a value in the
+  firmware, and a command a command. Resolution cannot catch this: the path is right and the node is
+  there, so a value that is really a command surfaces only when something tries to write what has to
+  be called. Rogue writes a command out as a write-only `int`, which is what makes it checkable from a
+  dump; only that shape is judged, and the nodes it cannot tell apart are left alone rather than
+  guessed at.
+
+The dumps under `fixtures/` are pruned: a full one is some nine megabytes, almost all of it the
+per-channel registers of eight bands. A row is kept when the device it sits in is one a name reaches,
+with every index of that device retained, so both generations can still be told apart. The
+regeneration tool records their provenance and refuses to write a pair that resolves differently from
+the full dumps — a pruned fixture that changed an answer would be a smaller tree that happens to
+pass.
+
+What this cannot show is that the names match a firmware package that is not committed here. The
+pruned dumps are the fallback that keeps the check meaningful on a fork's pull request; checking every
+released package belongs in a job that can download them.
 
 ### validate_client_emulated.py
 
@@ -117,8 +187,10 @@ same reason the build stamp goes in underneath the register too.
 Run it once per platform: the ATCA carrier by default, the RFSoC with `--rfsoc`. The RFSoC firmware's
 own package is a subclass of this one that does nothing but default `isRFSOC` on, so the flag builds
 that platform's tree without needing its repository on the path; what the flag changes is the JESD and
-signal-generator configuration, which is why the RFSoC has no bays. The scope check names what each
-platform is expected to have and fails if either changes.
+signal-generator configuration, which is why that platform has no RF front end and no serial links to
+one. Both are bay-indexed even so — the acquisition mux is per-bay on either, so what differs is what
+sits *inside* a bay. The scope check names what each platform is expected to have and fails if either
+changes.
 
 What it cannot show for the RFSoC is that the firmware image names in its map are the ones a real
 RFSoC reports — the stamp here is one this script wrote. Only a live read settles that.
