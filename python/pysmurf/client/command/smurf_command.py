@@ -14,6 +14,8 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
+import functools
+import warnings
 import os
 import time
 import subprocess
@@ -27,12 +29,125 @@ except ModuleNotFoundError:
     # there will be warnings elsewhere
     pass
 
+from cryodaq import platform
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup
 from pysmurf.client.util import tools, dscounters
 
 
 class SmurfCommandMixin(SmurfBase):
+
+    def _scheduled_for_removal(reason):
+        """Mark a method that is going away, and say so when it is called.
+
+        Nothing in pysmurf or sodetlib calls the methods wearing this. That is a
+        reason to plan their removal, not evidence that nobody uses them: a
+        test-stand script or a notebook is not searchable from here. So they still
+        work, unchanged, and a call raises a ``DeprecationWarning`` naming the method
+        and why it is listed -- silent by default, which keeps it out of the way of
+        someone mid-measurement, and visible under ``python -W`` or a test runner.
+
+        If you are the caller a search could not see, say so before these are removed.
+
+        Parameters
+        ----------
+        reason : str
+            Why the method is listed, in a few words.
+        """
+        def mark(func):
+            @functools.wraps(func)
+            def warn_then_call(self, *args, **kwargs):
+                warnings.warn(
+                    f"{func.__name__} is scheduled for removal from pysmurf "
+                    f"({reason}). If you use it, say so before it goes.",
+                    DeprecationWarning, stacklevel=2)
+                return func(self, *args, **kwargs)
+            warn_then_call._scheduled_for_removal = reason
+            return warn_then_call
+        return mark
+
+    _global_poll_enable_reg = 'AMCc.enable'
+
+    def _platform_map(self):
+        """The register map of the system this client is connected to.
+
+        Read from the firmware the first time it is asked for and kept, since a
+        running system does not change which platform it is. Offline, where there
+        is no firmware to ask, the map cannot be identified and is not needed:
+        offline reads and writes do not reach a register.
+
+        Returns
+        -------
+        cryodaq.platform.PlatformMap or None
+            None offline.
+        """
+        if getattr(self, '_platform_map_cache', None) is None:
+            if self.offline:
+                return None
+            self._platform_map_cache = platform.identify(self._client.root)
+        return self._platform_map_cache
+
+    def _resolve(self, name):
+        """The register path a semantic name reaches on this system.
+
+        The one place a semantic name becomes a register path. What the name
+        resolves to is a property of the platform's map, so a firmware change that
+        moves a register is a change there and not here.
+
+        Parameters
+        ----------
+        name : str
+            e.g. ``band[4].feedback_enable``.
+
+        Returns
+        -------
+        str
+
+        Raises
+        ------
+        cryodaq.UnresolvedName
+            If this platform's map has no such name. Raised rather than returning
+            None so that a name which has fallen out of the map fails where it is
+            used, naming itself.
+        """
+        pmap = self._platform_map()
+        if pmap is None:
+            # Offline there is no map to resolve against, and the accessors below
+            # short-circuit before touching a register. The name is passed through
+            # so a log line still says which register was meant.
+            return name
+        return pmap.path(name)
+
+    def _get_by_name(self, name, **kwargs):
+        """Read the register a semantic name reaches.
+
+        Parameters
+        ----------
+        name : str
+            The semantic name, indices filled in.
+        \\**kwargs
+            Passed to :func:`_caget`.
+
+        Returns
+        -------
+        any
+            The value, or None offline.
+        """
+        return self._caget(self._resolve(name), **kwargs)
+
+    def _set_by_name(self, name, val, **kwargs):
+        """Write the register a semantic name reaches.
+
+        Parameters
+        ----------
+        name : str
+            The semantic name, indices filled in.
+        val : any
+            The value to write.
+        \\**kwargs
+            Passed to :func:`_caput`.
+        """
+        self._caput(self._resolve(name), val, **kwargs)
 
     def _skipifrfsoc(func):
         def skipper(self, *args,**kwargs):
@@ -240,9 +355,6 @@ class SmurfCommandMixin(SmurfBase):
             raise TimeoutError(f"Timed out after {timeout}s on PV {pvname}.")
 
 
-    #### Start SmurfApplication gets/sets
-    _smurf_version_reg = 'SmurfVersion'
-
     def get_pysmurf_version(self, **kwargs):
         r"""Returns the pysmurf version.
 
@@ -259,12 +371,15 @@ class SmurfCommandMixin(SmurfBase):
         str
             pysmurf version.
         """
-        return self._caget(self.smurf_application +
-                           self._smurf_version_reg, as_string=True,
-                           **kwargs)
+        return self._get_by_name(
+            'application.version',
+            as_string=True,
+            **kwargs
+        )
 
     _smurf_directory_reg = 'SmurfDirectory'
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_pysmurf_directory(self, **kwargs):
         r"""Returns path to the pysmurf python files.
 
@@ -281,6 +396,12 @@ class SmurfCommandMixin(SmurfBase):
         -------
         str
             Path to pysmurf files.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(self.smurf_application +
                            self._smurf_directory_reg, as_string=True,
@@ -288,6 +409,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _smurf_startup_script_reg = 'StartupScript'
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_smurf_startup_script(self, **kwargs):
         r"""Returns path to the pysmurf server startup script.
 
@@ -301,12 +423,16 @@ class SmurfCommandMixin(SmurfBase):
         -------
         str
             Path to pysmurf server startup script.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(self.smurf_application +
                            self._smurf_startup_script_reg, as_string=True,
                            **kwargs)
-
-    _smurf_startup_arguments_reg = 'StartupArguments'
 
     def get_smurf_startup_args(self, **kwargs):
         r"""Returns pysmurf server startup arguments.
@@ -322,9 +448,11 @@ class SmurfCommandMixin(SmurfBase):
         str
             pysmurf server startup arguments.
         """
-        return self._caget(self.smurf_application +
-                           self._smurf_startup_arguments_reg,
-                           as_string=True, **kwargs)
+        return self._get_by_name(
+            'application.startup_arguments',
+            as_string=True,
+            **kwargs
+        )
 
     _enabled_bays_reg = "EnabledBays"
 
@@ -354,6 +482,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _configuring_in_progress_reg = 'ConfiguringInProgress'
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_configuring_in_progress(self, **kwargs):
         r"""Whether or not configuration process in progress.
 
@@ -383,10 +512,18 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_system_configured` : Returns final state of
                 configuration process.
 
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
-        ret = self._caget(self.smurf_application +
-                          self._configuring_in_progress_reg,
-                          as_string=True, **kwargs)
+        ret = self._get_by_name(
+            'application.configuring',
+            as_string=True,
+            **kwargs
+        )
         if ret == 'True':
             return True
         elif ret == 'False':
@@ -466,8 +603,6 @@ class SmurfCommandMixin(SmurfBase):
 
     #### End SmurfApplication gets/sets
 
-    _rogue_version_reg = 'RogueVersion'
-
     def get_rogue_version(self, **kwargs):
         r"""Get rogue version
 
@@ -482,9 +617,13 @@ class SmurfCommandMixin(SmurfBase):
         str
             The rogue version
         """
-        return self._caget(self.amcc + self._rogue_version_reg,
-                           as_string=True, **kwargs)
+        return self._get_by_name(
+            'server.rogue_version',
+            as_string=True,
+            **kwargs
+        )
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_enable(self, **kwargs):
         """
         No description
@@ -495,6 +634,12 @@ class SmurfCommandMixin(SmurfBase):
             The status of the global poll bit AMCc.enable.
             If False, pyrogue is not currently polling the server. PVs
             will not be updating.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(self._global_poll_enable_reg, **kwargs)
 
@@ -736,10 +881,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`run_serial_eta_scan` : Runs the serial eta scan.
         :func:`run_serial_gradient_descent` : Runs the gradient descent.
         """
-        return self._caget(self._cryo_root(band) + self._eta_scan_in_progress_reg,
-                    **kwargs)
-
-    _gradient_descent_max_iters_reg = 'gradientDescentMaxIters'
+        return self._get_by_name(f'band[{band}].ops.in_progress', **kwargs)
 
     def set_gradient_descent_max_iters(self, band, val, **kwargs):
         r"""Sets the maximum iterations for serial gradient descent.
@@ -763,10 +905,11 @@ class SmurfCommandMixin(SmurfBase):
         :func:`run_serial_gradient_descent` : Runs the gradient descent.
         :func:`set_gradient_descent_converge_hz` : Sets the convergence threshold.
         """
-        self._caput(
-            self._cryo_root(band) +
-            self._gradient_descent_max_iters_reg,
-            val, **kwargs)
+        self._set_by_name(
+            f'band[{band}].ops.gradient_descent.max_iters',
+            val,
+            **kwargs
+        )
 
     def get_gradient_descent_max_iters(self, band, **kwargs):
         r"""Gets the maximum iterations for serial gradient descent.
@@ -788,12 +931,10 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_gradient_descent_max_iters` : Sets the value.
         """
-        return self._caget(
-            self._cryo_root(band) +
-            self._gradient_descent_max_iters_reg,
-            **kwargs)
-
-    _gradient_descent_averages_reg = 'gradientDescentAverages'
+        return self._get_by_name(
+            f'band[{band}].ops.gradient_descent.max_iters',
+            **kwargs
+        )
 
     def set_gradient_descent_averages(self, band, val, **kwargs):
         r"""Sets the number of averages for gradient estimation.
@@ -819,10 +960,11 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_gradient_descent_averages` : Gets the current value.
         :func:`run_serial_gradient_descent` : Runs the gradient descent.
         """
-        self._caput(
-            self._cryo_root(band) +
-            self._gradient_descent_averages_reg,
-            val, **kwargs)
+        self._set_by_name(
+            f'band[{band}].ops.gradient_descent.averages',
+            val,
+            **kwargs
+        )
 
     def get_gradient_descent_averages(self, band, **kwargs):
         r"""Gets the number of averages for gradient estimation.
@@ -844,12 +986,10 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_gradient_descent_averages` : Sets the value.
         """
-        return self._caget(
-            self._cryo_root(band) +
-            self._gradient_descent_averages_reg,
-            **kwargs)
-
-    _gradient_descent_gain_reg = 'gradientDescentGain'
+        return self._get_by_name(
+            f'band[{band}].ops.gradient_descent.averages',
+            **kwargs
+        )
 
     def set_gradient_descent_gain(self, band, val, **kwargs):
         r"""Sets the gain (learning rate) for serial gradient descent.
@@ -875,10 +1015,11 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_gradient_descent_beta` : Sets the decay rate.
         :func:`run_serial_gradient_descent` : Runs the gradient descent.
         """
-        self._caput(
-            self._cryo_root(band) +
-            self._gradient_descent_gain_reg,
-            val, **kwargs)
+        self._set_by_name(
+            f'band[{band}].ops.gradient_descent.gain',
+            val,
+            **kwargs
+        )
 
     def get_gradient_descent_gain(self, band, **kwargs):
         r"""Gets the gain (learning rate) for serial gradient descent.
@@ -900,12 +1041,10 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_gradient_descent_gain` : Sets the value.
         """
-        return self._caget(
-            self._cryo_root(band) +
-            self._gradient_descent_gain_reg,
-            **kwargs)
-
-    _gradient_descent_converge_hz_reg = 'gradientDescentConvergeHz'
+        return self._get_by_name(
+            f'band[{band}].ops.gradient_descent.gain',
+            **kwargs
+        )
 
     def set_gradient_descent_converge_hz(self, band, val, **kwargs):
         r"""Sets the convergence threshold for serial gradient descent.
@@ -929,10 +1068,11 @@ class SmurfCommandMixin(SmurfBase):
         :func:`run_serial_gradient_descent` : Runs the gradient descent.
         :func:`set_gradient_descent_max_iters` : Sets the max iterations.
         """
-        self._caput(
-            self._cryo_root(band) +
-            self._gradient_descent_converge_hz_reg,
-            val, **kwargs)
+        self._set_by_name(
+            f'band[{band}].ops.gradient_descent.converge_hz',
+            val,
+            **kwargs
+        )
 
     def get_gradient_descent_converge_hz(self, band, **kwargs):
         r"""Gets the convergence threshold for serial gradient descent.
@@ -954,12 +1094,10 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_gradient_descent_converge_hz` : Sets the value.
         """
-        return self._caget(
-            self._cryo_root(band) +
-            self._gradient_descent_converge_hz_reg,
-            **kwargs)
-
-    _gradient_descent_step_hz_reg = 'gradientDescentStepHz'
+        return self._get_by_name(
+            f'band[{band}].ops.gradient_descent.converge_hz',
+            **kwargs
+        )
 
     def set_gradient_descent_step_hz(self, band, val, **kwargs):
         r"""Sets the offset frequency for gradient estimation.
@@ -982,10 +1120,11 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_gradient_descent_step_hz` : Gets the current value.
         :func:`run_serial_gradient_descent` : Runs the gradient descent.
         """
-        self._caput(
-            self._cryo_root(band) +
-            self._gradient_descent_step_hz_reg,
-            val, **kwargs)
+        self._set_by_name(
+            f'band[{band}].ops.gradient_descent.step_hz',
+            val,
+            **kwargs
+        )
 
     def get_gradient_descent_step_hz(self, band, **kwargs):
         r"""Gets the offset frequency for gradient estimation.
@@ -1007,12 +1146,10 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_gradient_descent_step_hz` : Sets the value.
         """
-        return self._caget(
-            self._cryo_root(band) +
-            self._gradient_descent_step_hz_reg,
-            **kwargs)
-
-    _gradient_descent_momentum_reg = 'gradientDescentMomentum'
+        return self._get_by_name(
+            f'band[{band}].ops.gradient_descent.step_hz',
+            **kwargs
+        )
 
     def set_gradient_descent_momentum(self, band, val, **kwargs):
         r"""Sets the optimizer mode for serial gradient descent.
@@ -1038,10 +1175,11 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_gradient_descent_beta` : Sets the decay rate for both modes.
         :func:`run_serial_gradient_descent` : Runs the gradient descent.
         """
-        self._caput(
-            self._cryo_root(band) +
-            self._gradient_descent_momentum_reg,
-            val, **kwargs)
+        self._set_by_name(
+            f'band[{band}].ops.gradient_descent.momentum',
+            val,
+            **kwargs
+        )
 
     def get_gradient_descent_momentum(self, band, **kwargs):
         r"""Gets the optimizer mode for serial gradient descent.
@@ -1063,12 +1201,10 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_gradient_descent_momentum` : Sets the value.
         """
-        return self._caget(
-            self._cryo_root(band) +
-            self._gradient_descent_momentum_reg,
-            **kwargs)
-
-    _gradient_descent_beta_reg = 'gradientDescentBeta'
+        return self._get_by_name(
+            f'band[{band}].ops.gradient_descent.momentum',
+            **kwargs
+        )
 
     def set_gradient_descent_beta(self, band, val, **kwargs):
         r"""Sets the decay rate for serial gradient descent.
@@ -1100,10 +1236,11 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_gradient_descent_momentum` : Sets the optimizer mode.
         :func:`run_serial_gradient_descent` : Runs the gradient descent.
         """
-        self._caput(
-            self._cryo_root(band) +
-            self._gradient_descent_beta_reg,
-            val, **kwargs)
+        self._set_by_name(
+            f'band[{band}].ops.gradient_descent.beta',
+            val,
+            **kwargs
+        )
 
     def get_gradient_descent_beta(self, band, **kwargs):
         r"""Gets the decay rate for serial gradient descent.
@@ -1125,10 +1262,10 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_gradient_descent_beta` : Sets the value.
         """
-        return self._caget(
-            self._cryo_root(band) +
-            self._gradient_descent_beta_reg,
-            **kwargs)
+        return self._get_by_name(
+            f'band[{band}].ops.gradient_descent.beta',
+            **kwargs
+        )
 
     _run_serial_eta_scan_reg = 'runSerialEtaScan'
 
@@ -1182,6 +1319,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _sel_ext_ref_reg = "SelExtRef"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def sel_ext_ref(self, bay, **kwargs):
         """
         Selects this bay to trigger off of external reference (through
@@ -1191,6 +1329,12 @@ class SmurfCommandMixin(SmurfBase):
         ----
         bay : int
             Which bay to set to ext ref.  Either 0 or 1.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         assert (bay in [0,1]),'bay must be an integer and in [0,1]'
         triggerPV=(self.microwave_mux_core.format(bay) +
@@ -1249,6 +1393,7 @@ class SmurfCommandMixin(SmurfBase):
 
     # name changed in Rogue 4 from WriteConfig to SaveConfig.  Keeping
     # the write_config function for backwards compatibilty.
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def save_config(self, val, **kwargs):
         """
         Writes the current (un-masked) PyRogue settings to a yml file.
@@ -1257,6 +1402,12 @@ class SmurfCommandMixin(SmurfBase):
         ----
         val : str
             The path (including file name) to write the yml file to.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._save_state_or_config(val, "Config", **kwargs)
 
@@ -1285,9 +1436,11 @@ class SmurfCommandMixin(SmurfBase):
             Full path to tone file.
         """
 
-        return self._caget(
-            self.dac_sig_gen.format(bay) + self._tone_file_path_reg,
-            as_string=True, **kwargs)
+        return self._get_by_name(
+            f'bay[{bay}].tone_file_path',
+            as_string=True,
+            **kwargs
+        )
 
     def set_tone_file_path(self, bay, val, **kwargs):
         """
@@ -1340,8 +1493,6 @@ class SmurfCommandMixin(SmurfBase):
             self.dac_sig_gen.format(bay) + self._load_tone_file_reg,
             val, **kwargs)
 
-    _tune_file_path_reg = 'tuneFilePath'
-
     def set_tune_file_path(self, val, **kwargs):
         r"""Sets the path to the tune file for PyRogue loading.
 
@@ -1367,10 +1518,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_load_tune_file` : Triggers loading the tune file.
         :func:`load_tune` : Higher-level tune loading function.
         """
-        self._caput(
-            self.sysgencryo + self._tune_file_path_reg,
-            val, **kwargs)
+        self._set_by_name('tune_file_path', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_tune_file_path(self, **kwargs):
         r"""Gets the path to the tune file.
 
@@ -1388,12 +1538,14 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_tune_file_path` : Sets the path.
-        """
-        return self._caget(
-            self.sysgencryo + self._tune_file_path_reg,
-            **kwargs)
 
-    _load_tune_file_reg = 'loadTuneFile'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name('tune_file_path', **kwargs)
 
     def set_load_tune_file(self, band, val, **kwargs):
         r"""Triggers loading the tune file into firmware registers.
@@ -1418,12 +1570,8 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_tune_file_path` : Sets the tune file path.
         :func:`load_tune` : Higher-level tune loading function.
         """
-        self._caput(
-            self._cryo_root(band) + self._load_tune_file_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].ops.load_tune_file', val, **kwargs)
 
-
-    _eta_scan_del_f_reg = 'etaScanDelF'
 
     def set_eta_scan_del_f(self, band, val, **kwargs):
         """Sets offset frequency for serial eta scan estimation.
@@ -1451,10 +1599,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_eta_scan_del_f` : Gets the current value of this
                 parameter in rogue.
         """
-        self._caput(
-            self._cryo_root(band) + self._eta_scan_del_f_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].ops.eta_scan.delta_f', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_eta_scan_del_f(self, band, **kwargs):
         """Gets offset frequency for serial eta scan estimation.
 
@@ -1483,12 +1630,17 @@ class SmurfCommandMixin(SmurfBase):
                 this parameter.
         :func:`set_eta_scan_del_f` : Sets the value of this parameter in
                 rogue.
-        """
-        return self._caget(
-            self._cryo_root(band) + self._eta_scan_del_f_reg,
-            **kwargs)
 
-    _eta_scan_freqs_reg = 'etaScanFreqs'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name(
+            f'band[{band}].ops.eta_scan.delta_f',
+            **kwargs
+        )
 
     def set_eta_scan_freq(self, band, val, **kwargs):
         r"""Sets the frequency array for find-freq or single-channel eta scan.
@@ -1521,11 +1673,14 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_run_serial_find_freq` : Triggers multi-channel sweep.
         :func:`set_run_eta_scan` : Triggers single-channel sweep.
         """
-        self._caput(
-            self._cryo_root(band) + self._eta_scan_freqs_reg,
-            val, **kwargs)
+        self._set_by_name(
+            f'band[{band}].ops.eta_scan.frequencies',
+            val,
+            **kwargs
+        )
 
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_eta_scan_freq(self, band, **kwargs):
         r"""Gets the frequency array for find-freq or single-channel eta scan.
 
@@ -1546,10 +1701,17 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_eta_scan_freq` : Sets this array.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
-        return self._caget(
-            self._cryo_root(band) + self._eta_scan_freqs_reg,
-            **kwargs)
+        return self._get_by_name(
+            f'band[{band}].ops.eta_scan.frequencies',
+            **kwargs
+        )
 
     _eta_scan_amplitude_reg = 'etaScanAmplitude'
 
@@ -1584,6 +1746,7 @@ class SmurfCommandMixin(SmurfBase):
             self._cryo_root(band) + self._eta_scan_amplitude_reg,
             np.uint32(val), **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_eta_scan_amplitude(self, band, **kwargs):
         r"""Gets the tone amplitude used during eta scan or find-freq.
 
@@ -1604,12 +1767,17 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_eta_scan_amplitude` : Sets this value.
-        """
-        return self._caget(
-            self._cryo_root(band) + self._eta_scan_amplitude_reg,
-            **kwargs)
 
-    _eta_scan_channel_reg = 'etaScanChannel'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name(
+            f'band[{band}].ops.eta_scan.amplitude',
+            **kwargs
+        )
 
     def set_eta_scan_channel(self, band, val, **kwargs):
         r"""Sets the channel for the single-channel eta scan.
@@ -1636,10 +1804,9 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_run_eta_scan` : Triggers the scan on this channel.
         """
-        self._caput(
-            self._cryo_root(band) + self._eta_scan_channel_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].ops.eta_scan.channel', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_eta_scan_channel(self, band, **kwargs):
         r"""Gets the channel for the single-channel eta scan.
 
@@ -1659,12 +1826,17 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_eta_scan_channel` : Sets this value.
-        """
-        return self._caget(
-            self._cryo_root(band) + self._eta_scan_channel_reg,
-            **kwargs)
 
-    _eta_scan_averages_reg = 'etaScanAverages'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name(
+            f'band[{band}].ops.eta_scan.channel',
+            **kwargs
+        )
 
     def set_eta_scan_averages(self, band, val, **kwargs):
         r"""Sets the number of frequency error averages for serial eta scan.
@@ -1688,10 +1860,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`run_serial_eta_scan` : Serial scan that uses this
                 parameter.
         """
-        self._caput(
-            self._cryo_root(band) + self._eta_scan_averages_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].ops.eta_scan.averages', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_eta_scan_averages(self, band, **kwargs):
         r"""Gets the number of frequency error averages for serial eta scan.
 
@@ -1711,10 +1882,17 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_eta_scan_averages` : Sets this value.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
-        return self._caget(
-            self._cryo_root(band) + self._eta_scan_averages_reg,
-            **kwargs)
+        return self._get_by_name(
+            f'band[{band}].ops.eta_scan.averages',
+            **kwargs
+        )
 
     _run_serial_find_freq_reg = 'runSerialFindFreq'
 
@@ -1755,8 +1933,6 @@ class SmurfCommandMixin(SmurfBase):
         self._wait_for(monitorPV, lambda x: x == 0)
         self.log('serial find freq complete', self.LOG_USER)
 
-    _run_eta_scan_reg = 'runEtaScan'
-
     def set_run_eta_scan(self, band, val, **kwargs):
         r"""Triggers the single-channel eta scan.
 
@@ -1785,9 +1961,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_eta_scan_results_real` : Read back real results.
         :func:`get_eta_scan_results_imag` : Read back imaginary results.
         """
-        self._caput(
-            self._cryo_root(band) + self._run_eta_scan_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].ops.run_eta_scan', val, **kwargs)
 
     _eta_scan_results_real_reg = 'etaScanResultsReal'
 
@@ -1824,9 +1998,11 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_run_serial_find_freq` : Multi-channel scan that populates this.
         :func:`set_run_eta_scan` : Single-channel scan that populates this.
         """
-        return self._caget(
-            self._cryo_root(band) + self._eta_scan_results_real_reg,
-            count=count, **kwargs)
+        return self._get_by_name(
+            f'band[{band}].ops.eta_scan.results_real',
+            count=count,
+            **kwargs
+        )
 
     _eta_scan_results_imag_reg = 'etaScanResultsImag'
 
@@ -1863,12 +2039,12 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_run_serial_find_freq` : Multi-channel scan that populates this.
         :func:`set_run_eta_scan` : Single-channel scan that populates this.
         """
-        return self._caget(
-            self._cryo_root(band) + self._eta_scan_results_imag_reg,
-            count=count, **kwargs)
+        return self._get_by_name(
+            f'band[{band}].ops.eta_scan.results_imag',
+            count=count,
+            **kwargs
+        )
 
-
-    _amplitude_scale_array_reg = 'amplitudeScale'
 
     def set_amplitude_scale_array(self, band, val, **kwargs):
         r"""Sets the tone amplitude for all channels in a band.
@@ -1894,9 +2070,11 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_amplitude_scale_array` : Gets all channel amplitudes.
         :func:`set_amplitude_scale_channel` : Sets one channel.
         """
-        self._caput(
-            self._cryo_root(band) + self._amplitude_scale_array_reg,
-            np.array(val).astype(np.uint32), **kwargs)
+        self._set_by_name(
+            f'band[{band}].tone.amplitude',
+            np.array(val).astype(np.uint32),
+            **kwargs
+        )
 
     def get_amplitude_scale_array(self, band, **kwargs):
         r"""Gets the tone amplitude for all channels in a band.
@@ -1920,10 +2098,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_amplitude_scale_array` : Sets all channel amplitudes.
         :func:`get_amplitude_scale_channel` : Gets one channel.
         """
-        return self._caget(
-            self._cryo_root(band) + self._amplitude_scale_array_reg,
-            **kwargs)
+        return self._get_by_name(f'band[{band}].tone.amplitude', **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_amplitude_scale_array_currentchans(self, band, tone_power,
                                                **kwargs):
         """
@@ -1937,6 +2114,12 @@ class SmurfCommandMixin(SmurfBase):
             The band to change.
         tone_power : int
             Tone power to change to.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
 
         old_amp = self.get_amplitude_scale_array(band, **kwargs)
@@ -1944,8 +2127,6 @@ class SmurfCommandMixin(SmurfBase):
         new_amp = np.zeros((n_channels,),dtype=np.uint32)
         new_amp[np.where(old_amp!=0)] = tone_power
         self.set_amplitude_scale_array(self, new_amp, **kwargs)
-
-    _feedback_enable_array_reg = 'feedbackEnable'
 
     def set_feedback_enable_array(self, band, val, **kwargs):
         r"""Sets the per-channel feedback enable for all channels in a band.
@@ -1973,9 +2154,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_feedback_enable` : Sets the global feedback enable.
         :func:`set_feedback_enable_channel` : Sets a single channel's enable.
         """
-        self._caput(
-            self._cryo_root(band) + self._feedback_enable_array_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].feedback.enable_array', val, **kwargs)
 
     def get_feedback_enable_array(self, band, **kwargs):
         r"""Gets the per-channel feedback enable for all channels in a band.
@@ -1999,11 +2178,10 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_feedback_enable_array` : Sets all per-channel enables.
         :func:`get_feedback_enable` : Gets the global feedback enable.
         """
-        return self._caget(
-            self._cryo_root(band) + self._feedback_enable_array_reg,
-            **kwargs)
-
-    _single_channel_readout_reg = 'singleChannelReadout'
+        return self._get_by_name(
+            f'band[{band}].feedback.enable_array',
+            **kwargs
+        )
 
     def set_single_channel_readout(self, band, val, **kwargs):
         r"""Enables filtered/decimated single-channel debug readout.
@@ -2033,10 +2211,13 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_single_channel_readout_opt2` : Full-rate single-channel mode.
         :func:`take_debug_data` : Takes debug data.
         """
-        self._caput(
-            self._band_root(band) + self._single_channel_readout_reg,
-            val, **kwargs)
+        self._set_by_name(
+            f'band[{band}].readout.single_channel',
+            val,
+            **kwargs
+        )
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_single_channel_readout(self, band, **kwargs):
         r"""Gets the filtered/decimated single-channel debug readout state.
 
@@ -2056,12 +2237,17 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_single_channel_readout` : Sets this mode.
-        """
-        return self._caget(
-            self._band_root(band) + self._single_channel_readout_reg,
-            **kwargs)
 
-    _single_channel_readout2_reg = 'singleChannelReadoutOpt2'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name(
+            f'band[{band}].readout.single_channel',
+            **kwargs
+        )
 
     def set_single_channel_readout_opt2(self, band, val, **kwargs):
         r"""Enables non-decimated single-channel debug readout.
@@ -2089,10 +2275,13 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_readout_channel_select` : Selects which channel.
         :func:`take_debug_data` : Takes debug data.
         """
-        self._caput(
-            self._band_root(band) + self._single_channel_readout2_reg,
-            val, **kwargs)
+        self._set_by_name(
+            f'band[{band}].readout.single_channel_opt2',
+            val,
+            **kwargs
+        )
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_single_channel_readout_opt2(self, band, **kwargs):
         r"""Gets the non-decimated single-channel debug readout state.
 
@@ -2112,12 +2301,17 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_single_channel_readout_opt2` : Sets this mode.
-        """
-        return self._caget(
-            self._band_root(band) + self._single_channel_readout2_reg,
-            **kwargs)
 
-    _readout_channel_select_reg = 'readoutChannelSelect'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name(
+            f'band[{band}].readout.single_channel_opt2',
+            **kwargs
+        )
 
     def set_readout_channel_select(self, band, channel, **kwargs):
         r"""Selects which channel to output in single-channel debug mode.
@@ -2148,10 +2342,13 @@ class SmurfCommandMixin(SmurfBase):
         :func:`which_on` : Returns channels with nonzero amplitude.
         :func:`get_processed_channels` : Returns valid channel indices.
         """
-        self._caput(
-            self._band_root(band) + self._readout_channel_select_reg,
-            channel, **kwargs)
+        self._set_by_name(
+            f'band[{band}].readout.channel_select',
+            channel,
+            **kwargs
+        )
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_readout_channel_select(self, band, **kwargs):
         r"""Gets the channel selected for single-channel debug mode.
 
@@ -2171,12 +2368,17 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_readout_channel_select` : Sets the selected channel.
-        """
-        return self._caget(
-            self._band_root(band) + self._readout_channel_select_reg,
-            **kwargs)
 
-    _stream_enable_reg = 'enableStreaming'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name(
+            f'band[{band}].readout.channel_select',
+            **kwargs
+        )
 
     def set_stream_enable(self, val, **kwargs):
         r"""Enables or disables streaming data output for all bands.
@@ -2200,8 +2402,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_stream_enable` : Gets the current state.
         :func:`take_stream_data` : Takes streaming data for a duration.
         """
-        self._caput(self.app_core + self._stream_enable_reg, val, **kwargs)
+        self._set_by_name('stream.enable', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_stream_enable(self, **kwargs):
         r"""Gets the streaming data output enable state.
 
@@ -2219,13 +2422,18 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_stream_enable` : Sets the enable state.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
-        return self._caget(
-            self.app_core + self._stream_enable_reg,
-            **kwargs)
+        return self._get_by_name('stream.enable', **kwargs)
 
     _mode_stream_reg = 'modeStream'
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_mode_stream(self, val, **kwargs):
         r"""Set the mode for data streaming.
 
@@ -2269,10 +2477,17 @@ class SmurfCommandMixin(SmurfBase):
         :func:`take_stream_data` : Takes streaming data for a given amount of time.
         :func:`set_bay_sel_stream` : Set the bay selection for I/Q data streaming.
         :func:`get_bay_sel_stream` : Get the current bay selection for I/Q data streaming.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caput(self.app_core + self._mode_stream_reg, val, **kwargs)
 
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_mode_stream(self, **kwargs):
         r"""Get the current data streaming mode.
 
@@ -2305,6 +2520,12 @@ class SmurfCommandMixin(SmurfBase):
         :func:`take_stream_data` : Takes streaming data for a given amount of time.
         :func:`set_bay_sel_stream` : Set the bay selection for I/Q data streaming.
         :func:`get_bay_sel_stream` : Get the current bay selection for I/Q data streaming.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self.app_core + self._mode_stream_reg,
@@ -2312,6 +2533,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _bay_sel_stream_reg = 'baySelStream'
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_bay_sel_stream(self, val, **kwargs):
         r"""Set the bay selection for I/Q data streaming.
 
@@ -2337,9 +2559,16 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_bay_sel_stream` : Get the current bay selection for I/Q data streaming.
         :func:`get_mode_stream` : Get the current data streaming mode.
         :func:`set_mode_stream` : Set the data streaming mode.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caput(self.app_core + self._bay_sel_stream_reg, val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_bay_sel_stream(self, **kwargs):
         r"""Get the current bay selection for I/Q data streaming.
 
@@ -2369,12 +2598,16 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_bay_sel_stream` : Set the bay selection for I/Q data streaming.
         :func:`get_mode_stream` : Get the current data streaming mode.
         :func:`set_mode_stream` : Set the data streaming mode.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self.app_core + self._bay_sel_stream_reg,
             **kwargs)
-
-    _rf_iq_stream_enable_reg = 'rfIQStreamEnable'
 
     def set_rf_iq_stream_enable(self, band, val, **kwargs):
         r"""Selects raw RF I/Q debug output from the analysis filter bank.
@@ -2402,10 +2635,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_iq_stream_enable` : Selects demodulated I/Q instead.
         :func:`take_debug_data` : Takes data in the selected mode.
         """
-        self._caput(self._band_root(band) +
-                    self._rf_iq_stream_enable_reg,
-                    val, **kwargs)
+        self._set_by_name(f'band[{band}].stream.rf_iq_enable', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_rf_iq_stream_enable(self, band, **kwargs):
         r"""Gets the raw RF I/Q debug output enable state.
 
@@ -2425,13 +2657,15 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_rf_iq_stream_enable` : Sets this value.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
-        return self._caget(self._band_root(band) +
-                           self._rf_iq_stream_enable_reg,
-                           **kwargs)
+        return self._get_by_name(f'band[{band}].stream.rf_iq_enable', **kwargs)
 
-
-    _build_dsp_g_reg = 'BUILD_DSP_G'
 
     def get_build_dsp_g(self, **kwargs):
         r"""Gets the firmware band bitmask.
@@ -2451,9 +2685,7 @@ class SmurfCommandMixin(SmurfBase):
         int
             Bitmask of available bands in this firmware build.
         """
-        return self._caget(
-            self.app_core + self._build_dsp_g_reg,
-            **kwargs)
+        return self._get_by_name('firmware.band_mask', **kwargs)
 
     _decimation_reg = 'decimation'
 
@@ -2510,8 +2742,6 @@ class SmurfCommandMixin(SmurfBase):
             self._band_root(band) + self._decimation_reg,
             **kwargs)
 
-    _filter_alpha_reg = 'filterAlpha'
-
     def set_filter_alpha(self, band, val, **kwargs):
         r"""Sets the IIR low-pass filter coefficient for debug data.
 
@@ -2556,9 +2786,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_single_channel_readout_opt2` : Bypasses this filter.
         :func:`take_debug_data` : Takes data using this filter/decimation path.
         """
-        self._caput(
-            self._band_root(band) + self._filter_alpha_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].dsp.filter_alpha', val, **kwargs)
 
     def get_filter_alpha(self, band, **kwargs):
         r"""Gets the IIR low-pass filter coefficient for debug data.
@@ -2582,11 +2810,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_filter_alpha` : Sets the filter coefficient.
         :func:`get_debug_data_filter_cutoff` : Gets the cutoff frequency in Hz.
         """
-        return self._caget(
-            self._band_root(band) + self._filter_alpha_reg,
-            **kwargs)
-
-    _iq_swap_in_reg = 'iqSwapIn'
+        return self._get_by_name(f'band[{band}].dsp.filter_alpha', **kwargs)
 
     def set_iq_swap_in(self, band, val, **kwargs):
         r"""Swaps I and Q on the analysis filter bank input.
@@ -2609,10 +2833,9 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_iq_swap_out` : Swaps I/Q on the synthesis output.
         """
-        self._caput(
-            self._band_root(band) + self._iq_swap_in_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].dsp.iq_swap_in', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_iq_swap_in(self, band, **kwargs):
         r"""Gets the I/Q swap state on the analysis filter bank input.
 
@@ -2632,12 +2855,14 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_iq_swap_in` : Sets this value.
-        """
-        return self._caget(
-            self._band_root(band) + self._iq_swap_in_reg,
-            **kwargs)
 
-    _iq_swap_out_reg = 'iqSwapOut'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name(f'band[{band}].dsp.iq_swap_in', **kwargs)
 
     def set_iq_swap_out(self, band, val, **kwargs):
         r"""Swaps I and Q on the synthesis filter bank output.
@@ -2661,10 +2886,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_iq_swap_out` : Gets the current state.
         :func:`set_iq_swap_in` : Swaps I/Q on the analysis input.
         """
-        self._caput(
-            self._band_root(band) + self._iq_swap_out_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].dsp.iq_swap_out', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_iq_swap_out(self, band, **kwargs):
         r"""Gets the I/Q swap state on the synthesis filter bank output.
 
@@ -2684,12 +2908,14 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_iq_swap_out` : Sets the swap state.
-        """
-        return self._caget(
-            self._band_root(band) + self._iq_swap_out_reg,
-            **kwargs)
 
-    _ref_phase_delay_reg = 'refPhaseDelay'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name(f'band[{band}].dsp.iq_swap_out', **kwargs)
 
     def set_ref_phase_delay(self, band, val, **kwargs):
         r"""Sets the coarse reference phase delay.
@@ -2722,9 +2948,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_band_delay_us` : Sets all delay registers together.
         :func:`estimate_phase_delay` : Measures and sets system latency.
         """
-        self._caput(
-            self._band_root(band) + self._ref_phase_delay_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].ref_phase_delay', val, **kwargs)
 
     def get_ref_phase_delay(self, band, **kwargs):
         r"""Gets the coarse reference phase delay.
@@ -2747,11 +2971,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_ref_phase_delay` : Sets the value.
         :func:`get_band_delay_us` : Gets the total delay in microseconds.
         """
-        return self._caget(
-            self._band_root(band) + self._ref_phase_delay_reg,
-            **kwargs)
-
-    _ref_phase_delay_fine_reg = 'refPhaseDelayFine'
+        return self._get_by_name(f'band[{band}].ref_phase_delay', **kwargs)
 
     def set_ref_phase_delay_fine(self, band, val, **kwargs):
         r"""Sets the fine reference phase delay.
@@ -2779,9 +2999,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_ref_phase_delay` : Sets the coarse delay.
         :func:`estimate_phase_delay` : Measures and sets system latency.
         """
-        self._caput(
-            self._band_root(band) + self._ref_phase_delay_fine_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].ref_phase_delay_fine', val, **kwargs)
 
     def get_ref_phase_delay_fine(self, band, **kwargs):
         r"""Gets the fine reference phase delay.
@@ -2806,11 +3024,10 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_ref_phase_delay_fine` : Sets the value.
         :func:`get_band_delay_us` : Gets the total delay in microseconds.
         """
-        return self._caget(
-            self._band_root(band) + self._ref_phase_delay_fine_reg,
-            **kwargs)
-
-    _band_delay_us_reg = 'bandDelayUs'
+        return self._get_by_name(
+            f'band[{band}].ref_phase_delay_fine',
+            **kwargs
+        )
 
     def set_band_delay_us(self, band, val, **kwargs):
         r"""Sets the total band delay compensation in microseconds.
@@ -2838,9 +3055,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_ref_phase_delay` : Sets coarse delay directly.
         :func:`set_ref_phase_delay_fine` : Sets fine delay directly.
         """
-        self._caput(
-            self._band_root(band) + self._band_delay_us_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].delay_us', val, **kwargs)
 
     def get_band_delay_us(self, band, **kwargs):
         r"""Gets the total band delay compensation in microseconds.
@@ -2863,9 +3078,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_band_delay_us` : Sets the value.
         :func:`estimate_phase_delay` : Measures and sets the delay.
         """
-        return self._caget(
-            self._band_root(band) + self._band_delay_us_reg,
-            **kwargs)
+        return self._get_by_name(f'band[{band}].delay_us', **kwargs)
 
     _tone_scale_reg = 'toneScale'
 
@@ -2895,6 +3108,7 @@ class SmurfCommandMixin(SmurfBase):
             self._band_root(band) + self._tone_scale_reg,
             val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_tone_scale(self, band, **kwargs):
         r"""Gets the tone output scaling before the synthesis filter bank.
 
@@ -2915,12 +3129,16 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_tone_scale` : Sets the value.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self._band_root(band) + self._tone_scale_reg,
             **kwargs)
-
-    _waveform_select_reg = 'waveformSelect'
 
     def set_waveform_select(self, band, val, **kwargs):
         r"""Selects the DAC output source for a band.
@@ -2945,10 +3163,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`load_tone_file` : Loads the tone file into the waveform table.
         :func:`set_noise_select` : Selects random noise output instead.
         """
-        self._caput(
-            self._band_root(band) + self._waveform_select_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].dsp.waveform_select', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_waveform_select(self, band, **kwargs):
         r"""Gets the DAC output source selection for a band.
 
@@ -2968,13 +3185,18 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_waveform_select` : Sets this value.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
-        return self._caget(
-            self._band_root(band) + self._waveform_select_reg,
-            **kwargs)
+        return self._get_by_name(f'band[{band}].dsp.waveform_select', **kwargs)
 
     _rf_enable_reg = 'rfEnable'
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_rf_enable(self, band, val, **kwargs):
         r"""Enables or disables RF DAC output for a band.
 
@@ -2997,11 +3219,18 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_waveform_select` : Selects DSP vs. tone file output.
         :func:`set_noise_select` : Selects random noise output.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caput(
             self._band_root(band) + self._rf_enable_reg,
             val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_rf_enable(self, band, **kwargs):
         r"""Gets the RF DAC output enable state for a band.
 
@@ -3021,6 +3250,12 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_rf_enable` : Sets this value.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self._band_root(band) + self._rf_enable_reg,
@@ -3056,6 +3291,7 @@ class SmurfCommandMixin(SmurfBase):
             self._band_root(band) + self._analysis_scale_reg,
             val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_analysis_scale(self, band, **kwargs):
         r"""Gets the analysis filter bank output scaling.
 
@@ -3076,6 +3312,12 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_analysis_scale` : Sets the analysis scale.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self._band_root(band) + self._analysis_scale_reg,
@@ -3106,9 +3348,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_feedback_enable` : Gets the global feedback enable state.
         :func:`set_feedback_enable_channel` : Sets per-channel feedback enable.
         """
-        self._caput(
-            self._band_root(band) + self._feedback_enable_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].feedback.enable', val, **kwargs)
 
     def get_feedback_enable(self, band, **kwargs):
         r"""Gets the global feedback enable for a band.
@@ -3130,11 +3370,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_feedback_enable` : Sets the global feedback enable.
         """
-        return self._caget(
-            self._band_root(band) + self._feedback_enable_reg,
-            **kwargs)
-
-    _loop_filter_output_array_reg = 'loopFilterOutput'
+        return self._get_by_name(f'band[{band}].feedback.enable', **kwargs)
 
     def get_loop_filter_output_array(self, band, **kwargs):
         r"""Gets the loop filter output for all channels in a band.
@@ -3163,12 +3399,10 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_feedback_limit` : Limits this output's excursion.
         :func:`get_frequency_error_array` : Gets the frequency error input.
         """
-        return self._caget(
-            self._cryo_root(band) +
-            self._loop_filter_output_array_reg,
-            **kwargs)
-
-    _tone_frequency_offset_mhz_reg = 'toneFrequencyOffsetMHz'
+        return self._get_by_name(
+            f'band[{band}].feedback.loop_filter_output',
+            **kwargs
+        )
 
     def get_tone_frequency_offset_mhz(self, band, **kwargs):
         r"""Gets the subband center frequency offsets in MHz.
@@ -3195,12 +3429,10 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`get_band_center_mhz` : Gets the absolute band center frequency.
         """
-        return self._caget(
-            self._band_root(band) +
-            self._tone_frequency_offset_mhz_reg,
-            **kwargs)
-
-    _center_frequency_array_reg = 'centerFrequencyMHz'
+        return self._get_by_name(
+            f'band[{band}].tone.frequency_offset',
+            **kwargs
+        )
 
     def set_center_frequency_array(self, band, val, **kwargs):
         r"""Sets the tone center frequency for all channels in a band.
@@ -3229,9 +3461,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_center_frequency_mhz_channel` : Sets one channel.
         :func:`setup_notches` : Measures and sets tone positions.
         """
-        self._caput(
-            self._cryo_root(band) + self._center_frequency_array_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].tone.frequency', val, **kwargs)
 
     def get_center_frequency_array(self, band, **kwargs):
         r"""Gets the tone center frequency for all channels in a band.
@@ -3254,9 +3484,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_center_frequency_array` : Sets all center frequencies.
         :func:`get_center_frequency_mhz_channel` : Gets one channel.
         """
-        return self._caget(
-            self._cryo_root(band) + self._center_frequency_array_reg,
-            **kwargs)
+        return self._get_by_name(f'band[{band}].tone.frequency', **kwargs)
 
     _feedback_gain_reg = 'feedbackGain'
 
@@ -3288,9 +3516,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_feedback_limit` : Sets the maximum feedback excursion.
         :func:`set_lms_gain` : Sets the LMS harmonic estimator step size.
         """
-        self._caput(
-            self._band_root(band) + self._feedback_gain_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].feedback.gain', val, **kwargs)
 
     def get_feedback_gain(self, band, **kwargs):
         r"""Gets the integral gain of the tracking feedback loop.
@@ -3316,8 +3542,6 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(
             self._band_root(band) + self._feedback_gain_reg,
             **kwargs)
-
-    _eta_phase_array_reg = 'etaPhase'
 
     def set_eta_phase_array(self, band, val, **kwargs):
         r"""Sets the eta phase for all channels in a band.
@@ -3347,9 +3571,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_eta_mag_array` : Sets the eta magnitudes for all channels.
         :func:`setup_notches` : Measures and sets eta parameters.
         """
-        self._caput(
-            self._cryo_root(band) + self._eta_phase_array_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].eta.phase', val, **kwargs)
 
     def get_eta_phase_array(self, band, **kwargs):
         r"""Gets the eta phase for all channels in a band.
@@ -3372,9 +3594,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_eta_phase_array` : Sets the eta phases.
         :func:`get_eta_mag_array` : Gets the eta magnitudes.
         """
-        return self._caget(
-            self._cryo_root(band) + self._eta_phase_array_reg,
-            **kwargs)
+        return self._get_by_name(f'band[{band}].eta.phase', **kwargs)
 
     _frequency_error_array_reg = 'frequencyError'
 
@@ -3407,8 +3627,6 @@ class SmurfCommandMixin(SmurfBase):
             self._cryo_root(band) + self._frequency_error_array_reg,
             **kwargs)
 
-    _eta_mag_array_reg = 'etaMag'
-
     def set_eta_mag_array(self, band, val, **kwargs):
         r"""Sets the eta magnitude for all channels in a band.
 
@@ -3440,9 +3658,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_eta_phase_array` : Sets the eta phases for all channels.
         :func:`setup_notches` : Measures and sets eta parameters.
         """
-        self._caput(
-            self._cryo_root(band) + self._eta_mag_array_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].eta.mag', val, **kwargs)
 
     def get_eta_mag_array(self, band, **kwargs):
         r"""Gets the eta magnitude for all channels in a band.
@@ -3466,9 +3682,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_eta_mag_array` : Sets the eta magnitudes.
         :func:`get_eta_phase_array` : Gets the eta phases.
         """
-        return self._caget(
-            self._cryo_root(band) + self._eta_mag_array_reg,
-            **kwargs)
+        return self._get_by_name(f'band[{band}].eta.mag', **kwargs)
 
     _feedback_limit_reg = 'feedbackLimit'
 
@@ -3499,9 +3713,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_feedback_limit` : Gets the current feedback limit.
         :func:`set_feedback_gain` : Sets the feedback loop gain.
         """
-        self._caput(
-            self._band_root(band) + self._feedback_limit_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].feedback.limit', val, **kwargs)
 
     def get_feedback_limit(self, band, **kwargs):
         r"""Gets the maximum feedback excursion for tone tracking.
@@ -3558,9 +3770,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_waveform_select` : Selects preloaded waveform output instead.
         :func:`set_rf_enable` : Enables/disables RF output entirely.
         """
-        self._caput(
-            self._band_root(band) + self._noise_select_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].dsp.noise_select', val, **kwargs)
 
     def get_noise_select(self, band, **kwargs):
         r"""Gets the random noise output state.
@@ -3585,8 +3795,6 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(
             self._band_root(band) + self._noise_select_reg,
             **kwargs)
-
-    _lms_delay_reg = 'lmsDelay'
 
     def set_lms_delay(self, band, val, **kwargs):
         r"""Sets the LMS loop delay compensation.
@@ -3618,10 +3826,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`estimate_phase_delay` : Measures and sets the system latency.
         :func:`set_band_delay_us` : Sets all delay registers directly.
         """
-        self._caput(
-            self._band_root(band) + self._lms_delay_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].lms.delay', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_lms_delay(self, band, **kwargs):
         r"""Gets the LMS loop delay compensation.
 
@@ -3644,12 +3851,14 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_lms_delay` : Sets the LMS delay.
         :func:`estimate_phase_delay` : Measures and sets the system latency.
-        """
-        return self._caget(
-            self._band_root(band) + self._lms_delay_reg,
-            **kwargs)
 
-    _lms_gain_reg = 'lmsGain'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name(f'band[{band}].lms.delay', **kwargs)
 
     def set_lms_gain(self, band, val, **kwargs):
         r"""Sets the LMS tracking loop gain.
@@ -3677,9 +3886,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_feedback_gain` : Sets the integrator gain (distinct from LMS).
         :func:`set_lms_enable1` : Enables 1st harmonic tracking.
         """
-        self._caput(
-            self._band_root(band) + self._lms_gain_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].lms.gain', val, **kwargs)
 
     def get_lms_gain(self, band, **kwargs):
         r"""Gets the LMS tracking loop gain.
@@ -3702,11 +3909,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_lms_gain` : Sets the LMS gain.
         """
-        return self._caget(
-            self._band_root(band) + self._lms_gain_reg,
-            **kwargs)
-
-    _trigger_reset_delay_reg = 'trigRstDly'
+        return self._get_by_name(f'band[{band}].lms.gain', **kwargs)
 
     def set_trigger_reset_delay(self, band, val, **kwargs):
         r"""Sets the trigger reset delay for the flux ramp.
@@ -3727,10 +3930,9 @@ class SmurfCommandMixin(SmurfBase):
             Arbitrary keyword arguments.  Passed directly to the
             `_caput` call.
         """
-        self._caput(
-            self._band_root(band) + self._trigger_reset_delay_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].trigger_reset_delay', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_trigger_reset_delay(self, band, **kwargs):
         r"""Gets the trigger reset delay for the flux ramp.
 
@@ -3750,12 +3952,14 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_trigger_reset_delay` : Sets this value.
-        """
-        return self._caget(
-            self._band_root(band) + self._trigger_reset_delay_reg,
-            **kwargs)
 
-    _feedback_start_reg = 'feedbackStart'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name(f'band[{band}].trigger_reset_delay', **kwargs)
 
     def set_feedback_start(self, band, val, **kwargs):
         r"""Sets the sample count at which to start applying feedback.
@@ -3783,9 +3987,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_feedback_start` : Gets the current feedback start count.
         :func:`set_feedback_end` : Sets the end of the feedback window.
         """
-        self._caput(
-            self._band_root(band) + self._feedback_start_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].feedback.start', val, **kwargs)
 
     def get_feedback_start(self, band, **kwargs):
         r"""Gets the sample count at which feedback starts.
@@ -3811,11 +4013,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_feedback_start` : Sets the feedback start count.
         :func:`get_feedback_end` : Gets the end of the feedback window.
         """
-        return self._caget(
-            self._band_root(band) + self._feedback_start_reg,
-            **kwargs)
-
-    _feedback_end_reg = 'feedbackEnd'
+        return self._get_by_name(f'band[{band}].feedback.start', **kwargs)
 
     def set_feedback_end(self, band, val, **kwargs):
         r"""Sets the sample count at which to stop applying feedback.
@@ -3842,9 +4040,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_feedback_end` : Gets the current feedback end count.
         :func:`set_feedback_start` : Sets the start of the feedback window.
         """
-        self._caput(
-            self._band_root(band) + self._feedback_end_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].feedback.end', val, **kwargs)
 
     def get_feedback_end(self, band, **kwargs):
         r"""Gets the sample count at which feedback stops.
@@ -3870,11 +4066,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_feedback_end` : Sets the feedback end count.
         :func:`get_feedback_start` : Gets the start of the feedback window.
         """
-        return self._caget(
-            self._band_root(band) + self._feedback_end_reg,
-            **kwargs)
-
-    _lms_enable1_reg = 'lmsEnable1'
+        return self._get_by_name(f'band[{band}].feedback.end', **kwargs)
 
     def set_lms_enable1(self, band, val, **kwargs):
         r"""Enables or disables 1st harmonic tracking.
@@ -3900,9 +4092,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_lms_enable3` : Enables 3rd harmonic tracking.
         :func:`set_lms_freq_hz` : Sets the fundamental tracking frequency.
         """
-        self._caput(
-            self._band_root(band) + self._lms_enable1_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].lms.enable1', val, **kwargs)
 
     def get_lms_enable1(self, band, **kwargs):
         r"""Gets the 1st harmonic tracking enable state.
@@ -3924,11 +4114,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_lms_enable1` : Sets the 1st harmonic tracking enable.
         """
-        return self._caget(
-            self._band_root(band) + self._lms_enable1_reg,
-            **kwargs)
-
-    _lms_enable2_reg = 'lmsEnable2'
+        return self._get_by_name(f'band[{band}].lms.enable1', **kwargs)
 
     def set_lms_enable2(self, band, val, **kwargs):
         r"""Enables or disables 2nd harmonic tracking.
@@ -3952,9 +4138,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_lms_enable1` : Enables 1st harmonic tracking.
         :func:`set_lms_enable3` : Enables 3rd harmonic tracking.
         """
-        self._caput(
-            self._band_root(band) + self._lms_enable2_reg,
-            val, **kwargs),
+        self._set_by_name(f'band[{band}].lms.enable2', val, **kwargs)
 
     def get_lms_enable2(self, band, **kwargs):
         r"""Gets the 2nd harmonic tracking enable state.
@@ -3976,11 +4160,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_lms_enable2` : Sets the 2nd harmonic tracking enable.
         """
-        return self._caget(
-            self._band_root(band) + self._lms_enable2_reg,
-            **kwargs)
-
-    _lms_enable3_reg = 'lmsEnable3'
+        return self._get_by_name(f'band[{band}].lms.enable2', **kwargs)
 
     def set_lms_enable3(self, band, val, **kwargs):
         r"""Enables or disables 3rd harmonic tracking.
@@ -4004,9 +4184,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_lms_enable1` : Enables 1st harmonic tracking.
         :func:`set_lms_enable2` : Enables 2nd harmonic tracking.
         """
-        self._caput(
-            self._band_root(band) + self._lms_enable3_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].lms.enable3', val, **kwargs)
 
     def get_lms_enable3(self, band, **kwargs):
         r"""Gets the 3rd harmonic tracking enable state.
@@ -4028,13 +4206,12 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_lms_enable3` : Sets the 3rd harmonic tracking enable.
         """
-        return self._caget(
-            self._band_root(band) + self._lms_enable3_reg,
-            **kwargs)
+        return self._get_by_name(f'band[{band}].lms.enable3', **kwargs)
 
 
     _lms_freq_reg = 'lmsFreq'
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_lms_freq(self, band, val, **kwargs):
         r"""Sets the LMS tracking frequency in raw firmware units.
 
@@ -4063,11 +4240,18 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_lms_freq` : Gets the current raw LMS frequency.
         :func:`set_lms_freq_hz` : Sets the LMS frequency in Hz.
         :func:`get_channel_frequency_mhz` : Gets the channel processing rate.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caput(
             self._band_root(band) + self._lms_freq_reg,
             val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_lms_freq(self, band, **kwargs):
         r"""Gets the LMS tracking frequency in raw firmware units.
 
@@ -4091,12 +4275,16 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_lms_freq` : Sets the raw LMS frequency.
         :func:`get_lms_freq_hz` : Gets the LMS frequency in Hz.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self._band_root(band) + self._lms_freq_reg,
             **kwargs)
-
-    _lms_freq_hz_reg = 'lmsFreqHz'
 
     def set_lms_freq_hz(self, band, val, **kwargs):
         r"""Sets the LMS tracking frequency in Hz.
@@ -4126,9 +4314,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_lms_freq_hz` : Gets the LMS frequency in Hz.
         :func:`set_lms_freq` : Sets the LMS frequency in raw units.
         """
-        self._caput(
-            self._band_root(band) + self._lms_freq_hz_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].lms.freq_hz', val, **kwargs)
 
     def get_lms_freq_hz(self, band, **kwargs):
         r"""Gets the LMS tracking frequency in Hz.
@@ -4151,12 +4337,8 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_lms_freq_hz` : Sets the LMS frequency in Hz.
         :func:`get_lms_freq` : Gets the LMS frequency in raw units.
         """
-        return self._caget(
-            self._band_root(band) + self._lms_freq_hz_reg,
-            **kwargs)
+        return self._get_by_name(f'band[{band}].lms.freq_hz', **kwargs)
 
-
-    _iq_stream_enable_reg = 'iqStreamEnable'
 
     def set_iq_stream_enable(self, band, val, **kwargs):
         r"""Selects between frequency and demodulated I/Q debug output.
@@ -4187,10 +4369,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_rf_iq_stream_enable` : Selects raw RF I/Q output.
         :func:`take_debug_data` : Takes data in the selected mode.
         """
-        self._caput(
-            self._band_root(band) + self._iq_stream_enable_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].stream.iq_enable', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_iq_stream_enable(self, band, **kwargs):
         r"""Gets the demodulated I/Q debug output enable state.
 
@@ -4214,12 +4395,14 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_iq_stream_enable` : Sets this mode.
-        """
-        return self._caget(
-            self._band_root(band) + self._iq_stream_enable_reg,
-            **kwargs)
 
-    _feedback_polarity_reg = 'feedbackPolarity'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name(f'band[{band}].stream.iq_enable', **kwargs)
 
     def set_feedback_polarity(self, band, val, **kwargs):
         r"""Sets the global feedback polarity for a band.
@@ -4243,10 +4426,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_feedback_polarity` : Gets the current feedback polarity.
         :func:`set_feedback_enable` : Global enable for the feedback loop.
         """
-        self._caput(
-            self._band_root(band) + self._feedback_polarity_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].feedback.polarity', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_feedback_polarity(self, band, **kwargs):
         r"""Gets the global feedback polarity for a band.
 
@@ -4266,10 +4448,14 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_feedback_polarity` : Sets the feedback polarity.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
-        return self._caget(
-            self._band_root(band) + self._feedback_polarity_reg,
-            **kwargs)
+        return self._get_by_name(f'band[{band}].feedback.polarity', **kwargs)
 
     _band_center_mhz_reg = 'bandCenterMHz'
 
@@ -4400,8 +4586,6 @@ class SmurfCommandMixin(SmurfBase):
             self._band_root(band) + self._digitizer_frequency_mhz_reg,
             **kwargs)
 
-    _synthesis_scale_reg = 'synthesisScale'
-
     def set_synthesis_scale(self, band, val, **kwargs):
         r"""Sets the synthesis filter bank output scaling.
 
@@ -4425,10 +4609,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_synthesis_scale` : Gets the current synthesis scale.
         :func:`set_analysis_scale` : Sets the analysis filter bank scaling.
         """
-        self._caput(
-            self._band_root(band) + self._synthesis_scale_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].tone.synthesis_scale', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_synthesis_scale(self, band, **kwargs):
         r"""Gets the synthesis filter bank output scaling.
 
@@ -4449,12 +4632,17 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_synthesis_scale` : Sets the synthesis scale.
-        """
-        return self._caget(
-            self._band_root(band) + self._synthesis_scale_reg,
-            **kwargs)
 
-    _dsp_enable_reg = 'dspEnable'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name(
+            f'band[{band}].tone.synthesis_scale',
+            **kwargs
+        )
 
     def set_dsp_enable(self, band, val, **kwargs):
         r"""Enables or disables baseband DSP processing for a band.
@@ -4477,10 +4665,9 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`get_dsp_enable` : Gets the current DSP enable state.
         """
-        self._caput(
-            self._band_root(band) + self._dsp_enable_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].dsp.enable', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_dsp_enable(self, band, **kwargs):
         r"""Gets the baseband DSP processing enable state.
 
@@ -4500,10 +4687,14 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_dsp_enable` : Sets the DSP enable state.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
-        return self._caget(
-            self._band_root(band) + self._dsp_enable_reg,
-            **kwargs)
+        return self._get_by_name(f'band[{band}].dsp.enable', **kwargs)
 
     # Single channel commands
     _feedback_enable_reg = 'feedbackEnable'
@@ -4534,10 +4725,11 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_feedback_enable_array` : Sets all channels at once.
         :func:`set_feedback_enable` : Sets the global feedback enable.
         """
-        self._caput(
-            self._channel_root(band, channel) +
-            self._feedback_enable_reg,
-            val, **kwargs)
+        self._set_by_name(
+            f'band[{band}].channel[{channel}].feedback.enable',
+            val,
+            **kwargs
+        )
 
     def get_feedback_enable_channel(self, band, channel, **kwargs):
         r"""Gets the feedback enable for a single channel.
@@ -4566,8 +4758,6 @@ class SmurfCommandMixin(SmurfBase):
             self._channel_root(band, channel) +
             self._feedback_enable_reg,
             **kwargs)
-
-    _eta_mag_scaled_channel_reg = 'etaMagScaled'
 
     def set_eta_mag_scaled_channel(self, band, channel, val,
                                    **kwargs):
@@ -4600,10 +4790,11 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_eta_phase_degree_channel` : Sets this channel's eta phase.
         :func:`set_eta_mag_array` : Sets all channels at once.
         """
-        self._caput(
-            self._channel_root(band, channel) +
-            self._eta_mag_scaled_channel_reg,
-            val, **kwargs)
+        self._set_by_name(
+            f'band[{band}].channel[{channel}].eta.mag_scaled',
+            val,
+            **kwargs
+        )
 
     def get_eta_mag_scaled_channel(self, band, channel, **kwargs):
         r"""Gets the eta magnitude for a single channel.
@@ -4631,12 +4822,10 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_eta_mag_scaled_channel` : Sets this channel's eta magnitude.
         :func:`get_eta_mag_array` : Gets all channels at once.
         """
-        return self._caget(
-            self._channel_root(band, channel) +
-            self._eta_mag_scaled_channel_reg,
-            **kwargs)
-
-    _center_frequency_mhz_channel_reg = 'centerFrequencyMHz'
+        return self._get_by_name(
+            f'band[{band}].channel[{channel}].eta.mag_scaled',
+            **kwargs
+        )
 
     def set_center_frequency_mhz_channel(self, band, channel, val,
                                          **kwargs):
@@ -4662,10 +4851,11 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_center_frequency_mhz_channel` : Gets this channel's frequency.
         :func:`set_center_frequency_array` : Sets all channels at once.
         """
-        self._caput(
-            self._channel_root(band, channel) +
-            self._center_frequency_mhz_channel_reg,
-            val, **kwargs)
+        self._set_by_name(
+            f'band[{band}].channel[{channel}].tone.frequency',
+            val,
+            **kwargs
+        )
 
     def get_center_frequency_mhz_channel(self, band, channel,
                                          **kwargs):
@@ -4691,10 +4881,10 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_center_frequency_mhz_channel` : Sets this channel's frequency.
         :func:`get_center_frequency_array` : Gets all channels at once.
         """
-        return self._caget(
-            self._channel_root(band, channel) +
-            self._center_frequency_mhz_channel_reg,
-            **kwargs)
+        return self._get_by_name(
+            f'band[{band}].channel[{channel}].tone.frequency',
+            **kwargs
+        )
 
 
     _amplitude_scale_channel_reg = 'amplitudeScale'
@@ -4755,12 +4945,10 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_amplitude_scale_channel` : Sets this channel's amplitude.
         :func:`get_amplitude_scale_array` : Gets all channels at once.
         """
-        return self._caget(
-            self._channel_root(band, channel) +
-            self._amplitude_scale_channel_reg,
-            **kwargs)
-
-    _eta_phase_degree_channel_reg = 'etaPhaseDegree'
+        return self._get_by_name(
+            f'band[{band}].channel[{channel}].tone.amplitude',
+            **kwargs
+        )
 
     def set_eta_phase_degree_channel(self, band, channel, val,
                                      **kwargs):
@@ -4789,10 +4977,11 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_eta_mag_scaled_channel` : Sets this channel's eta magnitude.
         :func:`set_eta_phase_array` : Sets all channels (in radians).
         """
-        self._caput(
-            self._channel_root(band, channel) +
-            self._eta_phase_degree_channel_reg,
-            val, **kwargs)
+        self._set_by_name(
+            f'band[{band}].channel[{channel}].eta.phase_degree',
+            val,
+            **kwargs
+        )
 
     def get_eta_phase_degree_channel(self, band, channel, **kwargs):
         r"""Gets the eta phase for a single channel in degrees.
@@ -4817,10 +5006,10 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_eta_phase_degree_channel` : Sets this channel's eta phase.
         :func:`get_eta_phase_array` : Gets all channels (in radians).
         """
-        return self._caget(
-            self._channel_root(band, channel) +
-            self._eta_phase_degree_channel_reg,
-            **kwargs)
+        return self._get_by_name(
+            f'band[{band}].channel[{channel}].eta.phase_degree',
+            **kwargs
+        )
 
     _frequency_error_mhz_reg = 'frequencyErrorMHz'
 
@@ -5022,9 +5211,6 @@ class SmurfCommandMixin(SmurfBase):
             self.att_root.format(bay) + self._dc_reg.format(att),
             **kwargs)
 
-    # DAC commands
-    _dac_temp_reg = "Temperature"
-
     def get_dac_temp(self, bay, dac, **kwargs):
         """
         Get temperature of the DAC in celsius
@@ -5036,12 +5222,14 @@ class SmurfCommandMixin(SmurfBase):
         dac : int
             Which DAC no. [0 or 1].
         """
-        return self._caget(
-            self.dac_root.format(bay,dac) + self._dac_temp_reg,
-            **kwargs)
+        return self._get_by_name(
+            f'bay[{bay}].dac[{dac}].temperature',
+            **kwargs
+        )
 
     _dac_enable_reg = "enable"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_dac_enable(self, bay, dac, val, **kwargs):
         """
         Low-level function.  The RF DAC enable is configured
@@ -5058,11 +5246,18 @@ class SmurfCommandMixin(SmurfBase):
             Which DAC no. [0 or 1].
         val : int
             Value to set the DAC enable register to [0 or 1].
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caput(
             self.dac_root.format(bay,dac) + self._dac_enable_reg,
             val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_dac_enable(self, bay, dac, **kwargs):
         """
         Low-level function.  The RF DAC enable is configured
@@ -5077,13 +5272,16 @@ class SmurfCommandMixin(SmurfBase):
             Which bay [0 or 1].
         dac : int
             Which DAC no. [0 or 1].
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self.dac_root.format(bay,dac) + self._dac_enable_reg,
             **kwargs)
-
-    # Jesd commands
-    _data_out_mux_reg = 'dataOutMux[{}]'
 
     def set_data_out_mux(self, bay, b, val, **kwargs):
         r"""Sets the JESD transmit output data source for a lane.
@@ -5110,11 +5308,13 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`get_data_out_mux` : Gets the current selection.
         """
-        self._caput(
-            self.jesd_tx_root.format(bay) +
-            self._data_out_mux_reg.format(b),
-            val, **kwargs)
+        self._set_by_name(
+            f'bay[{bay}].jesd.tx_lane[{b}].data_out_mux',
+            val,
+            **kwargs
+        )
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_data_out_mux(self, bay, b, **kwargs):
         r"""Gets the JESD transmit output data source for a lane.
 
@@ -5136,14 +5336,17 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_data_out_mux` : Sets the selection.
-        """
-        return self._caget(
-            self.jesd_tx_root.format(bay) +
-            self._data_out_mux_reg.format(b),
-            **kwargs)
 
-    # Jesd DAC commands
-    _jesd_reset_n_reg = "JesdRstN"
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name(
+            f'bay[{bay}].jesd.tx_lane[{b}].data_out_mux',
+            **kwargs
+        )
 
     def set_jesd_reset_n(self, bay, dac, val, **kwargs):
         """
@@ -5158,11 +5361,7 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Value to set JesdRstN to [0 or 1].
         """
-        self._caput(
-            self.dac_root.format(bay,dac) + self._jesd_reset_n_reg,
-            val, **kwargs)
-
-    _jesd_rx_enable_reg = 'Enable'
+        self._set_by_name(f'bay[{bay}].dac[{dac}].jesd_reset_n', val, **kwargs)
 
     def set_jesd_rx_enable(self, bay, val, **kwargs):
         r"""Sets the JESD receive lane enable mask for a bay.
@@ -5188,9 +5387,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_jesd_tx_enable` : Sets the JESD transmit lane mask.
         :func:`get_jesd_rx_data_valid` : Checks if receive data is valid.
         """
-        self._caput(
-            self.jesd_rx_root.format(bay) + self._jesd_rx_enable_reg,
-            val, **kwargs)
+        self._set_by_name(f'bay[{bay}].jesd.rx_enable', val, **kwargs)
 
     def get_jesd_rx_enable(self, bay, **kwargs):
         r"""Gets the JESD receive lane enable mask for a bay.
@@ -5212,9 +5409,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_jesd_rx_enable` : Sets the enable mask.
         """
-        return self._caget(
-            self.jesd_rx_root.format(bay) + self._jesd_rx_enable_reg,
-            **kwargs)
+        return self._get_by_name(f'bay[{bay}].jesd.rx_enable', **kwargs)
 
     _jesd_rx_status_valid_cnt_reg = 'StatusValidCnt'
 
@@ -5253,8 +5448,6 @@ class SmurfCommandMixin(SmurfBase):
             self._jesd_rx_status_valid_cnt_reg + f'[{num}]',
             **kwargs)
 
-    _jesd_rx_data_valid_reg = 'DataValid'
-
     def get_jesd_rx_data_valid(self, bay, **kwargs):
         r"""Gets the JESD receive data valid status for a bay.
 
@@ -5281,12 +5474,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_jesd_rx_enable` : Gets the lane enable mask.
         :func:`get_jesd_rx_status_valid_cnt` : Gets per-lane valid count.
         """
-        return self._caget(
-            self.jesd_rx_root.format(bay) +
-            self._jesd_rx_data_valid_reg,
-            **kwargs)
-
-    _jesd_tx_enable_reg = 'Enable'
+        return self._get_by_name(f'bay[{bay}].jesd.rx_data_valid', **kwargs)
 
     def set_jesd_tx_enable(self, bay, val, **kwargs):
         r"""Sets the JESD transmit lane enable mask for a bay.
@@ -5313,9 +5501,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_jesd_rx_enable` : Sets the JESD receive lane mask.
         :func:`get_jesd_tx_data_valid` : Checks if transmit data is valid.
         """
-        self._caput(
-            self.jesd_tx_root.format(bay) + self._jesd_tx_enable_reg,
-            val, **kwargs)
+        self._set_by_name(f'bay[{bay}].jesd.tx_enable', val, **kwargs)
 
     def get_jesd_tx_enable(self, bay, **kwargs):
         r"""Gets the JESD transmit lane enable mask for a bay.
@@ -5337,11 +5523,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_jesd_tx_enable` : Sets the enable mask.
         """
-        return self._caget(
-            self.jesd_tx_root.format(bay) + self._jesd_tx_enable_reg,
-            **kwargs)
-
-    _jesd_tx_data_valid_reg = 'DataValid'
+        return self._get_by_name(f'bay[{bay}].jesd.tx_enable', **kwargs)
 
     def get_jesd_tx_data_valid(self, bay, **kwargs):
         r"""Gets the JESD transmit data valid status for a bay.
@@ -5368,10 +5550,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_jesd_tx_enable` : Gets the lane enable mask.
         :func:`get_jesd_tx_status_valid_cnt` : Gets per-lane valid count.
         """
-        return self._caget(
-            self.jesd_tx_root.format(bay) +
-            self._jesd_tx_data_valid_reg,
-            **kwargs)
+        return self._get_by_name(f'bay[{bay}].jesd.tx_data_valid', **kwargs)
 
     _jesd_tx_status_valid_cnt_reg = 'StatusValidCnt'
 
@@ -5581,8 +5760,6 @@ class SmurfCommandMixin(SmurfBase):
                 self.LOG_ERROR)
             return None
 
-    _fpga_uptime_reg = 'UpTimeCnt'
-
     def get_fpga_uptime(self, **kwargs):
         """
         No description
@@ -5592,11 +5769,7 @@ class SmurfCommandMixin(SmurfBase):
         uptime : float
             The FPGA uptime.
         """
-        return self._caget(
-            self.axi_version + self._fpga_uptime_reg,
-            **kwargs)
-
-    _fpga_version_reg = 'FpgaVersion'
+        return self._get_by_name('firmware.uptime', **kwargs)
 
     def get_fpga_version(self, **kwargs):
         """
@@ -5607,11 +5780,7 @@ class SmurfCommandMixin(SmurfBase):
         version : str
             The FPGA version.
         """
-        return self._caget(
-            self.axi_version + self._fpga_version_reg,
-            **kwargs)
-
-    _fpga_git_hash_reg = 'GitHash'
+        return self._get_by_name('firmware.version', **kwargs)
 
     def get_fpga_git_hash(self, **kwargs):
         r"""Get the full FPGA firmware SHA-1 git hash.
@@ -5627,11 +5796,7 @@ class SmurfCommandMixin(SmurfBase):
         str
             The full git SHA-1 hash of the FPGA firmware.
         """
-        return self._caget(
-            self.axi_version + self._fpga_git_hash_reg,
-            as_string=True, **kwargs)
-
-    _fpga_git_hash_short_reg = 'GitHashShort'
+        return self._get_by_name('firmware.git_hash', as_string=True, **kwargs)
 
     def get_fpga_git_hash_short(self, **kwargs):
         r"""Get the short FPGA firmware SHA-1 git hash.
@@ -5647,12 +5812,12 @@ class SmurfCommandMixin(SmurfBase):
         str
             The short git SHA-1 hash of the FPGA firmware.
         """
-        return self._caget(
-            self.axi_version + self._fpga_git_hash_short_reg,
-            as_string=True, **kwargs)
+        return self._get_by_name(
+            'firmware.git_hash_short',
+            as_string=True,
+            **kwargs
+        )
 
-
-    _fpga_build_stamp_reg = 'BuildStamp'
 
     def get_fpga_build_stamp(self, **kwargs):
         r"""Get the FPGA build stamp.
@@ -5668,11 +5833,11 @@ class SmurfCommandMixin(SmurfBase):
         str
             The FPGA build stamp.
         """
-        return self._caget(
-            self.axi_version + self._fpga_build_stamp_reg,
-            as_string=True, **kwargs)
-
-    _input_mux_sel_reg = 'InputMuxSel[{}]'
+        return self._get_by_name(
+            'firmware.build_stamp',
+            as_string=True,
+            **kwargs
+        )
 
     def set_input_mux_sel(self, bay, lane, val, **kwargs):
         r"""Selects the data source for a DaqMux buffer lane.
@@ -5710,11 +5875,13 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_debug_select` : Selects which band's debug routes to DaqMux.
         :func:`take_debug_data` : Sets this up automatically.
         """
-        self._caput(
-            self.daq_mux_root.format(bay) +
-            self._input_mux_sel_reg.format(lane),
-            val, **kwargs)
+        self._set_by_name(
+            f'bay[{bay}].daq.input[{lane}].mux_sel',
+            val,
+            **kwargs
+        )
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_input_mux_sel(self, bay, lane, **kwargs):
         r"""Gets the data source selection for a DaqMux buffer lane.
 
@@ -5736,13 +5903,14 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_input_mux_sel` : Sets the selection.
-        """
-        self._caget(
-            self.daq_mux_root.format(bay) +
-            self._input_mux_sel_reg.format(lane),
-            **kwargs)
 
-    _data_buffer_size_reg = 'DataBufferSize'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        self._get_by_name(f'bay[{bay}].daq.input[{lane}].mux_sel', **kwargs)
 
     def set_data_buffer_size(self, bay, val, **kwargs):
         r"""Sets the DaqMux data buffer size.
@@ -5765,11 +5933,9 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`take_debug_data` : Triggers a data capture using this buffer.
         """
-        self._caput(
-            self.daq_mux_root.format(bay) +
-            self._data_buffer_size_reg,
-            val, **kwargs)
+        self._set_by_name(f'bay[{bay}].daq.data_buffer_size', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_data_buffer_size(self, bay, **kwargs):
         r"""Gets the DaqMux data buffer size.
 
@@ -5790,15 +5956,19 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_data_buffer_size` : Sets this value.
         :func:`take_debug_data` : Triggers a data capture using this buffer.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
-        return self._caget(
-            self.daq_mux_root.format(bay) +
-            self._data_buffer_size_reg,
-            **kwargs)
+        return self._get_by_name(f'bay[{bay}].daq.data_buffer_size', **kwargs)
 
     # Waveform engine commands
     _start_addr_reg = 'StartAddr[{}]'
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_waveform_start_addr(self, bay, engine, val, **kwargs):
         """
         No description
@@ -5811,6 +5981,12 @@ class SmurfCommandMixin(SmurfBase):
             Which waveform engine.
         val : int or str
             What value to set.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         if isinstance(val, str):
             val = int(val, 16)
@@ -5866,6 +6042,7 @@ class SmurfCommandMixin(SmurfBase):
             self._end_addr_reg.format(engine),
             val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_waveform_end_addr(self, bay, engine, convert=True, **kwargs):
         """
         No description
@@ -5884,6 +6061,12 @@ class SmurfCommandMixin(SmurfBase):
         val : str or int
             Waveform end address (a string of hex values if convert is
             False, otherwise an integer if convert is True).
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         val = self._caget(
             self.waveform_engine_buffers_root.format(bay) +
@@ -5898,6 +6081,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _wr_addr_reg = 'WrAddr[{}]'
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_waveform_wr_addr(self, bay, engine, val, convert=True, **kwargs):
         """
         No description
@@ -5912,6 +6096,12 @@ class SmurfCommandMixin(SmurfBase):
             What val to set.
         convert : bool, optional, default True
             Convert the output from a string of hex values to an int.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         if isinstance(val, str):
             val = int(val, 16)
@@ -5952,6 +6142,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _empty_reg = 'Empty[{}]'
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_waveform_empty(self, bay, engine, val, **kwargs):
         """
         No description
@@ -5964,6 +6155,12 @@ class SmurfCommandMixin(SmurfBase):
             Which waveform engine.
         val : int
             What val to set.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caput(
             self.waveform_engine_buffers_root.format(bay) +
@@ -5981,12 +6178,10 @@ class SmurfCommandMixin(SmurfBase):
         engine : int
             Which waveform engine.
         """
-        return self._caget(
-            self.waveform_engine_buffers_root.format(bay) +
-            self._empty_reg.format(engine),
-            **kwargs)
-
-    _data_file_reg = 'DataFile'
+        return self._get_by_name(
+            f'bsa.engine[{bay}].buffer[{engine}].empty',
+            **kwargs
+        )
 
     def set_streamdatawriter_datafile(self, datafile_path, **kwargs):
         """
@@ -5998,9 +6193,7 @@ class SmurfCommandMixin(SmurfBase):
         datafile_path : str
             The full path for the output.
         """
-        self._caput(
-            self.stream_data_writer_root + self._data_file_reg,
-            datafile_path, **kwargs)
+        self._set_by_name('stream.writer.data_file', datafile_path, **kwargs)
 
     def get_streamdatawriter_datafile(self, as_str=True, **kwargs):
         r"""Gets output path for the StreamDataWriter.
@@ -6018,11 +6211,11 @@ class SmurfCommandMixin(SmurfBase):
         str
             The full path for the output.
         """
-        return self._caget(
-            self.stream_data_writer_root + self._data_file_reg,
-            as_string=True, **kwargs)
-
-    _datawriter_open_reg = 'Open'
+        return self._get_by_name(
+            'stream.writer.data_file',
+            as_string=True,
+            **kwargs
+        )
 
     def set_streamdatawriter_open(self, val, **kwargs):
         r"""Opens the stream data file writer.
@@ -6040,11 +6233,10 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_streamdatawriter_open` : Gets the current state.
         :func:`set_streamdatawriter_close` : Closes the writer.
         """
-        self._caput(
-            self.stream_data_writer_root + self._datawriter_open_reg,
-            val, **kwargs)
+        self._set_by_name('stream.writer.open', val, **kwargs)
 
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_streamdatawriter_open(self, **kwargs):
         r"""Gets the stream data file writer open state.
 
@@ -6062,12 +6254,14 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_streamdatawriter_open` : Opens the writer.
-        """
-        return self._caget(
-            self.stream_data_writer_root + self._datawriter_open_reg,
-            **kwargs)
 
-    _datawriter_close_reg = 'Close'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name('stream.writer.open', **kwargs)
 
     def set_streamdatawriter_close(self, val, **kwargs):
         r"""Closes the stream data file writer.
@@ -6085,10 +6279,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_streamdatawriter_close` : Gets the current state.
         :func:`set_streamdatawriter_open` : Opens the writer.
         """
-        self._caput(
-            self.stream_data_writer_root + self._datawriter_close_reg,
-            val, **kwargs)
+        self._set_by_name('stream.writer.close', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_streamdatawriter_close(self, **kwargs):
         r"""Gets the stream data file writer close state.
 
@@ -6106,12 +6299,14 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_streamdatawriter_close` : Closes the writer.
-        """
-        return self._caget(
-            self.stream_data_writer_root + self._datawriter_close_reg,
-            **kwargs)
 
-    _trigger_daq_reg = 'TriggerDaq'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name('stream.writer.close', **kwargs)
 
     def set_trigger_daq(self, bay, val, **kwargs):
         r"""Triggers the DaqMux to start data acquisition.
@@ -6131,10 +6326,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_trigger_daq` : Gets the current state.
         :func:`set_arm_hw_trigger` : Arms the hardware trigger.
         """
-        self._caput(
-            self.daq_mux_root.format(bay) + self._trigger_daq_reg,
-            val, **kwargs)
+        self._set_by_name(f'bay[{bay}].daq.trigger', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_trigger_daq(self, bay, **kwargs):
         r"""Gets the DaqMux trigger state.
 
@@ -6154,12 +6348,14 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_trigger_daq` : Triggers acquisition.
-        """
-        self._caget(
-            self.daq_mux_root.format(bay) + self._trigger_daq_reg,
-            **kwargs)
 
-    _arm_hw_trigger_reg = "ArmHwTrigger"
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        self._get_by_name(f'bay[{bay}].daq.trigger', **kwargs)
 
     def set_arm_hw_trigger(self, bay, val, **kwargs):
         r"""Arms the DaqMux hardware trigger (alternate register).
@@ -6179,11 +6375,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_trigger_hw_arm` : Arms the hardware trigger.
         :func:`set_trigger_daq` : Software trigger for acquisition.
         """
-        self._caput(
-            self.daq_mux_root.format(bay) + self._arm_hw_trigger_reg,
-            val, **kwargs)
-
-    _trigger_hw_arm_reg = 'TriggerHwArm'
+        self._set_by_name(f'bay[{bay}].daq.arm_hw_trigger', val, **kwargs)
 
     def set_trigger_hw_arm(self, bay, val, **kwargs):
         r"""Arms the DaqMux hardware trigger.
@@ -6203,10 +6395,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_trigger_hw_arm` : Gets the current state.
         :func:`set_trigger_daq` : Software trigger for acquisition.
         """
-        self._caput(
-            self.daq_mux_root.format(bay) + self._trigger_hw_arm_reg,
-            val, **kwargs)
+        self._set_by_name(f'bay[{bay}].daq.trigger_hw_arm', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_trigger_hw_arm(self, bay, **kwargs):
         r"""Gets the DaqMux hardware trigger arm state.
 
@@ -6226,10 +6417,14 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_trigger_hw_arm` : Arms the trigger.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
-        return self._caget(
-            self.daq_mux_root.format(bay) + self._trigger_hw_arm_reg,
-            **kwargs)
+        return self._get_by_name(f'bay[{bay}].daq.trigger_hw_arm', **kwargs)
 
     # rtm commands
 
@@ -6287,6 +6482,7 @@ class SmurfCommandMixin(SmurfBase):
             self._rtm_arb_waveform_lut_table_reg.format(reg),
             lut_arr, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_rtm_arb_waveform_lut_table(self, reg, **kwargs):
         r"""Gets the waveform LUT table contents.
 
@@ -6302,6 +6498,12 @@ class SmurfCommandMixin(SmurfBase):
         -------
         array-like
             LUT contents, up to 2048 entries of 20-bit signed values.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         assert (reg in range(2)), 'reg must be in [0,1]'
         return self._caget(
@@ -6311,6 +6513,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _rtm_arb_waveform_busy_reg = 'Busy'
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_rtm_arb_waveform_busy(self, **kwargs):
         r"""Gets whether the RTM arbitrary waveform generator is active.
 
@@ -6328,6 +6531,12 @@ class SmurfCommandMixin(SmurfBase):
         -------
         int
             1 if busy (outputting waveform), 0 if idle.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self.rtm_lut_ctrl + self._rtm_arb_waveform_busy_reg,
@@ -6335,6 +6544,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _rtm_arb_waveform_trig_cnt_reg = 'TrigCnt'
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_rtm_arb_waveform_trig_cnt(self, **kwargs):
         r"""Gets the RTM arbitrary waveform trigger count.
 
@@ -6351,6 +6561,12 @@ class SmurfCommandMixin(SmurfBase):
         -------
         int
             Trigger count (16-bit).
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self.rtm_lut_ctrl + self._rtm_arb_waveform_trig_cnt_reg,
@@ -6375,6 +6591,7 @@ class SmurfCommandMixin(SmurfBase):
             self.rtm_lut_ctrl + self._rtm_arb_waveform_continuous_reg,
             val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_rtm_arb_waveform_continuous(self, **kwargs):
         r"""Gets the RTM arbitrary waveform continuous mode flag.
 
@@ -6392,6 +6609,12 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_rtm_arb_waveform_continuous` : Sets this value.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self.rtm_lut_ctrl + self._rtm_arb_waveform_continuous_reg,
@@ -6399,6 +6622,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _rtm_arb_waveform_software_trigger_reg = 'SwTrig'
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def trigger_rtm_arb_waveform(self, continuous=False, **kwargs):
         """
         Software trigger for arbitrary waveform generation on the slow
@@ -6410,6 +6634,12 @@ class SmurfCommandMixin(SmurfBase):
         continuous : bool, optional, default False
             Whether or not to continously broadcast the arbitrary
             waveform on software trigger.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         if continuous is True:
             self.set_rtm_arb_waveform_continuous(1)
@@ -6438,12 +6668,19 @@ class SmurfCommandMixin(SmurfBase):
             self.rtm_lut_ctrl + self._dac_axil_addr_reg.format(reg),
             f"Dac[{val:d}]", **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_dac_axil_addr(self, reg, **kwargs):
         """
         Low-level function.  Used internally by the bipolar TES-bias
         path; users should not normally need to call this directly.
 
         Gets the DacAxilAddr[#] registers.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         assert (reg in range(2)), 'reg must be in [0,1]'
         return self._caget(
@@ -6468,6 +6705,7 @@ class SmurfCommandMixin(SmurfBase):
             self.rtm_lut_ctrl + self._rtm_arb_waveform_timer_size_reg,
             val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_rtm_arb_waveform_timer_size(self, **kwargs):
         r"""Gets the RTM arbitrary waveform sample interval.
 
@@ -6488,6 +6726,12 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_rtm_arb_waveform_timer_size` : Sets this value.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self.rtm_lut_ctrl + self._rtm_arb_waveform_timer_size_reg,
@@ -6495,6 +6739,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _rtm_arb_waveform_max_addr_reg = 'MaxAddr'
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_rtm_arb_waveform_max_addr(self, val, **kwargs):
         """
         Slow RTM DACs will play the sequence [0...MaxAddr] of points
@@ -6508,12 +6753,19 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             The value to set MaxAddr to.  Must be an integer in
             [0,2048).
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         assert (val in range(2**11)), 'reg must be in [0,2048)'
         self._caput(
             self.rtm_lut_ctrl + self._rtm_arb_waveform_max_addr_reg,
             val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_rtm_arb_waveform_max_addr(self, **kwargs):
         r"""Gets the last LUT address played by the RTM arbitrary waveform generator.
 
@@ -6537,6 +6789,12 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_rtm_arb_waveform_max_addr` : Sets this value.
         :func:`trigger_rtm_arb_waveform` : Start waveform playback.
         :func:`set_rtm_arb_waveform_continuous` : Single-shot vs repeating.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self.rtm_lut_ctrl + self._rtm_arb_waveform_max_addr_reg,
@@ -6561,6 +6819,7 @@ class SmurfCommandMixin(SmurfBase):
             self.rtm_lut_ctrl + self._rtm_arb_waveform_enable_reg,
             val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_rtm_arb_waveform_enable(self, **kwargs):
         r"""Gets the enable for generation of arbitrary waveforms on the RTM slow DACs.
 
@@ -6580,6 +6839,12 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_rtm_arb_waveform_enable` : Sets this value.
         :func:`trigger_rtm_arb_waveform` : Start waveform playback.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self.rtm_lut_ctrl + self._rtm_arb_waveform_enable_reg,
@@ -6613,8 +6878,6 @@ class SmurfCommandMixin(SmurfBase):
             self.rtm_cryo_det_root + self._reset_rtm_reg,
             1, **kwargs)
 
-    _cpld_reset_reg = 'CpldReset'
-
     def set_cpld_reset(self, val, **kwargs):
         """
         No description
@@ -6624,10 +6887,9 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Set to 1 for a cpld reset.
         """
-        self._caput(
-            self.rtm_cryo_det_root + self._cpld_reset_reg,
-            val, **kwargs)
+        self._set_by_name('rtm.cpld_reset', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_cpld_reset(self, **kwargs):
         r"""Gets the RTM CPLD reset state.
 
@@ -6650,10 +6912,14 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_cpld_reset` : Sets the reset state.
         :func:`cpld_toggle` : Pulses the reset.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
-        return self._caget(
-            self.rtm_cryo_det_root + self._cpld_reset_reg,
-            **kwargs)
+        return self._get_by_name('rtm.cpld_reset', **kwargs)
 
     def cpld_toggle(self, **kwargs):
         r"""Resets the RTM CPLD.
@@ -6710,6 +6976,7 @@ class SmurfCommandMixin(SmurfBase):
                 "triggers. Allowed rates are 1, 2, 3, 4, 5, 6, 8, 10," +
                 "12, 15kHz only")
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_ramp_rate(self, **kwargs):
         r"""Gets the flux ramp reset rate from the timing system in kHz.
 
@@ -6733,6 +7000,12 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_ramp_rate` : Sets the reset rate.
         :func:`set_ramp_start_mode` : Select trigger source.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
 
         rate_sel = self._caget(
@@ -6746,6 +7019,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _trigger_delay_reg = ".EvrV2TriggerReg[0].Delay"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_trigger_delay(self, val, **kwargs):
         r"""Sets the flux ramp trigger delay offset.
 
@@ -6761,12 +7035,19 @@ class SmurfCommandMixin(SmurfBase):
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to the
             `_caput` call.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caput(
             self._timing_crate_root_reg +
             self._trigger_delay_reg,
             val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_trigger_delay(self, **kwargs):
         r"""Gets the flux ramp trigger delay offset.
 
@@ -6784,6 +7065,12 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_trigger_delay` : Sets this value.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
 
         trigger_delay = self._caget(
@@ -6792,8 +7079,6 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs)
 
         return trigger_delay
-
-    _debounce_width_reg = 'DebounceWidth'
 
     def set_debounce_width(self, val, **kwargs):
         r"""Sets the external trigger debounce width.
@@ -6820,10 +7105,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_debounce_width` : Gets the current debounce width.
         :func:`set_enable_ramp_trigger` : Enables trigger pulses.
         """
-        self._caput(
-            self.rtm_cryo_det_root + self._debounce_width_reg,
-            val, **kwargs)
+        self._set_by_name('rtm.debounce_width', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_debounce_width(self, **kwargs):
         r"""Gets the external trigger debounce width.
 
@@ -6841,12 +7125,14 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_debounce_width` : Sets the debounce width.
-        """
-        return self._caget(
-            self.rtm_cryo_det_root + self._debounce_width_reg,
-            **kwargs)
 
-    _ramp_slope_reg = 'RampSlope'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name('rtm.debounce_width', **kwargs)
 
     def set_ramp_slope(self, val, **kwargs):
         r"""Sets the flux ramp slope polarity.
@@ -6867,10 +7153,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_ramp_slope` : Gets the current slope polarity.
         :func:`set_cfg_reg_ena_bit` : Enables/disables the flux ramp.
         """
-        self._caput(
-            self.rtm_spi_root + self._ramp_slope_reg,
-            val, **kwargs)
+        self._set_by_name('flux_ramp.ramp_slope', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_ramp_slope(self, **kwargs):
         r"""Gets the flux ramp slope polarity.
 
@@ -6888,12 +7173,14 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_ramp_slope` : Sets the slope polarity.
-        """
-        return self._caget(
-            self.rtm_spi_root + self._ramp_slope_reg,
-            **kwargs)
 
-    _flux_ramp_dac_reg = 'LTC1668RawDacData'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name('flux_ramp.ramp_slope', **kwargs)
 
     def set_flux_ramp_dac(self, val, **kwargs):
         r"""Sets the raw flux ramp DAC value.
@@ -6920,10 +7207,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_flux_ramp_dac` : Gets the current DAC value.
         :func:`set_mode_control` : Switches between ramp and static DAC modes.
         """
-        self._caput(
-            self.rtm_spi_root + self._flux_ramp_dac_reg,
-            val, **kwargs)
+        self._set_by_name('flux_ramp.dac_raw', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_flux_ramp_dac(self, **kwargs):
         r"""Gets the raw flux ramp DAC value.
 
@@ -6942,12 +7228,14 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_flux_ramp_dac` : Sets the DAC value.
         :func:`get_mode_control` : Gets the current DAC mode.
-        """
-        return self._caget(
-            self.rtm_spi_root + self._flux_ramp_dac_reg,
-            **kwargs)
 
-    _mode_control_reg = 'ModeControl'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name('flux_ramp.dac_raw', **kwargs)
 
     def set_mode_control(self, val, **kwargs):
         r"""Sets the RTM DAC output mode.
@@ -6972,9 +7260,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_mode_control` : Gets the current mode.
         :func:`set_flux_ramp_dac` : Sets the static ramp DAC value for test mode.
         """
-        self._caput(
-            self.rtm_spi_root + self._mode_control_reg,
-            val, **kwargs)
+        self._set_by_name('flux_ramp.mode_control', val, **kwargs)
 
     def get_mode_control(self, **kwargs):
         r"""Gets the RTM DAC output mode.
@@ -6994,11 +7280,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_mode_control` : Sets the DAC output mode.
         """
-        return self._caget(
-            self.rtm_spi_root + self._mode_control_reg,
-            **kwargs)
-
-    _fast_slow_step_size_reg = 'FastSlowStepSize'
+        return self._get_by_name('flux_ramp.mode_control', **kwargs)
 
     def set_fast_slow_step_size(self, val, **kwargs):
         r"""Sets the flux ramp step size.
@@ -7029,10 +7311,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_low_cycle` : Sets the clock divider low phase.
         :func:`set_high_cycle` : Sets the clock divider high phase.
         """
-        self._caput(
-            self.rtm_spi_root + self._fast_slow_step_size_reg,
-            val, **kwargs)
+        self._set_by_name('flux_ramp.fast_slow_step_size', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_fast_slow_step_size(self, **kwargs):
         r"""Gets the flux ramp step size.
 
@@ -7050,12 +7331,14 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_fast_slow_step_size` : Sets the step size.
-        """
-        return self._caget(
-            self.rtm_spi_root + self._fast_slow_step_size_reg,
-            **kwargs)
 
-    _fast_slow_rst_value_reg = 'FastSlowRstValue'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name('flux_ramp.fast_slow_step_size', **kwargs)
 
     def set_fast_slow_rst_value(self, val, **kwargs):
         r"""Sets the flux ramp counter reset value.
@@ -7078,9 +7361,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_fast_slow_rst_value` : Gets the current reset value.
         :func:`set_fast_slow_step_size` : Sets the ramp step size.
         """
-        self._caput(
-            self.rtm_spi_root + self._fast_slow_rst_value_reg,
-            val, **kwargs)
+        self._set_by_name('flux_ramp.fast_slow_rst_value', val, **kwargs)
 
     def get_fast_slow_rst_value(self, **kwargs):
         r"""Gets the flux ramp counter reset value.
@@ -7100,11 +7381,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_fast_slow_rst_value` : Sets the reset value.
         """
-        return self._caget(
-            self.rtm_spi_root + self._fast_slow_rst_value_reg,
-            **kwargs)
-
-    _enable_ramp_trigger_reg = 'EnableRampTrigger'
+        return self._get_by_name('flux_ramp.fast_slow_rst_value', **kwargs)
 
     def set_enable_ramp_trigger(self, val, **kwargs):
         r"""Enables or disables the flux ramp trigger pulses.
@@ -7127,10 +7404,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_enable_ramp_trigger` : Gets the current state.
         :func:`set_cfg_reg_ena_bit` : Enables the flux ramp via SPI.
         """
-        self._caput(
-            self.rtm_cryo_det_root + self._enable_ramp_trigger_reg,
-            val, **kwargs)
+        self._set_by_name('flux_ramp.enable_trigger', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_enable_ramp_trigger(self, **kwargs):
         r"""Gets the flux ramp trigger pulse enable state.
 
@@ -7148,12 +7424,14 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_enable_ramp_trigger` : Sets the enable state.
-        """
-        return self._caget(
-            self.rtm_cryo_det_root + self._enable_ramp_trigger_reg,
-            **kwargs)
 
-    _cfg_reg_ena_bit_reg = 'CfgRegEnaBit'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name('flux_ramp.enable_trigger', **kwargs)
 
     def set_cfg_reg_ena_bit(self, val, **kwargs):
         r"""Enables or disables the flux ramp.
@@ -7179,10 +7457,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`flux_ramp_off` : Convenience wrapper to disable.
         :func:`set_ramp_max_cnt` : Sets the flux ramp frequency.
         """
-        self._caput(
-            self.rtm_spi_root + self._cfg_reg_ena_bit_reg,
-            val, **kwargs)
+        self._set_by_name('flux_ramp.enable', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_cfg_reg_ena_bit(self, **kwargs):
         r"""Gets the flux ramp enable state.
 
@@ -7200,10 +7477,14 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_cfg_reg_ena_bit` : Sets the flux ramp enable.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
-        return self._caget(
-            self.rtm_spi_root + self._cfg_reg_ena_bit_reg,
-            **kwargs)
+        return self._get_by_name('flux_ramp.enable', **kwargs)
 
     # Right now in pyrogue, this is named as if it's always a TesBias,
     # but pysmurf doesn't only use them as TES biases - e.g. in
@@ -7312,10 +7593,7 @@ class SmurfCommandMixin(SmurfBase):
             An array containing the DacCtrlReg settings for all of the
             slow RTM DACs.
         """
-        return self._caget(
-            self.rtm_spi_max_root +
-            self._rtm_slow_dac_enable_reg,
-            **kwargs)
+        return self._get_by_name('rtm.slow_dac.enable_array', **kwargs)
 
     _rtm_slow_dac_data_reg = 'TesBiasDacDataRegCh'
 
@@ -7422,9 +7700,7 @@ class SmurfCommandMixin(SmurfBase):
             Size (32,) array of DAC values, in DAC units.  The value
             of these registers set the output voltages of the DACs.
         """
-        return self._caget(
-            self.rtm_spi_max_root + self._rtm_slow_dac_data_reg,
-            **kwargs)
+        return self._get_by_name('rtm.slow_dac.data_array', **kwargs)
 
     def set_rtm_slow_dac_volt(self, dac, val, **kwargs):
         """
@@ -7834,6 +8110,7 @@ class SmurfCommandMixin(SmurfBase):
 
         return out_milliamp_offset
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_amp_drain_current_dict(self):
         """Measures drain current for all cryogenic RF amplifiers.
 
@@ -7849,6 +8126,12 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`get_amp_drain_current` : Single-amplifier measurement.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         amp_gate_currents = dict()
         major, minor, patch = self.C.get_fw_version()
@@ -7952,18 +8235,21 @@ class SmurfCommandMixin(SmurfBase):
 
         return amp_dict
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_hemt_enable(self, disable=False):
         """Deprecated. Use :func:`set_amp_drain_enable` instead."""
         enable = not disable
         self.log(f'set_hemt_enable: Deprecated. Calling set_amp_drain_enable("hemt", {enable}')
         self.set_amp_drain_enable('hemt', enable)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_50k_amp_enable(self, disable=False):
         """Deprecated. Use :func:`set_amp_drain_enable` instead."""
         enable = not disable
         self.log(f'set_50k_enable: Deprecated. Calling set_amp_drain_enable("50k", {enable}')
         self.set_amp_drain_enable('50k', enable)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_50k_amp_gate_voltage(self):
         """Deprecated. Use :func:`get_amp_gate_voltage` instead."""
         self.log('get_50k_gate_voltage: Deprecated. Calling get_amp_gate_voltage("50k")')
@@ -7979,11 +8265,13 @@ class SmurfCommandMixin(SmurfBase):
         self.log(f'set_hemt_gate_voltage: Deprecated. Calling set_amp_gate_voltage("hemt", {voltage}, override={override})')
         self.set_amp_gate_voltage('hemt', voltage, override)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_hemt_bias(self, voltage, override=False):
         """Deprecated. Use :func:`set_amp_gate_voltage` instead."""
         self.log(f'set_hemt_bias: Deprecated. Calling set_amp_gate_voltage("hemt", {voltage}, override={override})')
         self.get_amp_get_voltage('hemt', voltage, override)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_hemt_bias(self):
         """Deprecated. Use :func:`get_amp_gate_voltage` instead."""
         self.log('get_hemt_bias: Deprecated. Calling get_amp_gate_voltage("hemt")')
@@ -8003,11 +8291,13 @@ class SmurfCommandMixin(SmurfBase):
         self.log('get_amplifier_bias: Deprecated. Calling get_amplifier_biases')
         return self.get_amplifier_biases()
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_hemt_drain_current(self):
         """Deprecated. Use :func:`get_amp_drain_current` instead."""
         self.log('get_hemt_drain_current: Deprecated. Calling get_amp_drain_current("hemt")')
         return self.get_amp_drain_current("hemt")
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_50k_amp_drain_current(self):
         """Deprecated. Use :func:`get_amp_drain_current` instead."""
         self.log('get_50k_amp_drain_current: Deprecated. Calling get_amp_drain_current("50k")')
@@ -8049,8 +8339,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         self.set_cfg_reg_ena_bit(0, **kwargs)
 
-    _ramp_max_cnt_reg = 'RampMaxCnt'
-
     def set_ramp_max_cnt(self, val, **kwargs):
         r"""Sets the internal flux ramp maximum count.
 
@@ -8074,9 +8362,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_ramp_max_cnt` : Gets this value.
         :func:`set_ramp_rate` : Set rate via timing system instead.
         """
-        self._caput(
-            self.rtm_cryo_det_root + self._ramp_max_cnt_reg,
-            val, **kwargs)
+        self._set_by_name('flux_ramp.ramp_max_cnt', val, **kwargs)
 
     def get_ramp_max_cnt(self, **kwargs):
         r"""Gets the internal flux ramp maximum count.
@@ -8100,9 +8386,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_ramp_max_cnt` : Sets this value.
         """
-        return self._caget(
-            self.rtm_cryo_det_root + self._ramp_max_cnt_reg,
-            **kwargs)
+        return self._get_by_name('flux_ramp.ramp_max_cnt', **kwargs)
 
     def set_flux_ramp_freq(self, val, **kwargs):
         r"""Sets flux ramp reset rate in kHz.
@@ -8214,8 +8498,6 @@ class SmurfCommandMixin(SmurfBase):
             return ramp_max_cnt_rate_khz/(
                 self.get_ramp_max_cnt(**kwargs)+1)
 
-    _low_cycle_reg = 'LowCycle'
-
     def set_low_cycle(self, val, **kwargs):
         r"""Sets the RTM clock low cycle duration.
 
@@ -8238,10 +8520,9 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_high_cycle` : Sets the high cycle duration.
         """
-        self._caput(
-            self.rtm_cryo_det_root + self._low_cycle_reg,
-            val, **kwargs)
+        self._set_by_name('rtm.trigger.low_cycle', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_low_cycle(self, val, **kwargs):
         r"""Gets the RTM clock low cycle duration.
 
@@ -8261,12 +8542,14 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_low_cycle` : Sets this value.
-        """
-        return self._caget(
-            self.rtm_cryo_det_root + self._low_cycle_reg,
-            **kwargs)
 
-    _high_cycle_reg = 'HighCycle'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name('rtm.trigger.low_cycle', **kwargs)
 
     def set_high_cycle(self, val, **kwargs):
         r"""Sets the RTM clock high cycle duration.
@@ -8290,10 +8573,9 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_low_cycle` : Sets the low cycle duration.
         """
-        self._caput(
-            self.rtm_cryo_det_root + self._high_cycle_reg,
-            val, **kwargs)
+        self._set_by_name('rtm.trigger.high_cycle', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_high_cycle(self, val, **kwargs):
         r"""Gets the RTM clock high cycle duration.
 
@@ -8313,12 +8595,14 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_high_cycle` : Sets this value.
-        """
-        return self._caget(
-            self.rtm_cryo_det_root + self._high_cycle_reg,
-            **kwargs)
 
-    _ramp_start_mode_reg = 'RampStartMode'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name('rtm.trigger.high_cycle', **kwargs)
 
     def set_ramp_start_mode(self, val, **kwargs):
         r"""Sets the flux ramp trigger source.
@@ -8332,9 +8616,7 @@ class SmurfCommandMixin(SmurfBase):
             Arbitrary keyword arguments.  Passed directly to the
             `_caput` call.
         """
-        self._caput(
-            self.rtm_cryo_det_root + self._ramp_start_mode_reg,
-            val, **kwargs)
+        self._set_by_name('flux_ramp.start_mode', val, **kwargs)
 
     def get_ramp_start_mode(self, **kwargs):
         r"""Gets the flux ramp trigger source.
@@ -8354,11 +8636,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_ramp_start_mode` : Sets this value.
         """
-        return self._caget(
-            self.rtm_cryo_det_root + self._ramp_start_mode_reg,
-            **kwargs)
-
-    _pulse_width_reg = 'PulseWidth'
+        return self._get_by_name('flux_ramp.start_mode', **kwargs)
 
     def set_pulse_width(self, val, **kwargs):
         r"""Sets the flux ramp pulse width on the RTM.
@@ -8377,10 +8655,9 @@ class SmurfCommandMixin(SmurfBase):
             Arbitrary keyword arguments.  Passed directly to the
             `_caput` call.
         """
-        self._caput(
-            self.rtm_cryo_det_root + self._pulse_width_reg,
-            val, **kwargs)
+        self._set_by_name('rtm.trigger.pulse_width', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_pulse_width(self, **kwargs):
         r"""Gets the flux ramp pulse width on the RTM.
 
@@ -8398,14 +8675,19 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_pulse_width` : Sets this value.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
-        return self._caget(
-            self.rtm_cryo_det_root + self._pulse_width_reg,
-            **kwargs)
+        return self._get_by_name('rtm.trigger.pulse_width', **kwargs)
 
 
     _stream_datafile_reg = 'DataFile'
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_streaming_datafile(self, datafile, as_string=True,
                                **kwargs):
         """
@@ -8417,6 +8699,12 @@ class SmurfCommandMixin(SmurfBase):
             The name of the datafile.
         as_string : bool, optional, default True
             DEPRECATED: Raises an error if set to False.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         if not as_string:
             raise ValueError("Passing an int is deprecated.")
@@ -8424,6 +8712,7 @@ class SmurfCommandMixin(SmurfBase):
             self.streaming_root + self._stream_datafile_reg,
             datafile, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_streaming_datafile(self, **kwargs):
         """
         Gets the datafile that streaming data is written to.
@@ -8432,6 +8721,12 @@ class SmurfCommandMixin(SmurfBase):
         -------
         datafile : str or length 300 int array
             The name of the datafile.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         datafile = self._caget(
             self.streaming_root + self._stream_datafile_reg,
@@ -8440,6 +8735,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _streaming_file_open_reg = 'open'
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_streaming_file_open(self, val, **kwargs):
         """
         Sets the streaming file open. 1 for streaming on. 0 for
@@ -8449,11 +8745,18 @@ class SmurfCommandMixin(SmurfBase):
         ----
         val : int
             The streaming status.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caput(
             self.streaming_root + self._streaming_file_open_reg,
             val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_streaming_file_open(self, **kwargs):
         """
         Gets the streaming file status. 1 is streaming, 0 is not.
@@ -8462,13 +8765,16 @@ class SmurfCommandMixin(SmurfBase):
         -------
         val : int
             The streaming status.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self.streaming_root + self._streaming_file_open_reg,
             **kwargs)
-
-    # Carrier slot number
-    _slot_number_reg = "SlotNumber"
 
     def get_slot_number(self, **kwargs):
         """
@@ -8479,12 +8785,7 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             The slot number of the crate that the carrier is installed into.
         """
-        return self._caget(
-            self.amc_carrier_bsi + self._slot_number_reg,
-            **kwargs)
-
-    # Crate id
-    _crate_id_reg = "CrateId"
+        return self._get_by_name('carrier.slot_number', **kwargs)
 
     def get_crate_id(self, **kwargs):
         """
@@ -8495,9 +8796,7 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             The crate id.
         """
-        return self._caget(
-            self.amc_carrier_bsi + self._crate_id_reg,
-            **kwargs)
+        return self._get_by_name('carrier.crate_id', **kwargs)
 
     # UltraScale+ FPGA
     _fpga_temperature_reg = "Temperature"
@@ -8568,6 +8867,7 @@ class SmurfCommandMixin(SmurfBase):
     # Regulator
     _regulator_iout_reg = "IOUT"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_regulator_iout(self, **kwargs):
         """
         No description
@@ -8576,6 +8876,12 @@ class SmurfCommandMixin(SmurfBase):
         -------
         value : float
             Regulator current in amperes.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return float(
             self._caget(
@@ -8584,6 +8890,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _regulator_temp1_reg = "TEMPERATURE[1]"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_regulator_temp1(self, **kwargs):
         """
         No description
@@ -8592,6 +8899,12 @@ class SmurfCommandMixin(SmurfBase):
         -------
         value : float
             Regulator PT temperature in C.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return float(
             self._caget(
@@ -8600,6 +8913,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _regulator_temp2_reg = "TEMPERATURE[2]"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_regulator_temp2(self, **kwargs):
         """
         No description
@@ -8608,6 +8922,12 @@ class SmurfCommandMixin(SmurfBase):
         -------
         value : float
             A regulator CTRL temperature in C.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return float(
             self._caget(
@@ -8639,6 +8959,7 @@ class SmurfCommandMixin(SmurfBase):
 
         return T
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_cryo_card_cycle_count(self, enable_poll=False,
                                   disable_poll=False):
         """
@@ -8648,6 +8969,12 @@ class SmurfCommandMixin(SmurfBase):
         -------
         cycle_count : float
             The cycle count.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self.log(
             'Not doing anything because not implemented in '
@@ -8718,6 +9045,7 @@ class SmurfCommandMixin(SmurfBase):
         if disable_poll:
             self._caput(self._global_poll_enable_reg, False)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_cryo_card_delatch_bit(self, bit, write_log=False, enable_poll=False,
                                   disable_poll=False):
         """
@@ -8727,6 +9055,12 @@ class SmurfCommandMixin(SmurfBase):
         ----
         bit : int
             The bit to temporarily delatch.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         if enable_poll:
             self._caput(self._global_poll_enable_reg, True)
@@ -8766,6 +9100,7 @@ class SmurfCommandMixin(SmurfBase):
                 f'object to {enable}')
         self.C.write_ps_en(enable)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_cryo_card_ps_en(self):
         """
         Read the cryo card power supply enable signals
@@ -8785,6 +9120,12 @@ class SmurfCommandMixin(SmurfBase):
             1 = 50K on, HEMT off
             2 = HEMT on, 50K off
             3 = both on
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         en_value = self.C.read_ps_en()
         return en_value
@@ -8817,6 +9158,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _smurf_to_gcp_stream_reg = 'userConfig[0]'  # bit for streaming
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_user_config0(self, as_binary=False, **kwargs):
         r"""Gets the userConfig[0] timing frame header register.
 
@@ -8842,6 +9184,12 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_user_config0` : Sets the value.
         :func:`clear_unwrapping_and_averages` : Toggles bit 0.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         val =  self._caget(
             self.timing_header + self._smurf_to_gcp_stream_reg,
@@ -8853,6 +9201,7 @@ class SmurfCommandMixin(SmurfBase):
         return val
 
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_user_config0(self, val, as_binary=False, **kwargs):
         r"""Sets the userConfig[0] timing frame header register.
 
@@ -8874,12 +9223,19 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`get_user_config0` : Gets the current value.
         :func:`clear_unwrapping_and_averages` : Toggles bit 0.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caput(
             self.timing_header + self._smurf_to_gcp_stream_reg,
             val, **kwargs)
 
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def clear_unwrapping_and_averages(self, **kwargs):
         r"""Resets phase unwrapping and averaging for all channels.
 
@@ -8897,6 +9253,12 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_unwrapper_reset` : Per-band unwrapper reset.
         :func:`set_filter_reset` : Per-band filter reset.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
 
         # Set bit 0 of userConfig[0] high.  Use SyncGroup to detect
@@ -8930,9 +9292,6 @@ class SmurfCommandMixin(SmurfBase):
         self.log('Successfully toggled averaging/clearing bit ' +
                  f'(userConfig[0]={uc0}).',self.LOG_USER)
 
-    # Triggering commands
-    _trigger_width_reg = 'EvrV2TriggerReg[{}].Width'
-
     def set_trigger_width(self, chan, val, **kwargs):
         r"""Sets the trigger output pulse width.
 
@@ -8950,11 +9309,7 @@ class SmurfCommandMixin(SmurfBase):
             Arbitrary keyword arguments.  Passed directly to the
             `_caput` call.
         """
-        self._caput(
-            self.trigger_root + self._trigger_width_reg.format(chan),
-            val, **kwargs)
-
-    _trigger_enable_reg = 'EvrV2TriggerReg[{}].EnableTrig'
+        self._set_by_name(f'timing.evr_trigger[{chan}].width', val, **kwargs)
 
     def set_trigger_enable(self, chan, val, **kwargs):
         r"""Set trigger pulse generation enable for requested channel.
@@ -8980,9 +9335,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_trigger_enable` : Get trigger pulse generation
         enable for requested channel.
         """
-        self._caput(
-            self.trigger_root + self._trigger_enable_reg.format(chan),
-            val, **kwargs)
+        self._set_by_name(f'timing.evr_trigger[{chan}].enable', val, **kwargs)
 
     def get_trigger_enable(self, chan, **kwargs):
         r"""Get trigger pulse generation enable for requested channel.
@@ -9012,11 +9365,10 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_trigger_enable` : Set trigger pulse generation
         enable for requested channel.
         """
-        return self._caget(
-            self.trigger_root + self._trigger_enable_reg.format(chan),
-            **kwargs)
-
-    _trigger_channel_reg_enable_reg = 'EvrV2ChannelReg[{}].EnableReg'
+        return self._get_by_name(
+            f'timing.evr_trigger[{chan}].enable',
+            **kwargs
+        )
 
     def set_evr_channel_reg_enable(self, chan, val, **kwargs):
         r"""Set trigger channel enable.
@@ -9043,10 +9395,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`get_evr_channel_reg_enable` : Get trigger channel enable.
         """
-        self._caput(
-            self.trigger_root +
-            self._trigger_channel_reg_enable_reg.format(chan),
-            val, **kwargs)
+        self._set_by_name(f'timing.evr_channel[{chan}].enable', val, **kwargs)
 
     def get_evr_channel_reg_enable(self, chan, **kwargs):
         r"""Get trigger channel enable.
@@ -9076,14 +9425,15 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_evr_channel_reg_enable` : Get trigger channel enable.
         """
-        return self._caget(
-            self.trigger_root +
-            self._trigger_channel_reg_enable_reg.format(chan),
-            **kwargs)
+        return self._get_by_name(
+            f'timing.evr_channel[{chan}].enable',
+            **kwargs
+        )
 
 
     _trigger_channel_reg_count_reg = 'EvrV2ChannelReg[{}].Count'
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_evr_channel_reg_count(self, chan, **kwargs):
         r"""Gets the EVR trigger channel event count.
 
@@ -9107,13 +9457,17 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_evr_trigger_dest_type` : Sets the trigger destination type.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self.trigger_root +
             self._trigger_channel_reg_count_reg.format(chan),
             **kwargs)
-
-    _evr_trigger_dest_type_reg = 'EvrV2ChannelReg[{}].DestType'
 
     def set_evr_trigger_dest_type(self, chan, value, **kwargs):
         r"""Set trigger channel destination type.
@@ -9153,10 +9507,11 @@ class SmurfCommandMixin(SmurfBase):
                      "Use caution setting DestType to an int. enum mapping was "
                      "incorrect in previous code, and behaviour may have changed.",
                      self.LOG_ERROR)
-        self._caput(
-            self.trigger_root +
-            self._evr_trigger_dest_type_reg.format(chan),
-            value, **kwargs)
+        self._set_by_name(
+            f'timing.evr_channel[{chan}].dest_type',
+            value,
+            **kwargs
+        )
 
     def get_evr_trigger_dest_type(self, chan, **kwargs):
         r"""Get trigger channel destination type.
@@ -9195,12 +9550,10 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_evr_trigger_dest_type` : Set trigger channel destination type.
         """
-        return self._caget(
-            self.trigger_root +
-            self._evr_trigger_dest_type_reg.format(chan),
-            **kwargs)
-
-    _trigger_channel_reg_dest_sel_reg = 'EvrV2ChannelReg[{}].DestSel'
+        return self._get_by_name(
+            f'timing.evr_channel[{chan}].dest_type',
+            **kwargs
+        )
 
     def set_evr_trigger_channel_reg_dest_sel(self, chan, val, **kwargs):
         r"""Sets the EVR trigger channel destination select.
@@ -9223,12 +9576,11 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_evr_trigger_dest_type` : Sets the destination type.
         """
-        self._caput(
-            self.trigger_root +
-            self._trigger_channel_reg_dest_sel_reg.format(chan),
-            val, **kwargs)
-
-    _dbg_enable_reg = "enable"
+        self._set_by_name(
+            f'timing.evr_channel[{chan}].dest_sel',
+            val,
+            **kwargs
+        )
 
     def set_dbg_enable(self, bay, val, **kwargs):
         r"""Enables/disables write access to DBG registers.
@@ -9243,10 +9595,9 @@ class SmurfCommandMixin(SmurfBase):
             Arbitrary keyword arguments.  Passed directly to the
             `_caput` call.
         """
-        self._caput(
-            self.DBG.format(bay) + self._dbg_enable_reg,
-            val, **kwargs)
+        self._set_by_name(f'bay[{bay}].debug.enable', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_dbg_enable(self, bay, **kwargs):
         r"""Whether or not write access is enabled for DBG registers.
 
@@ -9265,12 +9616,14 @@ class SmurfCommandMixin(SmurfBase):
         -------
         bool
             True for enabled, False for disabled.
-        """
-        return self._caget(
-            self.DBG.format(bay) + self._dbg_enable_reg,
-            **kwargs)
 
-    _dac_reset_reg = 'dacReset[{}]'
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name(f'bay[{bay}].debug.enable', **kwargs)
 
     def set_dac_reset(self, bay, dac, val, **kwargs):
         """
@@ -9288,10 +9641,9 @@ class SmurfCommandMixin(SmurfBase):
         dac : int
             Which DAC no. [0 or 1].
         """
-        self._caput(
-            self.DBG.format(bay) + self._dac_reset_reg.format(dac),
-            val, **kwargs)
+        self._set_by_name(f'bay[{bay}].dac[{dac}].reset', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_dac_reset(self, bay, dac, **kwargs):
         """
         Low-level function.  The DAC reset line is exercised by
@@ -9306,12 +9658,14 @@ class SmurfCommandMixin(SmurfBase):
             Which bay [0 or 1].
         dac : int
             Which DAC no. [0 or 1].
-        """
-        return self._caget(
-            self.DBG.format(bay) + self._dac_reset_reg.format(dac),
-            **kwargs)
 
-    _debug_select_reg = "DebugSelect[{}]"
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
+        """
+        return self._get_by_name(f'bay[{bay}].dac[{dac}].reset', **kwargs)
 
     def set_debug_select(self, bay, val, **kwargs):
         r"""Selects which band's debug data is routed to the DaqMux.
@@ -9335,10 +9689,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_debug_select` : Gets the current selection.
         :func:`take_debug_data` : Takes debug data.
         """
-        self._caput(
-            self.app_core + self._debug_select_reg.format(bay),
-            val, **kwargs)
+        self._set_by_name(f'debug.select[{bay}]', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_debug_select(self, bay, **kwargs):
         r"""Gets the band selected for debug data routing.
 
@@ -9358,15 +9711,20 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_debug_select` : Sets the selection.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
-        return self._caget(
-            self.app_core + self._debug_select_reg.format(bay),
-            **kwargs)
+        return self._get_by_name(f'debug.select[{bay}]', **kwargs)
 
     ### Start Ultrascale OT protection
 
     _ultrascale_ot_upper_threshold_reg = "OTUpperThreshold"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_ultrascale_ot_upper_threshold(self, val, **kwargs):
         r"""Sets the FPGA over-temperature shutdown threshold.
 
@@ -9380,11 +9738,18 @@ class SmurfCommandMixin(SmurfBase):
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to the
             `_caput` call.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caput(
             self.ultrascale + self._ultrascale_ot_upper_threshold_reg,
             val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_ultrascale_ot_upper_threshold(self, **kwargs):
         r"""Gets the FPGA over-temperature shutdown threshold.
 
@@ -9402,14 +9767,18 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_ultrascale_ot_upper_threshold` : Sets this value.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self.ultrascale + self._ultrascale_ot_upper_threshold_reg,
             **kwargs)
 
     ### End Ultrascale OT protection
-
-    _output_config_reg = "OutputConfig[{}]"
 
     def set_crossbar_output_config(self, index, val, **kwargs):
         r"""Sets the timing crossbar output configuration.
@@ -9445,9 +9814,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`get_crossbar_output_config` : Gets the current config.
         """
-        self._caput(
-            self.crossbar + self._output_config_reg.format(index),
-            val, **kwargs)
+        self._set_by_name(f'crossbar.output[{index}].config', val, **kwargs)
 
     def get_crossbar_output_config(self, index, **kwargs):
         r"""Gets the timing crossbar output configuration.
@@ -9470,11 +9837,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_crossbar_output_config` : Sets this value (includes
                 full input/output mapping).
         """
-        return self._caget(
-            self.crossbar + self._output_config_reg.format(index),
-            **kwargs)
-
-    _timing_link_up_reg = "RxLinkUp"
+        return self._get_by_name(f'crossbar.output[{index}].config', **kwargs)
 
     def get_timing_link_up(self, **kwargs):
         r"""Return external timing link status.
@@ -9495,12 +9858,11 @@ class SmurfCommandMixin(SmurfBase):
         int
             1 if link is up, 0 if link is down.
         """
-        return self._caget(
-            self.timing_status + self._timing_link_up_reg,
-            **kwargs)
+        return self._get_by_name('timing.rx_link_up', **kwargs)
 
     _timing_crc_err_cnt = "CrcErrCount"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_timing_crc_err_cnt(self, **kwargs):
         r"""Gets CRC error counter for received timing frames.
 
@@ -9564,6 +9926,12 @@ class SmurfCommandMixin(SmurfBase):
 
         :func:`get_timing_rx_rst_cnt` : Gets timing data link reset
             counter.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self.timing_status + self._timing_crc_err_cnt,
@@ -9571,6 +9939,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _timing_rx_dec_err_cnt = "RxDecErrCount"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_timing_rx_dec_err_cnt(self, **kwargs):
         r"""Gets decode error counter for received timing characters.
 
@@ -9630,6 +9999,12 @@ class SmurfCommandMixin(SmurfBase):
 
         :func:`get_timing_rx_rst_cnt` : Gets timing data link reset
             counter.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self.timing_status + self._timing_rx_dec_err_cnt,
@@ -9637,6 +10012,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _timing_rx_dsp_err_cnt = "RxDspErrCount"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_timing_rx_dsp_err_cnt(self, **kwargs):
         r"""Gets disparity error counter for received timing characters.
 
@@ -9701,6 +10077,12 @@ class SmurfCommandMixin(SmurfBase):
 
         :func:`get_timing_rx_rst_cnt` : Gets timing data link reset
             counter.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self.timing_status + self._timing_rx_dsp_err_cnt,
@@ -9708,6 +10090,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _timing_rx_rst_cnt = "RxRstCount"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_timing_rx_rst_cnt(self, **kwargs):
         r"""Gets timing data link reset counter.
 
@@ -9760,6 +10143,12 @@ class SmurfCommandMixin(SmurfBase):
 
         :func:`get_timing_rx_dsp_err_cnt` : Gets disparity error counter
             for received timing characters.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self.timing_status + self._timing_rx_rst_cnt,
@@ -9783,6 +10172,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caput(self.lmk.format(bay) + 'enable', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_lmk_enable(self, bay, **kwargs):
         r"""
         Set the LMK:Enable bit.
@@ -9794,6 +10184,12 @@ class SmurfCommandMixin(SmurfBase):
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to the
             `epics.caget` call.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caget(self.lmk.format(bay) + 'enable', **kwargs)
 
@@ -9861,6 +10257,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _mcetransmit_debug_reg = 'AMCc.mcetransmitDebug'
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_mcetransmit_debug(self, val, **kwargs):
         """
         Sets the mcetransmit debug bit. If 1, the debugger will
@@ -9870,6 +10267,12 @@ class SmurfCommandMixin(SmurfBase):
         ----
         val : int
             0 or 1 for the debug bit.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caput(self._mcetransmit_debug_reg, val, **kwargs)
 
@@ -9893,6 +10296,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _frame_size_reg = 'FrameSize'
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_frame_size(self, **kwargs):
         """
         Gets the size of the frame going into the smurf processor.
@@ -9901,6 +10305,12 @@ class SmurfCommandMixin(SmurfBase):
         -------
         int
             The size of the data frame into the smurf processor.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self.frame_rx_stats + self._frame_size_reg,
@@ -9937,6 +10347,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _frame_out_order_count_reg = 'FrameOutOrderCnt'
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_frame_out_order_count(self, **kwargs):
         r"""Gets the count of frames received out of order.
 
@@ -9955,6 +10366,12 @@ class SmurfCommandMixin(SmurfBase):
         -------
         val : int
             Number of out-of-order frames received.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self.frame_rx_stats + self._frame_out_order_count_reg,
@@ -9987,9 +10404,7 @@ class SmurfCommandMixin(SmurfBase):
         mask : list
             The channel mask.
         """
-        return self._caget(
-            self.smurf_processor + self._channel_mask_reg,
-            **kwargs)
+        return self._get_by_name('stream.channel_mask', **kwargs)
 
     _unwrapper_reset_reg = 'Unwrapper.reset'
 
@@ -10042,8 +10457,6 @@ class SmurfCommandMixin(SmurfBase):
             self.smurf_processor + self._filter_reset_reg,
             1, **kwargs)
 
-    _filter_a_reg = 'Filter.A'
-
     def set_filter_a(self, coef, **kwargs):
         """
         Set the smurf processor filter A coefficients.
@@ -10053,9 +10466,7 @@ class SmurfCommandMixin(SmurfBase):
         coef : list
             The filter A coefficients.
         """
-        self._caput(
-            self.smurf_processor + self._filter_a_reg,
-            coef, **kwargs)
+        self._set_by_name('stream.filter.a', coef, **kwargs)
 
 
     def get_filter_a(self, **kwargs):
@@ -10072,11 +10483,7 @@ class SmurfCommandMixin(SmurfBase):
                 [ 1., -3.74145562,  5.25726624,
                   -3.28776591, 0.77203984])
 
-        return self._caget(
-            self.smurf_processor + self._filter_a_reg,
-            **kwargs)
-
-    _filter_b_reg = 'Filter.B'
+        return self._get_by_name('stream.filter.a', **kwargs)
 
     def set_filter_b(self, coef, **kwargs):
         """
@@ -10087,9 +10494,7 @@ class SmurfCommandMixin(SmurfBase):
         coef : list
             The filter B coefficients.
         """
-        self._caput(
-            self.smurf_processor + self._filter_b_reg,
-            coef, **kwargs)
+        self._set_by_name('stream.filter.b', coef, **kwargs)
 
 
     def get_filter_b(self, **kwargs):
@@ -10106,11 +10511,7 @@ class SmurfCommandMixin(SmurfBase):
                 [5.28396689e-06, 2.11358676e-05, 3.17038014e-05,
                  2.11358676e-05, 5.28396689e-06])
 
-        return self._caget(
-            self.smurf_processor + self._filter_b_reg,
-            **kwargs)
-
-    _filter_order_reg = 'Filter.Order'
+        return self._get_by_name('stream.filter.b', **kwargs)
 
     def set_filter_order(self, order, **kwargs):
         """
@@ -10121,9 +10522,7 @@ class SmurfCommandMixin(SmurfBase):
         int
             The filter order.
         """
-        self._caput(
-            self.smurf_processor + self._filter_order_reg,
-            order, **kwargs)
+        self._set_by_name('stream.filter.order', order, **kwargs)
 
     def get_filter_order(self, **kwargs):
         """
@@ -10134,12 +10533,9 @@ class SmurfCommandMixin(SmurfBase):
         int
             The filter order.
         """
-        return self._caget(
-            self.smurf_processor + self._filter_order_reg,
-            **kwargs)
+        return self._get_by_name('stream.filter.order', **kwargs)
 
-    _filter_gain_reg = 'Filter.Gain'
-
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_filter_gain(self, gain, **kwargs):
         """
         Set the smurf processor filter gain.
@@ -10148,10 +10544,14 @@ class SmurfCommandMixin(SmurfBase):
         ----
         float
             The filter gain.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
-        self._caput(
-            self.smurf_processor + self._filter_gain_reg,
-            gain, **kwargs)
+        self._set_by_name('stream.filter.gain', gain, **kwargs)
 
     def get_filter_gain(self, **kwargs):
         """
@@ -10162,9 +10562,7 @@ class SmurfCommandMixin(SmurfBase):
         float
             The filter gain.
         """
-        return self._caget(
-            self.smurf_processor + self._filter_gain_reg,
-            **kwargs)
+        return self._get_by_name('stream.filter.gain', **kwargs)
 
     _downsampler_mode_reg = 'Downsampler.DownsamplerMode'
 
@@ -10278,8 +10676,6 @@ class SmurfCommandMixin(SmurfBase):
 
         return self._caget(self.smurf_processor + self._downsampler_factor_reg, **kwargs)
 
-    _downsampler_external_bitmask_reg = 'Downsampler.ExternalBitmask'
-
     def set_downsample_external_bitmask(self, bitmask):
         """Sets the external downsampler bitmask.
 
@@ -10304,7 +10700,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_downsample_external_bitmask` : Gets this value.
         :func:`set_downsample_mode` : Must be 'external' for this to apply.
         """
-        self._caput(self.smurf_processor + self._downsampler_external_bitmask_reg, bitmask)
+        self._set_by_name('stream.downsample.external_bitmask', bitmask)
 
     def get_downsample_external_bitmask(self):
         """
@@ -10317,9 +10713,7 @@ class SmurfCommandMixin(SmurfBase):
 
         Ref. https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+Processor
         """
-        return self._caget(self.smurf_processor + self._downsampler_external_bitmask_reg)
-
-    _filter_disable_reg = "Filter.Disable"
+        return self._get_by_name('stream.downsample.external_bitmask')
 
     def set_filter_disable(self, disable_status, **kwargs):
         """
@@ -10332,9 +10726,11 @@ class SmurfCommandMixin(SmurfBase):
         bool
             The status of the Disable bit.
         """
-        self._caput(
-            self.smurf_processor + self._filter_disable_reg,
-            bool(disable_status), **kwargs)
+        self._set_by_name(
+            'stream.filter.disable',
+            bool(disable_status),
+            **kwargs
+        )
 
     def get_filter_disable(self, **kwargs):
         """
@@ -10346,12 +10742,11 @@ class SmurfCommandMixin(SmurfBase):
         bool
             The status of the Disable bit.
         """
-        return self._caget(
-            self.smurf_processor + self._filter_disable_reg,
-            **kwargs)
+        return self._get_by_name('stream.filter.disable', **kwargs)
 
     _max_file_size_reg = 'FileWriter.MaxFileSize'
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_max_file_size(self, size, **kwargs):
         """Set maximum file size for streamed data.
 
@@ -10371,6 +10766,12 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`get_max_file_size` : Get maximum file size for streamed data.
 
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         assert (isinstance(size,int)),f'size={size} should be type int, doing nothing'
         assert (size>=0),f'size={size} must be greater than zero, doing nothing'
@@ -10378,6 +10779,7 @@ class SmurfCommandMixin(SmurfBase):
             self.smurf_processor + self._max_file_size_reg,
             str(size), **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_max_file_size(self, **kwargs):
         """Get maximum file size for streamed data.
 
@@ -10397,12 +10799,16 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_max_file_size` : Get maximum file size for streamed data.
 
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return int(self._caget(
             self.smurf_processor + self._max_file_size_reg,
             as_string=True, **kwargs))
-
-    _data_file_name_reg = 'FileWriter.DataFile'
 
     def set_data_file_name(self, name, **kwargs):
         """
@@ -10413,9 +10819,7 @@ class SmurfCommandMixin(SmurfBase):
         str
             The file name.
         """
-        self._caput(
-            self.smurf_processor + self._data_file_name_reg,
-            name, **kwargs)
+        self._set_by_name('stream.file.name', name, **kwargs)
 
     def get_data_file_name(self, **kwargs):
         """
@@ -10426,8 +10830,7 @@ class SmurfCommandMixin(SmurfBase):
         str
             The file name.
         """
-        return self._caget(self.smurf_processor + self._data_file_name_reg,
-            **kwargs)
+        return self._get_by_name('stream.file.name', **kwargs)
 
     _data_file_open_reg = 'FileWriter.Open'
 
@@ -10467,6 +10870,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _num_channels_reg = "NumChannels"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_smurf_processor_num_channels(self, **kwargs):
         """
         This is the number of channels that smurf_processor (the thing that
@@ -10474,12 +10878,16 @@ class SmurfCommandMixin(SmurfBase):
         data to the DAQ) thinks are on.
 
         This value is read only.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(
             self.channel_mapper + self._num_channels_reg,
             **kwargs)
-
-    _payload_size_reg = "PayloadSize"
 
     def set_payload_size(self, payload_size, **kwargs):
         """
@@ -10493,10 +10901,9 @@ class SmurfCommandMixin(SmurfBase):
             The number of channels written to disk.  This is
             independent of the number of active channels.
         """
-        self._caput(
-            self.channel_mapper + self._payload_size_reg,
-            payload_size, **kwargs)
+        self._set_by_name('stream.payload_size', payload_size, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_payload_size(self, **kwargs):
         """
         The payload size defines the number of available channels
@@ -10508,13 +10915,18 @@ class SmurfCommandMixin(SmurfBase):
         int
             The number of channels written to disk.  This is
             independent of the number of active channels.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
-        return self._caget(
-            self.channel_mapper + self._payload_size_reg,
-            **kwargs)
+        return self._get_by_name('stream.payload_size', **kwargs)
 
     ### Data emulator
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_predata_emulator_enable(self, val, **kwargs):
         r"""Enables or disables the SmurfProcessor pre-data emulator.
 
@@ -10532,9 +10944,16 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`get_predata_emulator_enable` : Gets the enable state.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caput(self._predata_emulator + 'enable', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_predata_emulator_enable(self, **kwargs):
         r"""Gets the SmurfProcessor pre-data emulator enable state.
 
@@ -10552,11 +10971,18 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_predata_emulator_enable` : Sets the enable state.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(self._predata_emulator + 'enable', **kwargs)
 
     _predata_emulator_disable = "Disable"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_predata_emulator_disable(self, val, **kwargs):
         """
         Sets the predata emulator disable status.
@@ -10564,10 +10990,17 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         val : bool
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caput(self._predata_emulator + self._predata_emulator_disable,
             val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_predata_emulator_disable(self, **kwargs):
         """
         Gets the predata emulator disable status.
@@ -10575,12 +11008,19 @@ class SmurfCommandMixin(SmurfBase):
         Returns
         -------
         type : bool
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(self._predata_emulator + self._predata_emulator_disable,
             **kwargs)
 
     _predata_emulator_type = "Type"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_predata_emulator_type(self, val, **kwargs):
         """
         No description
@@ -10590,10 +11030,17 @@ class SmurfCommandMixin(SmurfBase):
         val : str
             The data type. Choices are - Zeros, ChannelNumber, Random, Square,
             Sawtooth, Triangle, Sine, and DropFrame
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caput(self._predata_emulator + self._predata_emulator_type, val,
             **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_predata_emulator_type(self, **kwargs):
         """
         Gets the predata emulator type.
@@ -10603,12 +11050,19 @@ class SmurfCommandMixin(SmurfBase):
         type : int
             0 - Zeros, 1 - ChannelNumber, 2 - Random, 3 - Square,
             4 - Sawtooth, 5 - Triangle, 6 - Sine, 7 - DropFrame
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(self._predata_emulator + self._predata_emulator_type,
             **kwargs)
 
     _predata_emulator_amplitude = "Amplitude"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_predata_emulator_amplitude(self, val, **kwargs):
         r"""Sets the pre-data emulator signal amplitude.
 
@@ -10627,10 +11081,17 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`get_predata_emulator_amplitude` : Gets the current value.
         :func:`set_predata_emulator_enable` : Enables the emulator.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caput(self._predata_emulator + self._predata_emulator_amplitude,
             val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_predata_emulator_amplitude(self, **kwargs):
         r"""Gets the pre-data emulator signal amplitude.
 
@@ -10648,12 +11109,19 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_predata_emulator_amplitude` : Sets the value.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(self._predata_emulator +
             self._predata_emulator_amplitude, **kwargs)
 
     _predata_emulator_offset = "Offset"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_predata_emulator_offset(self, val, **kwargs):
         r"""Sets the pre-data emulator signal offset.
 
@@ -10668,10 +11136,17 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`get_predata_emulator_offset` : Gets the current value.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caput(self._predata_emulator + self._predata_emulator_offset, val,
             **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_predata_emulator_offset(self, **kwargs):
         r"""Gets the pre-data emulator signal offset.
 
@@ -10689,12 +11164,19 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_predata_emulator_offset` : Sets the value.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(self._predata_emulator +
             self._predata_emulator_offset, **kwargs)
 
     _predata_emulator_period = "Period"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_predata_emulator_period(self, val, **kwargs):
         """
         Expressed as the number of incoming frames. It must be greater that 2.
@@ -10705,6 +11187,12 @@ class SmurfCommandMixin(SmurfBase):
         ----
         val : int
             Number of frames that make up a period.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         # Cast as str
         if not isinstance(val, str):
@@ -10712,6 +11200,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self._predata_emulator + self._predata_emulator_period, val,
             **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_predata_emulator_period(self, **kwargs):
         """
         Expressed as the number of incoming frames. It must be greater that 2.
@@ -10722,11 +11211,18 @@ class SmurfCommandMixin(SmurfBase):
         -------
         period : int
             Number of frames that make up a period
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         # Get as string and then cast as int
         return int(self._caget(self._predata_emulator +
             self._predata_emulator_period, as_string=True, **kwargs))
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_postdata_emulator_enable(self, val, **kwargs):
         r"""Enables or disables the post-data emulator.
 
@@ -10742,9 +11238,16 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`get_postdata_emulator_enable` : Gets the current state.
         :func:`set_postdata_emulator_amplitude` : Sets the signal amplitude.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caput(self._postdata_emulator + 'enable', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_postdata_emulator_enable(self, **kwargs):
         r"""Gets the post-data emulator enable state.
 
@@ -10762,11 +11265,18 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_postdata_emulator_enable` : Sets the enable state.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(self._postdata_emulator + 'enable', **kwargs)
 
     _postdata_emulator_type = "Type"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_postdata_emulator_type(self, val, **kwargs):
         """
         No description
@@ -10776,10 +11286,17 @@ class SmurfCommandMixin(SmurfBase):
         val : str
             The data type. Choices are - Zeros, ChannelNumber, Random, Square,
             Sawtooth, Triangle, Sine, and DropFrame
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caput(self._postdata_emulator + self._postdata_emulator_type, val,
             **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_postdata_emulator_type(self, **kwargs):
         """
         Gets the postdata emulator type.
@@ -10789,12 +11306,19 @@ class SmurfCommandMixin(SmurfBase):
         type : int
             0 - Zeros, 1 - ChannelNumber, 2 - Random, 3 - Square,
             4 - Sawtooth, 5 - Triangle, 6 - Sine, 7 - DropFrame
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(self._postdata_emulator +
             self._postdata_emulator_type, **kwargs)
 
     _postdata_emulator_amplitude = "Amplitude"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_postdata_emulator_amplitude(self, val, **kwargs):
         r"""Sets the post-data emulator signal amplitude.
 
@@ -10813,10 +11337,17 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`get_postdata_emulator_amplitude` : Gets the current value.
         :func:`set_postdata_emulator_enable` : Enables the emulator.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caput(self._postdata_emulator + self._postdata_emulator_amplitude,
             val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_postdata_emulator_amplitude(self, **kwargs):
         r"""Gets the post-data emulator signal amplitude.
 
@@ -10834,12 +11365,19 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_postdata_emulator_amplitude` : Sets the value.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(self._postdata_emulator +
             self._postdata_emulator_amplitude, **kwargs)
 
     _postdata_emulator_offset = "Offset"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_postdata_emulator_offset(self, val, **kwargs):
         r"""Sets the post-data emulator signal offset.
 
@@ -10854,10 +11392,17 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`get_postdata_emulator_offset` : Gets the current value.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caput(self._postdata_emulator + self._postdata_emulator_offset,
             val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_postdata_emulator_offset(self, **kwargs):
         r"""Gets the post-data emulator signal offset.
 
@@ -10875,12 +11420,19 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_postdata_emulator_offset` : Sets the value.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(self._postdata_emulator +
             self._postdata_emulator_offset, **kwargs)
 
     _postdata_emulator_period = "Period"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_postdata_emulator_period(self, val, **kwargs):
         """
         Expressed as the number of incoming frames. It must be greater that 2.
@@ -10891,12 +11443,19 @@ class SmurfCommandMixin(SmurfBase):
         -----
         val : int
             Number of frames that make up a period.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         if not isinstance(val, str):
             val = str(val)
         self._caput(self._postdata_emulator + self._postdata_emulator_period,
             val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_postdata_emulator_period(self, **kwargs):
         """
         No description
@@ -10905,11 +11464,15 @@ class SmurfCommandMixin(SmurfBase):
         -------
         period : int
             Number of frames that make up a period.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return int(self._caget(self._postdata_emulator +
             self._postdata_emulator_period, as_string=True, **kwargs))
-
-    _stream_data_source_enable = "SourceEnable"
 
     def set_stream_data_source_enable(self, val, **kwargs):
         r"""Enables or disables the StreamDataSource emulator.
@@ -10931,9 +11494,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_stream_data_source_enable` : Gets the enable state.
         :func:`set_stream_data_source_period` : Set frame period.
         """
-        self._caput(self.stream_data_source + self._stream_data_source_enable,
-            val, **kwargs)
+        self._set_by_name('stream.data_source_enable', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_stream_data_source_enable(self, **kwargs):
         r"""Gets the data stream source enable state.
 
@@ -10951,12 +11514,18 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_stream_data_source_enable` : Sets the enable state.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
-        return self._caget(self.stream_data_source +
-            self._stream_data_source_enable, **kwargs)
+        return self._get_by_name('stream.data_source_enable', **kwargs)
 
     _stream_data_period = "Period"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_stream_data_source_period(self, val, **kwargs):
         r"""Sets the StreamDataSource emulator frame period.
 
@@ -10974,10 +11543,17 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`get_stream_data_source_period` : Gets this value.
         :func:`set_stream_data_source_enable` : Enable the emulator.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._caput(self.stream_data_source + self._stream_data_period, val,
             **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_stream_data_source_period(self, **kwargs):
         r"""Gets the StreamDataSource emulator frame period.
 
@@ -10995,6 +11571,12 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_stream_data_source_period` : Sets this value.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(self.stream_data_source + self._stream_data_period,
             **kwargs)
@@ -11119,6 +11701,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _readout_delay_reg = "readoutDelay"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_readout_delay(self, **kwargs):
         """
         Get the value of a programmable delay between the startRamp pulse and when
@@ -11131,9 +11714,16 @@ class SmurfCommandMixin(SmurfBase):
         https://github.com/slaclab/cryo-det/blob/main/firmware/common/DspCoreLib/CryoDetCmbHcd/rtl/DspCoreWrapper.vhd#L44
         https://github.com/slaclab/cryo-det/blob/main/firmware/common/MicrowaveMuxApp/AppCore/hdl/AppCore.vhd#L317
         https://github.com/slaclab/cryo-det/blob/main/firmware/common/MicrowaveMuxApp/AppCore/hdl/AppCore.vhd#L222
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(f"{self.app_core}{self._readout_delay_reg}", **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_readout_delay(self, delay, **kwargs):
         """
         Set the value of a programmable delay between the startRamp pulse and when
@@ -11146,11 +11736,18 @@ class SmurfCommandMixin(SmurfBase):
         https://github.com/slaclab/cryo-det/blob/main/firmware/common/DspCoreLib/CryoDetCmbHcd/rtl/DspCoreWrapper.vhd#L44
         https://github.com/slaclab/cryo-det/blob/main/firmware/common/MicrowaveMuxApp/AppCore/hdl/AppCore.vhd#L317
         https://github.com/slaclab/cryo-det/blob/main/firmware/common/MicrowaveMuxApp/AppCore/hdl/AppCore.vhd#L222
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caput(f"{self.app_core}{self._readout_delay_reg}", delay, **kwargs)
 
     _debug_timing_override_reg = "DebugTimingOverrideBay{}Ch{}"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_debug_timing_override(self, bay, ch, **kwargs):
         """
         Get the value of the debug timing override register for a given bay and
@@ -11170,9 +11767,16 @@ class SmurfCommandMixin(SmurfBase):
             The bay number (0 or 1).
         ch : int
             The channel (0 or 1).
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(self.app_core + self._debug_timing_override_reg.format(bay, ch), **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_debug_timing_override(self, bay, ch, val, **kwargs):
         """
         Set the value of the debug timing override register for a given bay and
@@ -11194,11 +11798,18 @@ class SmurfCommandMixin(SmurfBase):
             The channel (0 or 1).
         val : int
             Value to set (0 or 1).
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caput(self.app_core + self._debug_timing_override_reg.format(bay, ch), val, **kwargs)
 
     _counter_select_reg = "counterSelect"
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_counter_select(self, band, **kwargs):
         """
         Get the value of the counterSelect register for a given band.
@@ -11232,9 +11843,16 @@ class SmurfCommandMixin(SmurfBase):
         -------
         int
             The value of the counter select register.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caget(self.band_root.format(band) + self._counter_select_reg, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_counter_select(self, band, val, **kwargs):
         """
         Set the value of the counterSelect register for a given band.
@@ -11270,5 +11888,11 @@ class SmurfCommandMixin(SmurfBase):
         -------
         int
             The value of the counter select register.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._caput(self.band_root.format(band) + self._counter_select_reg, val, **kwargs)
