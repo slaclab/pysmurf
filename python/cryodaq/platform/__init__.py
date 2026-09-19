@@ -40,6 +40,7 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
+import functools
 import re
 from dataclasses import dataclass
 from typing import (Any, Callable, Dict, List, Mapping, Sequence, Tuple)
@@ -88,12 +89,33 @@ def parse(name: str) -> Tuple[str, Dict[str, int]]:
     tuple
         The pattern (``band[*].tone.amplitude``) and a mapping of scope to
         index (``{'band': 4}``). An index of ``*`` is reported as -1, so a
-        pattern parses but does not resolve.
+        pattern parses but does not resolve. The mapping is a fresh dictionary
+        each call, so a caller may keep or modify it.
 
     Raises
     ------
     UnresolvedName
         If the name is not well formed.
+
+    Notes
+    -----
+    Answers are cached, because a name parses to the same pattern every time and
+    the names in use are a small fixed set -- one per register, with the indices
+    of one system. A tuning loop reaching a per-channel register thousands of
+    times pays for the regular expressions once rather than per call.
+    """
+    pattern, found = _parse_cached(name)
+    return pattern, dict(found)
+
+
+@functools.lru_cache(maxsize=4096)
+def _parse_cached(name: str) -> Tuple[str, Tuple[Tuple[str, int], ...]]:
+    """``parse`` without the copy, keyed on the name. Indices as a pairs tuple.
+
+    Separate from ``parse`` so that what is cached is immutable: handing the same
+    dictionary to two callers would let one of them change what the other reads.
+    A malformed name raises here too, and the exception is not cached -- so a
+    caller that fixes a typo is not told the old answer.
     """
     if not isinstance(name, str) or not name:
         raise UnresolvedName(str(name), reason='empty name')
@@ -111,7 +133,7 @@ def parse(name: str) -> Tuple[str, Dict[str, int]]:
             raise UnresolvedName(name, reason=f"scope {ident!r} indexed twice")
         found[ident] = -1 if index == '*' else int(index)
         pattern.append(f"{ident}[*]")
-    return '.'.join(pattern), found
+    return '.'.join(pattern), tuple(found.items())
 
 
 def _fill(template: str, values: Mapping[str, int]) -> str:

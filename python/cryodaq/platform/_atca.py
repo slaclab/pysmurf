@@ -10,10 +10,14 @@
 #    board: two AMC bays behind JESD data links, an RTM, and the per-band signal
 #    processing of the generation.
 #
-#    The registers come from _umux, which this platform shares with the others
-#    of its generation; what belongs here is the firmware this platform runs and,
-#    as the bring-up procedures move into cryodaq, whatever of them is specific
-#    to a carrier. Nothing here reads or writes a register.
+#    Most of the registers come from _umux, which this platform shares with the
+#    others of its generation. What this file adds are the registers of the
+#    hardware only this platform carries -- the RF front end on each AMC bay, its
+#    converters and attenuators, and the serial links that carry data back from
+#    them. A platform whose converters share the FPGA's die has none of those, so
+#    it does not declare them: a map is a statement of what a platform has, and a
+#    name it offers should be one that reaches something. Nothing here reads or
+#    writes a register.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -24,7 +28,7 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-from cryodaq.platform._umux import REGISTERS, SCOPES, WITNESS
+from cryodaq.platform import _umux
 
 __all__ = ['NAME', 'TAGS', 'REGISTERS', 'WITNESS', 'SCOPES']
 
@@ -43,3 +47,68 @@ NAME = 'umux-atca'
 # and an unlisted image is refused by name, which is a better answer than a map
 # that may be wrong about it.
 TAGS = ('MicrowaveMuxBpEthGen2',)
+
+# --------------------------------------------------------------------------
+# what only this platform has
+# --------------------------------------------------------------------------
+
+# The RF front end on an AMC bay: the attenuators in each direction, the digital-to-
+# analogue converters and the debug block beside them. Absent where converter and FPGA
+# share a die.
+_ATTENUATORS = f'{_umux.MUX_CORE}.ATT'
+_ATTENUATOR_UC = f'{_ATTENUATORS}.UC[{{uc}}]'
+_ATTENUATOR_DC = f'{_ATTENUATORS}.DC[{{dc}}]'
+_DAC = f'{_umux.MUX_CORE}.DAC[{{dac}}]'
+_DAC_TEMPERATURE = f'{_DAC}.Temperature'
+_DAC_JESD_RESET_N = f'{_DAC}.JesdRstN'
+_BAY_DEBUG = f'{_umux.MUX_CORE}.DBG'
+_BAY_DEBUG_ENABLE = f'{_BAY_DEBUG}.enable'
+_DAC_RESET = f'{_BAY_DEBUG}.dacReset[{{dac}}]'
+
+# The serial links between the FPGA and those converters, one block per bay: whether
+# each direction has locked, whether it is enabled, and what each transmit lane drives.
+_JESD_RX_DATA_VALID = f'{_umux.JESD_BAY}.JesdRx.DataValid'
+_JESD_TX_DATA_VALID = f'{_umux.JESD_BAY}.JesdTx.DataValid'
+_JESD_RX_ENABLE = f'{_umux.JESD_BAY}.JesdRx.Enable'
+_JESD_TX_ENABLE = f'{_umux.JESD_BAY}.JesdTx.Enable'
+_JESD_TX_DATA_OUT_MUX = f'{_umux.JESD_BAY}.JesdTx.dataOutMux[{{tx_lane}}]'
+
+_V = 'value'
+
+REGISTERS = dict(_umux.REGISTERS)
+REGISTERS.update({
+    # the RF front end
+    'bay[*].attenuator.uc[*]': (_ATTENUATOR_UC, _V),
+    'bay[*].attenuator.dc[*]': (_ATTENUATOR_DC, _V),
+    'bay[*].dac[*].temperature': (_DAC_TEMPERATURE, _V),
+    'bay[*].dac[*].jesd_reset_n': (_DAC_JESD_RESET_N, _V),
+    'bay[*].dac[*].reset': (_DAC_RESET, _V),
+    'bay[*].debug.enable': (_BAY_DEBUG_ENABLE, _V),
+    # the serial links back from it
+    'bay[*].jesd.rx_data_valid': (_JESD_RX_DATA_VALID, _V),
+    'bay[*].jesd.tx_data_valid': (_JESD_TX_DATA_VALID, _V),
+    'bay[*].jesd.rx_enable': (_JESD_RX_ENABLE, _V),
+    'bay[*].jesd.tx_enable': (_JESD_TX_ENABLE, _V),
+    'bay[*].jesd.tx_lane[*].data_out_mux': (_JESD_TX_DATA_OUT_MUX, _V),
+})
+
+# The scopes those registers are indexed by. They hang off `bay`, which the shared map
+# declares, because a bay is a bay on every platform of the generation; what differs is
+# what is inside one.
+SCOPES = dict(_umux.SCOPES)
+SCOPES.update({
+    'uc': ((_ATTENUATOR_UC,), ('bay',)),
+    'dc': ((_ATTENUATOR_DC,), ('bay',)),
+    'dac': ((_DAC,), ('bay',)),
+    'tx_lane': ((_JESD_TX_DATA_OUT_MUX,), ('bay',)),
+})
+
+# Worth recording how a carrier was left: whether each bay's data links had locked, and
+# what its attenuators were set to. Both are this platform's hardware, so both are here
+# rather than in the shared list.
+WITNESS = _umux.WITNESS + (
+    'bay[*].jesd.rx_data_valid',
+    'bay[*].jesd.tx_data_valid',
+    'bay[*].attenuator.uc[*]',
+    'bay[*].attenuator.dc[*]',
+)
