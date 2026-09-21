@@ -5,7 +5,7 @@ the device it sits in is one a catalog entry reaches, with every index of that
 device retained, and the per-channel arrays thinned to 2.
 Regenerate with that script; do not edit these by hand.
 
-pysmurf 43eab63e · cryo-det fe6a0f50
+pysmurf 912e1ea0 · cryo-det fe6a0f50
 
 atca.varlist.txt.gz
   firmware        MicrowaveMuxBpEthGen2 v2.5.1, via EmulationRoot

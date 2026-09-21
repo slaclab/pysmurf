@@ -64,6 +64,7 @@ _DAC_JESD_RESET_N = f'{_DAC}.JesdRstN'
 # The clock chip on the AMC, which the converters are timed from.
 _LMK = f'{_umux.MUX_CORE}.LMK'
 _LMK_ENABLE = f'{_LMK}.enable'
+_LMK_POWER_UP_SYS_REF = f'{_LMK}.PwrUpSysRef'
 
 _BAY_DEBUG = f'{_umux.MUX_CORE}.DBG'
 _BAY_DEBUG_ENABLE = f'{_BAY_DEBUG}.enable'
@@ -84,7 +85,7 @@ _JESD_RX_STATUS_VALID_COUNT = (f'{_umux.JESD_BAY}.JesdRx.StatusValidCnt'
 _JESD_TX_STATUS_VALID_COUNT = (f'{_umux.JESD_BAY}.JesdTx.StatusValidCnt'
                                f'[{{link}}]')
 
-_V = 'value'
+_V, _C = 'value', 'command'
 
 REGISTERS = dict(_umux.REGISTERS)
 REGISTERS.update({
@@ -96,6 +97,7 @@ REGISTERS.update({
     'bay[*].dac[*].reset': (_DAC_RESET, _V),
     'bay[*].debug.enable': (_BAY_DEBUG_ENABLE, _V),
     'bay[*].clock.enable': (_LMK_ENABLE, _V),
+    'bay[*].clock.power_up_sys_ref': (_LMK_POWER_UP_SYS_REF, _C),
     # the serial links back from it
     'bay[*].jesd.rx_data_valid': (_JESD_RX_DATA_VALID, _V),
     'bay[*].jesd.tx_data_valid': (_JESD_TX_DATA_VALID, _V),
