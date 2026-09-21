@@ -159,8 +159,6 @@ class SmurfCommandMixin(SmurfBase):
             return result
         return skipper
 
-    _global_poll_enable_reg = 'AMCc.enable'
-
     def _caput(self, pvname, val, index=-1, cast_type=True, write_log=False, log_level=None,
                execute=True, wait_before=None, wait_after=None, wait_done=True, **kwargs):
         """Sets to rogue variables in the root.
@@ -454,8 +452,6 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs
         )
 
-    _enabled_bays_reg = "EnabledBays"
-
     def get_enabled_bays(self, **kwargs):
         r"""Returns list of enabled AMC bays.
 
@@ -471,10 +467,7 @@ class SmurfCommandMixin(SmurfBase):
             Which bays were enabled on pysmurf server startup.
 
         """
-        enabled_bays = self._caget(
-            self.smurf_application +
-            self._enabled_bays_reg,
-            **kwargs)
+        enabled_bays = self._get_by_name('application.enabled_bays', **kwargs)
         try:
             return list(enabled_bays)
         except Exception:
@@ -548,8 +541,6 @@ class SmurfCommandMixin(SmurfBase):
             timeout=timeout
         )
 
-    _system_configured_reg = 'SystemConfigured'
-
     def get_system_configured(self, **kwargs):
         r"""Returns final state of the configuration process.
 
@@ -590,9 +581,11 @@ class SmurfCommandMixin(SmurfBase):
                 configuration process in progress.
 
         """
-        ret = self._caget(self.smurf_application +
-                          self._system_configured_reg,
-                          as_string=True, **kwargs)
+        ret = self._get_by_name(
+            'application.configured',
+            as_string=True,
+            **kwargs
+        )
 
         if ret == 'True':
             return True
@@ -641,10 +634,8 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(self._global_poll_enable_reg, **kwargs)
+        return self._get_by_name('poll_enable', **kwargs)
 
-
-    _number_sub_bands_reg = 'numberSubBands'
 
     def get_number_sub_bands(self, band=None, **kwargs):
         """
@@ -673,11 +664,8 @@ class SmurfCommandMixin(SmurfBase):
             # list of bands specified in experiment.cfg.
             band = self._bands[0]
 
-        return self._caget(self._band_root(band) + self._number_sub_bands_reg,
-            **kwargs)
+        return self._get_by_name(f'band[{band}].n_subbands', **kwargs)
 
-
-    _number_channels_reg = 'numberChannels'
 
     def get_number_channels(self, band=None, **kwargs):
         """
@@ -705,8 +693,7 @@ class SmurfCommandMixin(SmurfBase):
             # list of bands specified in experiment.cfg.
             band = self._bands[0]
 
-        return self._caget(self._band_root(band) + self._number_channels_reg,
-            **kwargs)
+        return self._get_by_name(f'band[{band}].n_channels', **kwargs)
 
     def get_number_processed_channels(self, band=None, **kwargs):
         """
@@ -784,7 +771,7 @@ class SmurfCommandMixin(SmurfBase):
             # Start by calling the 'setDefaults' command.
             # This is now implemented as a rogue Process, so this call will
             # return immediately, and the wait loop that follows will begin
-            self._caput('AMCc.setDefaults.Start', 1, **kwargs)
+            self._set_by_name('ops.setup.start', 1, **kwargs)
 
             # Now let's wait until the process is finished. We define a maximum
             # time we will wait, 400 seconds in this case
@@ -816,7 +803,7 @@ class SmurfCommandMixin(SmurfBase):
             return success
 
         else:
-            self._caput('AMCc.setDefaults', 1, **kwargs)
+            self._set_by_name('ops.setup', 1, **kwargs)
             return None
 
     def set_read_all(self, **kwargs):
@@ -832,7 +819,7 @@ class SmurfCommandMixin(SmurfBase):
             Arbitrary keyword arguments.  Passed directly to the
             `_caput` call.
         """
-        self._caput('AMCc.ReadAll', 1, **kwargs)
+        self._set_by_name('read_all', 1, **kwargs)
         self.log('ReadAll sent', self.LOG_INFO)
 
     def run_pwr_up_sys_ref(self, bay, **kwargs):
@@ -1353,14 +1340,14 @@ class SmurfCommandMixin(SmurfBase):
         **kwargs
     ):
         # write out to a file
-        self._caput(self._save_state_reg + ".SaveMode", "File", **kwargs)
-        self._caput(self._save_state_reg + ".ConfigFile", fname, **kwargs)
+        self._set_by_name('save_config.mode', "File", **kwargs)
+        self._set_by_name('save_config.file', fname, **kwargs)
 
         # select state or config
-        self._caput(self._save_state_reg + ".DataType", mode, **kwargs)
+        self._set_by_name('save_config.data_type', mode, **kwargs)
 
         # start the process
-        self._caput(self._save_state_reg + ".Start", 1, **kwargs)
+        self._set_by_name('save_config.start', 1, **kwargs)
 
         # wait for process to complete
         start = time.time()
@@ -1370,10 +1357,10 @@ class SmurfCommandMixin(SmurfBase):
                 return True
             raise TimeoutError(f"SaveConfigProcess timed out after {timeout}s.")
 
-        while self._caget(self._save_state_reg + ".Running") and keep_waiting():
+        while self._get_by_name('save_config.running') and keep_waiting():
             time.sleep(0.1)
         # Check the return value from 'SaveConfigProcess'.
-        msg = self._caget(self._save_state_reg + ".Message")
+        msg = self._get_by_name('save_config.message')
         if msg != "Done":
             raise RuntimeError(f"SaveConfigProcess failed with '{msg}'")
 
@@ -1413,8 +1400,6 @@ class SmurfCommandMixin(SmurfBase):
 
     # alias older rogue 3 write_config function to save_config
     write_config = save_config
-
-    _tone_file_path_reg = 'CsvFilePath'
 
     def get_tone_file_path(self, bay, **kwargs):
         r"""Get tone file path.
@@ -1460,11 +1445,7 @@ class SmurfCommandMixin(SmurfBase):
                      self.LOG_ERROR)
             raise ValueError('Must provide a path to an existing tone file.')
 
-        self._caput(
-            self.dac_sig_gen.format(bay) + self._tone_file_path_reg,
-            val, **kwargs)
-
-    _load_tone_file_reg = 'LoadCsvFile'
+        self._set_by_name(f'bay[{bay}].tone_file_path', val, **kwargs)
 
     def load_tone_file(self, bay, val=None, **kwargs):
         """
@@ -1489,9 +1470,7 @@ class SmurfCommandMixin(SmurfBase):
 
         self.log(f'Loading tone file : {val}',
                  self.LOG_USER)
-        self._caput(
-            self.dac_sig_gen.format(bay) + self._load_tone_file_reg,
-            val, **kwargs)
+        self._set_by_name(f'bay[{bay}].tone_file.load', val, **kwargs)
 
     def set_tune_file_path(self, val, **kwargs):
         r"""Sets the path to the tune file for PyRogue loading.
@@ -1713,8 +1692,6 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs
         )
 
-    _eta_scan_amplitude_reg = 'etaScanAmplitude'
-
     def set_eta_scan_amplitude(self, band, val, **kwargs):
         r"""Sets the tone amplitude used during eta scan or find-freq.
 
@@ -1742,9 +1719,11 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_run_serial_find_freq` : Multi-channel find-freq using
                 this amplitude.
         """
-        self._caput(
-            self._cryo_root(band) + self._eta_scan_amplitude_reg,
-            np.uint32(val), **kwargs)
+        self._set_by_name(
+            f'band[{band}].ops.eta_scan.amplitude',
+            np.uint32(val),
+            **kwargs
+        )
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_eta_scan_amplitude(self, band, **kwargs):
@@ -1894,8 +1873,6 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs
         )
 
-    _run_serial_find_freq_reg = 'runSerialFindFreq'
-
     def set_run_serial_find_freq(self, band, val, **kwargs):
         r"""Triggers the serial find-freq scan across all channels.
 
@@ -1925,9 +1902,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_eta_scan_results_real` : Read back real results.
         :func:`get_eta_scan_results_imag` : Read back imaginary results.
         """
-        self._caput(
-            self._cryo_root(band) + self._run_serial_find_freq_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].ops.start_find_freq', val, **kwargs)
 
         monitorPV = self._cryo_root(band) + self._eta_scan_in_progress_reg
         self._wait_for(monitorPV, lambda x: x == 0)
@@ -2687,8 +2662,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name('firmware.band_mask', **kwargs)
 
-    _decimation_reg = 'decimation'
-
     def set_decimation(self, band, val, **kwargs):
         r"""Sets the debug data decimation factor.
 
@@ -2714,9 +2687,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_filter_alpha` : IIR filter applied before decimation.
         :func:`take_debug_data` : Takes data using this path.
         """
-        self._caput(
-            self._band_root(band) + self._decimation_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].decimation', val, **kwargs)
 
     def get_decimation(self, band, **kwargs):
         r"""Gets the debug data decimation factor.
@@ -2738,9 +2709,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_decimation` : Sets this value.
         """
-        return self._caget(
-            self._band_root(band) + self._decimation_reg,
-            **kwargs)
+        return self._get_by_name(f'band[{band}].decimation', **kwargs)
 
     def set_filter_alpha(self, band, val, **kwargs):
         r"""Sets the IIR low-pass filter coefficient for debug data.
@@ -3080,8 +3049,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name(f'band[{band}].delay_us', **kwargs)
 
-    _tone_scale_reg = 'toneScale'
-
     def set_tone_scale(self, band, val, **kwargs):
         r"""Sets the tone output scaling before the synthesis filter bank.
 
@@ -3104,9 +3071,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_tone_scale` : Gets the current value.
         :func:`set_synthesis_scale` : Scales the synthesis filter bank output.
         """
-        self._caput(
-            self._band_root(band) + self._tone_scale_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].tone.scale', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_tone_scale(self, band, **kwargs):
@@ -3136,9 +3101,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self._band_root(band) + self._tone_scale_reg,
-            **kwargs)
+        return self._get_by_name(f'band[{band}].tone.scale', **kwargs)
 
     def set_waveform_select(self, band, val, **kwargs):
         r"""Selects the DAC output source for a band.
@@ -3261,8 +3224,6 @@ class SmurfCommandMixin(SmurfBase):
             self._band_root(band) + self._rf_enable_reg,
             **kwargs)
 
-    _analysis_scale_reg = 'analysisScale'
-
     def set_analysis_scale(self, band, val, **kwargs):
         r"""Sets the analysis filter bank output scaling.
 
@@ -3287,9 +3248,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_analysis_scale` : Gets the current analysis scale.
         :func:`set_synthesis_scale` : Sets the synthesis filter bank scaling.
         """
-        self._caput(
-            self._band_root(band) + self._analysis_scale_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].analysis_scale', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_analysis_scale(self, band, **kwargs):
@@ -3319,9 +3278,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self._band_root(band) + self._analysis_scale_reg,
-            **kwargs)
+        return self._get_by_name(f'band[{band}].analysis_scale', **kwargs)
 
     _feedback_enable_reg = 'feedbackEnable'
 
@@ -3486,8 +3443,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name(f'band[{band}].tone.frequency', **kwargs)
 
-    _feedback_gain_reg = 'feedbackGain'
-
     def set_feedback_gain(self, band, val, **kwargs):
         r"""Sets the integral gain of the tracking feedback loop.
 
@@ -3539,9 +3494,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_feedback_gain` : Sets the feedback gain.
         """
-        return self._caget(
-            self._band_root(band) + self._feedback_gain_reg,
-            **kwargs)
+        return self._get_by_name(f'band[{band}].feedback.gain', **kwargs)
 
     def set_eta_phase_array(self, band, val, **kwargs):
         r"""Sets the eta phase for all channels in a band.
@@ -3596,8 +3549,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name(f'band[{band}].eta.phase', **kwargs)
 
-    _frequency_error_array_reg = 'frequencyError'
-
     def get_frequency_error_array(self, band, **kwargs):
         r"""Gets the frequency error for all channels in a band.
 
@@ -3623,9 +3574,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_loop_filter_output_array` : Gets the integrated feedback.
         :func:`get_frequency_error_mhz` : Gets a single channel's error in MHz.
         """
-        return self._caget(
-            self._cryo_root(band) + self._frequency_error_array_reg,
-            **kwargs)
+        return self._get_by_name(f'band[{band}].frequency_error', **kwargs)
 
     def set_eta_mag_array(self, band, val, **kwargs):
         r"""Sets the eta magnitude for all channels in a band.
@@ -3684,8 +3633,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name(f'band[{band}].eta.mag', **kwargs)
 
-    _feedback_limit_reg = 'feedbackLimit'
-
     def set_feedback_limit(self, band, val, **kwargs):
         r"""Sets the maximum feedback excursion for tone tracking.
 
@@ -3737,11 +3684,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_feedback_limit` : Sets the feedback limit.
         """
-        return self._caget(
-            self._band_root(band) + self._feedback_limit_reg,
-            **kwargs)
-
-    _noise_select_reg = 'noiseSelect'
+        return self._get_by_name(f'band[{band}].feedback.limit', **kwargs)
 
     def set_noise_select(self, band, val, **kwargs):
         r"""Enables or disables random noise output on the RF DACs.
@@ -3792,9 +3735,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_noise_select` : Sets the noise select state.
         """
-        return self._caget(
-            self._band_root(band) + self._noise_select_reg,
-            **kwargs)
+        return self._get_by_name(f'band[{band}].dsp.noise_select', **kwargs)
 
     def set_lms_delay(self, band, val, **kwargs):
         r"""Sets the LMS loop delay compensation.
@@ -4457,8 +4398,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name(f'band[{band}].feedback.polarity', **kwargs)
 
-    _band_center_mhz_reg = 'bandCenterMHz'
-
     def set_band_center_mhz(self, band, val, **kwargs):
         r"""Sets the band center frequency in MHz.
 
@@ -4482,9 +4421,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_band_center_mhz` : Gets the band center frequency.
         :func:`get_tone_frequency_offset_mhz` : Gets subband offsets.
         """
-        self._caput(
-            self._band_root(band) + self._band_center_mhz_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].center_mhz', val, **kwargs)
 
     def get_band_center_mhz(self, band, **kwargs):
         r"""Gets the band center frequency in MHz.
@@ -4514,12 +4451,8 @@ class SmurfCommandMixin(SmurfBase):
             bc = (4250 + band*500)
             return bc
         else:
-            return self._caget(
-                self._band_root(band) + self._band_center_mhz_reg,
-                **kwargs)
+            return self._get_by_name(f'band[{band}].center_mhz', **kwargs)
 
-
-    _channel_frequency_mhz_reg = 'channelFrequencyMHz'
 
     def get_channel_frequency_mhz(self, band=None, **kwargs):
         """
@@ -4549,12 +4482,10 @@ class SmurfCommandMixin(SmurfBase):
         if self.offline:
             return 2.4
         else:
-            return self._caget(
-                self._band_root(band) +
-                self._channel_frequency_mhz_reg,
-                **kwargs)
-
-    _digitizer_frequency_mhz_reg = 'digitizerFrequencyMHz'
+            return self._get_by_name(
+                f'band[{band}].channel_bandwidth_mhz',
+                **kwargs
+            )
 
     def get_digitizer_frequency_mhz(self, band=None, **kwargs):
         """
@@ -4582,9 +4513,7 @@ class SmurfCommandMixin(SmurfBase):
             # list of bands specified in experiment.cfg.
             band = self._bands[0]
 
-        return self._caget(
-            self._band_root(band) + self._digitizer_frequency_mhz_reg,
-            **kwargs)
+        return self._get_by_name(f'band[{band}].digitizer_rate_mhz', **kwargs)
 
     def set_synthesis_scale(self, band, val, **kwargs):
         r"""Sets the synthesis filter bank output scaling.
@@ -4696,9 +4625,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name(f'band[{band}].dsp.enable', **kwargs)
 
-    # Single channel commands
-    _feedback_enable_reg = 'feedbackEnable'
-
     def set_feedback_enable_channel(self, band, channel, val,
                                     **kwargs):
         r"""Sets the feedback enable for a single channel.
@@ -4754,10 +4680,10 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_feedback_enable_channel` : Sets this channel's enable.
         :func:`get_feedback_enable_array` : Gets all channels at once.
         """
-        return self._caget(
-            self._channel_root(band, channel) +
-            self._feedback_enable_reg,
-            **kwargs)
+        return self._get_by_name(
+            f'band[{band}].channel[{channel}].feedback.enable',
+            **kwargs
+        )
 
     def set_eta_mag_scaled_channel(self, band, channel, val,
                                    **kwargs):
@@ -4887,8 +4813,6 @@ class SmurfCommandMixin(SmurfBase):
         )
 
 
-    _amplitude_scale_channel_reg = 'amplitudeScale'
-
     def set_amplitude_scale_channel(self, band, channel, val,
                                     **kwargs):
         r"""Sets the tone amplitude for a single channel.
@@ -4916,10 +4840,11 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_amplitude_scale_channel` : Gets this channel's amplitude.
         :func:`set_amplitude_scale_array` : Sets all channels at once.
         """
-        self._caput(
-            self._channel_root(band, channel) +
-            self._amplitude_scale_channel_reg,
-            np.uint32(val), **kwargs)
+        self._set_by_name(
+            f'band[{band}].channel[{channel}].tone.amplitude',
+            np.uint32(val),
+            **kwargs
+        )
 
     def get_amplitude_scale_channel(self, band, channel, **kwargs):
         r"""Gets the tone amplitude for a single channel.
@@ -5011,8 +4936,6 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs
         )
 
-    _frequency_error_mhz_reg = 'frequencyErrorMHz'
-
     def get_frequency_error_mhz(self, band, channel, **kwargs):
         r"""Gets the frequency error for a single channel in MHz.
 
@@ -5039,10 +4962,10 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`get_frequency_error_array` : Gets all channels' errors (raw).
         """
-        return self._caget(
-            self._channel_root(band, channel) +
-            self._frequency_error_mhz_reg,
-            **kwargs)
+        return self._get_by_name(
+            f'band[{band}].channel[{channel}].frequency_error',
+            **kwargs
+        )
 
 
     def band_to_bay(self,b):
@@ -5064,9 +4987,6 @@ class SmurfCommandMixin(SmurfBase):
             assert False, 'band supplied to band_to_bay() must be and ' + \
                 'integer in [0,1,2,3,4,5,6,7] ...'
         return bay
-
-    # Attenuator
-    _uc_reg = 'UC[{}]'
 
     @_skipifrfsoc
     def set_att_uc(self, b, val, **kwargs):
@@ -5102,9 +5022,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         att = int(self.band_to_att(b))
         bay = self.band_to_bay(b)
-        self._caput(
-            self.att_root.format(bay) + self._uc_reg.format(att),
-            val, **kwargs)
+        self._set_by_name(f'bay[{bay}].attenuator.uc[{att}]', val, **kwargs)
 
     @_skipifrfsoc
     def get_att_uc(self, b, **kwargs):
@@ -5134,12 +5052,8 @@ class SmurfCommandMixin(SmurfBase):
         """
         att = int(self.band_to_att(b))
         bay = self.band_to_bay(b)
-        return self._caget(
-            self.att_root.format(bay) + self._uc_reg.format(att),
-            **kwargs)
+        return self._get_by_name(f'bay[{bay}].attenuator.uc[{att}]', **kwargs)
 
-
-    _dc_reg = 'DC[{}]'
 
     @_skipifrfsoc
     def set_att_dc(self, b, val, **kwargs):
@@ -5175,9 +5089,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         att = int(self.band_to_att(b))
         bay = self.band_to_bay(b)
-        self._caput(
-            self.att_root.format(bay) + self._dc_reg.format(att),
-            val, **kwargs)
+        self._set_by_name(f'bay[{bay}].attenuator.dc[{att}]', val, **kwargs)
 
     @_skipifrfsoc
     def get_att_dc(self, b, **kwargs):
@@ -5207,9 +5119,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         att = int(self.band_to_att(b))
         bay = self.band_to_bay(b)
-        return self._caget(
-            self.att_root.format(bay) + self._dc_reg.format(att),
-            **kwargs)
+        return self._get_by_name(f'bay[{bay}].attenuator.dc[{att}]', **kwargs)
 
     def get_dac_temp(self, bay, dac, **kwargs):
         """
@@ -5443,9 +5353,8 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`get_jesd_rx_data_valid` : Checks if receive data is valid.
         """
-        return self._caget(
-            self.jesd_rx_root.format(bay) +
-            self._jesd_rx_status_valid_cnt_reg + f'[{num}]',
+        return self._get_by_name(
+            f'bay[{bay}].jesd.link[{num}].rx_status_valid_count',
             **kwargs)
 
     def get_jesd_rx_data_valid(self, bay, **kwargs):
@@ -5582,9 +5491,8 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`get_jesd_tx_data_valid` : Checks if transmit data is valid.
         """
-        return self._caget(
-            self.jesd_tx_root.format(bay) +
-            self._jesd_tx_status_valid_cnt_reg + f'[{num}]',
+        return self._get_by_name(
+            f'bay[{bay}].jesd.link[{num}].tx_status_valid_count',
             **kwargs)
 
     def set_check_jesd(self, max_timeout_sec=60.0, **kwargs):
@@ -5655,7 +5563,7 @@ class SmurfCommandMixin(SmurfBase):
 
             # If the command exists, then start by calling the `CheckJesd`
             # wrapper command.
-            self._caput('AMCc.SmurfApplication.CheckJesd', 1, **kwargs)
+            self._set_by_name('application.check_jesd', 1, **kwargs)
 
             # Now let's wait for it to finish.
             try:
@@ -5742,9 +5650,11 @@ class SmurfCommandMixin(SmurfBase):
         # details.
         if version.parse(pysmurf_version) >= version.parse('4.1.0'):
             # Must be as_string=True to compare below
-            status =  self._caget(
-                self.smurf_application + self._jesd_status_reg,
-                as_string=True, **kwargs)
+            status = self._get_by_name(
+                'application.jesd_status',
+                as_string=True,
+                **kwargs
+            )
 
             if status == 'Not found':
                 self.log(
@@ -5965,9 +5875,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name(f'bay[{bay}].daq.data_buffer_size', **kwargs)
 
-    # Waveform engine commands
-    _start_addr_reg = 'StartAddr[{}]'
-
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_waveform_start_addr(self, bay, engine, val, **kwargs):
         """
@@ -5990,10 +5897,11 @@ class SmurfCommandMixin(SmurfBase):
         """
         if isinstance(val, str):
             val = int(val, 16)
-        self._caput(
-            self.waveform_engine_buffers_root.format(bay) +
-            self._start_addr_reg.format(engine),
-            val, **kwargs)
+        self._set_by_name(
+            f'carrier.bsa.engine[{bay}].buffer[{engine}].start_address',
+            val,
+            **kwargs
+        )
 
     def get_waveform_start_addr(self, bay, engine, convert=True, **kwargs):
         """
@@ -6009,18 +5917,16 @@ class SmurfCommandMixin(SmurfBase):
             Convert the output from a string of hex values to an int.
         """
 
-        val = self._caget(
-            self.waveform_engine_buffers_root.format(bay) +
-            self._start_addr_reg.format(engine),
+        val = self._get_by_name(
+            f'carrier.bsa.engine[{bay}].buffer[{engine}].start_address',
             as_string=True,
-            **kwargs)
+            **kwargs
+        )
 
         if convert:
             return int(val, 16)
         else:
             return val
-
-    _end_addr_reg = 'EndAddr[{}]'
 
     def set_waveform_end_addr(self, bay, engine, val, **kwargs):
         """
@@ -6037,10 +5943,11 @@ class SmurfCommandMixin(SmurfBase):
         """
         if isinstance(val, str):
             val = int(val, 16)
-        self._caput(
-            self.waveform_engine_buffers_root.format(bay) +
-            self._end_addr_reg.format(engine),
-            val, **kwargs)
+        self._set_by_name(
+            f'carrier.bsa.engine[{bay}].buffer[{engine}].end_address',
+            val,
+            **kwargs
+        )
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_waveform_end_addr(self, bay, engine, convert=True, **kwargs):
@@ -6068,18 +5975,16 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        val = self._caget(
-            self.waveform_engine_buffers_root.format(bay) +
-            self._end_addr_reg.format(engine),
+        val = self._get_by_name(
+            f'carrier.bsa.engine[{bay}].buffer[{engine}].end_address',
             as_string=True,
-            **kwargs)
+            **kwargs
+        )
 
         if convert:
             return int(val, 16)
         else:
             return val
-
-    _wr_addr_reg = 'WrAddr[{}]'
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_waveform_wr_addr(self, bay, engine, val, convert=True, **kwargs):
@@ -6105,10 +6010,11 @@ class SmurfCommandMixin(SmurfBase):
         """
         if isinstance(val, str):
             val = int(val, 16)
-        self._caput(
-            self.waveform_engine_buffers_root.format(bay) +
-            self._wr_addr_reg.format(engine),
-            val, **kwargs)
+        self._set_by_name(
+            f'carrier.bsa.engine[{bay}].buffer[{engine}].write_address',
+            val,
+            **kwargs
+        )
 
     def get_waveform_wr_addr(self, bay, engine, convert=True, **kwargs):
         """
@@ -6129,11 +6035,11 @@ class SmurfCommandMixin(SmurfBase):
             Waveform end address (a string of hex values if convert is
             False, otherwise an integer if convert is True).
         """
-        val = self._caget(
-            self.waveform_engine_buffers_root.format(bay) +
-            self._wr_addr_reg.format(engine),
+        val = self._get_by_name(
+            f'carrier.bsa.engine[{bay}].buffer[{engine}].write_address',
             as_string=True,
-            **kwargs)
+            **kwargs
+        )
 
         if convert:
             return int(val, 16)
@@ -6431,8 +6337,6 @@ class SmurfCommandMixin(SmurfBase):
     #########################################################
     ## start rtm arbitrary waveform
 
-    _rtm_arb_waveform_lut_table_reg = 'Lut[{}].MemArray'
-
     def set_rtm_arb_waveform_lut_table(self, reg, arr, pad=0, **kwargs):
         """
         Loads provided array into the LUT table indexed by reg.  If
@@ -6477,10 +6381,7 @@ class SmurfCommandMixin(SmurfBase):
         lut_arr=np.clip(lut_arr,a_min=-2**(dac_nbits_fullscale-1),
             a_max=2**(dac_nbits_fullscale-1)-1)
 
-        self._caput(
-            self.rtm_lut_ctrl_root +
-            self._rtm_arb_waveform_lut_table_reg.format(reg),
-            lut_arr, **kwargs)
+        self._set_by_name(f'rtm.waveform.lut[{reg}].table', lut_arr, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_rtm_arb_waveform_lut_table(self, reg, **kwargs):
@@ -6506,10 +6407,7 @@ class SmurfCommandMixin(SmurfBase):
            notebook.
         """
         assert (reg in range(2)), 'reg must be in [0,1]'
-        return self._caget(
-            self.rtm_lut_ctrl_root +
-            self._rtm_arb_waveform_lut_table_reg.format(reg),
-            **kwargs)
+        return self._get_by_name(f'rtm.waveform.lut[{reg}].table', **kwargs)
 
     _rtm_arb_waveform_busy_reg = 'Busy'
 
@@ -6572,8 +6470,6 @@ class SmurfCommandMixin(SmurfBase):
             self.rtm_lut_ctrl + self._rtm_arb_waveform_trig_cnt_reg,
             **kwargs)
 
-    _rtm_arb_waveform_continuous_reg = 'Continuous'
-
     def set_rtm_arb_waveform_continuous(self, val, **kwargs):
         """
         If =1, RTM arbitrary waveform generation is continuous and
@@ -6587,9 +6483,7 @@ class SmurfCommandMixin(SmurfBase):
             on software trigger.  Must be in [0,1].
         """
         assert (val in range(2)), 'val must be in [0,1]'
-        self._caput(
-            self.rtm_lut_ctrl + self._rtm_arb_waveform_continuous_reg,
-            val, **kwargs)
+        self._set_by_name('rtm.waveform.continuous', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_rtm_arb_waveform_continuous(self, **kwargs):
@@ -6616,9 +6510,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self.rtm_lut_ctrl + self._rtm_arb_waveform_continuous_reg,
-            **kwargs)
+        return self._get_by_name('rtm.waveform.continuous', **kwargs)
 
     _rtm_arb_waveform_software_trigger_reg = 'SwTrig'
 
@@ -6652,8 +6544,6 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(triggerPV, 1, **kwargs)
         self.log(f'{triggerPV} sent', self.LOG_USER)
 
-    _dac_axil_addr_reg = 'DacAxilAddr[{}]'
-
     def set_dac_axil_addr(self, reg, val, **kwargs):
         """
         Low-level function.  Used internally by
@@ -6664,9 +6554,11 @@ class SmurfCommandMixin(SmurfBase):
         Sets the DacAxilAddr[#] registers.
         """
         assert (reg in range(2)), 'reg must be in [0,1]'
-        self._caput(
-            self.rtm_lut_ctrl + self._dac_axil_addr_reg.format(reg),
-            f"Dac[{val:d}]", **kwargs)
+        self._set_by_name(
+            f'rtm.waveform.lut_dac[{reg}].address',
+            f"Dac[{val:d}]",
+            **kwargs
+        )
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_dac_axil_addr(self, reg, **kwargs):
@@ -6683,11 +6575,10 @@ class SmurfCommandMixin(SmurfBase):
            notebook.
         """
         assert (reg in range(2)), 'reg must be in [0,1]'
-        return self._caget(
-            self.rtm_lut_ctrl + self._dac_axil_addr_reg.format(reg),
-            **kwargs)
-
-    _rtm_arb_waveform_timer_size_reg = 'TimerSize'
+        return self._get_by_name(
+            f'rtm.waveform.lut_dac[{reg}].address',
+            **kwargs
+        )
 
     def set_rtm_arb_waveform_timer_size(self, val, **kwargs):
         """
@@ -6701,9 +6592,7 @@ class SmurfCommandMixin(SmurfBase):
             [0,2**24).
         """
         assert (val in range(2**24)), 'reg must be in [0,16777216)'
-        self._caput(
-            self.rtm_lut_ctrl + self._rtm_arb_waveform_timer_size_reg,
-            val, **kwargs)
+        self._set_by_name('rtm.waveform.timer_size', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_rtm_arb_waveform_timer_size(self, **kwargs):
@@ -6733,9 +6622,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self.rtm_lut_ctrl + self._rtm_arb_waveform_timer_size_reg,
-            **kwargs)
+        return self._get_by_name('rtm.waveform.timer_size', **kwargs)
 
     _rtm_arb_waveform_max_addr_reg = 'MaxAddr'
 
@@ -6800,8 +6687,6 @@ class SmurfCommandMixin(SmurfBase):
             self.rtm_lut_ctrl + self._rtm_arb_waveform_max_addr_reg,
             **kwargs)
 
-    _rtm_arb_waveform_enable_reg = 'EnableCh'
-
     def set_rtm_arb_waveform_enable(self, val, **kwargs):
         """
         Sets the enable for generation of arbitrary waveforms on the
@@ -6815,9 +6700,7 @@ class SmurfCommandMixin(SmurfBase):
             Addr[1]
         """
         assert (val in range(4)), 'reg must be in [0,1,2,3]'
-        self._caput(
-            self.rtm_lut_ctrl + self._rtm_arb_waveform_enable_reg,
-            val, **kwargs)
+        self._set_by_name('rtm.waveform.enable', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_rtm_arb_waveform_enable(self, **kwargs):
@@ -6846,14 +6729,10 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self.rtm_lut_ctrl + self._rtm_arb_waveform_enable_reg,
-            **kwargs)
+        return self._get_by_name('rtm.waveform.enable', **kwargs)
 
     ## end rtm arbitrary waveform
     #########################################################
-
-    _reset_rtm_reg = 'resetRtm'
 
     def reset_rtm(self, **kwargs):
         r"""Resets the rear transition module (RTM) CPLD.
@@ -6874,9 +6753,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_cpld_reset` : Direct control of the reset line.
         :func:`cpld_toggle` : Alias for this function.
         """
-        self._caput(
-            self.rtm_cryo_det_root + self._reset_rtm_reg,
-            1, **kwargs)
+        self._set_by_name('rtm.reset', 1, **kwargs)
 
     def set_cpld_reset(self, val, **kwargs):
         """
@@ -6966,10 +6843,8 @@ class SmurfCommandMixin(SmurfBase):
         rate_sel = self.flux_ramp_rate_to_PV(val)
 
         if rate_sel is not None:
-            self._caput(
-                self._timing_crate_root_reg +
-                self._trigger_rate_sel_reg,
-                rate_sel, **kwargs)
+            self._set_by_name(
+                'timing.evr_channel[0].rate_select', rate_sel, **kwargs)
         else:
             print(
                 "Rate requested is not allowed by timing" +
@@ -7008,10 +6883,8 @@ class SmurfCommandMixin(SmurfBase):
            notebook.
         """
 
-        rate_sel = self._caget(
-            self._timing_crate_root_reg +
-            self._trigger_rate_sel_reg,
-            **kwargs)
+        rate_sel = self._get_by_name(
+            'timing.evr_channel[0].rate_select', **kwargs)
 
         reset_rate = self.flux_ramp_PV_to_rate(rate_sel)
 
@@ -7486,12 +7359,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name('flux_ramp.enable', **kwargs)
 
-    # Right now in pyrogue, this is named as if it's always a TesBias,
-    # but pysmurf doesn't only use them as TES biases - e.g. in
-    # systems using a 50K follow-on amplifier, one of these DACs is
-    # used to drive the amplifier gate.
-    _rtm_slow_dac_enable_reg = 'TesBiasDacCtrlRegCh'
-
     def set_rtm_slow_dac_enable(self, dac, val=2, **kwargs):
         """
         Set DacCtrlReg for this DAC, which configures the AD5790
@@ -7516,8 +7383,12 @@ class SmurfCommandMixin(SmurfBase):
             self.log("RTM dac val must be 0x2 or 0xE. Setting to 0x2 (enabled).")
             val = 0x2
 
-        self._caput(self.rtm_spi_max_root +
-            self._rtm_slow_dac_enable_reg, val, index=dac - 1, **kwargs)
+        self._set_by_name(
+            'rtm.slow_dac.enable_array',
+            val,
+            index=dac - 1,
+            **kwargs
+        )
 
     def get_rtm_slow_dac_enable(self, dac, **kwargs):
         """
@@ -7539,10 +7410,11 @@ class SmurfCommandMixin(SmurfBase):
         """
         assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
 
-        return self._caget(
-            self.rtm_spi_max_root +
-            self._rtm_slow_dac_enable_reg, index=dac - 1,
-            **kwargs)
+        return self._get_by_name(
+            'rtm.slow_dac.enable_array',
+            index=dac - 1,
+            **kwargs
+        )
 
     def set_rtm_slow_dac_enable_array(self, val, **kwargs):
         """
@@ -7571,10 +7443,7 @@ class SmurfCommandMixin(SmurfBase):
 
         val = [0x2 if v != 0x2 and v != 0xE else v for v in val]
 
-        self._caput(
-            self.rtm_spi_max_root +
-            self._rtm_slow_dac_enable_reg,
-            val, **kwargs)
+        self._set_by_name('rtm.slow_dac.enable_array', val, **kwargs)
 
     def get_rtm_slow_dac_enable_array(self, **kwargs):
         """
@@ -7624,10 +7493,12 @@ class SmurfCommandMixin(SmurfBase):
             val = -2**(nbits-1)
             self.log(f'Bias too low. Must be >= than -2^{nbits-1}.  ' +
                      'Setting to min value', self.LOG_ERROR)
-        self._caput(
-            self.rtm_spi_max_root +
-            self._rtm_slow_dac_data_reg, val, index=dac - 1,
-            **kwargs)
+        self._set_by_name(
+            'rtm.slow_dac.data_array',
+            val,
+            index=dac - 1,
+            **kwargs
+        )
 
     def get_rtm_slow_dac_data(self, dac, **kwargs):
         """
@@ -7649,10 +7520,11 @@ class SmurfCommandMixin(SmurfBase):
             DAC.
         """
         assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
-        return self._caget(
-            self.rtm_spi_max_root +
-            self._rtm_slow_dac_data_reg, index=dac - 1,
-            **kwargs)
+        return self._get_by_name(
+            'rtm.slow_dac.data_array',
+            index=dac - 1,
+            **kwargs
+        )
 
     def set_rtm_slow_dac_data_array(self, val, **kwargs):
         """
@@ -7684,9 +7556,7 @@ class SmurfCommandMixin(SmurfBase):
                      self.LOG_ERROR)
         val[np.ravel(np.where(val < - 2**(nbits-1)))] = -2**(nbits-1)
 
-        self._caput(
-            self.rtm_spi_max_root + self._rtm_slow_dac_data_reg,
-            val, **kwargs)
+        self._set_by_name('rtm.slow_dac.data_array', val, **kwargs)
 
     def get_rtm_slow_dac_data_array(self, **kwargs):
         """
@@ -7785,13 +7655,6 @@ class SmurfCommandMixin(SmurfBase):
         return (self._rtm_slow_dac_bit_to_volt *
                 self.get_rtm_slow_dac_data_array(**kwargs))
 
-    # There are actually 33 RTM DACs but the 33rd is hacked in.  It's
-    # the HEMT Gate on the C02, and HEMT1 Gate on the C04. Eventually
-    # please remove this register and add index 33 to
-    # TesBiasDacCtrlRegCh.
-    _rtm_33_ctrl_reg = 'HemtBiasDacCtrlRegCh'
-    _rtm_33_data_reg = 'HemtBiasDacDataRegCh'
-
     def get_amp_gate_voltage(self, amp):
         r"""Gets the gate voltage for a cryogenic RF amplifier.
 
@@ -7827,7 +7690,7 @@ class SmurfCommandMixin(SmurfBase):
             else:
                 bit_to_volt = self.config.config['amplifier']['hemt1']['gate_bit_to_volt']
 
-            bits = self._caget(self.rtm_spi_max_root + self._rtm_33_data_reg)
+            bits = self._get_by_name('rtm.amp_gate_dac.data_array')
 
         elif amp == '50k':
             dac_num = self.config.config['amplifier']['dac_num_50k']
@@ -7882,7 +7745,7 @@ class SmurfCommandMixin(SmurfBase):
                 bits = -2**(nbits-1)
 
             self.log(f'Setting hemt or hemt1 gate to {bits} bits given {voltage} volts.')
-            self._caput(self.rtm_spi_max_root + self._rtm_33_data_reg, bits, **kwargs)
+            self._set_by_name('rtm.amp_gate_dac.data_array', bits, **kwargs)
 
         elif amp == '50k':
             dac_num = self.config.config['amplifier']['dac_num_50k']
@@ -8168,7 +8031,7 @@ class SmurfCommandMixin(SmurfBase):
         major, minor, patch = self.C.get_fw_version()
 
         # Enable the HEMT gate DAC on the C02, or HEMT1 gate DAC on the C04.
-        self._caput(self.rtm_spi_max_root + self._rtm_33_ctrl_reg, 0x2)
+        self._set_by_name('rtm.amp_gate_dac.enable_array', 0x2)
 
         if major == 1 or major == 10:
             volt = self.config.get('amplifier')['LNA_Vg']
@@ -8798,9 +8661,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name('carrier.crate_id', **kwargs)
 
-    # UltraScale+ FPGA
-    _fpga_temperature_reg = "Temperature"
-
     def get_fpga_temp(self, **kwargs):
         """
         Gets the temperature of the UltraScale+ FPGA.  Returns float32,
@@ -8811,12 +8671,7 @@ class SmurfCommandMixin(SmurfBase):
         val : float
             The UltraScale+ FPGA temperature in degrees Celsius.
         """
-        return self._caget(
-            self.ultrascale +
-            self._fpga_temperature_reg,
-            **kwargs)
-
-    _fpga_vccint_reg = "VccInt"
+        return self._get_by_name('carrier.fpga.temperature', **kwargs)
 
     def get_fpga_vccint(self, **kwargs):
         """
@@ -8827,12 +8682,7 @@ class SmurfCommandMixin(SmurfBase):
         val : float
             The UltraScale+ FPGA VccInt in Volts.
         """
-        return self._caget(
-            self.ultrascale +
-            self._fpga_vccint_reg,
-            **kwargs)
-
-    _fpga_vccaux_reg = "VccAux"
+        return self._get_by_name('carrier.fpga.vcc_int', **kwargs)
 
     def get_fpga_vccaux(self, **kwargs):
         """
@@ -8843,12 +8693,7 @@ class SmurfCommandMixin(SmurfBase):
         val : float
             The UltraScale+ FPGA VccAux in Volts.
         """
-        return self._caget(
-            self.ultrascale +
-            self._fpga_vccaux_reg,
-            **kwargs)
-
-    _fpga_vccbram_reg = "VccBram"
+        return self._get_by_name('carrier.fpga.vcc_aux', **kwargs)
 
     def get_fpga_vccbram(self, **kwargs):
         """
@@ -8859,10 +8704,7 @@ class SmurfCommandMixin(SmurfBase):
         val : float
             The UltraScale+ FPGA VccBram in Volts.
         """
-        return self._caget(
-            self.ultrascale +
-            self._fpga_vccbram_reg,
-            **kwargs)
+        return self._get_by_name('carrier.fpga.vcc_bram', **kwargs)
 
     # Regulator
     _regulator_iout_reg = "IOUT"
@@ -8947,7 +8789,7 @@ class SmurfCommandMixin(SmurfBase):
             Temperature of the cryostat card in Celsius.
         """
         if enable_poll:
-            self._caput(self._global_poll_enable_reg, True)
+            self._set_by_name('poll_enable', True)
 
         T = self.C.read_temperature()
 
@@ -8955,7 +8797,7 @@ class SmurfCommandMixin(SmurfBase):
             self.log('get_cryo_card_temp: Temperature is below 0 C, is it connected?')
 
         if disable_poll:
-            self._caput(self._global_poll_enable_reg, False)
+            self._set_by_name('poll_enable', False)
 
         return T
 
@@ -8992,12 +8834,12 @@ class SmurfCommandMixin(SmurfBase):
             The cryo card relays value.
         """
         if enable_poll:
-            self._caput(self._global_poll_enable_reg, True)
+            self._set_by_name('poll_enable', True)
 
         relay = self.C.read_relays()
 
         if disable_poll:
-            self._caput(self._global_poll_enable_reg, False)
+            self._set_by_name('poll_enable', False)
 
         return relay
 
@@ -9038,12 +8880,12 @@ class SmurfCommandMixin(SmurfBase):
             self.log(f'Writing relay using cryo_card object. {relay}')
 
         if enable_poll:
-            self._caput(self._global_poll_enable_reg, True)
+            self._set_by_name('poll_enable', True)
 
         self.C.write_relays(relay)
 
         if disable_poll:
-            self._caput(self._global_poll_enable_reg, False)
+            self._set_by_name('poll_enable', False)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_cryo_card_delatch_bit(self, bit, write_log=False, enable_poll=False,
@@ -9063,7 +8905,7 @@ class SmurfCommandMixin(SmurfBase):
            notebook.
         """
         if enable_poll:
-            self._caput(self._global_poll_enable_reg, True)
+            self._set_by_name('poll_enable', True)
 
         if write_log:
             self.log('Setting delatch bit using cryo_card ' +
@@ -9071,7 +8913,7 @@ class SmurfCommandMixin(SmurfBase):
         self.C.delatch_bit(bit)
 
         if disable_poll:
-            self._caput(self._global_poll_enable_reg, False)
+            self._set_by_name('poll_enable', False)
 
     def set_cryo_card_ps_en(self, enable=3, write_log=False):
         """
@@ -10170,7 +10012,7 @@ class SmurfCommandMixin(SmurfBase):
             Arbitrary keyword arguments.  Passed directly to the
             `epics.caput` call.
         """
-        self._caput(self.lmk.format(bay) + 'enable', val, **kwargs)
+        self._set_by_name(f'bay[{bay}].clock.enable', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_lmk_enable(self, bay, **kwargs):
@@ -10191,7 +10033,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._caget(self.lmk.format(bay) + 'enable', **kwargs)
+        self._get_by_name(f'bay[{bay}].clock.enable', **kwargs)
 
     # assumes it's handed the decimal equivalent
     _lmk_reg = "LmkReg_0x{:04X}"
@@ -10289,8 +10131,8 @@ class SmurfCommandMixin(SmurfBase):
         int
             The frame count number
         """
-        return int(self._caget(
-            self.frame_rx_stats + self._frame_count_reg,
+        return int(self._get_by_name(
+            'stream.frame_count',
             as_string=True,
             **kwargs))
 
@@ -10316,8 +10158,6 @@ class SmurfCommandMixin(SmurfBase):
             self.frame_rx_stats + self._frame_size_reg,
             **kwargs)
 
-    _frame_loss_count_reg = 'FrameLossCnt'
-
     def get_frame_loss_cnt(self, **kwargs):
         r"""Gets the count of frames lost before reaching the SmurfProcessor.
 
@@ -10341,9 +10181,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`get_frame_out_order_count` : Frames received out of order.
         """
-        return self._caget(
-            self.frame_rx_stats + self._frame_loss_count_reg,
-            **kwargs)
+        return self._get_by_name('stream.frame_loss_count', **kwargs)
 
     _frame_out_order_count_reg = 'FrameOutOrderCnt'
 
@@ -10377,8 +10215,6 @@ class SmurfCommandMixin(SmurfBase):
             self.frame_rx_stats + self._frame_out_order_count_reg,
             **kwargs)
 
-    _channel_mask_reg = 'ChannelMapper.Mask'
-
     def set_channel_mask(self, mask, **kwargs):
         """
         Set the smurf processor channel mask.
@@ -10390,9 +10226,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         # Smurf Processor stricly requires a python list
         mask = [int(i) for i in mask]
-        self._caput(
-            self.smurf_processor + self._channel_mask_reg,
-            mask, **kwargs)
+        self._set_by_name('stream.channel_mask', mask, **kwargs)
 
 
     def get_channel_mask(self, **kwargs):
@@ -10405,8 +10239,6 @@ class SmurfCommandMixin(SmurfBase):
             The channel mask.
         """
         return self._get_by_name('stream.channel_mask', **kwargs)
-
-    _unwrapper_reset_reg = 'Unwrapper.reset'
 
     def set_unwrapper_reset(self, **kwargs):
         r"""Resets the SmurfProcessor phase unwrapper.
@@ -10429,11 +10261,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_filter_reset` : Reset the downsample filter.
         :func:`clear_unwrapping_and_averages` : Reset unwrapper and averaging.
         """
-        self._caput(
-            self.smurf_processor + self._unwrapper_reset_reg,
-            1, **kwargs)
-
-    _filter_reset_reg = 'Filter.reset'
+        self._set_by_name('stream.unwrapper.reset', 1, **kwargs)
 
     def set_filter_reset(self, **kwargs):
         r"""Resets the SmurfProcessor downsample filter.
@@ -10453,9 +10281,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_filter_a` : Set filter A coefficients.
         :func:`set_filter_b` : Set filter B coefficients.
         """
-        self._caput(
-            self.smurf_processor + self._filter_reset_reg,
-            1, **kwargs)
+        self._set_by_name('stream.filter.reset', 1, **kwargs)
 
     def set_filter_a(self, coef, **kwargs):
         """
@@ -10564,8 +10390,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name('stream.filter.gain', **kwargs)
 
-    _downsampler_mode_reg = 'Downsampler.DownsamplerMode'
-
     def set_downsample_mode(self, mode):
         """Sets the SmurfProcessor downsampler trigger mode.
 
@@ -10587,9 +10411,9 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_downsample_external_bitmask` : Set timing bits for external mode.
         """
         if mode == 'internal':
-            self._caput(self.smurf_processor + self._downsampler_mode_reg, 0)
+            self._set_by_name('stream.downsample.mode', 0)
         elif mode == 'external':
-            self._caput(self.smurf_processor + self._downsampler_mode_reg, 1)
+            self._set_by_name('stream.downsample.mode', 1)
         else:
             self.log(f'set_downsample_mode: Unknown mode {mode}')
 
@@ -10605,14 +10429,12 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_downsample_mode` : Sets the mode.
         """
-        mode = self._caget(self.smurf_processor + self._downsampler_mode_reg)
+        mode = self._get_by_name('stream.downsample.mode')
 
         if mode == 0:
             return 'internal'
         else:
             return 'external'
-
-    _downsampler_factor_reg = 'Downsampler.InternalFactor'
 
     def set_downsample_factor(self, factor, get_nearby=False, desperation=2, **kwargs):
         """
@@ -10648,9 +10470,7 @@ class SmurfCommandMixin(SmurfBase):
 
             return
         else:
-            self._caput(
-                self.smurf_processor + self._downsampler_factor_reg,
-                factor, **kwargs)
+            self._set_by_name('stream.downsample.factor', factor, **kwargs)
 
     def get_downsample_factor(self, **kwargs):
         """
@@ -10674,7 +10494,7 @@ class SmurfCommandMixin(SmurfBase):
             bmask = self.get_downsample_external_bitmask() >> 10
             return dsc.period_from_mask(bmask)
 
-        return self._caget(self.smurf_processor + self._downsampler_factor_reg, **kwargs)
+        return self._get_by_name('stream.downsample.factor', **kwargs)
 
     def set_downsample_external_bitmask(self, bitmask):
         """Sets the external downsampler bitmask.
@@ -10832,8 +10652,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name('stream.file.name', **kwargs)
 
-    _data_file_open_reg = 'FileWriter.Open'
-
     def open_data_file(self, **kwargs):
         r"""Opens the SmurfProcessor output data file for writing.
 
@@ -10847,10 +10665,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`close_data_file` : Close the file.
         """
-        self._caput(self.smurf_processor + self._data_file_open_reg, 1,
-            **kwargs)
-
-    _data_file_close_reg = 'FileWriter.Close'
+        self._set_by_name('stream.data_file.open', 1, **kwargs)
 
     def close_data_file(self, **kwargs):
         r"""Closes the SmurfProcessor output data file.
@@ -10865,8 +10680,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`open_data_file` : Open the file.
         """
-        self._caput(self.smurf_processor + self._data_file_close_reg, 1,
-            **kwargs)
+        self._set_by_name('stream.data_file.close', 1, **kwargs)
 
     _num_channels_reg = "NumChannels"
 
