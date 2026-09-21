@@ -328,29 +328,30 @@ class SmurfCommandMixin(SmurfBase):
         return ret
 
 
-    def _wait_for(self, pvname, condition, timeout=None):
-        """Wait for a variable to satisfy a certain condition.
+    def _wait_for(self, name, condition, timeout=None):
+        """Wait for the register a semantic name reaches to satisfy a condition.
 
         Args
         ----
-        pvname : str
-            The path of the PV to get.
+        name : str
+            The semantic name, indices filled in.
         condition : function
             Returns True if the given variable value is such that we
             should stop waiting, False otherwise.
         timeout : float
             Timeout in seconds. Default is None.
         """
-        var = self._client.root.getNode(pvname)
+        path = self._resolve(name)
+        var = self._client.root.getNode(path)
         if var is None:
-            raise ValueError(f"Invalid node: {pvname}")
+            raise ValueError(f"Invalid node: {path}")
 
         if timeout is None:
             timeout = 0
 
         ret = VariableWait([var], lambda vals: condition(vals[0].value), timeout)
         if not ret:
-            raise TimeoutError(f"Timed out after {timeout}s on PV {pvname}.")
+            raise TimeoutError(f"Timed out after {timeout}s waiting on {name}.")
 
 
     def get_pysmurf_version(self, **kwargs):
@@ -536,7 +537,7 @@ class SmurfCommandMixin(SmurfBase):
             Time in seconds to wait before raising a TimeoutError.
         """
         self._wait_for(
-            self.smurf_application + self._configuring_in_progress_reg,
+            'application.configuring',
             lambda x: not x,  # condition for success is value of False
             timeout=timeout
         )
@@ -837,9 +838,9 @@ class SmurfCommandMixin(SmurfBase):
             Arbitrary keyword arguments.  Passed directly to the
             `_caput` call.
         """
-        triggerPV=self.lmk.format(bay) + 'PwrUpSysRef'
-        self._caput(triggerPV, 1, wait_after=5, **kwargs)
-        self.log(f'{triggerPV} sent', self.LOG_USER)
+        name = f'bay[{bay}].clock.power_up_sys_ref'
+        self._set_by_name(name, 1, wait_after=5, **kwargs)
+        self.log(f'{name} sent', self.LOG_USER)
 
     _eta_scan_in_progress_reg = 'etaScanInProgress'
 
@@ -1273,11 +1274,9 @@ class SmurfCommandMixin(SmurfBase):
         # need flux ramp off for this - enforce
         self.flux_ramp_off()
 
-        triggerPV = self._cryo_root(band) + self._run_serial_eta_scan_reg
-        monitorPV = self._cryo_root(band) + self._eta_scan_in_progress_reg
-
-        self._caput(triggerPV, 1, **kwargs)
-        self._wait_for(monitorPV, lambda x: x == 0, timeout=timeout)
+        self._set_by_name(f'band[{band}].ops.start_eta_scan', 1, **kwargs)
+        self._wait_for(f'band[{band}].ops.in_progress', lambda x: x == 0,
+                       timeout=timeout)
 
 
     _run_serial_gradient_descent_reg = 'runSerialGradientDescent'
@@ -1297,11 +1296,9 @@ class SmurfCommandMixin(SmurfBase):
         # need flux ramp off for this - enforce
         self.flux_ramp_off()
 
-        triggerPV = self._cryo_root(band) + self._run_serial_gradient_descent_reg
-        monitorPV = self._cryo_root(band) + self._eta_scan_in_progress_reg
-
-        self._caput(triggerPV, 1, **kwargs)
-        self._wait_for(monitorPV, lambda x: x == 0, timeout=timeout)
+        self._set_by_name(f'band[{band}].ops.start_gradient_descent', 1, **kwargs)
+        self._wait_for(f'band[{band}].ops.in_progress', lambda x: x == 0,
+                       timeout=timeout)
 
 
     _sel_ext_ref_reg = "SelExtRef"
@@ -1904,8 +1901,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._set_by_name(f'band[{band}].ops.start_find_freq', val, **kwargs)
 
-        monitorPV = self._cryo_root(band) + self._eta_scan_in_progress_reg
-        self._wait_for(monitorPV, lambda x: x == 0)
+        self._wait_for(f'band[{band}].ops.in_progress', lambda x: x == 0)
         self.log('serial find freq complete', self.LOG_USER)
 
     def set_run_eta_scan(self, band, val, **kwargs):
@@ -5568,7 +5564,7 @@ class SmurfCommandMixin(SmurfBase):
             # Now let's wait for it to finish.
             try:
                 self._wait_for(
-                    self.smurf_application + self._jesd_status_reg,
+                    'application.jesd_status',
                     lambda status: status not in [None, 'Checking'],
                     timeout=max_timeout_sec
                 )
