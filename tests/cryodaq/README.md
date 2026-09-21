@@ -141,6 +141,40 @@ What this cannot show is that the names match a firmware package that is not com
 pruned dumps are the fallback that keeps the check meaningful on a fork's pull request; checking every
 released package belongs in a job that can download them.
 
+### check_sodetlib_contract.py
+
+This script checks that the client still offers everything sodetlib calls on it.
+
+sodetlib drives this client from another repository and another organisation, so its use of the client
+cannot be found by reading this one. A refactor here can remove a method nothing here calls and break an
+observatory's analysis code, with nothing failing until someone runs it — so the surface sodetlib depends
+on is frozen in `sodetlib_contract.json` and checked on every build.
+
+What the freezing buys is that a removal becomes a **decision**. A name dropped from the contract appears
+in a diff with a commit message saying why; a name dropped without touching the contract fails here. That
+asymmetry is the point: it is easy to remove something by accident and hard to remove it deliberately
+without noticing.
+
+* **Every public name sodetlib calls is still offered** — 71 of them, measured from sodetlib rather than
+  listed by hand. The check does not judge whether a removal is right, only that the contract was edited
+  to say so.
+* **Every private name it reaches is still there** — 16 underscore-prefixed attributes and methods, with a
+  weaker promise: these are not interface and may go, but going needs the matching sodetlib change and
+  this entry removed. Recording them is also how the list of what sodetlib has to stop using exists at
+  all, rather than being rediscovered each time.
+* **The contract names nothing the client never had** — an entry the client does not define means the
+  measurement read something else, most likely a helper sodetlib defines itself, which would quietly
+  weaken every assertion above. One such name is recorded as *not ours* and required to stay that way.
+* **A deliberately dropped name stays dropped, with a reason** — so the dropped list cannot silently stop
+  describing anything.
+
+The surface is read from source with `ast`, as the union of the client's mixins, because `SmurfControl` is
+assembled from eight of them and no single class holds it. Reading source rather than importing is what
+lets this run on the bare runner beside the other checks here, where the client's plotting stack is absent.
+
+Seven selftest cases drive each check with input it must refuse, including a client whose mixins cannot be
+read at all — a contract check that passes by finding nothing is worse than none.
+
 ### validate_client_emulated.py
 
 This script drives a `cryodaq` session against an emulated firmware tree.

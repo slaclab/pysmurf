@@ -220,6 +220,13 @@ jobs:
       - name: Resolve the cryodaq names against firmware tree dumps
         run: python3 tests/cryodaq/check_catalog_resolves.py
 
+      # sodetlib drives this client from another repository, so its use of it cannot
+      # be found by reading this one: a refactor here can remove a method nothing
+      # here calls and break an observatory's analysis code. The surface it depends
+      # on is frozen, so a removal has to be a decision rather than an accident.
+      - name: Check the sodetlib compatibility contract
+        run: python3 tests/cryodaq/check_sodetlib_contract.py
+
       # Setup Docker build environment
       - name: Set up docker build enviroment
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
