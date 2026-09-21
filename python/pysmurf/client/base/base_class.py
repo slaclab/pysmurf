@@ -21,6 +21,7 @@ except ModuleNotFoundError:
     import warnings
     warnings.warn("Could not import pyrogue. Can only use offline mode.")
 
+from cryodaq import platform
 from pysmurf.client.command.cryo_card import CryoCard
 from pysmurf.client.util.pub import Publisher
 from .logger import SmurfLogger
@@ -213,8 +214,6 @@ class SmurfBase:
             'RtmSpiSr.'
         self.rtm_spi_max_root = self.rtm_cryo_det_root + \
             'RtmSpiMax.'
-        self.rtm_spi_cryo_root = self.rtm_cryo_det_root + \
-            'SpiCryo.'
         self.rtm_lut_ctrl_root = self.rtm_cryo_det_root + \
             'LutCtrl.'
         self.rtm_lut_ctrl = self.rtm_lut_ctrl_root + \
@@ -229,11 +228,16 @@ class SmurfBase:
             self.log('Offline mode, skipping CryoCard initialization')
             self.C = _DummyClient("OFFLINE: CryoCard client")
         else:
+            # The cryostat card is reached over a serial link on the RTM, through a
+            # pair of mailbox nodes. Where those are is a property of the platform,
+            # so they are resolved through its map and handed over as nodes; the
+            # card's own protocol is all that CryoCard then knows. It is given this
+            # client's tree rather than opening a second connection to the same
+            # endpoint, which is what it used to do.
+            pmap = platform.identify(self._client.root)
             self.C = CryoCard(
-                self.rtm_spi_cryo_root + 'read',
-                self.rtm_spi_cryo_root + 'write',
-                server_addr=self._server_addr,
-                server_port=self._server_port,
+                self._client.root.getNode(pmap.path('rtm.cryocard.read')),
+                self._client.root.getNode(pmap.path('rtm.cryocard.write')),
                 log=self.log,
             )
 
