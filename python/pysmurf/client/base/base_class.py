@@ -149,80 +149,40 @@ class SmurfBase:
         self.app_top = self.fpga_top_level + 'AppTop.'
         self.app_core = self.app_top + 'AppCore.'
 
-        # AppTop
-        self.dac_sig_gen = self.app_top + 'DacSigGen[{}].'
-
         # AppCore
         self.microwave_mux_core = self.app_core + 'MicrowaveMuxCore[{}].'
         self.sysgencryo = self.app_core + 'SysgenCryo.'
         self.timing_header = self.app_core + 'TimingHeader.'
 
-        # MicrowaveMuxCore[#]
-        self.DBG = self.microwave_mux_core + 'DBG.'
         self.dac_root = self.microwave_mux_core + 'DAC[{}].'
-        self.att_root = self.microwave_mux_core + 'ATT.'
-
         # LMK
         self.lmk = self.microwave_mux_core + 'LMK.'
 
         # SysgenCryo
         self.band_root = self.sysgencryo + 'Base[{}].'
-        self.adc_root = self.sysgencryo + 'CryoAdcMux.'
-
         self.cryo_root = self.band_root + 'CryoChannels.'
         self.channel_root = self.cryo_root + 'CryoChannel[{}].'
 
         self.streaming_root = self.amcc + 'streamingInterface.'
 
-        # FpgaTopLevel
-        self.fpgatl = self.amcc + 'FpgaTopLevel.'
-
-        # AppTop
-        self.apptop = self.fpgatl + 'AppTop.'
-
-        # AppCore
-        self.appcore = self.apptop + 'AppCore.'
-
         # AmcCarrierCore
-        self.amccc = self.fpgatl + 'AmcCarrierCore.'
-
-        # Crossbar
-        self.crossbar = self.amccc + 'AxiSy56040.'
-
-        # Regulator
+        self.amccc = self.fpga_top_level + 'AmcCarrierCore.'
         self.regulator = self.amccc + 'EM22xx.'
-
-        # CarrierBsi
-        self.amc_carrier_bsi = self.amccc + 'AmcCarrierBsi.'
-
-        # FPGA
         self.ultrascale = self.amccc + 'AxiSysMonUltraScale.'
-
-        # Tx -> DAC , Rx <- ADC
-        self.axi_version = self.amccc + 'AxiVersion.'
         self.waveform_engine_buffers_root = self.amccc + \
             'AmcCarrierBsa.BsaWaveformEngine[{}].' + \
             'WaveformEngineBuffers.'
-        self.stream_data_writer_root = self.amcc + 'streamDataWriter.'
-        self.jesd_tx_root = self.apptop + 'AppTopJesd[{}].JesdTx.'
-        self.jesd_rx_root = self.apptop + 'AppTopJesd[{}].JesdRx.'
-        self.daq_mux_root = self.apptop + 'DaqMuxV2[{}].'
 
-        # RTM paths
-        self.rtm_cryo_det_root = self.appcore + 'RtmCryoDet.'
-        self.rtm_spi_root = self.rtm_cryo_det_root + \
-            'RtmSpiSr.'
-        self.rtm_spi_max_root = self.rtm_cryo_det_root + \
-            'RtmSpiMax.'
-        self.rtm_lut_ctrl_root = self.rtm_cryo_det_root + \
-            'LutCtrl.'
-        self.rtm_lut_ctrl = self.rtm_lut_ctrl_root + \
-            'Ctrl.'
-
-        # Timing paths
+        # AmcCarrierTiming
         self.amctiming = self.amccc + 'AmcCarrierTiming.'
         self.trigger_root = self.amctiming + 'EvrV2CoreTriggers.'
         self.timing_status = self.amctiming + 'TimingFrameRx.'
+
+        # RTM
+        self.rtm_cryo_det_root = self.app_core + 'RtmCryoDet.'
+        self.rtm_spi_max_root = self.rtm_cryo_det_root + 'RtmSpiMax.'
+        self.rtm_lut_ctrl_root = self.rtm_cryo_det_root + 'LutCtrl.'
+        self.rtm_lut_ctrl = self.rtm_lut_ctrl_root + 'Ctrl.'
 
         if offline:
             self.log('Offline mode, skipping CryoCard initialization')
