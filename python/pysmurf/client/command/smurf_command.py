@@ -2626,6 +2626,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name('firmware.band_mask', **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_decimation(self, band, val, **kwargs):
         r"""Sets the debug data decimation factor.
 
@@ -2650,9 +2651,16 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_decimation` : Gets this value.
         :func:`set_filter_alpha` : IIR filter applied before decimation.
         :func:`take_debug_data` : Takes data using this path.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._set_by_name(f'band[{band}].decimation', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_decimation(self, band, **kwargs):
         r"""Gets the debug data decimation factor.
 
@@ -2672,6 +2680,12 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_decimation` : Sets this value.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._get_by_name(f'band[{band}].decimation', **kwargs)
 
@@ -3013,6 +3027,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name(f'band[{band}].delay_us', **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_tone_scale(self, band, val, **kwargs):
         r"""Sets the tone output scaling before the synthesis filter bank.
 
@@ -3034,6 +3049,12 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`get_tone_scale` : Gets the current value.
         :func:`set_synthesis_scale` : Scales the synthesis filter bank output.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._set_by_name(f'band[{band}].tone.scale', val, **kwargs)
 
@@ -3182,6 +3203,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name(f'band[{band}].rf_enable', **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_analysis_scale(self, band, val, **kwargs):
         r"""Sets the analysis filter bank output scaling.
 
@@ -3205,6 +3227,12 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`get_analysis_scale` : Gets the current analysis scale.
         :func:`set_synthesis_scale` : Sets the synthesis filter bank scaling.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._set_by_name(f'band[{band}].analysis_scale', val, **kwargs)
 
@@ -3429,6 +3457,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._set_by_name(f'band[{band}].feedback.gain', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_feedback_gain(self, band, **kwargs):
         r"""Gets the integral gain of the tracking feedback loop.
 
@@ -3449,6 +3478,12 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_feedback_gain` : Sets the feedback gain.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._get_by_name(f'band[{band}].feedback.gain', **kwargs)
 
@@ -3505,6 +3540,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name(f'band[{band}].eta.phase', **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_frequency_error_array(self, band, **kwargs):
         r"""Gets the frequency error for all channels in a band.
 
@@ -3529,6 +3565,12 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`get_loop_filter_output_array` : Gets the integrated feedback.
         :func:`get_frequency_error_mhz` : Gets a single channel's error in MHz.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._get_by_name(f'band[{band}].frequency_error', **kwargs)
 
@@ -3618,6 +3660,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._set_by_name(f'band[{band}].feedback.limit', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_feedback_limit(self, band, **kwargs):
         r"""Gets the maximum feedback excursion for tone tracking.
 
@@ -3639,6 +3682,12 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_feedback_limit` : Sets the feedback limit.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._get_by_name(f'band[{band}].feedback.limit', **kwargs)
 
@@ -3671,6 +3720,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._set_by_name(f'band[{band}].dsp.noise_select', val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_noise_select(self, band, **kwargs):
         r"""Gets the random noise output state.
 
@@ -3690,6 +3740,12 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_noise_select` : Sets the noise select state.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._get_by_name(f'band[{band}].dsp.noise_select', **kwargs)
 
@@ -4348,6 +4404,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name(f'band[{band}].feedback.polarity', **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_band_center_mhz(self, band, val, **kwargs):
         r"""Sets the band center frequency in MHz.
 
@@ -4370,6 +4427,12 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`get_band_center_mhz` : Gets the band center frequency.
         :func:`get_tone_frequency_offset_mhz` : Gets subband offsets.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         self._set_by_name(f'band[{band}].center_mhz', val, **kwargs)
 
@@ -4607,6 +4670,7 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs
         )
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_feedback_enable_channel(self, band, channel, **kwargs):
         r"""Gets the feedback enable for a single channel.
 
@@ -4629,6 +4693,12 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_feedback_enable_channel` : Sets this channel's enable.
         :func:`get_feedback_enable_array` : Gets all channels at once.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._get_by_name(
             f'band[{band}].channel[{channel}].feedback.enable',
@@ -4886,6 +4956,7 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs
         )
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_frequency_error_mhz(self, band, channel, **kwargs):
         r"""Gets the frequency error for a single channel in MHz.
 
@@ -4911,6 +4982,12 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`get_frequency_error_array` : Gets all channels' errors (raw).
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._get_by_name(
             f'band[{band}].channel[{channel}].frequency_error',
@@ -5265,6 +5342,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name(f'bay[{bay}].jesd.rx_enable', **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_jesd_rx_status_valid_cnt(self, bay, num, **kwargs):
         r"""Gets the JESD receive synchronization count for a lane.
 
@@ -5294,6 +5372,12 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`get_jesd_rx_data_valid` : Checks if receive data is valid.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._get_by_name(
             f'bay[{bay}].jesd.link[{num}].rx_status_valid_count',
@@ -5403,6 +5487,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name(f'bay[{bay}].jesd.tx_data_valid', **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_jesd_tx_status_valid_cnt(self, bay, num, **kwargs):
         r"""Gets the JESD transmit synchronization count for a lane.
 
@@ -5430,6 +5515,12 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`get_jesd_tx_data_valid` : Checks if transmit data is valid.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._get_by_name(
             f'bay[{bay}].jesd.link[{num}].tx_status_valid_count',
@@ -5954,6 +6045,7 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs
         )
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_waveform_wr_addr(self, bay, engine, convert=True, **kwargs):
         """
         No description
@@ -5972,6 +6064,12 @@ class SmurfCommandMixin(SmurfBase):
         val : str or int
             Waveform end address (a string of hex values if convert is
             False, otherwise an integer if convert is True).
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         val = self._get_by_name(
             f'carrier.bsa.engine[{bay}].buffer[{engine}].write_address',
@@ -8062,6 +8160,7 @@ class SmurfCommandMixin(SmurfBase):
         if bias_50k is not None:
             self.set_amp_gate_voltage('50k', bias_50k, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_amplifier_bias(self):
         """Deprecated. Use :func:`get_amplifier_biases` instead."""
         self.log('get_amplifier_bias: Deprecated. Calling get_amplifier_biases')
@@ -8569,6 +8668,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name('carrier.crate_id', **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_fpga_temp(self, **kwargs):
         """
         Gets the temperature of the UltraScale+ FPGA.  Returns float32,
@@ -8578,9 +8678,16 @@ class SmurfCommandMixin(SmurfBase):
         -------
         val : float
             The UltraScale+ FPGA temperature in degrees Celsius.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._get_by_name('carrier.fpga.temperature', **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_fpga_vccint(self, **kwargs):
         """
         No description
@@ -8589,9 +8696,16 @@ class SmurfCommandMixin(SmurfBase):
         -------
         val : float
             The UltraScale+ FPGA VccInt in Volts.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._get_by_name('carrier.fpga.vcc_int', **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_fpga_vccaux(self, **kwargs):
         """
         No description
@@ -8600,9 +8714,16 @@ class SmurfCommandMixin(SmurfBase):
         -------
         val : float
             The UltraScale+ FPGA VccAux in Volts.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._get_by_name('carrier.fpga.vcc_aux', **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_fpga_vccbram(self, **kwargs):
         """
         No description
@@ -8611,6 +8732,12 @@ class SmurfCommandMixin(SmurfBase):
         -------
         val : float
             The UltraScale+ FPGA VccBram in Volts.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._get_by_name('carrier.fpga.vcc_bram', **kwargs)
 
@@ -8681,6 +8808,7 @@ class SmurfCommandMixin(SmurfBase):
         ))
 
     # Cryo card comands
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_cryo_card_temp(self, enable_poll=False, disable_poll=False):
         """
         Get the self-reported temperature of the cryocard. This value is typically
@@ -8691,6 +8819,12 @@ class SmurfCommandMixin(SmurfBase):
         -------
         temp : float
             Temperature of the cryostat card in Celsius.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         if enable_poll:
             self._set_by_name('poll_enable', True)
@@ -8819,6 +8953,7 @@ class SmurfCommandMixin(SmurfBase):
         if disable_poll:
             self._set_by_name('poll_enable', False)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_cryo_card_ps_en(self, enable=3, write_log=False):
         """
         Write the cryo card power supply enables. Can use this to set both
@@ -8840,6 +8975,12 @@ class SmurfCommandMixin(SmurfBase):
             3 = both on
 
             Default (enable=3) turns on both power supplies.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         if write_log:
             self.log('Writing Cryocard PS enable using cryo_card ' +
@@ -9981,6 +10122,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caput(self._mcetransmit_debug_reg, val, **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_frame_count(self, **kwargs):
         """
         Gets the frame count going into the SmurfProcessor. This
@@ -9991,6 +10133,12 @@ class SmurfCommandMixin(SmurfBase):
         -------
         int
             The frame count number
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return int(self._get_by_name(
             'stream.frame_count',
@@ -10016,6 +10164,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name('stream.frame_size', **kwargs)
 
+    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_frame_loss_cnt(self, **kwargs):
         r"""Gets the count of frames lost before reaching the SmurfProcessor.
 
@@ -10038,6 +10187,12 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`get_frame_out_order_count` : Frames received out of order.
+
+        .. deprecated::
+           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
+           It still works. If you call it, say so before it goes -- searching
+           this repository and sodetlib cannot see a test-stand script or a
+           notebook.
         """
         return self._get_by_name('stream.frame_loss_count', **kwargs)
 
