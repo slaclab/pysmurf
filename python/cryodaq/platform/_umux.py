@@ -61,6 +61,8 @@ CONFIGURING_IN_PROGRESS = f'{APPLICATION}.ConfiguringInProgress'
 ENABLED_BAYS = f'{APPLICATION}.EnabledBays'
 STARTUP_ARGUMENTS = f'{APPLICATION}.StartupArguments'
 SMURF_VERSION = f'{APPLICATION}.SmurfVersion'
+SMURF_DIRECTORY = f'{APPLICATION}.SmurfDirectory'
+STARTUP_SCRIPT = f'{APPLICATION}.StartupScript'
 JESD_STATUS = f'{APPLICATION}.JesdStatus'
 CHECK_JESD = f'{APPLICATION}.CheckJesd'
 
@@ -70,6 +72,7 @@ ROGUE_VERSION = f'{ROOT}.RogueVersion'
 # file writer, in the order a sample passes through them.
 PROCESSOR = f'{ROOT}.SmurfProcessor'
 CHANNEL_MASK = f'{PROCESSOR}.ChannelMapper.Mask'
+CHANNEL_COUNT = f'{PROCESSOR}.ChannelMapper.NumChannels'
 PAYLOAD_SIZE = f'{PROCESSOR}.ChannelMapper.PayloadSize'
 DOWNSAMPLE_FACTOR = f'{PROCESSOR}.Downsampler.InternalFactor'
 DOWNSAMPLE_EXTERNAL_BITMASK = f'{PROCESSOR}.Downsampler.ExternalBitmask'
@@ -80,6 +83,8 @@ FILTER_GAIN = f'{PROCESSOR}.Filter.Gain'
 FILTER_ORDER = f'{PROCESSOR}.Filter.Order'
 FRAME_COUNT = f'{PROCESSOR}.FrameRxStats.FrameCnt'
 FRAME_LOSS_COUNT = f'{PROCESSOR}.FrameRxStats.FrameLossCnt'
+FRAME_OUT_OF_ORDER_COUNT = f'{PROCESSOR}.FrameRxStats.FrameOutOrderCnt'
+FRAME_SIZE = f'{PROCESSOR}.FrameRxStats.FrameSize'
 DOWNSAMPLE_MODE = f'{PROCESSOR}.Downsampler.DownsamplerMode'
 FILTER_RESET = f'{PROCESSOR}.Filter.reset'
 UNWRAPPER_RESET = f'{PROCESSOR}.Unwrapper.reset'
@@ -88,9 +93,31 @@ UNWRAPPER_RESET = f'{PROCESSOR}.Unwrapper.reset'
 DATA_FILE_NAME = f'{PROCESSOR}.FileWriter.DataFile'
 DATA_FILE_OPEN = f'{PROCESSOR}.FileWriter.Open'
 DATA_FILE_CLOSE = f'{PROCESSOR}.FileWriter.Close'
+DATA_FILE_MAX_SIZE = f'{PROCESSOR}.FileWriter.MaxFileSize'
 
 # The stream source, and the second writer beside the processor's own.
-STREAM_DATA_SOURCE_ENABLE = f'{ROOT}.StreamDataSource.SourceEnable'
+STREAM_DATA_SOURCE = f'{ROOT}.StreamDataSource'
+STREAM_DATA_SOURCE_ENABLE = f'{STREAM_DATA_SOURCE}.SourceEnable'
+STREAM_DATA_SOURCE_PERIOD = f'{STREAM_DATA_SOURCE}.Period'
+
+# The two synthetic data sources the processor can insert in place of real samples, one
+# before the filter chain and one after, for exercising the path without a cryostat.
+# The two carry the same leaves, differing only in the width of the samples they
+# generate. Written out twice rather than made a scope: a scope is indexed by integer,
+# and these are distinguished by where they sit in the chain, not by a number.
+PRE_EMULATOR = f'{PROCESSOR}.PreDataEmulator'
+PRE_EMULATOR_ENABLE = f'{PRE_EMULATOR}.enable'
+PRE_EMULATOR_DISABLE = f'{PRE_EMULATOR}.Disable'
+PRE_EMULATOR_TYPE = f'{PRE_EMULATOR}.Type'
+PRE_EMULATOR_AMPLITUDE = f'{PRE_EMULATOR}.Amplitude'
+PRE_EMULATOR_OFFSET = f'{PRE_EMULATOR}.Offset'
+PRE_EMULATOR_PERIOD = f'{PRE_EMULATOR}.Period'
+POST_EMULATOR = f'{PROCESSOR}.PostDataEmulator'
+POST_EMULATOR_ENABLE = f'{POST_EMULATOR}.enable'
+POST_EMULATOR_TYPE = f'{POST_EMULATOR}.Type'
+POST_EMULATOR_AMPLITUDE = f'{POST_EMULATOR}.Amplitude'
+POST_EMULATOR_OFFSET = f'{POST_EMULATOR}.Offset'
+POST_EMULATOR_PERIOD = f'{POST_EMULATOR}.Period'
 
 # Where the server deposits a debug capture. Two per bay, and they exist only when the
 # server was built with a buffer size for them -- so a tree may legitimately have none.
@@ -103,6 +130,13 @@ STREAM_WRITER = f'{ROOT}.streamDataWriter'
 STREAM_WRITER_OPEN = f'{STREAM_WRITER}.Open'
 STREAM_WRITER_CLOSE = f'{STREAM_WRITER}.Close'
 STREAM_WRITER_DATA_FILE = f'{STREAM_WRITER}.DataFile'
+
+# A second streaming interface beside the writers, from before the data path was
+# restructured; a server may or may not carry it.
+STREAMING_INTERFACE = f'{ROOT}.streamingInterface'
+STREAMING_DATA_FILE = f'{STREAMING_INTERFACE}.DataFile'
+STREAMING_OPEN = f'{STREAMING_INTERFACE}.Open'
+STREAMING_IS_OPEN = f'{STREAMING_INTERFACE}.IsOpen'
 
 # The FPGA.
 FPGA = f'{ROOT}.FpgaTopLevel'
@@ -120,6 +154,15 @@ FPGA_TEMPERATURE = f'{SYSTEM_MONITOR}.Temperature'
 FPGA_VCC_INT = f'{SYSTEM_MONITOR}.VccInt'
 FPGA_VCC_AUX = f'{SYSTEM_MONITOR}.VccAux'
 FPGA_VCC_BRAM = f'{SYSTEM_MONITOR}.VccBram'
+# The die temperature at which the FPGA shuts itself down.
+FPGA_OVERTEMP_THRESHOLD = f'{SYSTEM_MONITOR}.OTUpperThreshold'
+
+# The point-of-load regulator, reached over I2C. The *server* attaches this device
+# rather than the firmware package declaring it, so a dump of a package has none of it
+# and its absence there says nothing about the hardware.
+REGULATOR = f'{CARRIER}.EM22xx'
+REGULATOR_CURRENT = f'{REGULATOR}.IOUT'
+REGULATOR_TEMPERATURE = f'{REGULATOR}.TEMPERATURE[{{temperature}}]'
 
 # Where the carrier reports its place in the crate.
 CARRIER_BSI = f'{CARRIER}.AmcCarrierBsi'
@@ -130,16 +173,25 @@ SLOT_NUMBER = f'{CARRIER_BSI}.SlotNumber'
 # channel selects what to match, a trigger shapes the pulse that results, and they are
 # counted separately -- so they are separate scopes, and neither is the per-band channel.
 TIMING = f'{CARRIER}.AmcCarrierTiming'
-TIMING_RX_LINK_UP = f'{TIMING}.TimingFrameRx.RxLinkUp'
+TIMING_FRAME_RX = f'{TIMING}.TimingFrameRx'
+TIMING_RX_LINK_UP = f'{TIMING_FRAME_RX}.RxLinkUp'
+# Error and reset counters on the receive link: how often a frame failed its check, how
+# often the decoder or the serial layer errored, how often the link was reset.
+TIMING_CRC_ERROR_COUNT = f'{TIMING_FRAME_RX}.CrcErrCount'
+TIMING_RX_DECODE_ERROR_COUNT = f'{TIMING_FRAME_RX}.RxDecErrCount'
+TIMING_RX_DSP_ERROR_COUNT = f'{TIMING_FRAME_RX}.RxDspErrCount'
+TIMING_RX_RESET_COUNT = f'{TIMING_FRAME_RX}.RxRstCount'
 EVR = f'{TIMING}.EvrV2CoreTriggers'
 EVR_CHANNEL = f'{EVR}.EvrV2ChannelReg[{{evr_channel}}]'
 EVR_CHANNEL_ENABLE = f'{EVR_CHANNEL}.EnableReg'
 EVR_CHANNEL_DEST_SEL = f'{EVR_CHANNEL}.DestSel'
 EVR_CHANNEL_DEST_TYPE = f'{EVR_CHANNEL}.DestType'
+EVR_CHANNEL_COUNT = f'{EVR_CHANNEL}.Count'
 EVR_CHANNEL_RATE_SEL = f'{EVR_CHANNEL}.RateSel'
 EVR_TRIGGER = f'{EVR}.EvrV2TriggerReg[{{evr_trigger}}]'
 EVR_TRIGGER_ENABLE = f'{EVR_TRIGGER}.EnableTrig'
 EVR_TRIGGER_WIDTH = f'{EVR_TRIGGER}.Width'
+EVR_TRIGGER_DELAY = f'{EVR_TRIGGER}.Delay'
 
 # The RF crossbar that routes the carrier's clock and timing outputs.
 CROSSBAR_OUTPUT_CONFIG = f'{CARRIER}.AxiSy56040.OutputConfig[{{output}}]'
@@ -155,6 +207,16 @@ BSA_BUFFER_WRITE_ADDR = f'{BSA_ENGINE}.WrAddr[{{buffer}}]'
 APP_TOP = f'{FPGA}.AppTop'
 APP_CORE = f'{APP_TOP}.AppCore'
 STREAM_ENABLE = f'{APP_CORE}.enableStreaming'
+STREAM_MODE = f'{APP_CORE}.modeStream'
+STREAM_BAY_SELECT = f'{APP_CORE}.baySelStream'
+READOUT_DELAY = f'{APP_CORE}.readoutDelay'
+# Four separate registers rather than one indexed by two scopes: the bay and
+# channel are formatted into the leaf name, so the firmware has a node per pair.
+DEBUG_TIMING_OVERRIDE = (
+    f'{APP_CORE}.DebugTimingOverrideBay{{bay}}Ch{{timing_channel}}')
+# A debug bit for the MCE transmit path, which predates rogue 6; no firmware
+# reachable from here declares it, so no name resolves to it.
+MCE_TRANSMIT_DEBUG = f'{ROOT}.mcetransmitDebug'
 FIRMWARE_BAND_MASK = f'{APP_CORE}.BUILD_DSP_G'   # which bands this build was made for
 DEBUG_SELECT = f'{APP_CORE}.DebugSelect[{{select}}]'
 TUNE_FILE_PATH = f'{APP_CORE}.SysgenCryo.tuneFilePath'
@@ -230,6 +292,10 @@ RTM_LUT_CONTROL = f'{RTM_LUT}.Ctrl'
 RTM_LUT_CONTINUOUS = f'{RTM_LUT_CONTROL}.Continuous'
 RTM_LUT_ENABLE = f'{RTM_LUT_CONTROL}.EnableCh'
 RTM_LUT_TIMER_SIZE = f'{RTM_LUT_CONTROL}.TimerSize'
+RTM_LUT_BUSY = f'{RTM_LUT_CONTROL}.Busy'
+RTM_LUT_MAX_ADDRESS = f'{RTM_LUT_CONTROL}.MaxAddr'
+RTM_LUT_TRIGGER_COUNT = f'{RTM_LUT_CONTROL}.TrigCnt'
+RTM_LUT_SOFTWARE_TRIGGER = f'{RTM_LUT_CONTROL}.SwTrig'
 RTM_LUT_DAC_ADDRESS = f'{RTM_LUT_CONTROL}.DacAxilAddr[{{lut_dac}}]'
 RTM_LUT_TABLE = f'{RTM_LUT}.Lut[{{lut}}].MemArray'
 
@@ -246,6 +312,9 @@ TONE_FREQUENCY_OFFSET_MHZ = f'{BAND}.toneFrequencyOffsetMHz'
 DECIMATION = f'{BAND}.decimation'
 ANALYSIS_SCALE = f'{BAND}.analysisScale'
 TONE_SCALE = f'{BAND}.toneScale'
+COUNTER_SELECT = f'{BAND}.counterSelect'
+LMS_FREQUENCY = f'{BAND}.lmsFreq'
+RF_ENABLE = f'{BAND}.rfEnable'
 FREQUENCY_ERROR_ARRAY = f'{BAND}.CryoChannels.frequencyError'
 BAND_DELAY_US = f'{BAND}.bandDelayUs'
 DSP_ENABLE = f'{BAND}.dspEnable'
@@ -375,6 +444,8 @@ SCOPES = {
     'select': ((DEBUG_SELECT,), ()),
     'capture': ((CAPTURE_DATA,), ()),
     'user_config': ((USER_CONFIG,), ()),
+    'temperature': ((REGULATOR_TEMPERATURE,), ()),
+    'timing_channel': ((DEBUG_TIMING_OVERRIDE,), ('bay',)),
     'engine': ((BSA_ENGINE,), ()),
     'buffer': ((BSA_BUFFER_EMPTY,), ('engine',)),
     # The RTM waveform controller's lookup tables, and the DACs it addresses them
@@ -466,6 +537,54 @@ REGISTERS = {
     'server.rogue_version': (ROGUE_VERSION, _V),
     'stream.data_source_enable': (STREAM_DATA_SOURCE_ENABLE, _V),
     'timing.user_config[*]': (USER_CONFIG, _V),
+    # the timing receive link's error and reset counters
+    'timing.crc_error_count': (TIMING_CRC_ERROR_COUNT, _V),
+    'timing.rx_decode_error_count': (TIMING_RX_DECODE_ERROR_COUNT, _V),
+    'timing.rx_dsp_error_count': (TIMING_RX_DSP_ERROR_COUNT, _V),
+    'timing.rx_reset_count': (TIMING_RX_RESET_COUNT, _V),
+    'timing.evr_channel[*].count': (EVR_CHANNEL_COUNT, _V),
+    'timing.evr_trigger[*].delay': (EVR_TRIGGER_DELAY, _V),
+    # the carrier's thermal shutdown threshold
+    'carrier.fpga.overtemp_threshold': (FPGA_OVERTEMP_THRESHOLD, _V),
+    'carrier.regulator.current': (REGULATOR_CURRENT, _V),
+    'carrier.regulator.temperature[*]': (REGULATOR_TEMPERATURE, _V),
+    # the RTM waveform controller's status
+    'rtm.waveform.busy': (RTM_LUT_BUSY, _V),
+    'rtm.waveform.max_address': (RTM_LUT_MAX_ADDRESS, _V),
+    'rtm.waveform.trigger_count': (RTM_LUT_TRIGGER_COUNT, _V),
+    'rtm.waveform.software_trigger': (RTM_LUT_SOFTWARE_TRIGGER, _C),
+    # per-band
+    'band[*].counter_select': (COUNTER_SELECT, _V),
+    'band[*].lms.frequency': (LMS_FREQUENCY, _V),
+    'band[*].rf_enable': (RF_ENABLE, _V),
+    # the application block and the streaming path
+    'application.directory': (SMURF_DIRECTORY, _V),
+    'application.startup_script': (STARTUP_SCRIPT, _V),
+    'stream.mode': (STREAM_MODE, _V),
+    'stream.bay_select': (STREAM_BAY_SELECT, _V),
+    'readout_delay': (READOUT_DELAY, _V),
+    'debug.timing_override.bay[*].timing_channel[*]':
+        (DEBUG_TIMING_OVERRIDE, _V),
+    'stream.channel_count': (CHANNEL_COUNT, _V),
+    'stream.data_file.max_size': (DATA_FILE_MAX_SIZE, _V),
+    'stream.frame_out_of_order_count': (FRAME_OUT_OF_ORDER_COUNT, _V),
+    'stream.frame_size': (FRAME_SIZE, _V),
+    'stream.data_source_period': (STREAM_DATA_SOURCE_PERIOD, _V),
+    'stream.legacy_interface.data_file': (STREAMING_DATA_FILE, _V),
+    'stream.legacy_interface.open': (STREAMING_OPEN, _C),
+    'stream.legacy_interface.is_open': (STREAMING_IS_OPEN, _V),
+    # the two synthetic data sources
+    'stream.pre_emulator.enable': (PRE_EMULATOR_ENABLE, _V),
+    'stream.pre_emulator.disable': (PRE_EMULATOR_DISABLE, _V),
+    'stream.pre_emulator.type': (PRE_EMULATOR_TYPE, _V),
+    'stream.pre_emulator.amplitude': (PRE_EMULATOR_AMPLITUDE, _V),
+    'stream.pre_emulator.offset': (PRE_EMULATOR_OFFSET, _V),
+    'stream.pre_emulator.period': (PRE_EMULATOR_PERIOD, _V),
+    'stream.post_emulator.enable': (POST_EMULATOR_ENABLE, _V),
+    'stream.post_emulator.type': (POST_EMULATOR_TYPE, _V),
+    'stream.post_emulator.amplitude': (POST_EMULATOR_AMPLITUDE, _V),
+    'stream.post_emulator.offset': (POST_EMULATOR_OFFSET, _V),
+    'stream.post_emulator.period': (POST_EMULATOR_PERIOD, _V),
     'stream.capture[*].data': (CAPTURE_DATA, _V),
     'stream.capture[*].updated': (CAPTURE_UPDATED, _V),
     'stream.data_file.open': (DATA_FILE_OPEN, _C),
@@ -501,7 +620,7 @@ REGISTERS = {
     # the clock and timing crossbar, the debug mux, and the capture engines
     'crossbar.output[*].config': (CROSSBAR_OUTPUT_CONFIG, _V),
     'debug.select[*]': (DEBUG_SELECT, _V),
-    'bsa.engine[*].buffer[*].empty': (BSA_BUFFER_EMPTY, _V),
+    'carrier.bsa.engine[*].buffer[*].empty': (BSA_BUFFER_EMPTY, _V),
     # per bay: the acquisition mux and the waveform source
     'bay[*].daq.arm_hw_trigger': (DAQ_ARM_HW_TRIGGER, _C),
     'bay[*].daq.trigger': (DAQ_TRIGGER, _C),

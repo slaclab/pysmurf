@@ -61,10 +61,13 @@ _ATTENUATOR_DC = f'{_ATTENUATORS}.DC[{{dc}}]'
 _DAC = f'{_umux.MUX_CORE}.DAC[{{dac}}]'
 _DAC_TEMPERATURE = f'{_DAC}.Temperature'
 _DAC_JESD_RESET_N = f'{_DAC}.JesdRstN'
+_DAC_ENABLE = f'{_DAC}.enable'
 # The clock chip on the AMC, which the converters are timed from.
 _LMK = f'{_umux.MUX_CORE}.LMK'
 _LMK_ENABLE = f'{_LMK}.enable'
 _LMK_POWER_UP_SYS_REF = f'{_LMK}.PwrUpSysRef'
+# Select the external reference clock for this bay's converters.
+_SELECT_EXTERNAL_REFERENCE = f'{_umux.MUX_CORE}.SelExtRef'
 
 _BAY_DEBUG = f'{_umux.MUX_CORE}.DBG'
 _BAY_DEBUG_ENABLE = f'{_BAY_DEBUG}.enable'
@@ -93,11 +96,13 @@ REGISTERS.update({
     'bay[*].attenuator.uc[*]': (_ATTENUATOR_UC, _V),
     'bay[*].attenuator.dc[*]': (_ATTENUATOR_DC, _V),
     'bay[*].dac[*].temperature': (_DAC_TEMPERATURE, _V),
+    'bay[*].dac[*].enable': (_DAC_ENABLE, _V),
     'bay[*].dac[*].jesd_reset_n': (_DAC_JESD_RESET_N, _V),
     'bay[*].dac[*].reset': (_DAC_RESET, _V),
     'bay[*].debug.enable': (_BAY_DEBUG_ENABLE, _V),
     'bay[*].clock.enable': (_LMK_ENABLE, _V),
     'bay[*].clock.power_up_sys_ref': (_LMK_POWER_UP_SYS_REF, _C),
+    'bay[*].clock.select_external_reference': (_SELECT_EXTERNAL_REFERENCE, _C),
     # the serial links back from it
     'bay[*].jesd.rx_data_valid': (_JESD_RX_DATA_VALID, _V),
     'bay[*].jesd.tx_data_valid': (_JESD_TX_DATA_VALID, _V),
