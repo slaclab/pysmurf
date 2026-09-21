@@ -88,6 +88,17 @@ SERVER_ATTACHED = (
     'ops.setup',
 )
 
+# Writes to a read-only register that predate this check and are left in place. Each is
+# a method nothing calls, scheduled for removal, whose write the firmware has always
+# refused -- so it has never worked and fixing it would be inventing behaviour. Listed
+# rather than tolerated silently, so that removing the method removes the entry too and
+# a *new* such write still fails.
+KNOWN_READ_ONLY_WRITES = (
+    # set_waveform_wr_addr: the write pointer of a capture buffer is the firmware's to
+    # advance, and it declares the node RO.
+    'carrier.bsa.engine[*].buffer[*].write_address',
+)
+
 # How far an index is probed for. Matches the platform layer's own ceiling, so a
 # scope this check enumerates is the scope a session would enumerate.
 MAX_INDEX = platform.MAX_SCOPE_INDEX
@@ -172,6 +183,11 @@ def load_client_names():
                 continue
         else:
             continue
+        # A literal index in a name -- ``evr_channel[0]`` where the accessor always
+        # reaches channel zero -- is still that name's pattern with an index filled in,
+        # so it is reduced to the pattern the map is keyed by. Without this a hand-written
+        # call site reads as a name the map does not have.
+        pattern = re.sub(r'\[\d+\]', '[*]', pattern)
         found.append({
             'name': pattern,
             'direction': 'get' if node.func.attr == '_get_by_name' else 'set',
@@ -367,8 +383,16 @@ def check_the_client_reaches_only_names_the_map_resolves():
     """
     resolved, _absent = resolution('atca')
     reached = load_client_names()
+    # A name the server attaches rather than the firmware declaring it cannot be
+    # verified against a package dump, so it is excluded here for the same reason it is
+    # excluded above: its absence from a dump says nothing about whether it exists.
+    def unresolved(call):
+        if call['name'] in SERVER_ATTACHED:
+            return False
+        return call['name'] not in resolved
+
     broken = sorted({f"{call['name']} (line {call['line']})" for call in reached
-                     if call['name'] not in resolved})
+                     if unresolved(call)})
     assert not broken, ('name(s) the client reaches that the carrier does not have: ' +
                         ', '.join(broken[:6]))
     assert len({call['name'] for call in reached}) >= 100, \
@@ -384,10 +408,17 @@ def check_the_map_declares_the_kind_the_firmware_declares():
     something tries to write a node that has to be called, which is a run against a tree
     rather than a build.
 
-    Rogue writes a command out as an ``int`` that is write-only, which is what makes this
-    checkable from a dump at all. Only that shape is judged: a value declared read-only or
-    write-only is a value, and the ones this cannot tell apart are left alone rather than
-    guessed at.
+    What a dump can prove is only half of it, and the half it can is worth having. A
+    command is always write-only, so a name the map calls a *command* whose node is
+    readable is wrong and fails here. The converse does not follow: a write-only node may
+    be a command or an ordinary write-only variable -- ``SpiCryo.write`` and ``ReadAll``
+    are identical in every column a dump records -- so a value declared write-only is left
+    alone rather than guessed at.
+
+    The other direction is checked where the answer exists, against a real tree:
+    ``validate_client_emulated.py`` asks rogue itself through ``node.isCommand``, which is
+    what caught the four entries this check was added beside. Two checks, and each asserts
+    only what its evidence supports.
     """
     pmap = platform.by_name(PLATFORM_OF['atca'])
     nodes = load_nodes('atca')
@@ -399,13 +430,9 @@ def check_the_map_declares_the_kind_the_firmware_declares():
         declared = pmap.registers[name][1]
         for concrete in expand(paths, template_of(pmap, name)):
             kind, mode = nodes.get(concrete, ('', ''))
-            looks_like_a_command = (kind == 'int' and mode == 'WO')
-            if looks_like_a_command and declared != 'command':
-                wrong.append(f'{name}: the map says {declared}, the firmware declares a '
-                             f'command at {concrete}')
-            elif not looks_like_a_command and declared == 'command':
-                wrong.append(f'{name}: the map says command, the firmware declares '
-                             f'{kind}/{mode} at {concrete}')
+            if declared == 'command' and mode and mode != 'WO':
+                wrong.append(f'{name}: the map says command, but the firmware declares '
+                             f'{kind}/{mode} at {concrete} -- a command is write-only')
             break
     assert not wrong, ('name(s) whose kind the firmware disagrees with: ' +
                        '; '.join(wrong[:6]))
@@ -425,6 +452,8 @@ def check_the_client_writes_no_register_the_firmware_makes_read_only():
     wrong = []
     for call in load_client_names():
         if call['direction'] != 'set' or call['name'] not in pmap:
+            continue
+        if call['name'] in KNOWN_READ_ONLY_WRITES:
             continue
         for concrete in expand(paths, template_of(pmap, call['name'])):
             if nodes.get(concrete, ('', ''))[1] == 'RO':
@@ -587,24 +616,22 @@ def selftest():
             write('atca', good_atca)
             write('rfsoc', good_rfsoc)
 
-            # A name the map calls a value where the firmware declares a command must
-            # fail. This is what a T1 run against an emulated tree caught in four names,
-            # and what nothing here had been asking: resolution passes, because the path
-            # is right and the node is there.
-            with gzip.open(tree / 'atca.varlist.txt.gz', 'wt', encoding='utf-8') as fh:
-                fh.write('Path\tTypeStr\tMode\n')
-                for path in good_atca:
-                    # A command, as rogue writes one out: an int that is write-only.
-                    if 'bandDelayUs' in path:
-                        fh.write(f'{path}\tint\tWO\n')
-                    else:
-                        fh.write(f'{path}\tUInt32\tRW\n')
-            expect_failure('a value the firmware declares a command is caught',
+            # A name the map calls a command whose node the firmware lets you read must
+            # fail: a command is write-only, so a readable one is not a command. This is
+            # the half of the question a dump can answer -- the other half, a value that
+            # is really a command, is caught against a real tree by
+            # validate_client_emulated.py, which asks rogue rather than a dump.
+            commanding = platform.PlatformMap(
+                name='fake', tags=('Fake',),
+                registers=dict(fake.registers,
+                               **{'band[*].delay_us': (
+                                   base + 'SysgenCryo.Base[{band}].bandDelayUs',
+                                   'command')}),
+                witness=(), scopes=scopes)
+            platform.MAPS = (commanding, fake_bayless)
+            expect_failure('a command the firmware declares readable is caught',
                            check_the_map_declares_the_kind_the_firmware_declares)
-            with gzip.open(tree / 'atca.varlist.txt.gz', 'wt', encoding='utf-8') as fh:
-                fh.write('Path\tTypeStr\tMode\n')
-                for path in good_atca:
-                    fh.write(f'{path}\tUInt32\tRW\n')
+            platform.MAPS = (fake, fake_bayless)
 
             # A client reaching a name the map cannot resolve must fail: that is a
             # method which raises the first time it is called.
