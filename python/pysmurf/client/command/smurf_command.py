@@ -31,7 +31,6 @@ except ModuleNotFoundError:
 
 from cryodaq import platform
 from pysmurf.client.base import SmurfBase
-from pysmurf.client.command.sync_group import SyncGroup
 from pysmurf.client.util import tools, dscounters
 
 
@@ -9079,8 +9078,8 @@ class SmurfCommandMixin(SmurfBase):
 
         Toggles bit 0 of userConfig[0] high then low, which signals
         the downstream processor to clear its unwrapping accumulators
-        and averaging state across all bands.  Uses a SyncGroup to
-        confirm each transition completes before proceeding.
+        and averaging state across all bands.  Each write is read back
+        to confirm the transition landed before proceeding.
 
         Args
         ----
@@ -9099,30 +9098,22 @@ class SmurfCommandMixin(SmurfBase):
            notebook.
         """
 
-        # Set bit 0 of userConfig[0] high.  Use SyncGroup to detect
-        # when register changes so we're sure.
-        user_config0_pv=(
-            self.timing_header + self._smurf_to_gcp_stream_reg)
+        # Each write is read back to confirm it landed, keeping every other bit
+        # as it was.
+        name = 'timing.user_config[0]'
 
-        # Toggle using SyncGroup so we can confirm state as we toggle.
-        sg=SyncGroup([user_config0_pv], self._client)
+        uc0 = self._get_by_name(name)
 
-        # what is it now?
-        sg.wait() # wait for value
-        uc0=sg.get_values()[user_config0_pv]
-
-        # set bit high, keeping all other bits the same
-        self.set_user_config0(uc0 | (1 << 0))
-        sg.wait() # wait for change
-        uc0=sg.get_values()[user_config0_pv]
+        # set bit high
+        self._set_by_name(name, uc0 | (1 << 0))
+        uc0 = self._get_by_name(name)
         assert ( ( uc0 >> 0) & 1 ),(
             'Failed to set averaging/clear bit high ' +
             f'(userConfig0={uc0})')
 
-        # toggle bit back to low, keeping all other bits the same
-        self.set_user_config0(uc0 & ~(1 << 0))
-        sg.wait() # wait for change
-        uc0=sg.get_values()[user_config0_pv]
+        # toggle bit back to low
+        self._set_by_name(name, uc0 & ~(1 << 0))
+        uc0 = self._get_by_name(name)
         assert ( ~( uc0 >> 0) & 1 ),(
             'Failed to set averaging/clear bit low after setting ' +
             f'it high (userConfig0={uc0}).')

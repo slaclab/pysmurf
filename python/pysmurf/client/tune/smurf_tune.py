@@ -26,7 +26,6 @@ import scipy.linalg as linalg
 import seaborn as sns
 
 from pysmurf.client.base import SmurfBase
-from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util.pub import set_action
 from pysmurf.client.util.tools import save_to_txt
 from ..util import tools
@@ -2273,8 +2272,10 @@ class SmurfTuneMixin(SmurfBase):
         write_log : bool, optional, default False
             Whether to write log messages.
         sync_group : bool, optional, default True
-            Whether not to wait for register change using
-            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.SyncGroup`.
+            Whether to wait for the scan to report itself finished before
+            reading its results. False returns whatever the result registers
+            hold at the time, which is the previous scan's values if this one
+            has not finished.
 
         Returns
         -------
@@ -2303,19 +2304,17 @@ class SmurfTuneMixin(SmurfBase):
         self.set_eta_scan_freq(band, freq, write_log=write_log)
 
         self.set_run_eta_scan(band, 1, wait_done=False, write_log=write_log)
-        pvs = [self._cryo_root(band) + self._eta_scan_results_real_reg,
-               self._cryo_root(band) + self._eta_scan_results_imag_reg]
 
         if sync_group:
-            sg = SyncGroup(pvs, self._client)
+            # The trigger above does not block, so wait for the scan to finish
+            # before reading its results. Waiting on the in-progress flag is
+            # sound rather than merely convenient: the server writes both result
+            # arrays inside an update group and clears the flag outside it, so
+            # the flag falls strictly after the arrays are published.
+            self._wait_for(f'band[{band}].ops.in_progress', lambda x: x == 0)
 
-            sg.wait()
-            vals = sg.get_values()
-            rr = vals[pvs[0]]
-            ii = vals[pvs[1]]
-        else:
-            rr = self.get_eta_scan_results_real(band, len(freq))
-            ii = self.get_eta_scan_results_imag(band, len(freq))
+        rr = self.get_eta_scan_results_real(band, len(freq))
+        ii = self.get_eta_scan_results_imag(band, len(freq))
 
         self.set_amplitude_scale_channel(band, first_channel, 0)
 

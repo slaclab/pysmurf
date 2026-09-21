@@ -25,7 +25,6 @@ import numpy as np
 from scipy import signal
 
 from pysmurf.client.base import SmurfBase
-from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util.SmurfFileReader import SmurfStreamReader
 from pysmurf.client.util.pub import set_action
 from pysmurf.client.util import tools
@@ -1687,16 +1686,15 @@ class SmurfUtilMixin(SmurfBase):
         write_log : bool, optional, default False
             Whether to write outputs to log.
         """
-        # Ask mitch why this is what it is...
-        if bay == 0:
-            stream0 = "AMCc.Stream0.Data"
-            stream1 = "AMCc.Stream1.Data"
-        else:
-            stream0 = "AMCc.Stream2.Data"
-            stream1 = "AMCc.Stream3.Data"
+        # Two capture buffers per bay, numbered consecutively across bays.
+        captures = (2 * bay, 2 * bay + 1)
 
-        pvs = [stream0, stream1]
-        sg  = SyncGroup(pvs, self._client)
+        # Each buffer's frame handler writes its data and then raises an updated
+        # flag, so the flag rising is what says the data is there. Clear both
+        # flags before triggering: they hold whatever the previous capture left,
+        # and a stale flag would be read as this capture having already arrived.
+        for capture in captures:
+            self._set_by_name(f'stream.capture[{capture}].updated', False)
 
         # trigger PV
         if not hw_trigger:
@@ -1704,14 +1702,11 @@ class SmurfUtilMixin(SmurfBase):
         else:
             self.set_arm_hw_trigger(bay, 1, write_log=write_log)
 
-        sg.wait()
+        for capture in captures:
+            self._wait_for(f'stream.capture[{capture}].updated', bool)
 
-        vals = sg.get_values()
-
-        r0 = vals[pvs[0]]
-        r1 = vals[pvs[1]]
-
-        return r0, r1
+        return tuple(self._get_by_name(f'stream.capture[{capture}].data')
+                     for capture in captures)
 
     @set_action()
     def check_adc_saturation(self, band):
