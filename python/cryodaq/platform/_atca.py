@@ -61,6 +61,10 @@ _ATTENUATOR_DC = f'{_ATTENUATORS}.DC[{{dc}}]'
 _DAC = f'{_umux.MUX_CORE}.DAC[{{dac}}]'
 _DAC_TEMPERATURE = f'{_DAC}.Temperature'
 _DAC_JESD_RESET_N = f'{_DAC}.JesdRstN'
+# The clock chip on the AMC, which the converters are timed from.
+_LMK = f'{_umux.MUX_CORE}.LMK'
+_LMK_ENABLE = f'{_LMK}.enable'
+
 _BAY_DEBUG = f'{_umux.MUX_CORE}.DBG'
 _BAY_DEBUG_ENABLE = f'{_BAY_DEBUG}.enable'
 _DAC_RESET = f'{_BAY_DEBUG}.dacReset[{{dac}}]'
@@ -72,6 +76,13 @@ _JESD_TX_DATA_VALID = f'{_umux.JESD_BAY}.JesdTx.DataValid'
 _JESD_RX_ENABLE = f'{_umux.JESD_BAY}.JesdRx.Enable'
 _JESD_TX_ENABLE = f'{_umux.JESD_BAY}.JesdTx.Enable'
 _JESD_TX_DATA_OUT_MUX = f'{_umux.JESD_BAY}.JesdTx.dataOutMux[{{tx_lane}}]'
+# One status counter per link in each direction, counting how often that link has
+# reported itself valid. Indexed by link, which is not the transmit lane above: the lanes
+# are what a link is made of.
+_JESD_RX_STATUS_VALID_COUNT = (f'{_umux.JESD_BAY}.JesdRx.StatusValidCnt'
+                               f'[{{link}}]')
+_JESD_TX_STATUS_VALID_COUNT = (f'{_umux.JESD_BAY}.JesdTx.StatusValidCnt'
+                               f'[{{link}}]')
 
 _V = 'value'
 
@@ -84,12 +95,15 @@ REGISTERS.update({
     'bay[*].dac[*].jesd_reset_n': (_DAC_JESD_RESET_N, _V),
     'bay[*].dac[*].reset': (_DAC_RESET, _V),
     'bay[*].debug.enable': (_BAY_DEBUG_ENABLE, _V),
+    'bay[*].clock.enable': (_LMK_ENABLE, _V),
     # the serial links back from it
     'bay[*].jesd.rx_data_valid': (_JESD_RX_DATA_VALID, _V),
     'bay[*].jesd.tx_data_valid': (_JESD_TX_DATA_VALID, _V),
     'bay[*].jesd.rx_enable': (_JESD_RX_ENABLE, _V),
     'bay[*].jesd.tx_enable': (_JESD_TX_ENABLE, _V),
     'bay[*].jesd.tx_lane[*].data_out_mux': (_JESD_TX_DATA_OUT_MUX, _V),
+    'bay[*].jesd.link[*].rx_status_valid_count': (_JESD_RX_STATUS_VALID_COUNT, _V),
+    'bay[*].jesd.link[*].tx_status_valid_count': (_JESD_TX_STATUS_VALID_COUNT, _V),
 })
 
 # The scopes those registers are indexed by. They hang off `bay`, which the shared map
@@ -98,6 +112,7 @@ REGISTERS.update({
 SCOPES = dict(_umux.SCOPES)
 SCOPES.update({
     'uc': ((_ATTENUATOR_UC,), ('bay',)),
+    'link': ((_JESD_RX_STATUS_VALID_COUNT,), ('bay',)),
     'dc': ((_ATTENUATOR_DC,), ('bay',)),
     'dac': ((_DAC,), ('bay',)),
     'tx_lane': ((_JESD_TX_DATA_OUT_MUX,), ('bay',)),

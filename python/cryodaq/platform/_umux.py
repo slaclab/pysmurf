@@ -43,6 +43,16 @@ __all__ = ['REGISTERS', 'WITNESS', 'SCOPES', 'BUILD_STAMP']
 ROOT = 'AMCc'
 READY = f'{ROOT}.Ready'                       # set by the server once its start() completes
 SET_DEFAULTS = f'{ROOT}.setDefaults'          # the server's own configuration procedure
+SET_DEFAULTS_START = f'{SET_DEFAULTS}.Start'  # the same procedure, as a rogue Process
+POLL_ENABLE = f'{ROOT}.enable'                # the tree-wide polling switch
+READ_ALL = f'{ROOT}.ReadAll'                  # force one read of every node
+SAVE_CONFIG = f'{ROOT}.SaveConfigProcess'
+SAVE_CONFIG_MODE = f'{SAVE_CONFIG}.SaveMode'
+SAVE_CONFIG_FILE = f'{SAVE_CONFIG}.ConfigFile'
+SAVE_CONFIG_DATA_TYPE = f'{SAVE_CONFIG}.DataType'
+SAVE_CONFIG_START = f'{SAVE_CONFIG}.Start'
+SAVE_CONFIG_RUNNING = f'{SAVE_CONFIG}.Running'
+SAVE_CONFIG_MESSAGE = f'{SAVE_CONFIG}.Message'
 
 # The application block the server adds beside the FPGA.
 APPLICATION = f'{ROOT}.SmurfApplication'
@@ -52,6 +62,7 @@ ENABLED_BAYS = f'{APPLICATION}.EnabledBays'
 STARTUP_ARGUMENTS = f'{APPLICATION}.StartupArguments'
 SMURF_VERSION = f'{APPLICATION}.SmurfVersion'
 JESD_STATUS = f'{APPLICATION}.JesdStatus'
+CHECK_JESD = f'{APPLICATION}.CheckJesd'
 
 ROGUE_VERSION = f'{ROOT}.RogueVersion'
 
@@ -68,7 +79,15 @@ FILTER_B = f'{PROCESSOR}.Filter.B'
 FILTER_GAIN = f'{PROCESSOR}.Filter.Gain'
 FILTER_ORDER = f'{PROCESSOR}.Filter.Order'
 FRAME_COUNT = f'{PROCESSOR}.FrameRxStats.FrameCnt'
+FRAME_LOSS_COUNT = f'{PROCESSOR}.FrameRxStats.FrameLossCnt'
+DOWNSAMPLE_MODE = f'{PROCESSOR}.Downsampler.DownsamplerMode'
+FILTER_RESET = f'{PROCESSOR}.Filter.reset'
+UNWRAPPER_RESET = f'{PROCESSOR}.Unwrapper.reset'
+# The processor's own file writer, distinct from the one beside it below: two writers
+# exist on a carrier and each has its own Open and Close.
 DATA_FILE_NAME = f'{PROCESSOR}.FileWriter.DataFile'
+DATA_FILE_OPEN = f'{PROCESSOR}.FileWriter.Open'
+DATA_FILE_CLOSE = f'{PROCESSOR}.FileWriter.Close'
 
 # The stream source, and the second writer beside the processor's own.
 STREAM_DATA_SOURCE_ENABLE = f'{ROOT}.StreamDataSource.SourceEnable'
@@ -87,6 +106,13 @@ GIT_HASH = f'{AXI_VERSION}.GitHash'
 GIT_HASH_SHORT = f'{AXI_VERSION}.GitHashShort'
 UPTIME = f'{AXI_VERSION}.UpTimeCnt'
 
+# The carrier's system monitor: die temperature and the three supply rails.
+SYSTEM_MONITOR = f'{CARRIER}.AxiSysMonUltraScale'
+FPGA_TEMPERATURE = f'{SYSTEM_MONITOR}.Temperature'
+FPGA_VCC_INT = f'{SYSTEM_MONITOR}.VccInt'
+FPGA_VCC_AUX = f'{SYSTEM_MONITOR}.VccAux'
+FPGA_VCC_BRAM = f'{SYSTEM_MONITOR}.VccBram'
+
 # Where the carrier reports its place in the crate.
 CARRIER_BSI = f'{CARRIER}.AmcCarrierBsi'
 CRATE_ID = f'{CARRIER_BSI}.CrateId'
@@ -102,6 +128,7 @@ EVR_CHANNEL = f'{EVR}.EvrV2ChannelReg[{{evr_channel}}]'
 EVR_CHANNEL_ENABLE = f'{EVR_CHANNEL}.EnableReg'
 EVR_CHANNEL_DEST_SEL = f'{EVR_CHANNEL}.DestSel'
 EVR_CHANNEL_DEST_TYPE = f'{EVR_CHANNEL}.DestType'
+EVR_CHANNEL_RATE_SEL = f'{EVR_CHANNEL}.RateSel'
 EVR_TRIGGER = f'{EVR}.EvrV2TriggerReg[{{evr_trigger}}]'
 EVR_TRIGGER_ENABLE = f'{EVR_TRIGGER}.EnableTrig'
 EVR_TRIGGER_WIDTH = f'{EVR_TRIGGER}.Width'
@@ -113,6 +140,9 @@ CROSSBAR_OUTPUT_CONFIG = f'{CARRIER}.AxiSy56040.OutputConfig[{{output}}]'
 BSA_ENGINE = (f'{CARRIER}.AmcCarrierBsa.BsaWaveformEngine[{{engine}}]'
               f'.WaveformEngineBuffers')
 BSA_BUFFER_EMPTY = f'{BSA_ENGINE}.Empty[{{buffer}}]'
+BSA_BUFFER_START_ADDR = f'{BSA_ENGINE}.StartAddr[{{buffer}}]'
+BSA_BUFFER_END_ADDR = f'{BSA_ENGINE}.EndAddr[{{buffer}}]'
+BSA_BUFFER_WRITE_ADDR = f'{BSA_ENGINE}.WrAddr[{{buffer}}]'
 
 APP_TOP = f'{FPGA}.AppTop'
 APP_CORE = f'{APP_TOP}.AppCore'
@@ -132,6 +162,7 @@ DAQ_DATA_BUFFER_SIZE = f'{DAQ_MUX}.DataBufferSize'
 DAQ_INPUT_MUX_SEL = f'{DAQ_MUX}.InputMuxSel[{{input}}]'
 DAC_SIG_GEN = f'{APP_TOP}.DacSigGen[{{bay}}]'
 TONE_FILE_PATH = f'{DAC_SIG_GEN}.CsvFilePath'
+LOAD_TONE_FILE = f'{DAC_SIG_GEN}.LoadCsvFile'
 
 # The two per-bay device trees that only a platform with a separate converter board
 # carries: the serial links to the converters, and the RF front end itself. Named here
@@ -159,11 +190,38 @@ FLUX_RAMP_DAC_RAW = f'{FLUX_RAMP_GENERATOR}.LTC1668RawDacData'
 FLUX_RAMP_MODE_CONTROL = f'{FLUX_RAMP_GENERATOR}.ModeControl'
 FLUX_RAMP_SLOPE = f'{FLUX_RAMP_GENERATOR}.RampSlope'
 
+# The serial link to the cryostat card's microcontroller. Not a register the readout
+# reads: a pair of mailboxes, one written with a command word and one read for the
+# reply, through which a separate processor is addressed. What travels over it is that
+# card's own protocol -- addresses, retries, scalings -- which belongs to the code
+# driving it and not here; the map's part is where the two mailboxes are.
+SPI_CRYO = f'{RTM}.SpiCryo'
+CRYOCARD_WRITE = f'{SPI_CRYO}.write'
+CRYOCARD_READ = f'{SPI_CRYO}.read'
+
 # The slow DACs that drive the TES bias lines, as whole-array registers: one element per
 # DAC, written together because writing them one at a time heats the cryostat.
 RTM_SPI_MAX = f'{RTM}.RtmSpiMax'
 RTM_SLOW_DAC_DATA_ARRAY = f'{RTM_SPI_MAX}.TesBiasDacDataRegCh'
 RTM_SLOW_DAC_ENABLE_ARRAY = f'{RTM_SPI_MAX}.TesBiasDacCtrlRegCh'
+
+# The same kind of DAC on the same chip, driving the amplifier gate voltages rather than
+# the bias lines. Whole-array registers again, and a separate pair because what they
+# drive is separate.
+AMP_GATE_DAC_DATA_ARRAY = f'{RTM_SPI_MAX}.HemtBiasDacDataRegCh'
+AMP_GATE_DAC_ENABLE_ARRAY = f'{RTM_SPI_MAX}.HemtBiasDacCtrlRegCh'
+
+# The lookup-table controller that plays a stored waveform out of the slow DACs, for a
+# ramp the flux-ramp generator cannot shape.
+RTM_LUT = f'{RTM}.LutCtrl'
+RTM_LUT_CONTROL = f'{RTM_LUT}.Ctrl'
+RTM_LUT_CONTINUOUS = f'{RTM_LUT_CONTROL}.Continuous'
+RTM_LUT_ENABLE = f'{RTM_LUT_CONTROL}.EnableCh'
+RTM_LUT_TIMER_SIZE = f'{RTM_LUT_CONTROL}.TimerSize'
+RTM_LUT_DAC_ADDRESS = f'{RTM_LUT_CONTROL}.DacAxilAddr[{{lut_dac}}]'
+RTM_LUT_TABLE = f'{RTM_LUT}.Lut[{{lut}}].MemArray'
+
+RESET_RTM = f'{RTM}.resetRtm'
 
 # Per-band DSP.
 BAND = f'{APP_CORE}.SysgenCryo.Base[{{band}}]'
@@ -173,6 +231,10 @@ NUMBER_CHANNELS = f'{BAND}.numberChannels'
 BAND_CENTER_MHZ = f'{BAND}.bandCenterMHz'
 CHANNEL_FREQUENCY_MHZ = f'{BAND}.channelFrequencyMHz'   # processing bandwidth per channel
 TONE_FREQUENCY_OFFSET_MHZ = f'{BAND}.toneFrequencyOffsetMHz'
+DECIMATION = f'{BAND}.decimation'
+ANALYSIS_SCALE = f'{BAND}.analysisScale'
+TONE_SCALE = f'{BAND}.toneScale'
+FREQUENCY_ERROR_ARRAY = f'{BAND}.CryoChannels.frequencyError'
 BAND_DELAY_US = f'{BAND}.bandDelayUs'
 DSP_ENABLE = f'{BAND}.dspEnable'
 FEEDBACK_ENABLE = f'{BAND}.feedbackEnable'
@@ -229,6 +291,7 @@ CHANNEL_CENTER_FREQUENCY = f'{CHANNEL}.centerFrequencyMHz'
 CHANNEL_ETA_MAG_SCALED = f'{CHANNEL}.etaMagScaled'
 CHANNEL_ETA_PHASE_DEGREE = f'{CHANNEL}.etaPhaseDegree'
 CHANNEL_FEEDBACK_ENABLE = f'{CHANNEL}.feedbackEnable'
+CHANNEL_FREQUENCY_ERROR = f'{CHANNEL}.frequencyErrorMHz'
 
 # The tuning operations attached beside the channel arrays: their parameters,
 # the flag that says one is running, the processes that do the work and the
@@ -300,6 +363,11 @@ SCOPES = {
     'select': ((DEBUG_SELECT,), ()),
     'engine': ((BSA_ENGINE,), ()),
     'buffer': ((BSA_BUFFER_EMPTY,), ('engine',)),
+    # The RTM waveform controller's lookup tables, and the DACs it addresses them
+    # through. Its DACs are on the RTM and are not the converters a bay carries, so they
+    # are a scope of their own: a scope name has to mean one thing.
+    'lut': ((RTM_LUT_TABLE,), ()),
+    'lut_dac': ((RTM_LUT_DAC_ADDRESS,), ()),
 }
 
 # Semantic name pattern -> (register path template, kind). 'v' is read and
@@ -318,6 +386,29 @@ REGISTERS = {
     'application.version': (SMURF_VERSION, _V),
     'application.jesd_status': (JESD_STATUS, _V),
     'ops.setup': (SET_DEFAULTS, _P),
+    'ops.setup.start': (SET_DEFAULTS_START, _C),
+    'poll_enable': (POLL_ENABLE, _V),
+    'read_all': (READ_ALL, _C),
+    'save_config.mode': (SAVE_CONFIG_MODE, _V),
+    'save_config.file': (SAVE_CONFIG_FILE, _V),
+    'save_config.data_type': (SAVE_CONFIG_DATA_TYPE, _V),
+    'save_config.start': (SAVE_CONFIG_START, _C),
+    'save_config.running': (SAVE_CONFIG_RUNNING, _V),
+    'save_config.message': (SAVE_CONFIG_MESSAGE, _V),
+    'application.check_jesd': (CHECK_JESD, _C),
+    'carrier.fpga.temperature': (FPGA_TEMPERATURE, _V),
+    'carrier.fpga.vcc_int': (FPGA_VCC_INT, _V),
+    'carrier.fpga.vcc_aux': (FPGA_VCC_AUX, _V),
+    'carrier.fpga.vcc_bram': (FPGA_VCC_BRAM, _V),
+    'carrier.bsa.engine[*].buffer[*].start_address': (BSA_BUFFER_START_ADDR, _V),
+    'carrier.bsa.engine[*].buffer[*].end_address': (BSA_BUFFER_END_ADDR, _V),
+    'carrier.bsa.engine[*].buffer[*].write_address': (BSA_BUFFER_WRITE_ADDR, _V),
+    'band[*].decimation': (DECIMATION, _V),
+    'band[*].analysis_scale': (ANALYSIS_SCALE, _V),
+    'band[*].tone.scale': (TONE_SCALE, _V),
+    'band[*].frequency_error': (FREQUENCY_ERROR_ARRAY, _V),
+    'band[*].channel[*].frequency_error': (CHANNEL_FREQUENCY_ERROR, _V),
+    'bay[*].tone_file.load': (LOAD_TONE_FILE, _C),
     # firmware identity
     'firmware.version': (FPGA_VERSION, _V),
     'firmware.build_stamp': (BUILD_STAMP, _V),
@@ -360,6 +451,12 @@ REGISTERS = {
     # the server's own nodes, and what it writes captured data to
     'server.rogue_version': (ROGUE_VERSION, _V),
     'stream.data_source_enable': (STREAM_DATA_SOURCE_ENABLE, _V),
+    'stream.data_file.open': (DATA_FILE_OPEN, _C),
+    'stream.data_file.close': (DATA_FILE_CLOSE, _C),
+    'stream.frame_loss_count': (FRAME_LOSS_COUNT, _V),
+    'stream.downsample.mode': (DOWNSAMPLE_MODE, _V),
+    'stream.filter.reset': (FILTER_RESET, _C),
+    'stream.unwrapper.reset': (UNWRAPPER_RESET, _C),
     'stream.writer.open': (STREAM_WRITER_OPEN, _C),
     'stream.writer.close': (STREAM_WRITER_CLOSE, _C),
     'stream.writer.data_file': (STREAM_WRITER_DATA_FILE, _V),
@@ -381,6 +478,7 @@ REGISTERS = {
     'timing.evr_channel[*].enable': (EVR_CHANNEL_ENABLE, _V),
     'timing.evr_channel[*].dest_sel': (EVR_CHANNEL_DEST_SEL, _V),
     'timing.evr_channel[*].dest_type': (EVR_CHANNEL_DEST_TYPE, _V),
+    'timing.evr_channel[*].rate_select': (EVR_CHANNEL_RATE_SEL, _V),
     'timing.evr_trigger[*].enable': (EVR_TRIGGER_ENABLE, _V),
     'timing.evr_trigger[*].width': (EVR_TRIGGER_WIDTH, _V),
     # the clock and timing crossbar, the debug mux, and the capture engines
@@ -401,6 +499,16 @@ REGISTERS = {
     'flux_ramp.ramp_slope': (FLUX_RAMP_SLOPE, _V),
     'rtm.slow_dac.data_array': (RTM_SLOW_DAC_DATA_ARRAY, _V),
     'rtm.slow_dac.enable_array': (RTM_SLOW_DAC_ENABLE_ARRAY, _V),
+    'rtm.cryocard.write': (CRYOCARD_WRITE, _V),
+    'rtm.cryocard.read': (CRYOCARD_READ, _V),
+    'rtm.reset': (RESET_RTM, _C),
+    'rtm.amp_gate_dac.data_array': (AMP_GATE_DAC_DATA_ARRAY, _V),
+    'rtm.amp_gate_dac.enable_array': (AMP_GATE_DAC_ENABLE_ARRAY, _V),
+    'rtm.waveform.continuous': (RTM_LUT_CONTINUOUS, _V),
+    'rtm.waveform.enable': (RTM_LUT_ENABLE, _V),
+    'rtm.waveform.timer_size': (RTM_LUT_TIMER_SIZE, _V),
+    'rtm.waveform.lut_dac[*].address': (RTM_LUT_DAC_ADDRESS, _V),
+    'rtm.waveform.lut[*].table': (RTM_LUT_TABLE, _V),
     'rtm.cpld_reset': (CPLD_RESET, _V),
     'rtm.debounce_width': (DEBOUNCE_WIDTH, _V),
     'rtm.trigger.high_cycle': (TRIGGER_HIGH_CYCLE, _V),
