@@ -171,10 +171,24 @@ def check_the_platform_map_was_identified():
 
 
 def check_every_offered_name_resolves():
-    """Every name this tree offers reaches a node in it."""
+    """Every name this tree offers reaches a node in it.
+
+    Except the ones an attached device brings: the point-of-load regulator is reached
+    over I2C and is added by a *server* talking to real hardware, so an emulated tree
+    built from a firmware package has none of it. Excluded by name rather than by
+    letting the check pass on an empty set, and required to stay excluded -- a name
+    that starts resolving here has stopped being server-attached and should lose its
+    exemption.
+    """
     report = SESSION.validate()
-    detail = '; '.join(f"{name}: {why}" for name, why in report.unresolved[:8])
-    assert report.ok, f"{len(report.unresolved)} unresolved: {detail}"
+    attached = [name for name, _why in report.unresolved
+                if name.startswith('carrier.regulator.')]
+    assert attached, ('the regulator names resolve on an emulated tree, so they are no '
+                      'longer server-attached and the exemption below is stale')
+    unresolved = [(name, why) for name, why in report.unresolved
+                  if not name.startswith('carrier.regulator.')]
+    detail = '; '.join(f"{name}: {why}" for name, why in unresolved[:8])
+    assert not unresolved, f"{len(unresolved)} unresolved: {detail}"
     assert len(report.resolved) >= 60, len(report.resolved)
     on_band = [name for name in report.resolved if name.startswith(f"band[{BAND}].ops.")]
     assert len(on_band) >= 20, f"only {len(on_band)} operation names on band {BAND}"

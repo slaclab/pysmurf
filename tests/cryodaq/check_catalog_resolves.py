@@ -81,6 +81,12 @@ CARRIER_ONLY_DEVICES = ('MicrowaveMuxCore', 'AppTopJesd')
 # these are absent from one by construction and their absence says nothing about the
 # firmware. Named here so that "absent" means one thing everywhere else.
 SERVER_ATTACHED = (
+    # The point-of-load regulator, an I2C device the server attaches on top of the
+    # firmware package. Named here for the same reason as the tuning processes: a dump
+    # records what a package defines, so these are absent from one by construction. They
+    # are on a live carrier -- 129 rows of EM22xx, read from a crate.
+    'carrier.regulator.current',
+    'carrier.regulator.temperature[*]',
     'band[*].ops.eta_scan',
     'band[*].ops.find_freq',
     'band[*].ops.gradient_descent',
@@ -97,6 +103,10 @@ KNOWN_READ_ONLY_WRITES = (
     # set_waveform_wr_addr: the write pointer of a capture buffer is the firmware's to
     # advance, and it declares the node RO.
     'carrier.bsa.engine[*].buffer[*].write_address',
+    # set_waveform_empty: likewise the buffer's empty flag, which the firmware sets. That
+    # method also takes a value it never wrote, and a getter beside it reads the same
+    # register, so all it has ever done is fail.
+    'carrier.bsa.engine[*].buffer[*].empty',
 )
 
 # How far an index is probed for. Matches the platform layer's own ceiling, so a
