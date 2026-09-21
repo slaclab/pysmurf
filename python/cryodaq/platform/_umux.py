@@ -91,6 +91,14 @@ DATA_FILE_CLOSE = f'{PROCESSOR}.FileWriter.Close'
 
 # The stream source, and the second writer beside the processor's own.
 STREAM_DATA_SOURCE_ENABLE = f'{ROOT}.StreamDataSource.SourceEnable'
+
+# Where the server deposits a debug capture. Two per bay, and they exist only when the
+# server was built with a buffer size for them -- so a tree may legitimately have none.
+# Each is a rogue DataReceiver: the frame handler writes Data and then sets Updated, so a
+# reader clears Updated, triggers, waits for it to rise, and only then reads Data.
+CAPTURE = f'{ROOT}.Stream{{capture}}'
+CAPTURE_DATA = f'{CAPTURE}.Data'
+CAPTURE_UPDATED = f'{CAPTURE}.Updated'
 STREAM_WRITER = f'{ROOT}.streamDataWriter'
 STREAM_WRITER_OPEN = f'{STREAM_WRITER}.Open'
 STREAM_WRITER_CLOSE = f'{STREAM_WRITER}.Close'
@@ -150,6 +158,10 @@ STREAM_ENABLE = f'{APP_CORE}.enableStreaming'
 FIRMWARE_BAND_MASK = f'{APP_CORE}.BUILD_DSP_G'   # which bands this build was made for
 DEBUG_SELECT = f'{APP_CORE}.DebugSelect[{{select}}]'
 TUNE_FILE_PATH = f'{APP_CORE}.SysgenCryo.tuneFilePath'
+
+# A word of configuration the timing header carries downstream with each frame; its
+# bits are read by the data processor rather than by the firmware.
+USER_CONFIG = f'{APP_CORE}.TimingHeader.userConfig[{{user_config}}]'
 
 # The per-bay data acquisition mux, which taps the signal path for a capture, and the
 # waveform source that plays a tone file back. Both are indexed by bay on every platform
@@ -361,6 +373,8 @@ SCOPES = {
     'evr_trigger': ((EVR_TRIGGER_ENABLE,), ()),
     'output': ((CROSSBAR_OUTPUT_CONFIG,), ()),
     'select': ((DEBUG_SELECT,), ()),
+    'capture': ((CAPTURE_DATA,), ()),
+    'user_config': ((USER_CONFIG,), ()),
     'engine': ((BSA_ENGINE,), ()),
     'buffer': ((BSA_BUFFER_EMPTY,), ('engine',)),
     # The RTM waveform controller's lookup tables, and the DACs it addresses them
@@ -451,6 +465,9 @@ REGISTERS = {
     # the server's own nodes, and what it writes captured data to
     'server.rogue_version': (ROGUE_VERSION, _V),
     'stream.data_source_enable': (STREAM_DATA_SOURCE_ENABLE, _V),
+    'timing.user_config[*]': (USER_CONFIG, _V),
+    'stream.capture[*].data': (CAPTURE_DATA, _V),
+    'stream.capture[*].updated': (CAPTURE_UPDATED, _V),
     'stream.data_file.open': (DATA_FILE_OPEN, _C),
     'stream.data_file.close': (DATA_FILE_CLOSE, _C),
     'stream.frame_loss_count': (FRAME_LOSS_COUNT, _V),
