@@ -136,15 +136,6 @@ class SmurfBase:
 
         self.amcc = 'AMCc.'
 
-        self.smurf_application = self.amcc + 'SmurfApplication.'
-
-        self.smurf_processor = self.amcc + 'SmurfProcessor.'
-        self._predata_emulator = self.smurf_processor + 'PreDataEmulator.'
-        self._postdata_emulator = self.smurf_processor + 'PostDataEmulator.'
-        self.stream_data_source = self.amcc + 'StreamDataSource.'
-        self.channel_mapper = self.smurf_processor + 'ChannelMapper.'
-        self.frame_rx_stats = self.smurf_processor + 'FrameRxStats.'
-
         self.fpga_top_level = self.amcc + 'FpgaTopLevel.'
         self.app_top = self.fpga_top_level + 'AppTop.'
         self.app_core = self.app_top + 'AppCore.'
@@ -152,9 +143,6 @@ class SmurfBase:
         # AppCore
         self.microwave_mux_core = self.app_core + 'MicrowaveMuxCore[{}].'
         self.sysgencryo = self.app_core + 'SysgenCryo.'
-        self.timing_header = self.app_core + 'TimingHeader.'
-
-        self.dac_root = self.microwave_mux_core + 'DAC[{}].'
         # LMK
         self.lmk = self.microwave_mux_core + 'LMK.'
 
@@ -163,27 +151,9 @@ class SmurfBase:
         self.cryo_root = self.band_root + 'CryoChannels.'
         self.channel_root = self.cryo_root + 'CryoChannel[{}].'
 
-        self.streaming_root = self.amcc + 'streamingInterface.'
-
-        # AmcCarrierCore
-        self.amccc = self.fpga_top_level + 'AmcCarrierCore.'
-        self.regulator = self.amccc + 'EM22xx.'
-        self.ultrascale = self.amccc + 'AxiSysMonUltraScale.'
-        self.waveform_engine_buffers_root = self.amccc + \
-            'AmcCarrierBsa.BsaWaveformEngine[{}].' + \
-            'WaveformEngineBuffers.'
-
-        # AmcCarrierTiming
-        self.amctiming = self.amccc + 'AmcCarrierTiming.'
-        self.trigger_root = self.amctiming + 'EvrV2CoreTriggers.'
-        self.timing_status = self.amctiming + 'TimingFrameRx.'
-
         # RTM
         self.rtm_cryo_det_root = self.app_core + 'RtmCryoDet.'
         self.rtm_spi_max_root = self.rtm_cryo_det_root + 'RtmSpiMax.'
-        self.rtm_lut_ctrl_root = self.rtm_cryo_det_root + 'LutCtrl.'
-        self.rtm_lut_ctrl = self.rtm_lut_ctrl_root + 'Ctrl.'
-
         if offline:
             self.log('Offline mode, skipping CryoCard initialization')
             self.C = _DummyClient("OFFLINE: CryoCard client")

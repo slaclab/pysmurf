@@ -65,8 +65,6 @@ class SmurfCommandMixin(SmurfBase):
             return warn_then_call
         return mark
 
-    _global_poll_enable_reg = 'AMCc.enable'
-
     def _platform_map(self):
         """The register map of the system this client is connected to.
 
@@ -361,8 +359,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -375,8 +373,6 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs
         )
 
-    _smurf_directory_reg = 'SmurfDirectory'
-
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_pysmurf_directory(self, **kwargs):
         r"""Returns path to the pysmurf python files.
@@ -387,8 +383,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -401,11 +397,11 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(self.smurf_application +
-                           self._smurf_directory_reg, as_string=True,
-                           **kwargs)
-
-    _smurf_startup_script_reg = 'StartupScript'
+        return self._get_by_name(
+            'application.directory',
+            as_string=True,
+            **kwargs
+        )
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_smurf_startup_script(self, **kwargs):
@@ -414,8 +410,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -428,9 +424,11 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(self.smurf_application +
-                           self._smurf_startup_script_reg, as_string=True,
-                           **kwargs)
+        return self._get_by_name(
+            'application.startup_script',
+            as_string=True,
+            **kwargs
+        )
 
     def get_smurf_startup_args(self, **kwargs):
         r"""Returns pysmurf server startup arguments.
@@ -438,8 +436,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -458,8 +456,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -473,8 +471,6 @@ class SmurfCommandMixin(SmurfBase):
         except Exception:
             return enabled_bays
 
-    _configuring_in_progress_reg = 'ConfiguringInProgress'
-
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_configuring_in_progress(self, **kwargs):
         r"""Whether or not configuration process in progress.
@@ -486,8 +482,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -560,8 +556,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -602,8 +598,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -816,8 +812,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
         """
         self._set_by_name('read_all', 1, **kwargs)
         self.log('ReadAll sent', self.LOG_INFO)
@@ -834,14 +830,12 @@ class SmurfCommandMixin(SmurfBase):
         bay : int
             Which bay (0 or 1).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
         """
         name = f'bay[{bay}].clock.power_up_sys_ref'
         self._set_by_name(name, 1, wait_after=5, **kwargs)
         self.log(f'{name} sent', self.LOG_USER)
-
-    _eta_scan_in_progress_reg = 'etaScanInProgress'
 
     def get_eta_scan_in_progress(self, band, **kwargs):
         r"""Gets whether an eta scan or gradient descent is running.
@@ -855,8 +849,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -883,8 +877,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Maximum number of iterations per channel.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -906,8 +900,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -939,8 +933,8 @@ class SmurfCommandMixin(SmurfBase):
             Number of frequency error measurements to average
             per gradient sample.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -961,8 +955,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -993,8 +987,8 @@ class SmurfCommandMixin(SmurfBase):
         val : float
             Gain multiplier (no firmware-enforced limits).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -1016,8 +1010,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -1046,8 +1040,8 @@ class SmurfCommandMixin(SmurfBase):
         val : float
             Convergence threshold in Hz.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -1069,8 +1063,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -1099,8 +1093,8 @@ class SmurfCommandMixin(SmurfBase):
         val : float
             Offset frequency in Hz for gradient estimation.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -1121,8 +1115,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -1153,8 +1147,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 for momentum mode, 0 for adaptive mode.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -1176,8 +1170,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -1213,8 +1207,8 @@ class SmurfCommandMixin(SmurfBase):
         val : float
             Decay rate (0.0 to 1.0).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -1237,8 +1231,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -1253,8 +1247,6 @@ class SmurfCommandMixin(SmurfBase):
             f'band[{band}].ops.gradient_descent.beta',
             **kwargs
         )
-
-    _run_serial_eta_scan_reg = 'runSerialEtaScan'
 
     def run_serial_eta_scan(self, band, timeout=240, **kwargs):
         """
@@ -1278,8 +1270,6 @@ class SmurfCommandMixin(SmurfBase):
                        timeout=timeout)
 
 
-    _run_serial_gradient_descent_reg = 'runSerialGradientDescent'
-
     def run_serial_gradient_descent(self, band, timeout=240, **kwargs):
         """
         Does a gradient descent search for the minimum.
@@ -1300,8 +1290,6 @@ class SmurfCommandMixin(SmurfBase):
                        timeout=timeout)
 
 
-    _sel_ext_ref_reg = "SelExtRef"
-
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def sel_ext_ref(self, bay, **kwargs):
         """
@@ -1320,16 +1308,9 @@ class SmurfCommandMixin(SmurfBase):
            notebook.
         """
         assert (bay in [0,1]),'bay must be an integer and in [0,1]'
-        triggerPV=(self.microwave_mux_core.format(bay) +
-                   self._sel_ext_ref_reg)
-        self._caput(triggerPV, 1, wait_after=5, **kwargs)
-        self.log(f'{triggerPV} sent', self.LOG_USER)
-
-    # name changed in Rogue 4 from WriteState to SaveState.  Keeping
-    # the write_state function for backwards compatibilty.
-    # In rogue 6 this has moved to a process to avoid timing out
-    # on a long-running command
-    _save_state_reg = "AMCc.SaveConfigProcess"
+        name = f'bay[{bay}].clock.select_external_reference'
+        self._set_by_name(name, 1, wait_after=5, **kwargs)
+        self.log(f'{name} sent', self.LOG_USER)
 
     def _save_state_or_config(
         self, fname: str, mode: Literal["Config", "Status"], timeout: float = 180.0,
@@ -1408,8 +1389,8 @@ class SmurfCommandMixin(SmurfBase):
         bay : int
             Which AMC bay (0 or 1).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -1484,8 +1465,8 @@ class SmurfCommandMixin(SmurfBase):
         val : str
             Path to the tune file (.npy format).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -1502,8 +1483,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -1537,8 +1518,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to trigger loading.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -1640,8 +1621,8 @@ class SmurfCommandMixin(SmurfBase):
             Array of scan frequencies in MHz.  For serial find-freq,
             flatten a (n_channels, n_scan_points) array before passing.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -1664,8 +1645,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -1705,8 +1686,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Tone amplitude for scanned channels (0–15).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -1730,8 +1711,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -1772,8 +1753,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Channel number within the band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -1790,8 +1771,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -1827,8 +1808,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Number of frequency error samples to average at each point.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -1846,8 +1827,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -1888,8 +1869,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Set to 1 to start the scan.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -1921,8 +1902,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Set to 1 to start the scan.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -1932,8 +1913,6 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_eta_scan_results_imag` : Read back imaginary results.
         """
         self._set_by_name(f'band[{band}].ops.run_eta_scan', val, **kwargs)
-
-    _eta_scan_results_real_reg = 'etaScanResultsReal'
 
     def get_eta_scan_results_real(self, band, count, **kwargs):
         r"""Gets the real component of the eta scan.
@@ -1954,8 +1933,8 @@ class SmurfCommandMixin(SmurfBase):
         count : int
             Number of samples to read from the results array.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -1973,8 +1952,6 @@ class SmurfCommandMixin(SmurfBase):
             count=count,
             **kwargs
         )
-
-    _eta_scan_results_imag_reg = 'etaScanResultsImag'
 
     def get_eta_scan_results_imag(self, band, count, **kwargs):
         r"""Gets the imaginary component of the eta scan.
@@ -1995,8 +1972,8 @@ class SmurfCommandMixin(SmurfBase):
         count : int
             Number of samples to read from the results array.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -2032,8 +2009,8 @@ class SmurfCommandMixin(SmurfBase):
             Array of tone amplitudes, one per channel. 4-bit
             unsigned (0-15) per element.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -2054,8 +2031,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -2115,8 +2092,8 @@ class SmurfCommandMixin(SmurfBase):
             Array of feedback enable values, one per channel.
             1 to enable, 0 to disable.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -2134,8 +2111,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -2171,8 +2148,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to enable single-channel mode, 0 for multichannel.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -2196,8 +2173,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -2235,8 +2212,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to enable full-rate single-channel mode, 0 to disable.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -2260,8 +2237,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -2302,8 +2279,8 @@ class SmurfCommandMixin(SmurfBase):
             :func:`get_number_channels` - 1 (default firmware
             has 512 channels per band).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -2327,8 +2304,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -2364,8 +2341,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to enable streaming, 0 to disable.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -2381,8 +2358,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -2400,8 +2377,6 @@ class SmurfCommandMixin(SmurfBase):
            notebook.
         """
         return self._get_by_name('stream.enable', **kwargs)
-
-    _mode_stream_reg = 'modeStream'
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_mode_stream(self, val, **kwargs):
@@ -2435,8 +2410,8 @@ class SmurfCommandMixin(SmurfBase):
             The mode to set, either 0 (default mode) or 1 (I/Q
             streaming mode).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -2454,7 +2429,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._caput(self.app_core + self._mode_stream_reg, val, **kwargs)
+        self._set_by_name('stream.mode', val, **kwargs)
 
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
@@ -2472,8 +2447,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -2497,11 +2472,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self.app_core + self._mode_stream_reg,
-            **kwargs)
-
-    _bay_sel_stream_reg = 'baySelStream'
+        return self._get_by_name('stream.mode', **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_bay_sel_stream(self, val, **kwargs):
@@ -2521,8 +2492,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             The AMC bay to select for I/Q data streaming, either 0 or 1.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -2536,7 +2507,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._caput(self.app_core + self._bay_sel_stream_reg, val, **kwargs)
+        self._set_by_name('stream.bay_select', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_bay_sel_stream(self, **kwargs):
@@ -2555,8 +2526,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -2575,9 +2546,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self.app_core + self._bay_sel_stream_reg,
-            **kwargs)
+        return self._get_by_name('stream.bay_select', **kwargs)
 
     def set_rf_iq_stream_enable(self, band, val, **kwargs):
         r"""Selects raw RF I/Q debug output from the analysis filter bank.
@@ -2597,8 +2566,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             0 to disable, 1 to select raw RF I/Q output.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -2616,8 +2585,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -2647,8 +2616,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -2673,8 +2642,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Decimation factor (15-bit unsigned, minimum 1).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -2692,8 +2661,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -2739,8 +2708,8 @@ class SmurfCommandMixin(SmurfBase):
             alpha=0.25, f3dB ~110 kHz; 0x10000 would give alpha=1.0
             but saturates at 0xFFFF).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -2760,8 +2729,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -2790,8 +2759,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             0 for normal, 1 for swapped.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -2808,8 +2777,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -2842,8 +2811,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to swap, 0 for normal.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -2861,8 +2830,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -2902,8 +2871,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Coarse delay value.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -2922,8 +2891,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -2954,8 +2923,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Fine delay value (8-bit unsigned).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -2973,8 +2942,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -3009,8 +2978,8 @@ class SmurfCommandMixin(SmurfBase):
         val : float
             Delay in microseconds.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -3029,8 +2998,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -3058,8 +3027,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Scale factor. 2-bit unsigned (0-3).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -3077,8 +3046,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -3112,8 +3081,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             0 for DSP synthesis, 1 for waveform table (tone file).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -3132,8 +3101,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -3152,8 +3121,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name(f'band[{band}].dsp.waveform_select', **kwargs)
 
-    _rf_enable_reg = 'rfEnable'
-
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_rf_enable(self, band, val, **kwargs):
         r"""Enables or disables RF DAC output for a band.
@@ -3170,8 +3137,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             0 to disable (output zeros), 1 to enable.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -3184,9 +3151,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._caput(
-            self._band_root(band) + self._rf_enable_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].rf_enable', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_rf_enable(self, band, **kwargs):
@@ -3197,8 +3162,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -3215,9 +3180,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self._band_root(band) + self._rf_enable_reg,
-            **kwargs)
+        return self._get_by_name(f'band[{band}].rf_enable', **kwargs)
 
     def set_analysis_scale(self, band, val, **kwargs):
         r"""Sets the analysis filter bank output scaling.
@@ -3235,8 +3198,8 @@ class SmurfCommandMixin(SmurfBase):
             Scale factor. 2-bit unsigned (0-3). Each increment
             is a factor of 2. Nominal is 1.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -3254,8 +3217,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -3275,8 +3238,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name(f'band[{band}].analysis_scale', **kwargs)
 
-    _feedback_enable_reg = 'feedbackEnable'
-
     def set_feedback_enable(self, band, val, **kwargs):
         r"""Sets the global feedback enable for a band.
 
@@ -3292,8 +3253,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to enable global feedback, 0 to disable.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -3310,8 +3271,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -3337,8 +3298,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -3368,8 +3329,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -3404,8 +3365,8 @@ class SmurfCommandMixin(SmurfBase):
             Range is +/-1.2 MHz (the half-bandwidth of one
             subband).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -3423,8 +3384,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -3457,8 +3418,8 @@ class SmurfCommandMixin(SmurfBase):
             Feedback gain. 16-bit unsigned integer (0-65535).
             val/4096 gives the effective gain multiplier.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -3476,8 +3437,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -3510,8 +3471,8 @@ class SmurfCommandMixin(SmurfBase):
         val : array-like
             Array of eta phases in radians, one per channel.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -3529,8 +3490,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -3556,8 +3517,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -3593,8 +3554,8 @@ class SmurfCommandMixin(SmurfBase):
             underlying etaI/etaQ registers). Setting above
             ~2.0 may overflow one component depending on phase.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -3612,8 +3573,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -3647,8 +3608,8 @@ class SmurfCommandMixin(SmurfBase):
             band width. val/65536 gives the fraction of the
             full 2.4 MHz subband.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -3665,8 +3626,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -3699,8 +3660,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to output random noise, 0 for normal tone output.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -3718,8 +3679,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -3753,8 +3714,8 @@ class SmurfCommandMixin(SmurfBase):
             :func:`get_channel_frequency_mhz`, default 2.4 MHz).
             6-bit unsigned (0-63).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -3773,8 +3734,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -3813,8 +3774,8 @@ class SmurfCommandMixin(SmurfBase):
             LMS gain exponent. 3-bit unsigned (0-7), giving an
             effective gain of 2^val.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -3832,8 +3793,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -3863,8 +3824,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Delay in processing clock ticks.  7-bit unsigned (0–127).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
         """
         self._set_by_name(f'band[{band}].trigger_reset_delay', val, **kwargs)
 
@@ -3877,8 +3838,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -3915,8 +3876,8 @@ class SmurfCommandMixin(SmurfBase):
             :func:`get_channel_frequency_mhz`, default 2.4 MHz)
             from the beginning of each flux ramp cycle.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -3933,8 +3894,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -3968,8 +3929,8 @@ class SmurfCommandMixin(SmurfBase):
             :func:`get_channel_frequency_mhz`, default 2.4 MHz)
             from the beginning of each flux ramp cycle.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -3986,8 +3947,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -4018,8 +3979,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to enable, 0 to disable.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -4038,8 +3999,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -4065,8 +4026,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to enable, 0 to disable.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -4084,8 +4045,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -4111,8 +4072,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to enable, 0 to disable.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -4130,8 +4091,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -4144,8 +4105,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name(f'band[{band}].lms.enable3', **kwargs)
 
-
-    _lms_freq_reg = 'lmsFreq'
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_lms_freq(self, band, val, **kwargs):
@@ -4168,8 +4127,8 @@ class SmurfCommandMixin(SmurfBase):
             To convert to Hz:
             val * get_channel_frequency_mhz() * 1e6 / 2^24.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -4183,9 +4142,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._caput(
-            self._band_root(band) + self._lms_freq_reg,
-            val, **kwargs)
+        self._set_by_name(f'band[{band}].lms.frequency', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_lms_freq(self, band, **kwargs):
@@ -4196,8 +4153,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -4218,9 +4175,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self._band_root(band) + self._lms_freq_reg,
-            **kwargs)
+        return self._get_by_name(f'band[{band}].lms.frequency', **kwargs)
 
     def set_lms_freq_hz(self, band, val, **kwargs):
         r"""Sets the LMS tracking frequency in Hz.
@@ -4242,8 +4197,8 @@ class SmurfCommandMixin(SmurfBase):
             with resolution of ~0.14 Hz. Typical values are in
             the kHz range.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -4260,8 +4215,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -4296,8 +4251,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             0 for F/dF output, 1 for demodulated I/Q output.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -4320,8 +4275,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -4354,8 +4309,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             0 or 1. Flips the sign of the feedback correction.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -4373,8 +4328,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -4408,8 +4363,8 @@ class SmurfCommandMixin(SmurfBase):
         val : float
             Band center frequency in MHz (e.g. 4250.0).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -4429,8 +4384,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -4525,8 +4480,8 @@ class SmurfCommandMixin(SmurfBase):
             Scale factor. 2-bit unsigned (0-3). Each increment
             is a factor of 2. Nominal is 2.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -4544,8 +4499,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -4582,8 +4537,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to enable, 0 to disable.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -4600,8 +4555,8 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -4637,8 +4592,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to enable, 0 to disable.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -4662,8 +4617,8 @@ class SmurfCommandMixin(SmurfBase):
         channel : int
             Which channel.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -4702,8 +4657,8 @@ class SmurfCommandMixin(SmurfBase):
             registers). Setting above ~2.0 may overflow one
             component depending on phase.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -4730,8 +4685,8 @@ class SmurfCommandMixin(SmurfBase):
         channel : int
             Which channel.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -4764,8 +4719,8 @@ class SmurfCommandMixin(SmurfBase):
         val : float
             Center frequency in MHz. Range is +/-1.2 MHz.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -4789,8 +4744,8 @@ class SmurfCommandMixin(SmurfBase):
         channel : int
             Which channel.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -4827,8 +4782,8 @@ class SmurfCommandMixin(SmurfBase):
             tone output and no processing. Each increment is
             3 dB.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -4851,8 +4806,8 @@ class SmurfCommandMixin(SmurfBase):
         channel : int
             Which channel.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -4888,8 +4843,8 @@ class SmurfCommandMixin(SmurfBase):
             Eta phase in degrees. Range -180 to 180 (values
             outside this wrap due to periodicity of cos/sin).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -4913,8 +4868,8 @@ class SmurfCommandMixin(SmurfBase):
         channel : int
             Which channel.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -4945,8 +4900,8 @@ class SmurfCommandMixin(SmurfBase):
         channel : int
             Which channel.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -5132,8 +5087,6 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs
         )
 
-    _dac_enable_reg = "enable"
-
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_dac_enable(self, bay, dac, val, **kwargs):
         """
@@ -5158,9 +5111,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._caput(
-            self.dac_root.format(bay,dac) + self._dac_enable_reg,
-            val, **kwargs)
+        self._set_by_name(f'bay[{bay}].dac[{dac}].enable', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_dac_enable(self, bay, dac, **kwargs):
@@ -5184,9 +5135,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self.dac_root.format(bay,dac) + self._dac_enable_reg,
-            **kwargs)
+        return self._get_by_name(f'bay[{bay}].dac[{dac}].enable', **kwargs)
 
     def set_data_out_mux(self, bay, b, val, **kwargs):
         r"""Sets the JESD transmit output data source for a lane.
@@ -5206,8 +5155,8 @@ class SmurfCommandMixin(SmurfBase):
             2 or 'OutputOnes' (ones),
             3 or 'TestData' (test pattern).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -5230,8 +5179,8 @@ class SmurfCommandMixin(SmurfBase):
         b : int
             Which lane (0-9).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -5283,8 +5232,8 @@ class SmurfCommandMixin(SmurfBase):
             Lane enable bitmask (up to 10 bits). Each bit enables
             one lane.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -5302,8 +5251,8 @@ class SmurfCommandMixin(SmurfBase):
         bay : int
             Which bay (0 or 1).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -5315,8 +5264,6 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_jesd_rx_enable` : Sets the enable mask.
         """
         return self._get_by_name(f'bay[{bay}].jesd.rx_enable', **kwargs)
-
-    _jesd_rx_status_valid_cnt_reg = 'StatusValidCnt'
 
     def get_jesd_rx_status_valid_cnt(self, bay, num, **kwargs):
         r"""Gets the JESD receive synchronization count for a lane.
@@ -5336,8 +5283,8 @@ class SmurfCommandMixin(SmurfBase):
         num : int
             Which lane (0-9).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -5365,8 +5312,8 @@ class SmurfCommandMixin(SmurfBase):
         bay : int
             Which bay (0 or 1).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -5396,8 +5343,8 @@ class SmurfCommandMixin(SmurfBase):
             Lane enable bitmask (up to 10 bits). Each bit enables
             one lane.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -5415,8 +5362,8 @@ class SmurfCommandMixin(SmurfBase):
         bay : int
             Which bay (0 or 1).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -5441,8 +5388,8 @@ class SmurfCommandMixin(SmurfBase):
         bay : int
             Which bay (0 or 1).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -5455,8 +5402,6 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_jesd_tx_status_valid_cnt` : Gets per-lane valid count.
         """
         return self._get_by_name(f'bay[{bay}].jesd.tx_data_valid', **kwargs)
-
-    _jesd_tx_status_valid_cnt_reg = 'StatusValidCnt'
 
     def get_jesd_tx_status_valid_cnt(self, bay, num, **kwargs):
         r"""Gets the JESD transmit synchronization count for a lane.
@@ -5474,8 +5419,8 @@ class SmurfCommandMixin(SmurfBase):
         num : int
             Which lane (0-9).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -5596,8 +5541,6 @@ class SmurfCommandMixin(SmurfBase):
                 self.LOG_ERROR)
             return None
 
-    _jesd_status_reg = "JesdStatus"
-
     def get_jesd_status(self, **kwargs):
         r"""Gets the status of the Rogue `AppTop.JesdHealth` method.
 
@@ -5693,8 +5636,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -5709,8 +5652,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -5730,8 +5673,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -5771,8 +5714,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Input source selection (0-25).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -5797,8 +5740,8 @@ class SmurfCommandMixin(SmurfBase):
         lane : int
             Which DaqMux buffer lane.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -5831,8 +5774,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Buffer size in 32-bit words.  Minimum 4.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -5849,8 +5792,8 @@ class SmurfCommandMixin(SmurfBase):
         bay : int
             Which bay (0 or 1).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -6041,8 +5984,6 @@ class SmurfCommandMixin(SmurfBase):
         else:
             return val
 
-    _empty_reg = 'Empty[{}]'
-
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_waveform_empty(self, bay, engine, val, **kwargs):
         """
@@ -6063,10 +6004,8 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._caput(
-            self.waveform_engine_buffers_root.format(bay) +
-            self._empty_reg.format(engine),
-            **kwargs)
+        self._set_by_name(
+            f'carrier.bsa.engine[{bay}].buffer[{engine}].empty', val, **kwargs)
 
     def get_waveform_empty(self, bay, engine, **kwargs):
         """
@@ -6080,7 +6019,7 @@ class SmurfCommandMixin(SmurfBase):
             Which waveform engine.
         """
         return self._get_by_name(
-            f'bsa.engine[{bay}].buffer[{engine}].empty',
+            f'carrier.bsa.engine[{bay}].buffer[{engine}].empty',
             **kwargs
         )
 
@@ -6104,8 +6043,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -6126,8 +6065,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to open.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -6144,8 +6083,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -6172,8 +6111,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to close.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -6189,8 +6128,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -6219,8 +6158,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to trigger.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -6238,8 +6177,8 @@ class SmurfCommandMixin(SmurfBase):
         bay : int
             Which bay (0 or 1).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -6268,8 +6207,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to arm.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -6288,8 +6227,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to arm.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -6307,8 +6246,8 @@ class SmurfCommandMixin(SmurfBase):
         bay : int
             Which bay (0 or 1).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -6387,8 +6326,8 @@ class SmurfCommandMixin(SmurfBase):
         reg : int
             Which LUT table (0 or 1).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -6404,8 +6343,6 @@ class SmurfCommandMixin(SmurfBase):
         assert (reg in range(2)), 'reg must be in [0,1]'
         return self._get_by_name(f'rtm.waveform.lut[{reg}].table', **kwargs)
 
-    _rtm_arb_waveform_busy_reg = 'Busy'
-
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_rtm_arb_waveform_busy(self, **kwargs):
         r"""Gets whether the RTM arbitrary waveform generator is active.
@@ -6417,8 +6354,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -6431,11 +6368,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self.rtm_lut_ctrl + self._rtm_arb_waveform_busy_reg,
-            **kwargs)
-
-    _rtm_arb_waveform_trig_cnt_reg = 'TrigCnt'
+        return self._get_by_name('rtm.waveform.busy', **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_rtm_arb_waveform_trig_cnt(self, **kwargs):
@@ -6447,8 +6380,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -6461,9 +6394,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self.rtm_lut_ctrl + self._rtm_arb_waveform_trig_cnt_reg,
-            **kwargs)
+        return self._get_by_name('rtm.waveform.trigger_count', **kwargs)
 
     def set_rtm_arb_waveform_continuous(self, val, **kwargs):
         """
@@ -6487,8 +6418,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -6506,8 +6437,6 @@ class SmurfCommandMixin(SmurfBase):
            notebook.
         """
         return self._get_by_name('rtm.waveform.continuous', **kwargs)
-
-    _rtm_arb_waveform_software_trigger_reg = 'SwTrig'
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def trigger_rtm_arb_waveform(self, continuous=False, **kwargs):
@@ -6533,11 +6462,9 @@ class SmurfCommandMixin(SmurfBase):
         else:
             self.set_rtm_arb_waveform_continuous(0)
 
-        triggerPV=self.rtm_lut_ctrl + \
-            self._rtm_arb_waveform_software_trigger_reg
-
-        self._caput(triggerPV, 1, **kwargs)
-        self.log(f'{triggerPV} sent', self.LOG_USER)
+        name = 'rtm.waveform.software_trigger'
+        self._set_by_name(name, 1, **kwargs)
+        self.log(f'{name} sent', self.LOG_USER)
 
     def set_dac_axil_addr(self, reg, val, **kwargs):
         """
@@ -6598,8 +6525,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -6618,8 +6545,6 @@ class SmurfCommandMixin(SmurfBase):
            notebook.
         """
         return self._get_by_name('rtm.waveform.timer_size', **kwargs)
-
-    _rtm_arb_waveform_max_addr_reg = 'MaxAddr'
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_rtm_arb_waveform_max_addr(self, val, **kwargs):
@@ -6643,9 +6568,7 @@ class SmurfCommandMixin(SmurfBase):
            notebook.
         """
         assert (val in range(2**11)), 'reg must be in [0,2048)'
-        self._caput(
-            self.rtm_lut_ctrl + self._rtm_arb_waveform_max_addr_reg,
-            val, **kwargs)
+        self._set_by_name('rtm.waveform.max_address', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_rtm_arb_waveform_max_addr(self, **kwargs):
@@ -6658,8 +6581,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -6678,9 +6601,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self.rtm_lut_ctrl + self._rtm_arb_waveform_max_addr_reg,
-            **kwargs)
+        return self._get_by_name('rtm.waveform.max_address', **kwargs)
 
     def set_rtm_arb_waveform_enable(self, val, **kwargs):
         """
@@ -6704,8 +6625,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -6740,8 +6661,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -6772,8 +6693,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -6807,9 +6728,6 @@ class SmurfCommandMixin(SmurfBase):
         self.reset_rtm(**kwargs)
 
 
-    _timing_crate_root_reg = "AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierTiming.EvrV2CoreTriggers"
-    _trigger_rate_sel_reg = ".EvrV2ChannelReg[0].RateSel"
-
     def set_ramp_rate(self, val, **kwargs):
         r"""Sets the flux ramp reset rate via the timing system.
 
@@ -6827,8 +6745,8 @@ class SmurfCommandMixin(SmurfBase):
             Desired reset rate in kHz.  Must be one of the allowed
             values listed above.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -6839,7 +6757,10 @@ class SmurfCommandMixin(SmurfBase):
 
         if rate_sel is not None:
             self._set_by_name(
-                'timing.evr_channel[0].rate_select', rate_sel, **kwargs)
+                'timing.evr_channel[0].rate_select',
+                rate_sel,
+                **kwargs
+            )
         else:
             print(
                 "Rate requested is not allowed by timing" +
@@ -6858,8 +6779,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -6879,13 +6800,13 @@ class SmurfCommandMixin(SmurfBase):
         """
 
         rate_sel = self._get_by_name(
-            'timing.evr_channel[0].rate_select', **kwargs)
+            'timing.evr_channel[0].rate_select',
+            **kwargs
+        )
 
         reset_rate = self.flux_ramp_PV_to_rate(rate_sel)
 
         return reset_rate
-
-    _trigger_delay_reg = ".EvrV2TriggerReg[0].Delay"
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_trigger_delay(self, val, **kwargs):
@@ -6901,8 +6822,8 @@ class SmurfCommandMixin(SmurfBase):
             Trigger delay in timing clock ticks (default 122.88 MHz).
             28-bit unsigned.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         .. deprecated::
            Scheduled for removal: nothing in pysmurf or sodetlib calls it.
@@ -6910,10 +6831,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._caput(
-            self._timing_crate_root_reg +
-            self._trigger_delay_reg,
-            val, **kwargs)
+        self._set_by_name('timing.evr_trigger[0].delay', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_trigger_delay(self, **kwargs):
@@ -6922,8 +6840,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -6941,10 +6859,10 @@ class SmurfCommandMixin(SmurfBase):
            notebook.
         """
 
-        trigger_delay = self._caget(
-            self._timing_crate_root_reg +
-            self._trigger_delay_reg,
-            **kwargs)
+        trigger_delay = self._get_by_name(
+            'timing.evr_trigger[0].delay',
+            **kwargs
+        )
 
         return trigger_delay
 
@@ -6965,8 +6883,8 @@ class SmurfCommandMixin(SmurfBase):
             Debounce count (16-bit unsigned). Debounce time =
             val / (get_digitizer_frequency_mhz() * 1e6 / 2).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -6982,8 +6900,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -7013,8 +6931,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             0 for positive slope, 1 for negative slope.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -7030,8 +6948,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -7067,8 +6985,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Raw DAC value. 16-bit unsigned (0-65535).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -7084,8 +7002,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -7120,8 +7038,8 @@ class SmurfCommandMixin(SmurfBase):
             0 for normal operation (flux ramp output),
             1 for test/load mode (direct DAC programming).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -7136,8 +7054,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -7168,8 +7086,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Step size (32-bit unsigned).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -7188,8 +7106,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -7221,8 +7139,8 @@ class SmurfCommandMixin(SmurfBase):
             Reset value (32-bit unsigned). The top 16 bits
             correspond to the DAC output at ramp start.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -7237,8 +7155,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -7264,8 +7182,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to enable trigger pulses, 0 to disable.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -7281,8 +7199,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -7315,8 +7233,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to enable the flux ramp, 0 to disable.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -7334,8 +7252,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -8212,8 +8130,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Maximum count (32-bit unsigned).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -8232,8 +8150,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -8262,8 +8180,8 @@ class SmurfCommandMixin(SmurfBase):
         val : float
             The frequency to set the flux ramp reset rate to in kHz.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         Note
         ----
@@ -8325,8 +8243,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -8371,8 +8289,8 @@ class SmurfCommandMixin(SmurfBase):
             Low cycle duration in jesdClk ticks (zero inclusive).
             8-bit unsigned (0–255).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -8387,8 +8305,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -8424,8 +8342,8 @@ class SmurfCommandMixin(SmurfBase):
             High cycle duration in jesdClk ticks (zero inclusive).
             8-bit unsigned (0–255).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -8440,8 +8358,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -8471,8 +8389,8 @@ class SmurfCommandMixin(SmurfBase):
             0 for internal trigger, 1 for timing system trigger,
             2 for external trigger.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
         """
         self._set_by_name('flux_ramp.start_mode', val, **kwargs)
 
@@ -8482,8 +8400,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -8510,8 +8428,8 @@ class SmurfCommandMixin(SmurfBase):
             Pulse width in jesdClk ticks (default 307.2 MHz).
             16-bit unsigned (0–65535).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
         """
         self._set_by_name('rtm.trigger.pulse_width', val, **kwargs)
 
@@ -8522,8 +8440,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -8542,8 +8460,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name('rtm.trigger.pulse_width', **kwargs)
 
-
-    _stream_datafile_reg = 'DataFile'
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_streaming_datafile(self, datafile, as_string=True,
@@ -8566,9 +8482,11 @@ class SmurfCommandMixin(SmurfBase):
         """
         if not as_string:
             raise ValueError("Passing an int is deprecated.")
-        self._caput(
-            self.streaming_root + self._stream_datafile_reg,
-            datafile, **kwargs)
+        self._set_by_name(
+            'stream.legacy_interface.data_file',
+            datafile,
+            **kwargs
+        )
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_streaming_datafile(self, **kwargs):
@@ -8586,12 +8504,11 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        datafile = self._caget(
-            self.streaming_root + self._stream_datafile_reg,
-            **kwargs)
+        datafile = self._get_by_name(
+            'stream.legacy_interface.data_file',
+            **kwargs
+        )
         return datafile
-
-    _streaming_file_open_reg = 'open'
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_streaming_file_open(self, val, **kwargs):
@@ -8610,9 +8527,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._caput(
-            self.streaming_root + self._streaming_file_open_reg,
-            val, **kwargs)
+        self._set_by_name('stream.legacy_interface.open', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_streaming_file_open(self, **kwargs):
@@ -8630,9 +8545,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self.streaming_root + self._streaming_file_open_reg,
-            **kwargs)
+        return self._get_by_name('stream.legacy_interface.is_open', **kwargs)
 
     def get_slot_number(self, **kwargs):
         """
@@ -8701,9 +8614,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name('carrier.fpga.vcc_bram', **kwargs)
 
-    # Regulator
-    _regulator_iout_reg = "IOUT"
-
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_regulator_iout(self, **kwargs):
         """
@@ -8720,12 +8630,11 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return float(
-            self._caget(
-                self.regulator + self._regulator_iout_reg,
-                as_string=True, **kwargs))
-
-    _regulator_temp1_reg = "TEMPERATURE[1]"
+        return float(self._get_by_name(
+            'carrier.regulator.current',
+            as_string=True,
+            **kwargs
+        ))
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_regulator_temp1(self, **kwargs):
@@ -8743,12 +8652,11 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return float(
-            self._caget(
-                self.regulator + self._regulator_temp1_reg,
-                as_string=True, **kwargs))
-
-    _regulator_temp2_reg = "TEMPERATURE[2]"
+        return float(self._get_by_name(
+            'carrier.regulator.temperature[1]',
+            as_string=True,
+            **kwargs
+        ))
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_regulator_temp2(self, **kwargs):
@@ -8766,10 +8674,11 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return float(
-            self._caget(
-                self.regulator + self._regulator_temp2_reg,
-                as_string=True, **kwargs))
+        return float(self._get_by_name(
+            'carrier.regulator.temperature[2]',
+            as_string=True,
+            **kwargs
+        ))
 
     # Cryo card comands
     def get_cryo_card_temp(self, enable_poll=False, disable_poll=False):
@@ -8993,8 +8902,6 @@ class SmurfCommandMixin(SmurfBase):
             return ("ERROR")
 
 
-    _smurf_to_gcp_stream_reg = 'userConfig[0]'  # bit for streaming
-
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_user_config0(self, as_binary=False, **kwargs):
         r"""Gets the userConfig[0] timing frame header register.
@@ -9009,8 +8916,8 @@ class SmurfCommandMixin(SmurfBase):
         as_binary : bool, optional, default False
             If True, returns the value as a binary string.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -9028,9 +8935,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        val =  self._caget(
-            self.timing_header + self._smurf_to_gcp_stream_reg,
-            **kwargs)
+        val = self._get_by_name('timing.user_config[0]', **kwargs)
 
         if as_binary:
             val = bin(val)
@@ -9053,8 +8958,8 @@ class SmurfCommandMixin(SmurfBase):
         as_binary : bool, optional, default False
             Unused (kept for API compatibility).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -9067,9 +8972,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._caput(
-            self.timing_header + self._smurf_to_gcp_stream_reg,
-            val, **kwargs)
+        self._set_by_name('timing.user_config[0]', val, **kwargs)
 
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
@@ -9135,8 +9038,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Pulse width in timing clock ticks.  28-bit unsigned.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
         """
         self._set_by_name(f'timing.evr_trigger[{chan}].width', val, **kwargs)
 
@@ -9156,8 +9059,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to enable, 0 to disable.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -9181,8 +9084,8 @@ class SmurfCommandMixin(SmurfBase):
             Return the enable for this trigger pulse generator
             channel.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -9217,8 +9120,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to enable, 0 to disable.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -9242,8 +9145,8 @@ class SmurfCommandMixin(SmurfBase):
             Which trigger event selection logic channel to enable or
             disable.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -9260,8 +9163,6 @@ class SmurfCommandMixin(SmurfBase):
         )
 
 
-    _trigger_channel_reg_count_reg = 'EvrV2ChannelReg[{}].Count'
-
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_evr_channel_reg_count(self, chan, **kwargs):
         r"""Gets the EVR trigger channel event count.
@@ -9275,8 +9176,8 @@ class SmurfCommandMixin(SmurfBase):
         chan : int
             Which trigger channel.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -9293,10 +9194,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self.trigger_root +
-            self._trigger_channel_reg_count_reg.format(chan),
-            **kwargs)
+        return self._get_by_name(f'timing.evr_channel[{chan}].count', **kwargs)
 
     def set_evr_trigger_dest_type(self, chan, value, **kwargs):
         r"""Set trigger channel destination type.
@@ -9324,8 +9222,8 @@ class SmurfCommandMixin(SmurfBase):
             in the Rogue gui which instructs the channel to ignore any
             selection on the presence of beam.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -9363,8 +9261,8 @@ class SmurfCommandMixin(SmurfBase):
             Which trigger event selection logic channel's destination
             type to get.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -9398,8 +9296,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Destination select value.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -9421,8 +9319,8 @@ class SmurfCommandMixin(SmurfBase):
         val : bool
             True for enable, False for disable.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
         """
         self._set_by_name(f'bay[{bay}].debug.enable', val, **kwargs)
 
@@ -9438,8 +9336,8 @@ class SmurfCommandMixin(SmurfBase):
         bay : int
             Which bay [0 or 1].
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -9510,8 +9408,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Which band within the bay (0-3).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -9529,8 +9427,8 @@ class SmurfCommandMixin(SmurfBase):
         bay : int
             Which bay (0 or 1).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -9551,8 +9449,6 @@ class SmurfCommandMixin(SmurfBase):
 
     ### Start Ultrascale OT protection
 
-    _ultrascale_ot_upper_threshold_reg = "OTUpperThreshold"
-
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_ultrascale_ot_upper_threshold(self, val, **kwargs):
         r"""Sets the FPGA over-temperature shutdown threshold.
@@ -9565,8 +9461,8 @@ class SmurfCommandMixin(SmurfBase):
         val : float
             Temperature threshold in degrees C.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         .. deprecated::
            Scheduled for removal: nothing in pysmurf or sodetlib calls it.
@@ -9574,9 +9470,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._caput(
-            self.ultrascale + self._ultrascale_ot_upper_threshold_reg,
-            val, **kwargs)
+        self._set_by_name('carrier.fpga.overtemp_threshold', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_ultrascale_ot_upper_threshold(self, **kwargs):
@@ -9585,8 +9479,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -9603,9 +9497,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self.ultrascale + self._ultrascale_ot_upper_threshold_reg,
-            **kwargs)
+        return self._get_by_name('carrier.fpga.overtemp_threshold', **kwargs)
 
     ### End Ultrascale OT protection
 
@@ -9636,8 +9528,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Which input source (0-3).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -9653,8 +9545,8 @@ class SmurfCommandMixin(SmurfBase):
         index : int
             Which output (0-3).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -9679,8 +9571,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -9688,8 +9580,6 @@ class SmurfCommandMixin(SmurfBase):
             1 if link is up, 0 if link is down.
         """
         return self._get_by_name('timing.rx_link_up', **kwargs)
-
-    _timing_crc_err_cnt = "CrcErrCount"
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_timing_crc_err_cnt(self, **kwargs):
@@ -9736,8 +9626,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -9762,11 +9652,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self.timing_status + self._timing_crc_err_cnt,
-            **kwargs)
-
-    _timing_rx_dec_err_cnt = "RxDecErrCount"
+        return self._get_by_name('timing.crc_error_count', **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_timing_rx_dec_err_cnt(self, **kwargs):
@@ -9808,8 +9694,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -9835,11 +9721,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self.timing_status + self._timing_rx_dec_err_cnt,
-            **kwargs)
-
-    _timing_rx_dsp_err_cnt = "RxDspErrCount"
+        return self._get_by_name('timing.rx_decode_error_count', **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_timing_rx_dsp_err_cnt(self, **kwargs):
@@ -9886,8 +9768,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -9913,11 +9795,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self.timing_status + self._timing_rx_dsp_err_cnt,
-            **kwargs)
-
-    _timing_rx_rst_cnt = "RxRstCount"
+        return self._get_by_name('timing.rx_dsp_error_count', **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_timing_rx_rst_cnt(self, **kwargs):
@@ -9953,8 +9831,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -9979,9 +9857,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self.timing_status + self._timing_rx_rst_cnt,
-            **kwargs)
+        return self._get_by_name('timing.rx_reset_count', **kwargs)
 
     def set_lmk_enable(self, bay, val, **kwargs):
         r"""
@@ -10042,8 +9918,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Value to write.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -10068,8 +9944,8 @@ class SmurfCommandMixin(SmurfBase):
         reg : int
             Register address (e.g. 0x147).
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -10105,8 +9981,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caput(self._mcetransmit_debug_reg, val, **kwargs)
 
-    _frame_count_reg = 'FrameCnt'
-
     def get_frame_count(self, **kwargs):
         """
         Gets the frame count going into the SmurfProcessor. This
@@ -10121,9 +9995,8 @@ class SmurfCommandMixin(SmurfBase):
         return int(self._get_by_name(
             'stream.frame_count',
             as_string=True,
-            **kwargs))
-
-    _frame_size_reg = 'FrameSize'
+            **kwargs
+        ))
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_frame_size(self, **kwargs):
@@ -10141,9 +10014,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self.frame_rx_stats + self._frame_size_reg,
-            **kwargs)
+        return self._get_by_name('stream.frame_size', **kwargs)
 
     def get_frame_loss_cnt(self, **kwargs):
         r"""Gets the count of frames lost before reaching the SmurfProcessor.
@@ -10156,8 +10027,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -10169,8 +10040,6 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_frame_out_order_count` : Frames received out of order.
         """
         return self._get_by_name('stream.frame_loss_count', **kwargs)
-
-    _frame_out_order_count_reg = 'FrameOutOrderCnt'
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_frame_out_order_count(self, **kwargs):
@@ -10184,8 +10053,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -10198,9 +10067,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self.frame_rx_stats + self._frame_out_order_count_reg,
-            **kwargs)
+        return self._get_by_name('stream.frame_out_of_order_count', **kwargs)
 
     def set_channel_mask(self, mask, **kwargs):
         """
@@ -10240,8 +10107,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -10259,8 +10126,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -10551,8 +10418,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name('stream.filter.disable', **kwargs)
 
-    _max_file_size_reg = 'FileWriter.MaxFileSize'
-
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_max_file_size(self, size, **kwargs):
         """Set maximum file size for streamed data.
@@ -10582,9 +10447,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         assert (isinstance(size,int)),f'size={size} should be type int, doing nothing'
         assert (size>=0),f'size={size} must be greater than zero, doing nothing'
-        self._caput(
-            self.smurf_processor + self._max_file_size_reg,
-            str(size), **kwargs)
+        self._set_by_name('stream.data_file.max_size', str(size), **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_max_file_size(self, **kwargs):
@@ -10613,9 +10476,11 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return int(self._caget(
-            self.smurf_processor + self._max_file_size_reg,
-            as_string=True, **kwargs))
+        return int(self._get_by_name(
+            'stream.data_file.max_size',
+            as_string=True,
+            **kwargs
+        ))
 
     def set_data_file_name(self, name, **kwargs):
         """
@@ -10645,8 +10510,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -10660,16 +10525,14 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
         :func:`open_data_file` : Open the file.
         """
         self._set_by_name('stream.data_file.close', 1, **kwargs)
-
-    _num_channels_reg = "NumChannels"
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_smurf_processor_num_channels(self, **kwargs):
@@ -10686,9 +10549,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(
-            self.channel_mapper + self._num_channels_reg,
-            **kwargs)
+        return self._get_by_name('stream.channel_count', **kwargs)
 
     def set_payload_size(self, payload_size, **kwargs):
         """
@@ -10739,8 +10600,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to enable, 0 to disable.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -10752,7 +10613,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._caput(self._predata_emulator + 'enable', val, **kwargs)
+        self._set_by_name('stream.pre_emulator.enable', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_predata_emulator_enable(self, **kwargs):
@@ -10761,8 +10622,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -10779,9 +10640,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(self._predata_emulator + 'enable', **kwargs)
-
-    _predata_emulator_disable = "Disable"
+        return self._get_by_name('stream.pre_emulator.enable', **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_predata_emulator_disable(self, val, **kwargs):
@@ -10798,8 +10657,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._caput(self._predata_emulator + self._predata_emulator_disable,
-            val, **kwargs)
+        self._set_by_name('stream.pre_emulator.disable', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_predata_emulator_disable(self, **kwargs):
@@ -10816,10 +10674,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(self._predata_emulator + self._predata_emulator_disable,
-            **kwargs)
-
-    _predata_emulator_type = "Type"
+        return self._get_by_name('stream.pre_emulator.disable', **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_predata_emulator_type(self, val, **kwargs):
@@ -10838,8 +10693,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._caput(self._predata_emulator + self._predata_emulator_type, val,
-            **kwargs)
+        self._set_by_name('stream.pre_emulator.type', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_predata_emulator_type(self, **kwargs):
@@ -10858,10 +10712,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(self._predata_emulator + self._predata_emulator_type,
-            **kwargs)
-
-    _predata_emulator_amplitude = "Amplitude"
+        return self._get_by_name('stream.pre_emulator.type', **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_predata_emulator_amplitude(self, val, **kwargs):
@@ -10875,8 +10726,8 @@ class SmurfCommandMixin(SmurfBase):
         val : float
             Signal amplitude.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -10889,8 +10740,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._caput(self._predata_emulator + self._predata_emulator_amplitude,
-            val, **kwargs)
+        self._set_by_name('stream.pre_emulator.amplitude', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_predata_emulator_amplitude(self, **kwargs):
@@ -10899,8 +10749,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -10917,10 +10767,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(self._predata_emulator +
-            self._predata_emulator_amplitude, **kwargs)
-
-    _predata_emulator_offset = "Offset"
+        return self._get_by_name('stream.pre_emulator.amplitude', **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_predata_emulator_offset(self, val, **kwargs):
@@ -10931,8 +10778,8 @@ class SmurfCommandMixin(SmurfBase):
         val : float
             Signal DC offset.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -10944,8 +10791,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._caput(self._predata_emulator + self._predata_emulator_offset, val,
-            **kwargs)
+        self._set_by_name('stream.pre_emulator.offset', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_predata_emulator_offset(self, **kwargs):
@@ -10954,8 +10800,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -10972,10 +10818,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(self._predata_emulator +
-            self._predata_emulator_offset, **kwargs)
-
-    _predata_emulator_period = "Period"
+        return self._get_by_name('stream.pre_emulator.offset', **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_predata_emulator_period(self, val, **kwargs):
@@ -10998,8 +10841,7 @@ class SmurfCommandMixin(SmurfBase):
         # Cast as str
         if not isinstance(val, str):
             val = str(val)
-        self._caput(self._predata_emulator + self._predata_emulator_period, val,
-            **kwargs)
+        self._set_by_name('stream.pre_emulator.period', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_predata_emulator_period(self, **kwargs):
@@ -11020,8 +10862,11 @@ class SmurfCommandMixin(SmurfBase):
            notebook.
         """
         # Get as string and then cast as int
-        return int(self._caget(self._predata_emulator +
-            self._predata_emulator_period, as_string=True, **kwargs))
+        return int(self._get_by_name(
+            'stream.pre_emulator.period',
+            as_string=True,
+            **kwargs
+        ))
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_postdata_emulator_enable(self, val, **kwargs):
@@ -11032,8 +10877,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             1 to enable, 0 to disable.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -11046,7 +10891,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._caput(self._postdata_emulator + 'enable', val, **kwargs)
+        self._set_by_name('stream.post_emulator.enable', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_postdata_emulator_enable(self, **kwargs):
@@ -11055,8 +10900,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -11073,9 +10918,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(self._postdata_emulator + 'enable', **kwargs)
-
-    _postdata_emulator_type = "Type"
+        return self._get_by_name('stream.post_emulator.enable', **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_postdata_emulator_type(self, val, **kwargs):
@@ -11094,8 +10937,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._caput(self._postdata_emulator + self._postdata_emulator_type, val,
-            **kwargs)
+        self._set_by_name('stream.post_emulator.type', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_postdata_emulator_type(self, **kwargs):
@@ -11114,10 +10956,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(self._postdata_emulator +
-            self._postdata_emulator_type, **kwargs)
-
-    _postdata_emulator_amplitude = "Amplitude"
+        return self._get_by_name('stream.post_emulator.type', **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_postdata_emulator_amplitude(self, val, **kwargs):
@@ -11131,8 +10970,8 @@ class SmurfCommandMixin(SmurfBase):
         val : float
             Signal amplitude.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -11145,8 +10984,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._caput(self._postdata_emulator + self._postdata_emulator_amplitude,
-            val, **kwargs)
+        self._set_by_name('stream.post_emulator.amplitude', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_postdata_emulator_amplitude(self, **kwargs):
@@ -11155,8 +10993,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -11173,10 +11011,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(self._postdata_emulator +
-            self._postdata_emulator_amplitude, **kwargs)
-
-    _postdata_emulator_offset = "Offset"
+        return self._get_by_name('stream.post_emulator.amplitude', **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_postdata_emulator_offset(self, val, **kwargs):
@@ -11187,8 +11022,8 @@ class SmurfCommandMixin(SmurfBase):
         val : float
             Signal DC offset.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -11200,8 +11035,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._caput(self._postdata_emulator + self._postdata_emulator_offset,
-            val, **kwargs)
+        self._set_by_name('stream.post_emulator.offset', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_postdata_emulator_offset(self, **kwargs):
@@ -11210,8 +11044,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -11228,10 +11062,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(self._postdata_emulator +
-            self._postdata_emulator_offset, **kwargs)
-
-    _postdata_emulator_period = "Period"
+        return self._get_by_name('stream.post_emulator.offset', **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_postdata_emulator_period(self, val, **kwargs):
@@ -11253,8 +11084,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         if not isinstance(val, str):
             val = str(val)
-        self._caput(self._postdata_emulator + self._postdata_emulator_period,
-            val, **kwargs)
+        self._set_by_name('stream.post_emulator.period', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_postdata_emulator_period(self, **kwargs):
@@ -11272,8 +11102,11 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return int(self._caget(self._postdata_emulator +
-            self._postdata_emulator_period, as_string=True, **kwargs))
+        return int(self._get_by_name(
+            'stream.post_emulator.period',
+            as_string=True,
+            **kwargs
+        ))
 
     def set_stream_data_source_enable(self, val, **kwargs):
         r"""Enables or disables the StreamDataSource emulator.
@@ -11287,8 +11120,8 @@ class SmurfCommandMixin(SmurfBase):
         val : bool or int
             True/1 to enable, False/0 to disable.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -11304,8 +11137,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -11324,8 +11157,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name('stream.data_source_enable', **kwargs)
 
-    _stream_data_period = "Period"
-
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_stream_data_source_period(self, val, **kwargs):
         r"""Sets the StreamDataSource emulator frame period.
@@ -11337,8 +11168,8 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Period in microseconds.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caput` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
 
         See Also
         --------
@@ -11351,8 +11182,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._caput(self.stream_data_source + self._stream_data_period, val,
-            **kwargs)
+        self._set_by_name('stream.data_source_period', val, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_stream_data_source_period(self, **kwargs):
@@ -11361,8 +11191,8 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
 
         Returns
         -------
@@ -11379,8 +11209,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(self.stream_data_source + self._stream_data_period,
-            **kwargs)
+        return self._get_by_name('stream.data_source_period', **kwargs)
 
     def shell_command(self,cmd,**kwargs):
         r"""Runs command on shell and returns code, stdout, & stderr.
@@ -11500,8 +11329,6 @@ class SmurfCommandMixin(SmurfBase):
 
         return fru_info_dict
 
-    _readout_delay_reg = "readoutDelay"
-
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_readout_delay(self, **kwargs):
         """
@@ -11522,7 +11349,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(f"{self.app_core}{self._readout_delay_reg}", **kwargs)
+        return self._get_by_name('readout_delay', **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_readout_delay(self, delay, **kwargs):
@@ -11544,9 +11371,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caput(f"{self.app_core}{self._readout_delay_reg}", delay, **kwargs)
-
-    _debug_timing_override_reg = "DebugTimingOverrideBay{}Ch{}"
+        return self._set_by_name('readout_delay', delay, **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_debug_timing_override(self, bay, ch, **kwargs):
@@ -11575,7 +11400,10 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(self.app_core + self._debug_timing_override_reg.format(bay, ch), **kwargs)
+        return self._get_by_name(
+            f'debug.timing_override.bay[{bay}].timing_channel[{ch}]',
+            **kwargs
+        )
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_debug_timing_override(self, bay, ch, val, **kwargs):
@@ -11606,9 +11434,11 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caput(self.app_core + self._debug_timing_override_reg.format(bay, ch), val, **kwargs)
-
-    _counter_select_reg = "counterSelect"
+        return self._set_by_name(
+            f'debug.timing_override.bay[{bay}].timing_channel[{ch}]',
+            val,
+            **kwargs
+        )
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_counter_select(self, band, **kwargs):
@@ -11651,7 +11481,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caget(self.band_root.format(band) + self._counter_select_reg, **kwargs)
+        return self._get_by_name(f'band[{band}].counter_select', **kwargs)
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def set_counter_select(self, band, val, **kwargs):
@@ -11696,4 +11526,4 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        return self._caput(self.band_root.format(band) + self._counter_select_reg, val, **kwargs)
+        return self._set_by_name(f'band[{band}].counter_select', val, **kwargs)
