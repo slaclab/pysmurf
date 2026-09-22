@@ -7,10 +7,24 @@ Prerequisites: a running rogue server, a config file (see
 Connect
 -------
 
+The pysmurf server (a rogue tree) exposes a ZMQ server on a port
+determined by the ATCA crate slot number:
+
+.. math::
+
+   \text{port} = 9000 + 3 \times \text{slot}
+
+where slot is 2--7. For example, a carrier in slot 4 serves on port
+9012.
+
 .. code-block:: python
 
    import pysmurf
-   S = pysmurf.SmurfControl(cfg_file='/path/to/config.cfg', make_logfile=True)
+   S = pysmurf.SmurfControl(
+       cfg_file='/path/to/config.cfg',
+       make_logfile=True,
+       server_port=9012,  # slot 4: 9000 + 3*4
+   )
 
 Setup
 -----
