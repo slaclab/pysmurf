@@ -240,6 +240,28 @@ def load_client_names():
             'line': node.lineno,
         })
 
+    # A few accessors choose their name from a table instead of writing it at the call
+    # site, because the caller passes a register number rather than naming the register:
+    # the LMK's clock-input pair is reached as get/set_lmk_reg(bay, 0x146). Reading the
+    # table gets those names checked like any other. Without this they would be reached
+    # by the client and resolved by nothing -- exactly the gap this file exists to close,
+    # hidden by the indirection rather than by a missing map entry.
+    for node in ast.walk(cls):
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(isinstance(t, ast.Name) and t.id.endswith('_NAMES')
+                   for t in node.targets):
+            continue
+        if not isinstance(node.value, ast.Dict):
+            continue
+        for value in node.value.values:
+            if isinstance(value, ast.Constant) and isinstance(value.value, str):
+                found.append({
+                    'name': re.sub(r'\[\d+\]', '[*]', value.value),
+                    'direction': 'get',      # such a table serves a getter and a setter
+                    'line': value.lineno,
+                })
+
     if len(found) < 150:
         raise AssertionError(
             f'only {len(found)} accessor call(s) found in {COMMAND.name}; the check has '

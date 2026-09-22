@@ -10039,8 +10039,51 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._get_by_name(f'bay[{bay}].clock.enable', **kwargs)
 
-    # assumes it's handed the decimal equivalent
-    _lmk_reg = "LmkReg_0x{:04X}"
+    # The two clock-input registers of the LMK these methods are used to reach, by the
+    # register number a caller passes. Only these two are ever asked for -- both call
+    # sites of set_lmk_reg configure a bay's timing reference, and the one loop over
+    # register numbers iterates over exactly this pair -- so the map names them rather
+    # than the client naming a register space it does not use.
+    _LMK_NAMES = {
+        0x146: 'bay[*].clock_input.enable',
+        0x147: 'bay[*].clock_input.select',
+    }
+
+    def _lmk_name(self, bay, reg):
+        """The name of an LMK register, by the number a caller passes.
+
+        The names are written out in ``_LMK_NAMES`` exactly as the platform map keys
+        them, rather than assembled here, so that a reader -- and the check that
+        resolves every name the client reaches -- sees the whole name.
+
+        Parameters
+        ----------
+        bay : int
+            AMC bay number.
+        reg : int
+            Register address, as the LMK datasheet numbers it.
+
+        Returns
+        -------
+        str
+            The name, with the bay index filled in.
+
+        Raises
+        ------
+        ValueError
+            If the register is not one of those reachable by name. Raising is the
+            point: the alternative is building a path from the number, which is how
+            the register map leaks back out of the platform layer.
+        """
+        try:
+            name = self._LMK_NAMES[int(reg)]
+        except KeyError:
+            known = ', '.join(f'0x{r:03X}' for r in sorted(self._LMK_NAMES))
+            raise ValueError(
+                f'LMK register 0x{int(reg):03X} is not reachable by name; '
+                f'only {known} are. Add it to the platform map if an operation '
+                f'needs it.') from None
+        return name.replace('[*]', f'[{int(bay)}]')
 
     def set_lmk_reg(self, bay, reg, val, **kwargs):
         r"""Sets a register on the LMK clock distribution chip.
@@ -10062,13 +10105,16 @@ class SmurfCommandMixin(SmurfBase):
             Arbitrary keyword arguments.  Passed on to the register
             write; see :func:`_caput` for the ones it accepts.
 
+        Raises
+        ------
+        ValueError
+            If `reg` is not one of the clock-input registers this reaches.
+
         See Also
         --------
         :func:`get_lmk_reg` : Read back a register.
         """
-        self._caput(
-            self.lmk.format(bay) + self._lmk_reg.format(reg),
-            val, **kwargs)
+        self._set_by_name(self._lmk_name(bay, reg), val, **kwargs)
 
     def get_lmk_reg(self, bay, reg, **kwargs):
         r"""Gets a register from the LMK clock distribution chip.
@@ -10093,13 +10139,16 @@ class SmurfCommandMixin(SmurfBase):
         int
             Register value.
 
+        Raises
+        ------
+        ValueError
+            If `reg` is not one of the clock-input registers this reaches.
+
         See Also
         --------
         :func:`set_lmk_reg` : Write a register.
         """
-        return self._caget(
-            self.lmk.format(bay) + self._lmk_reg.format(reg),
-            **kwargs)
+        return self._get_by_name(self._lmk_name(bay, reg), **kwargs)
 
     _mcetransmit_debug_reg = 'AMCc.mcetransmitDebug'
 

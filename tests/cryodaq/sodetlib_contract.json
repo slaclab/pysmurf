@@ -34,6 +34,7 @@
     "get_rtm_slow_dac_volt_array",
     "get_streamdatawriter_datafile",
     "get_tone_frequency_offset_mhz",
+    "rtm_spi_max_root",
     "run_serial_eta_scan",
     "run_serial_gradient_descent",
     "save_state",

@@ -62,10 +62,20 @@ _DAC = f'{_umux.MUX_CORE}.DAC[{{dac}}]'
 _DAC_TEMPERATURE = f'{_DAC}.Temperature'
 _DAC_JESD_RESET_N = f'{_DAC}.JesdRstN'
 _DAC_ENABLE = f'{_DAC}.enable'
-# The clock chip on the AMC, which the converters are timed from.
+# The clock chip on the AMC, which the converters are timed from: a TI LMK04828.
 _LMK = f'{_umux.MUX_CORE}.LMK'
 _LMK_ENABLE = f'{_LMK}.enable'
 _LMK_POWER_UP_SYS_REF = f'{_LMK}.PwrUpSysRef'
+# Which of the chip's clock inputs is used, and how. The firmware names these two by
+# their register number because that is how the datasheet addresses them; the fields
+# they carry are what makes them a pair. From the chip's register map, as the firmware
+# records it:
+#   0x0146  CLKin2_EN, CLKin1_EN, CLKin0_EN, CLKin2_TYPE, CLKin1_TYPE, CLKin0_TYPE
+#   0x0147  CLKin_SEL_POL, CLKin_SEL_MODE, CLKin1_OUT_MUX, CLKin0_OUT_MUX
+# So one says which input is on and what kind it is, the other how the input is selected
+# and routed. Together they are how a bay's timing reference is chosen.
+_LMK_CLOCK_INPUT_ENABLE = f'{_LMK}.LmkReg_0x0146'
+_LMK_CLOCK_INPUT_SELECT = f'{_LMK}.LmkReg_0x0147'
 # Select the external reference clock for this bay's converters.
 _SELECT_EXTERNAL_REFERENCE = f'{_umux.MUX_CORE}.SelExtRef'
 
@@ -103,6 +113,8 @@ REGISTERS.update({
     'bay[*].clock.enable': (_LMK_ENABLE, _V),
     'bay[*].clock.power_up_sys_ref': (_LMK_POWER_UP_SYS_REF, _C),
     'bay[*].clock.select_external_reference': (_SELECT_EXTERNAL_REFERENCE, _C),
+    'bay[*].clock_input.enable': (_LMK_CLOCK_INPUT_ENABLE, _V),
+    'bay[*].clock_input.select': (_LMK_CLOCK_INPUT_SELECT, _V),
     # the serial links back from it
     'bay[*].jesd.rx_data_valid': (_JESD_RX_DATA_VALID, _V),
     'bay[*].jesd.tx_data_valid': (_JESD_TX_DATA_VALID, _V),

@@ -130,29 +130,22 @@ class SmurfBase:
         if self.offline is True:
             self.log('Offline mode')
 
-        # Setting paths for easier commands - Is there a better way to
-        # do this than just hardcoding paths? This needs to be cleaned
-        # up somehow
+        # Register paths are resolved from semantic names through cryodaq.platform.
+        # What is left here is the two prefixes another repository still builds paths
+        # from, and the chain that reaches them:
+        #
+        #   cryo_root         sodetlib reads etaScanInProgress under it, via _cryo_root
+        #   rtm_spi_max_root  sodetlib addresses the TES bias DACs under it
+        #
+        # Both go when those call sites move to public operations, and nothing else
+        # depends on them.
+        _app_core = 'AMCc.FpgaTopLevel.AppTop.AppCore.'
 
-        self.amcc = 'AMCc.'
-
-        self.fpga_top_level = self.amcc + 'FpgaTopLevel.'
-        self.app_top = self.fpga_top_level + 'AppTop.'
-        self.app_core = self.app_top + 'AppCore.'
-
-        # AppCore
-        self.microwave_mux_core = self.app_core + 'MicrowaveMuxCore[{}].'
-        self.sysgencryo = self.app_core + 'SysgenCryo.'
-        # LMK
-        self.lmk = self.microwave_mux_core + 'LMK.'
-
-        # SysgenCryo
+        self.sysgencryo = _app_core + 'SysgenCryo.'
         self.band_root = self.sysgencryo + 'Base[{}].'
         self.cryo_root = self.band_root + 'CryoChannels.'
-        self.channel_root = self.cryo_root + 'CryoChannel[{}].'
 
-        # RTM
-        self.rtm_cryo_det_root = self.app_core + 'RtmCryoDet.'
+        self.rtm_cryo_det_root = _app_core + 'RtmCryoDet.'
         self.rtm_spi_max_root = self.rtm_cryo_det_root + 'RtmSpiMax.'
         if offline:
             self.log('Offline mode, skipping CryoCard initialization')
@@ -272,19 +265,3 @@ class SmurfBase:
             the input band.
         '''
         return self.cryo_root.format(int(band))
-
-    def _channel_root(self, band, channel):
-        """
-        Helper function that returns the epics path to channel root.
-
-        Args
-        ----
-        band (int) : The band to access
-        channel (int) : The channel to access.
-
-        Returns
-        -------
-        path (string) : The string to be passed to caget/caput to access
-            the input band.
-        """
-        return self.channel_root.format(int(band), int(channel))
