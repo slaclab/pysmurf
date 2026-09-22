@@ -2235,7 +2235,7 @@ class SmurfTuneMixin(SmurfBase):
 
     @set_action()
     def eta_scan(self, band, subband, freq, tone_power, write_log=False,
-                 sync_group=True):
+                 sync_group=True, timeout=30.0):
         """Slow eta scan on one subband.
 
         Runs a slow eta scan on one channel.  Uses the first channel
@@ -2276,6 +2276,9 @@ class SmurfTuneMixin(SmurfBase):
             reading its results. False returns whatever the result registers
             hold at the time, which is the previous scan's values if this one
             has not finished.
+        timeout : float, optional, default 30.0
+            Seconds to wait for the scan to finish when `sync_group` is
+            True, before raising `TimeoutError`.
 
         Returns
         -------
@@ -2310,8 +2313,10 @@ class SmurfTuneMixin(SmurfBase):
             # before reading its results. Waiting on the in-progress flag is
             # sound rather than merely convenient: the server writes both result
             # arrays inside an update group and clears the flag outside it, so
-            # the flag falls strictly after the arrays are published.
-            self._wait_for(f'band[{band}].ops.in_progress', lambda x: x == 0)
+            # the flag falls strictly after the arrays are published. The timeout
+            # is explicit because a bare `_wait_for` waits forever.
+            self._wait_for(f'band[{band}].ops.in_progress', lambda x: x == 0,
+                           timeout=timeout)
 
         rr = self.get_eta_scan_results_real(band, len(freq))
         ii = self.get_eta_scan_results_imag(band, len(freq))

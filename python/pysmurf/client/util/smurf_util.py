@@ -1670,7 +1670,7 @@ class SmurfUtilMixin(SmurfBase):
 
     @set_action()
     def read_stream_data_daq(self, data_length, bay=0, hw_trigger=False,
-            write_log=False):
+            write_log=False, timeout=30.0):
         """
         Reads the stream data from the DAQ.
 
@@ -1685,6 +1685,14 @@ class SmurfUtilMixin(SmurfBase):
             hardware trigger.
         write_log : bool, optional, default False
             Whether to write outputs to log.
+        timeout : float, optional, default 30.0
+            Seconds to wait for each capture buffer to report data
+            before raising `TimeoutError`.
+
+        Raises
+        ------
+        TimeoutError
+            If a capture buffer does not report data within `timeout`.
         """
         # Two capture buffers per bay, numbered consecutively across bays.
         captures = (2 * bay, 2 * bay + 1)
@@ -1702,8 +1710,12 @@ class SmurfUtilMixin(SmurfBase):
         else:
             self.set_arm_hw_trigger(bay, 1, write_log=write_log)
 
+        # A bounded wait. The timeout is passed explicitly because `_wait_for`
+        # turns None into 0, and 0 means "no timeout" to `VariableWait` -- so
+        # omitting it waits for a flag that may never rise, with no way out.
         for capture in captures:
-            self._wait_for(f'stream.capture[{capture}].updated', bool)
+            self._wait_for(f'stream.capture[{capture}].updated', bool,
+                           timeout=timeout)
 
         return tuple(self._get_by_name(f'stream.capture[{capture}].data')
                      for capture in captures)
