@@ -50,6 +50,10 @@ Install
          # By direct IP:
          docker run ghcr.io/slaclab/pysmurf-server-base:<TAG> -a <FPGA_IP>
 
+      The server exposes a ZMQ interface on port ``9000 + 3 * slot``
+      (e.g. slot 4 → port 9012). Pass the matching ``server_port``
+      when creating a ``SmurfControl`` client.
+
       .. note::
 
          Older releases may still be available on DockerHub under
