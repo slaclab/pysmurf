@@ -46,8 +46,9 @@ class SmurfBase:
     server_addr: str or None
         The server address
     server_port: int, optional, default 9000
-        The ZMQ server port to connect to.  The rogue server uses
-        ``9000 + 3 * slot``.
+        The ZMQ server port to connect to. Hardware rogue servers use
+        ``9000 + 3 * slot``; emulator servers use port 9000. Pass the
+        matching hardware port explicitly.
     offline : bool, optional, default False
         Whether to run in offline mode (no rogue) or not. This
         will break many things. Default is False.
