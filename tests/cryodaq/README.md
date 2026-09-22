@@ -137,9 +137,26 @@ regeneration tool records their provenance and refuses to write a pair that reso
 the full dumps — a pruned fixture that changed an answer would be a smaller tree that happens to
 pass.
 
-What this cannot show is that the names match a firmware package that is not committed here. The
-pruned dumps are the fallback that keeps the check meaningful on a fork's pull request; checking every
-released package belongs in a job that can download them.
+The pruned dumps are the fallback that keeps the check meaningful on a fork's pull request, where no
+token is available. Checking a *released* package is a second mode, `--package-dump`, run by the
+`test-server` job: it downloads the release asset, builds a tree from it with
+`dump_released_tree.py` (which needs rogue, hence that job rather than this one), and resolves the map
+against it. Currently **v2.5.1**, the version deployed on the reference crate; all **180** names under
+the firmware's own tree resolve against it.
+
+The two modes ask different questions and the difference matters. A dump built from a package has no
+**server-added subtrees** — `SmurfProcessor`, the two stream writers, `SmurfApplication`, the capture
+receivers, `setDefaults` and `Ready` are all attached by `pysmurf.core.roots.Common` at start-up, so a
+package has never heard of them. `--package-dump` therefore excludes those names and requires every
+name under `AMCc.FpgaTopLevel` to resolve. Without that distinction the released-package run reports
+about 54 false absences and a real one would be lost among them. `SERVER_ADDED_SUBTREES` names them,
+and a selftest case asserts the exclusion covers exactly those subtrees and nothing under
+`FpgaTopLevel` — a rule that grew to cover the firmware tree would excuse the absences it exists to
+find.
+
+What neither mode shows is that the names match every release, rather than the one checked. The map
+claims a firmware *family* (`TAGS = ('MicrowaveMuxBpEthGen2',)`) and not a version range, so
+"supported" is not yet a checkable statement; recording a range is the prerequisite for widening this.
 
 ### check_sodetlib_contract.py
 

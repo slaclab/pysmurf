@@ -69,6 +69,32 @@ COMMAND = (REPO / 'python' / 'pysmurf' / 'client' / 'command' / 'smurf_command.p
 # Which platform map each committed dump belongs to.
 PLATFORM_OF = {'atca': 'umux-atca', 'rfsoc': 'umux-rfsoc'}
 
+# The subtrees the *server* adds on top of the firmware package, by their top-level node
+# name under the root. `pysmurf.core.roots.Common` adds each one explicitly -- the
+# application status device, the two file writers, the data processor, the capture
+# receivers, the configuration procedure and the readiness flag -- so a dump of a
+# firmware package alone has none of them, and their absence from one says nothing about
+# the firmware.
+#
+# This exists because a dump answers a narrower question than "does this register exist",
+# and which question depends on where the dump came from. A dump taken from a *running
+# server* has these; a dump built from a released ZIP does not. Without the distinction,
+# checking the map against a released package reports ~54 false absences and the real
+# ones are lost in them.
+SERVER_ADDED_SUBTREES = (
+    'SmurfApplication',      # Common.py: pysmurf.core.devices.SmurfApplication()
+    'SmurfProcessor',        # the data processing chain
+    'streamDataWriter',      # pyrogue.utilities.fileio.StreamWriter
+    'streamingInterface',    # the second StreamWriter
+    'StreamDataSource',      # EmulationRoot's generator; absent from a deployed root too
+    'setDefaults',           # pyrogue.Process wrapping the configuration sequence
+    'Ready',                 # LocalVariable set once start-up finishes
+)
+
+# The capture receivers are added in a loop as Stream0..3, so they are matched by prefix
+# rather than named: a map entry reaches them as `Stream{capture}`.
+SERVER_ADDED_PREFIXES = ('Stream',)
+
 # The device trees only a platform with a separate converter board has: the RF front
 # end and the serial links back from it. Used to check that the *dumps* differ the way
 # the maps say they do -- which names are absent is derived from the maps themselves
@@ -117,12 +143,22 @@ SCOPE = re.compile(r'\{(\w+)\}')
 
 
 def load_dump(stem):
-    """The set of node paths in a committed tree dump."""
-    path = FIXTURES / f'{stem}.varlist.txt.gz'
+    """The set of node paths in a tree dump.
+
+    A bare stem names a committed fixture; a path with a separator is read as given, so a
+    dump built from a released firmware ZIP can be checked without committing 9 MB of it.
+    Plain text and gzip are both accepted, since the fixtures are compressed and a fresh
+    dump is not.
+    """
+    if os.sep in str(stem) or str(stem).endswith(('.txt', '.gz')):
+        path = pathlib.Path(stem)
+    else:
+        path = FIXTURES / f'{stem}.varlist.txt.gz'
     if not path.exists():
         raise FileNotFoundError(f'no dump at {path}')
-    with gzip.open(path, 'rt', encoding='utf-8') as fh:
-        paths = {line.split('\t', 1)[0] for line in fh if line.strip()}
+    opener = gzip.open if path.suffix == '.gz' else open
+    with opener(path, 'rt', encoding='utf-8', errors='replace') as fh:
+        paths = {line.split('\t', 1)[0].strip() for line in fh if line.strip()}
     paths.discard('Path')                       # the header row
     if not paths:
         raise AssertionError(f'{path} holds no paths')
@@ -276,7 +312,26 @@ def expand(paths, template):
     return out
 
 
-def resolution(stem, names=None):
+def reaches_a_server_added_subtree(template):
+    """Is this template's node one the server adds rather than the firmware declaring it?
+
+    Decided on the template's first segment under the root, which is where a subtree
+    added to the root appears. Used only when resolving against a *package* dump: a dump
+    from a running server has these nodes, so excluding them there would weaken the check
+    for no reason.
+    """
+    parts = template.split('.')
+    if len(parts) < 2:
+        return False
+    head = parts[1]
+    if head in SERVER_ADDED_SUBTREES:
+        return True
+    bare = head.split('[')[0].split('{')[0]
+    return bare in SERVER_ADDED_SUBTREES or any(
+        bare.startswith(p) for p in SERVER_ADDED_PREFIXES)
+
+
+def resolution(stem, names=None, package_only=False, platform_name=None):
     """Which names resolve in one dump, and which do not.
 
     Resolution goes through the platform map, which is what a client does, so a name
@@ -288,13 +343,21 @@ def resolution(stem, names=None):
     Some names are deliberately excluded: the operation nodes the server attaches at
     start-up, and its own procedure. A dump records what a firmware package defines,
     so those are absent from it by construction rather than by omission.
+
+    `package_only` says the dump came from a released firmware ZIP rather than from a
+    running server, so the whole server-added half of the tree is absent too and is
+    excluded on the same grounds. The committed fixtures are *not* package-only -- they
+    are built with the server's own root -- so the default is the stricter reading.
     """
     paths = load_dump(stem)
-    pmap = platform.by_name(PLATFORM_OF[stem])
+    pmap = platform.by_name(platform_name or PLATFORM_OF[stem])
     wanted = sorted(pmap.registers if names is None else names)
     resolved, absent = {}, {}
     for name in wanted:
         if name in SERVER_ATTACHED:
+            continue
+        if package_only and name in pmap \
+                and reaches_a_server_added_subtree(template_of(pmap, name)):
             continue
         if name not in pmap:
             absent[name] = 'not in this platform map'
@@ -613,6 +676,29 @@ def selftest():
             platform.MAPS = (fake, fake_bayless)
             write('atca', good_atca)
 
+            # The package-dump exclusion must be narrow: it may drop a name because the
+            # *server* owns its subtree, and must not drop one under the firmware's own
+            # tree. Asserted directly on the classifier, because a too-broad rule here
+            # would silently excuse a real absence when checking a released ZIP.
+            before_classifier = failures
+            for tmpl in (base + 'SysgenCryo.Base[0].bandDelayUs',
+                         'AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.FpgaVersion',
+                         'AMCc.ReadAll', 'AMCc.enable', 'AMCc.RogueVersion'):
+                if reaches_a_server_added_subtree(tmpl):
+                    failures += 1
+                    print(f'  FAIL  {tmpl} wrongly classed as server-added')
+            for tmpl in ('AMCc.SmurfProcessor.Filter.Disable',
+                         'AMCc.SmurfApplication.SmurfVersion',
+                         'AMCc.Stream{capture}.Updated',
+                         'AMCc.streamDataWriter.Open', 'AMCc.setDefaults.Start',
+                         'AMCc.Ready'):
+                if not reaches_a_server_added_subtree(tmpl):
+                    failures += 1
+                    print(f'  FAIL  {tmpl} not recognised as server-added')
+            if failures == before_classifier:
+                print('  ok    the package-dump exclusion covers the server subtrees '
+                      'and nothing under FpgaTopLevel')
+
             # The same tree under two names must fail.
             write('rfsoc', good_atca)
             expect_failure('the same tree under two names is caught',
@@ -685,10 +771,34 @@ def main():
     ap = argparse.ArgumentParser(description='Resolve every name against tree dumps.')
     ap.add_argument('--selftest', action='store_true',
                     help='drive each check with a wrong input and require a complaint')
+    ap.add_argument('--package-dump', metavar='VARLIST',
+                    help='resolve against a dump built from a released firmware ZIP '
+                         'rather than the committed fixtures. Such a dump has no '
+                         'server-added subtrees, so those names are excluded; every '
+                         'name under the firmware tree still has to resolve.')
+    ap.add_argument('--platform', default='umux-atca',
+                    help='which map to resolve with --package-dump')
     args = ap.parse_args()
 
     if args.selftest:
         return selftest()
+
+    if args.package_dump:
+        resolved, absent = resolution(args.package_dump, package_only=True,
+                                      platform_name=args.platform)
+        print(f'Resolving the {args.platform} map against a released firmware package')
+        print(f'  dump     : {args.package_dump}')
+        print(f'  resolved : {len(resolved)}')
+        print(f'  absent   : {len(absent)}')
+        for name, why in sorted(absent.items()):
+            print(f'    {name:46s} {why}')
+        if absent:
+            print(f'\nFAILED: {len(absent)} name(s) the map offers are not in this '
+                  f'released package.')
+            return 1
+        print(f'\nAll {len(resolved)} firmware-tree name(s) resolve against this '
+              f'released package.')
+        return 0
 
     checks = sorted((name[len('check_'):], fn)
                     for name, fn in globals().items()

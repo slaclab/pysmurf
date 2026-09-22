@@ -190,6 +190,45 @@ jobs:
           docker container exec server \
             /bin/bash -c "/usr/local/src/pysmurf/tests/core/validate_cryo_operations.py"
 
+      # - Resolve the register names against a RELEASED firmware package, not the
+      #   committed fixtures. The fixtures are pruned dumps built from this
+      #   repository's own cryo-det, so they answer "do the names match the tree we
+      #   build?"; this answers "do they match the tree SLAC shipped?", which is the
+      #   question a deployment cares about. Runs here rather than in test-client
+      #   because building a tree needs rogue, which only this container has.
+      #
+      #   A package dump has no server-added subtrees -- SmurfProcessor, the stream
+      #   writers, SmurfApplication and the rest are added by the server at start-up --
+      #   so --package-dump excludes those names and requires every name under the
+      #   firmware's own tree to resolve.
+      - name: Resolve the names against a released firmware package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag=MicrowaveMuxBpEthGen2_v2.5.1
+          zip=rogue_${tag}.zip
+          id=$(curl --fail --silent --location \
+                 --header "Authorization: token ${GITHUB_TOKEN}" \
+                 "https://api.github.com/repos/slaclab/cryo-det/releases/tags/${tag}" \
+               | python3 -c "import json,sys;
+          print(next(a['id'] for a in json.load(sys.stdin)['assets']
+                     if a['name'] == '${zip}'))")
+          curl --fail --silent --location \
+               --header "Authorization: token ${GITHUB_TOKEN}" \
+               --header "Accept: application/octet-stream" \
+               --output "${zip}" \
+               "https://api.github.com/repos/slaclab/cryo-det/releases/assets/${id}"
+          docker container cp "${zip}" server:/tmp/"${zip}"
+          docker container cp tests/cryodaq/dump_released_tree.py \
+            server:/tmp/dump_released_tree.py
+          docker container exec server /bin/bash -c \
+            "python3 /tmp/dump_released_tree.py --zip /tmp/${zip} \
+               --out /tmp/released.varlist.txt"
+          docker container cp server:/tmp/released.varlist.txt ./released.varlist.txt
+          python3 tests/cryodaq/check_catalog_resolves.py \
+            --package-dump ./released.varlist.txt
+
   # Client tests
   test-client:
     name: Client Tests
