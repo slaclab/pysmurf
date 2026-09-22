@@ -104,7 +104,7 @@ def process_args(args):
         # When using a real target (AMC carrier or dev board), set the server port to
         # (9000 + 3 * slot_number). Either the IP address or the RSSI lane number
         # must be defined, so calculate the slot number based on those two cases
-        if args.pcie_rssi_lane:
+        if args.pcie_rssi_lane is not None:
             # If the RSSI lane number was defined, get the slot number from it
             args.server_port = 9000 + 3 * ( args.pcie_rssi_lane + 2 )
         elif args.ip_addr:
@@ -217,7 +217,9 @@ def make_parser(parser=None):
                             "(defaults to '/dev/datadev_1')."
                        )
     group.add_argument('--server-port', dest='server_port', type=int, default=None,
-                       help="Set the server port. Defaults to 9000+2*slot_number"
+                       help="Set the server port. For hardware targets, "
+                            "defaults to 9000+3*slot_number; for the "
+                            "emulator, defaults to 9000."
                        )
     group.add_argument('--use-qt', action='store_true', dest='use_qt',
                        default=False, help="Use the QT ."
