@@ -130,23 +130,6 @@ class SmurfBase:
         if self.offline is True:
             self.log('Offline mode')
 
-        # Register paths are resolved from semantic names through cryodaq.platform.
-        # What is left here is the two prefixes another repository still builds paths
-        # from, and the chain that reaches them:
-        #
-        #   cryo_root         sodetlib reads etaScanInProgress under it, via _cryo_root
-        #   rtm_spi_max_root  sodetlib addresses the TES bias DACs under it
-        #
-        # Both go when those call sites move to public operations, and nothing else
-        # depends on them.
-        _app_core = 'AMCc.FpgaTopLevel.AppTop.AppCore.'
-
-        self.sysgencryo = _app_core + 'SysgenCryo.'
-        self.band_root = self.sysgencryo + 'Base[{}].'
-        self.cryo_root = self.band_root + 'CryoChannels.'
-
-        self.rtm_cryo_det_root = _app_core + 'RtmCryoDet.'
-        self.rtm_spi_max_root = self.rtm_cryo_det_root + 'RtmSpiMax.'
         if offline:
             self.log('Offline mode, skipping CryoCard initialization')
             self.C = _DummyClient("OFFLINE: CryoCard client")
@@ -235,33 +218,3 @@ class SmurfBase:
         log to STDOUT.
         """
         self.log.set_logfile(logfile)
-
-    def _band_root(self, band):
-        '''
-        Helper function that returns the epics path to a band.
-
-        Args
-        ----
-        band (int): The band to access
-
-        Returns
-        -------
-        path (string) : The string to be passed to caget/caput to access
-            the input band.
-        '''
-        return self.band_root.format(int(band))
-
-    def _cryo_root(self, band):
-        '''
-        Helper function that returns the epics path to cryoroot.
-
-        Args
-        ----
-        band (int): The band to access
-
-        Returns
-        -------
-        path (string) : The string to be passed to caget/caput to access
-            the input band.
-        '''
-        return self.cryo_root.format(int(band))

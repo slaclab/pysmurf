@@ -864,6 +864,33 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name(f'band[{band}].ops.in_progress', **kwargs)
 
+    def set_eta_scan_in_progress(self, band, val, **kwargs):
+        r"""Sets the eta scan / gradient descent in-progress flag.
+
+        The server's tuning processes raise this flag while they run and clear it
+        when they finish, so writing it is not how a scan is started or stopped.
+        What it is for is recovery: a process that died without clearing the flag
+        leaves the band looking permanently busy, and every later scan refuses to
+        start. Writing 0 releases it.
+
+        Args
+        ----
+        band : int
+            Which band.
+        val : int
+            0 to clear the flag. Setting it to 1 does not start a scan.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed on to the register
+            write; see :func:`_caput` for the ones it accepts.
+
+        See Also
+        --------
+        :func:`get_eta_scan_in_progress` : Read the flag.
+        :func:`run_serial_eta_scan` : Runs the serial eta scan.
+        :func:`run_serial_gradient_descent` : Runs the gradient descent.
+        """
+        self._set_by_name(f'band[{band}].ops.in_progress', val, **kwargs)
+
     def set_gradient_descent_max_iters(self, band, val, **kwargs):
         r"""Sets the maximum iterations for serial gradient descent.
 
@@ -7474,8 +7501,6 @@ class SmurfCommandMixin(SmurfBase):
             slow RTM DACs.
         """
         return self._get_by_name('rtm.slow_dac.enable_array', **kwargs)
-
-    _rtm_slow_dac_data_reg = 'TesBiasDacDataRegCh'
 
     def set_rtm_slow_dac_data(self, dac, val, **kwargs):
         """

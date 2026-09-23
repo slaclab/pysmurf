@@ -34,7 +34,6 @@
     "get_rtm_slow_dac_volt_array",
     "get_streamdatawriter_datafile",
     "get_tone_frequency_offset_mhz",
-    "rtm_spi_max_root",
     "run_serial_eta_scan",
     "run_serial_gradient_descent",
     "save_state",
@@ -83,17 +82,27 @@
     "_bias_line_resistance",
     "_caget",
     "_caput",
-    "_cryo_root",
     "_feedback_to_feedback_frac",
     "_high_low_current_ratio",
     "_n_bias_groups",
     "_pA_per_phi0",
     "_pic_to_bias_group",
     "_rtm_slow_dac_bit_to_volt",
-    "_rtm_slow_dac_data_reg",
     "_rtm_slow_dac_nbits"
   ],
   "not_ours": [
     "_sodetlib_cfg"
-  ]
+  ],
+  "deliberately_dropped": {
+    "_cryo_root": "A register-path builder. sodetlib used it at operations/uxm_relock.py:97 to reach etaScanInProgress; set_eta_scan_in_progress(band, 0) does that now, and get_eta_scan_in_progress already read it. Needs the matching sodetlib change.",
+    "_band_root": "A register-path builder with no caller in either repository; removed with _cryo_root, whose prefix chain it was part of.",
+    "_channel_root": "A register-path builder with no caller in either repository.",
+    "rtm_spi_max_root": "A register path prefix. sodetlib used it at util.py:676 to address the TES bias DACs; the public operation for that is set_current_mode, which sodetlib still has to grow. Needs the matching sodetlib change.",
+    "_rtm_slow_dac_data_reg": "The register leaf that went with rtm_spi_max_root, and unreachable without it.",
+    "sysgencryo": "A register path prefix, reached only through _cryo_root.",
+    "band_root": "A register path prefix, reached only through _band_root.",
+    "cryo_root": "A register path prefix, reached only through _cryo_root.",
+    "channel_root": "A register path prefix, reached only through _channel_root.",
+    "rtm_cryo_det_root": "A register path prefix, reached only through rtm_spi_max_root."
+  }
 }
