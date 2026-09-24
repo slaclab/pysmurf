@@ -110,6 +110,11 @@ class SmurfBase:
             self._client._monEnable = False
             # ensure that client socket is closed
             atexit.register(self._client.stop)
+            # Which platform this is comes from the firmware the tree reports, read
+            # once here so that a system no map claims is refused on connection
+            # rather than at the first register a method reaches. Every accessor
+            # resolves its names against this map from here on.
+            self._platform_map_cache = platform.identify(self._client.root)
             if atca_monitor:
                 self._atca = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._atca_port)
                 if self._atca.root is None:
@@ -121,6 +126,8 @@ class SmurfBase:
         else:
             self._client = _DummyClient("OFFLINE: Server client")
             self._atca = _DummyClient("OFFLINE: ATCA monitor client")
+            # Offline there is no firmware to ask, and no register is reached.
+            self._platform_map_cache = None
 
         # If <pub_root>BACKEND environment variable is not set to 'udp', all
         # publish calls will be no-ops.
@@ -140,7 +147,7 @@ class SmurfBase:
             # card's own protocol is all that CryoCard then knows. It is given this
             # client's tree rather than opening a second connection to the same
             # endpoint, which is what it used to do.
-            pmap = platform.identify(self._client.root)
+            pmap = self._platform_map_cache
             self.C = CryoCard(
                 self._client.root.getNode(pmap.path('rtm.cryocard.read')),
                 self._client.root.getNode(pmap.path('rtm.cryocard.write')),

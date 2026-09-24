@@ -237,21 +237,24 @@ def check_the_scopes_are_the_ones_this_tree_has():
     bays = SESSION.indices('bay')
     assert bays, 'neither platform has a tree without bays; the scope found none'
     if EXPECTED_FRONT_END[RFSOC]:
-        attenuated = [b for b in bays if SESSION.indices('uc', bay=b)]
+        attenuated = [b for b in bays if SESSION.indices('attenuator', bay=b)]
         assert attenuated, f"no bay of {list(bays)} carries attenuators"
-        assert SESSION.indices('dc', bay=attenuated[0]), 'up-converters but no down-converters'
+        # A path is a path in both directions, and the scope is proved by either -- so
+        # both names have to resolve on every path the scope found.
+        for att in SESSION.indices('attenuator', bay=attenuated[0]):
+            for direction in ('uc', 'dc'):
+                SESSION.pmap.path(f'bay[{attenuated[0]}].attenuator[{att}].{direction}')
     else:
         # No front end, so the scopes it provides are not declared at all -- asking for
         # one is a KeyError and that is the map's statement of what this platform has,
         # rather than a scope that exists and enumerates empty.
-        for scope in ('uc', 'dc'):
-            try:
-                SESSION.indices(scope, bay=bays[0])
-            except KeyError:
-                pass
-            else:
-                raise AssertionError(
-                    f'a platform with no RF front end declares the {scope!r} scope')
+        try:
+            SESSION.indices('attenuator', bay=bays[0])
+        except KeyError:
+            pass
+        else:
+            raise AssertionError(
+                "a platform with no RF front end declares the 'attenuator' scope")
         report = SESSION.validate()
         def front_end_name(name):
             return '.attenuator.' in name or '.jesd.' in name

@@ -60,6 +60,7 @@ sys.path.insert(0, os.path.join(
     'python'))
 
 from cryodaq import platform                                         # noqa: E402
+from cryodaq.platform import _umux                                   # noqa: E402
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent.parent
@@ -70,30 +71,15 @@ COMMAND = (REPO / 'python' / 'pysmurf' / 'client' / 'command' / 'smurf_command.p
 PLATFORM_OF = {'atca': 'umux-atca', 'rfsoc': 'umux-rfsoc'}
 
 # The subtrees the *server* adds on top of the firmware package, by their top-level node
-# name under the root. `pysmurf.core.roots.Common` adds each one explicitly -- the
-# application status device, the two file writers, the data processor, the capture
-# receivers, the configuration procedure and the readiness flag -- so a dump of a
-# firmware package alone has none of them, and their absence from one says nothing about
-# the firmware.
-#
-# This exists because a dump answers a narrower question than "does this register exist",
-# and which question depends on where the dump came from. A dump taken from a *running
-# server* has these; a dump built from a released ZIP does not. Without the distinction,
-# checking the map against a released package reports ~54 false absences and the real
-# ones are lost in them.
-SERVER_ADDED_SUBTREES = (
-    'SmurfApplication',      # Common.py: pysmurf.core.devices.SmurfApplication()
-    'SmurfProcessor',        # the data processing chain
-    'streamDataWriter',      # pyrogue.utilities.fileio.StreamWriter
-    'streamingInterface',    # the second StreamWriter
-    'StreamDataSource',      # EmulationRoot's generator; absent from a deployed root too
-    'setDefaults',           # pyrogue.Process wrapping the configuration sequence
-    'Ready',                 # LocalVariable set once start-up finishes
-)
-
-# The capture receivers are added in a loop as Stream0..3, so they are matched by prefix
-# rather than named: a map entry reaches them as `Stream{capture}`.
-SERVER_ADDED_PREFIXES = ('Stream',)
+# name under the root. The map declares them -- they are its own section, because the
+# layer that creates them owns them -- and this reads the list rather than keeping a
+# second one that could drift. A dump taken from a *running server* has these; a dump
+# built from a released ZIP does not. Without the distinction, checking the map against
+# a released package reports ~54 false absences and the real ones are lost in them.
+# The capture receivers are numbered (Stream0..3), so theirs is a prefix.
+SERVER_ADDED_SUBTREES = tuple(n for n in _umux.SERVER_ADDED_ROOT_NODES if '{' not in n)
+SERVER_ADDED_PREFIXES = tuple(n.split('{')[0]
+                              for n in _umux.SERVER_ADDED_ROOT_NODES if '{' in n)
 
 # The device trees only a platform with a separate converter board has: the RF front
 # end and the serial links back from it. Used to check that the *dumps* differ the way
@@ -597,13 +583,13 @@ def selftest():
         'band[*].delay_us': (base + 'SysgenCryo.Base[{band}].bandDelayUs', 'value'),
     }
     carrier_only = {
-        'bay[*].attenuator.uc[*]': (
-            base + 'MicrowaveMuxCore[{bay}].ATT.UC[{uc}]', 'value'),
+        'bay[*].attenuator[*].uc': (
+            base + 'MicrowaveMuxCore[{bay}].ATT.UC[{attenuator}]', 'value'),
     }
     scopes = {
         'band': ((base + 'SysgenCryo.Base[{band}].bandDelayUs',), ()),
-        'bay': ((base + 'MicrowaveMuxCore[{bay}].ATT.UC[{uc}]',), ()),
-        'uc': ((base + 'MicrowaveMuxCore[{bay}].ATT.UC[{uc}]',), ('bay',)),
+        'bay': ((base + 'MicrowaveMuxCore[{bay}].ATT.UC[{attenuator}]',), ()),
+        'attenuator': ((base + 'MicrowaveMuxCore[{bay}].ATT.UC[{attenuator}]',), ('bay',)),
     }
     fake = platform.PlatformMap(name='fake', tags=('Fake',),
                                registers=dict(shared, **carrier_only),
@@ -617,7 +603,7 @@ def selftest():
         """A module defining one class whose methods make the given accessor calls."""
         lines = ['class SmurfCommandMixin:']
         for i, (accessor, literal, extra) in enumerate(calls):
-            lines.append(f'    def m{i}(self, band=0, bay=0, uc=0, val=0):')
+            lines.append(f'    def m{i}(self, band=0, bay=0, att=0, val=0):')
             lines.append(f'        return self.{accessor}({literal}{extra})')
         # The reader refuses a file with too few accessors to be the real client, so it
         # is padded to that floor with calls to a name the fake map resolves.
@@ -646,7 +632,7 @@ def selftest():
             COMMAND = tree / 'smurf_command.py'
             write_client(client_source(
                 ('_get_by_name', "f'band[{band}].delay_us'", ''),
-                ('_set_by_name', "f'bay[{bay}].attenuator.uc[{uc}]'", ', val'),
+                ('_set_by_name', "f'bay[{bay}].attenuator[{att}].uc'", ', val'),
             ))
 
             good_atca = [base + f'SysgenCryo.Base[{b}].bandDelayUs' for b in range(8)]

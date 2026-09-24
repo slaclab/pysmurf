@@ -29,7 +29,6 @@ except ModuleNotFoundError:
     # there will be warnings elsewhere
     pass
 
-from cryodaq import platform
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.util import tools, dscounters
 
@@ -68,20 +67,16 @@ class SmurfCommandMixin(SmurfBase):
     def _platform_map(self):
         """The register map of the system this client is connected to.
 
-        Read from the firmware the first time it is asked for and kept, since a
+        Identified from the firmware when the client connected and kept, since a
         running system does not change which platform it is. Offline, where there
-        is no firmware to ask, the map cannot be identified and is not needed:
-        offline reads and writes do not reach a register.
+        is no firmware to ask, there is no map and none is needed: offline reads
+        and writes do not reach a register.
 
         Returns
         -------
         cryodaq.platform.PlatformMap or None
             None offline.
         """
-        if getattr(self, '_platform_map_cache', None) is None:
-            if self.offline:
-                return None
-            self._platform_map_cache = platform.identify(self._client.root)
         return self._platform_map_cache
 
     def _resolve(self, name):
@@ -5076,7 +5071,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         att = int(self.band_to_att(b))
         bay = self.band_to_bay(b)
-        self._set_by_name(f'bay[{bay}].attenuator.uc[{att}]', val, **kwargs)
+        self._set_by_name(f'bay[{bay}].attenuator[{att}].uc', val, **kwargs)
 
     @_skipifrfsoc
     def get_att_uc(self, b, **kwargs):
@@ -5106,7 +5101,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         att = int(self.band_to_att(b))
         bay = self.band_to_bay(b)
-        return self._get_by_name(f'bay[{bay}].attenuator.uc[{att}]', **kwargs)
+        return self._get_by_name(f'bay[{bay}].attenuator[{att}].uc', **kwargs)
 
 
     @_skipifrfsoc
@@ -5143,7 +5138,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         att = int(self.band_to_att(b))
         bay = self.band_to_bay(b)
-        self._set_by_name(f'bay[{bay}].attenuator.dc[{att}]', val, **kwargs)
+        self._set_by_name(f'bay[{bay}].attenuator[{att}].dc', val, **kwargs)
 
     @_skipifrfsoc
     def get_att_dc(self, b, **kwargs):
@@ -5173,7 +5168,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         att = int(self.band_to_att(b))
         bay = self.band_to_bay(b)
-        return self._get_by_name(f'bay[{bay}].attenuator.dc[{att}]', **kwargs)
+        return self._get_by_name(f'bay[{bay}].attenuator[{att}].dc', **kwargs)
 
     def get_dac_temp(self, bay, dac, **kwargs):
         """

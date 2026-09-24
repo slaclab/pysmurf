@@ -204,7 +204,7 @@ def check_a_full_scope_is_enumerated_to_the_ceiling():
 def check_a_nested_scope_needs_its_parent():
     pmap = platform.by_name('umux-atca')
     try:
-        platform.indices(pmap, presence(0), 'uc')
+        platform.indices(pmap, presence(0), 'attenuator')
     except KeyError as e:
         assert 'bay' in str(e), f"the error does not name the parent scope: {e}"
     else:

@@ -33,19 +33,18 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-__all__ = ['REGISTERS', 'WITNESS', 'SCOPES', 'BUILD_STAMP']
+__all__ = ['REGISTERS', 'WITNESS', 'SCOPES', 'BUILD_STAMP', 'SERVER_ADDED_ROOT_NODES']
 
 # --------------------------------------------------------------------------
 # register paths, as templates over the indexed scopes
 # --------------------------------------------------------------------------
 
-# The root device; the server names its Root "AMCc", so every path starts here.
+# The root device; the server names its Root "AMCc", so every path starts here. These
+# few are rogue's own, present on any Root.
 ROOT = 'AMCc'
-READY = f'{ROOT}.Ready'                       # set by the server once its start() completes
-SET_DEFAULTS = f'{ROOT}.setDefaults'          # the server's own configuration procedure
-SET_DEFAULTS_START = f'{SET_DEFAULTS}.Start'  # the same procedure, as a rogue Process
 POLL_ENABLE = f'{ROOT}.enable'                # the tree-wide polling switch
 READ_ALL = f'{ROOT}.ReadAll'                  # force one read of every node
+ROGUE_VERSION = f'{ROOT}.RogueVersion'
 SAVE_CONFIG = f'{ROOT}.SaveConfigProcess'
 SAVE_CONFIG_MODE = f'{SAVE_CONFIG}.SaveMode'
 SAVE_CONFIG_FILE = f'{SAVE_CONFIG}.ConfigFile'
@@ -53,6 +52,23 @@ SAVE_CONFIG_DATA_TYPE = f'{SAVE_CONFIG}.DataType'
 SAVE_CONFIG_START = f'{SAVE_CONFIG}.Start'
 SAVE_CONFIG_RUNNING = f'{SAVE_CONFIG}.Running'
 SAVE_CONFIG_MESSAGE = f'{SAVE_CONFIG}.Message'
+
+# --------------------------------------------------------------------------
+# what the server adds, and the firmware does not declare
+# --------------------------------------------------------------------------
+
+# Everything from here to `FPGA` is a node the *server* attaches to the root at start-up:
+# the readiness flag, its configuration procedure, the application status block, the
+# data processor and the writers and receivers around it. None of it is in a firmware
+# release, so a tree built from a released package alone has none of these, and their
+# absence from one is a fact about the dump rather than the firmware. They are here
+# because a client reaches them by name today; the layer that creates them owns them,
+# and when that layer moves out of the server so do these paths -- which is why they are
+# a section rather than mixed in with the FPGA's, and why the root nodes are listed once
+# below for a checker to tell the two apart.
+READY = f'{ROOT}.Ready'                       # set by the server once its start() completes
+SET_DEFAULTS = f'{ROOT}.setDefaults'          # the server's own configuration procedure
+SET_DEFAULTS_START = f'{SET_DEFAULTS}.Start'  # the same procedure, as a rogue Process
 
 # The application block the server adds beside the FPGA.
 APPLICATION = f'{ROOT}.SmurfApplication'
@@ -65,8 +81,6 @@ SMURF_DIRECTORY = f'{APPLICATION}.SmurfDirectory'
 STARTUP_SCRIPT = f'{APPLICATION}.StartupScript'
 JESD_STATUS = f'{APPLICATION}.JesdStatus'
 CHECK_JESD = f'{APPLICATION}.CheckJesd'
-
-ROGUE_VERSION = f'{ROOT}.RogueVersion'
 
 # The data processor: the channel map, the downsampler, the low-pass filter and the
 # file writer, in the order a sample passes through them.
@@ -138,7 +152,18 @@ STREAMING_DATA_FILE = f'{STREAMING_INTERFACE}.DataFile'
 STREAMING_OPEN = f'{STREAMING_INTERFACE}.Open'
 STREAMING_IS_OPEN = f'{STREAMING_INTERFACE}.IsOpen'
 
-# The FPGA.
+# The root nodes the section above reaches, by the name each has under the root, so
+# that what is server-added is stated once and read from here. The capture receivers
+# are numbered, so theirs keeps its index placeholder.
+SERVER_ADDED_ROOT_NODES = tuple(
+    p.split('.')[1]
+    for p in (READY, SET_DEFAULTS, APPLICATION, PROCESSOR, STREAM_DATA_SOURCE,
+              CAPTURE, STREAM_WRITER, STREAMING_INTERFACE))
+
+# --------------------------------------------------------------------------
+# the FPGA
+# --------------------------------------------------------------------------
+
 FPGA = f'{ROOT}.FpgaTopLevel'
 CARRIER = f'{FPGA}.AmcCarrierCore'
 AXI_VERSION = f'{CARRIER}.AxiVersion'

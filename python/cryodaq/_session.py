@@ -526,7 +526,7 @@ class Session:
         Parameters
         ----------
         scope : str
-            ``band``, ``bay``, ``uc`` or ``dc`` on a microwave-multiplexed
+            ``band``, ``bay`` or ``attenuator`` on a microwave-multiplexed
             readout.
         ``**fixed``
             Indices of the scope's parents, where it has any: an attenuator is

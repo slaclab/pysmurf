@@ -52,12 +52,16 @@ TAGS = ('MicrowaveMuxBpEthGen2',)
 # what only this platform has
 # --------------------------------------------------------------------------
 
-# The RF front end on an AMC bay: the attenuators in each direction, the digital-to-
-# analogue converters and the debug block beside them. Absent where converter and FPGA
-# share a die.
+# The RF front end on an AMC bay: the attenuators, the digital-to-analogue converters
+# and the debug block beside them. Absent where converter and FPGA share a die.
+#
+# An attenuator is one RF path through the bay, numbered from 1, with an up-converter
+# and a down-converter setting: UC[n] and DC[n] are the two directions of the same
+# path, so `n` is one index and not two. Which 500 MHz band a path carries is not the
+# firmware's to say -- it is wiring, and the application supplies that mapping.
 _ATTENUATORS = f'{_umux.MUX_CORE}.ATT'
-_ATTENUATOR_UC = f'{_ATTENUATORS}.UC[{{uc}}]'
-_ATTENUATOR_DC = f'{_ATTENUATORS}.DC[{{dc}}]'
+_ATTENUATOR_UC = f'{_ATTENUATORS}.UC[{{attenuator}}]'
+_ATTENUATOR_DC = f'{_ATTENUATORS}.DC[{{attenuator}}]'
 _DAC = f'{_umux.MUX_CORE}.DAC[{{dac}}]'
 _DAC_TEMPERATURE = f'{_DAC}.Temperature'
 _DAC_JESD_RESET_N = f'{_DAC}.JesdRstN'
@@ -103,8 +107,8 @@ _V, _C = 'value', 'command'
 REGISTERS = dict(_umux.REGISTERS)
 REGISTERS.update({
     # the RF front end
-    'bay[*].attenuator.uc[*]': (_ATTENUATOR_UC, _V),
-    'bay[*].attenuator.dc[*]': (_ATTENUATOR_DC, _V),
+    'bay[*].attenuator[*].uc': (_ATTENUATOR_UC, _V),
+    'bay[*].attenuator[*].dc': (_ATTENUATOR_DC, _V),
     'bay[*].dac[*].temperature': (_DAC_TEMPERATURE, _V),
     'bay[*].dac[*].enable': (_DAC_ENABLE, _V),
     'bay[*].dac[*].jesd_reset_n': (_DAC_JESD_RESET_N, _V),
@@ -130,9 +134,10 @@ REGISTERS.update({
 # what is inside one.
 SCOPES = dict(_umux.SCOPES)
 SCOPES.update({
-    'uc': ((_ATTENUATOR_UC,), ('bay',)),
+    # Either direction proves a path: a firmware with one and not the other has wired up
+    # fewer of one, which is a fact about the tree, as with the event receiver's scopes.
+    'attenuator': ((_ATTENUATOR_UC, _ATTENUATOR_DC), ('bay',)),
     'link': ((_JESD_RX_STATUS_VALID_COUNT,), ('bay',)),
-    'dc': ((_ATTENUATOR_DC,), ('bay',)),
     'dac': ((_DAC,), ('bay',)),
     'tx_lane': ((_JESD_TX_DATA_OUT_MUX,), ('bay',)),
 })
@@ -143,6 +148,6 @@ SCOPES.update({
 WITNESS = _umux.WITNESS + (
     'bay[*].jesd.rx_data_valid',
     'bay[*].jesd.tx_data_valid',
-    'bay[*].attenuator.uc[*]',
-    'bay[*].attenuator.dc[*]',
+    'bay[*].attenuator[*].uc',
+    'bay[*].attenuator[*].dc',
 )

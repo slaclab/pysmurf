@@ -10,7 +10,7 @@
 #    names, and the lookup over it.
 #
 #    A semantic name is dotted, with indexed scopes: band[4].tone.amplitude,
-#    bay[0].attenuator.uc[1], stream.downsample.factor. Its pattern is the same
+#    bay[0].attenuator[1].uc, stream.downsample.factor. Its pattern is the same
 #    string with every index replaced by '*', and a map is a table from pattern
 #    to a register path template and the kind of node it is. Resolving a name is
 #    a dictionary lookup and a string format; a name with no entry, or with an
@@ -357,7 +357,7 @@ def expand(pmap: PlatformMap, has: Callable[[str], bool], pattern: str) -> List[
     has : callable
         ``has(path) -> bool``.
     pattern : str
-        e.g. ``bay[*].attenuator.uc[*]``. A pattern with no scope expands to
+        e.g. ``bay[*].attenuator[*].uc``. A pattern with no scope expands to
         itself.
 
     Returns
