@@ -117,8 +117,10 @@ stopped matching fails here rather than quietly checking nothing.
   every check above and prove nothing.
 * **The client reaches only names the map resolves** — the names are read out of the client's own
   accessor calls, so what is checked is the code rather than a description of it, and a name that does
-  not resolve is a method that raises the first time it is called. Only this direction fails: the map
-  deliberately carries names no accessor reaches, because the operations use those directly.
+  not resolve is a method that raises the first time it is called. Every module under the client
+  package is read — a wait in the tuning code or a poll in the utilities goes through the same helpers
+  as an accessor — and `_wait_for` counts as a read. Only this direction fails: the map deliberately
+  carries names no accessor reaches, because the operations use those directly.
 * **The client writes no register the firmware makes read-only** — whether a register may be written
   is the firmware's statement, in the access mode it declares, so it is read from the dump rather than
   from anything describing the dump. The tree refuses such a write at run time on a good day; this is
@@ -175,7 +177,7 @@ without noticing.
 * **Every public name sodetlib calls is still offered** — 71 of them, measured from sodetlib rather than
   listed by hand. The check does not judge whether a removal is right, only that the contract was edited
   to say so.
-* **Every private name it reaches is still there** — 16 underscore-prefixed attributes and methods, with a
+* **Every private name it reaches is still there** — 14 underscore-prefixed attributes and methods, with a
   weaker promise: these are not interface and may go, but going needs the matching sodetlib change and
   this entry removed. Recording them is also how the list of what sodetlib has to stop using exists at
   all, rather than being rediscovered each time.

@@ -66,6 +66,11 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 FIXTURES = HERE / 'fixtures'
 COMMAND = (REPO / 'python' / 'pysmurf' / 'client' / 'command' / 'smurf_command.py')
+# The rest of the client, which reaches a register through the same helpers -- a
+# capture poll in the utilities, a completion wait in the tuning code -- and so has to
+# be held to the same gates. Every module under the package is read, not a list of
+# them, so a new access anywhere in the client is seen without editing this.
+CLIENT = COMMAND.parent.parent
 
 # Which platform map each committed dump belongs to.
 PLATFORM_OF = {'atca': 'umux-atca', 'rfsoc': 'umux-rfsoc'}
@@ -171,6 +176,32 @@ def load_nodes(stem):
     return nodes
 
 
+def _semantic_call(node, direction):
+    """The name pattern a ``_get_by_name``-style call reaches, or None if unreadable."""
+    if not node.args:
+        return None
+    literal = node.args[0]
+    if isinstance(literal, ast.Constant) and isinstance(literal.value, str):
+        pattern = literal.value
+    elif isinstance(literal, ast.JoinedStr):
+        pattern = ''
+        for part in literal.values:
+            if isinstance(part, ast.Constant) and isinstance(part.value, str):
+                pattern += part.value
+            elif isinstance(part, ast.FormattedValue):
+                pattern += '*'
+            else:
+                return None
+    else:
+        return None
+    # A literal index in a name -- ``evr_channel[0]`` where the accessor always
+    # reaches channel zero -- is still that name's pattern with an index filled in,
+    # so it is reduced to the pattern the map is keyed by. Without this a hand-written
+    # call site reads as a name the map does not have.
+    return {'name': re.sub(r'\[\d+\]', '[*]', pattern),
+            'direction': direction, 'line': node.lineno}
+
+
 def load_client_names():
     """Every semantic name the client's accessors reach, and how each is reached.
 
@@ -190,42 +221,26 @@ def load_client_names():
     if cls is None:
         raise AssertionError(f'{COMMAND} has no class SmurfCommandMixin')
 
+    # `_wait_for` reads a register until a predicate holds, so it is a read.
+    directions = {'_get_by_name': 'get', '_set_by_name': 'set', '_wait_for': 'get'}
     found = []
-    for node in ast.walk(cls):
-        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
-            continue
-        if node.func.attr not in {'_get_by_name', '_set_by_name'}:
-            continue
-        if not node.args:
-            continue
-        literal = node.args[0]
-        if isinstance(literal, ast.Constant) and isinstance(literal.value, str):
-            pattern = literal.value
-        elif isinstance(literal, ast.JoinedStr):
-            pattern = ''
-            for part in literal.values:
-                if isinstance(part, ast.Constant) and isinstance(part.value, str):
-                    pattern += part.value
-                elif isinstance(part, ast.FormattedValue):
-                    pattern += '*'
-                else:
-                    pattern = None
-                    break
-            if pattern is None:
+    others = [path for path in sorted(CLIENT.rglob('*.py')) if path != COMMAND]
+    if not others:
+        raise AssertionError(f'no client modules beside {COMMAND.name} under {CLIENT}')
+    scanned = [(cls, COMMAND)] + [
+        (ast.parse(path.read_text(encoding='utf-8'), filename=str(path)), path)
+        for path in others]
+    for root, path in scanned:
+        for node in ast.walk(root):
+            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
                 continue
-        else:
-            continue
-        # A literal index in a name -- ``evr_channel[0]`` where the accessor always
-        # reaches channel zero -- is still that name's pattern with an index filled in,
-        # so it is reduced to the pattern the map is keyed by. Without this a hand-written
-        # call site reads as a name the map does not have.
-        pattern = re.sub(r'\[\d+\]', '[*]', pattern)
-        found.append({
-            'name': pattern,
-            'direction': 'get' if node.func.attr == '_get_by_name' else 'set',
-            'line': node.lineno,
-        })
-
+            if node.func.attr not in directions:
+                continue
+            call = _semantic_call(node, directions[node.func.attr])
+            if call is not None:
+                if path != COMMAND:
+                    call['line'] = f'{path.name}:{call["line"]}'
+                found.append(call)
     # A few accessors choose their name from a table instead of writing it at the call
     # site, because the caller passes a register number rather than naming the register:
     # the LMK's clock-input pair is reached as get/set_lmk_reg(bay, 0x146). Reading the
@@ -525,7 +540,6 @@ def check_the_map_declares_the_kind_the_firmware_declares():
             if declared == 'command' and mode and mode != 'WO':
                 wrong.append(f'{name}: the map says command, but the firmware declares '
                              f'{kind}/{mode} at {concrete} -- a command is write-only')
-            break
     assert not wrong, ('name(s) whose kind the firmware disagrees with: ' +
                        '; '.join(wrong[:6]))
 
@@ -547,10 +561,11 @@ def check_the_client_writes_no_register_the_firmware_makes_read_only():
             continue
         if call['name'] in KNOWN_READ_ONLY_WRITES:
             continue
+        # Every concrete path, not the first: the mode is per node, and a firmware
+        # could make one index of a register read-only and leave the rest writable.
         for concrete in expand(paths, template_of(pmap, call['name'])):
             if nodes.get(concrete, ('', ''))[1] == 'RO':
                 wrong.append(f"{call['name']} (line {call['line']}) -> {concrete}")
-            break
     assert not wrong, (
         'accessor(s) writing a register the firmware declares read-only: ' +
         ', '.join(sorted(wrong)[:6]))
@@ -567,8 +582,8 @@ def selftest():
     import tempfile
     from dataclasses import replace
 
-    global FIXTURES, COMMAND, PLATFORM_OF
-    saved = (FIXTURES, COMMAND, PLATFORM_OF, platform.MAPS)
+    global FIXTURES, COMMAND, CLIENT, PLATFORM_OF
+    saved = (FIXTURES, COMMAND, CLIENT, PLATFORM_OF, platform.MAPS)
     failures = 0
 
     def expect_failure(label, fn):
@@ -640,7 +655,14 @@ def selftest():
             def write_client(text):
                 COMMAND.write_text(text, encoding='utf-8')
 
-            COMMAND = tree / 'smurf_command.py'
+            # A stand-in client package: the command module and one other module
+            # beside it, as the real client has, so the scan of the rest of the
+            # package has something to read and can be shown to read it.
+            CLIENT = tree / 'client'
+            (CLIENT / 'command').mkdir(parents=True)
+            COMMAND = CLIENT / 'command' / 'smurf_command.py'
+            OTHER = CLIENT / 'smurf_util.py'
+            OTHER.write_text('class SmurfUtilMixin:\n    pass\n', encoding='utf-8')
             write_client(client_source(
                 ('_get_by_name', "f'band[{band}].delay_us'", ''),
                 ('_set_by_name', "f'bay[{bay}].attenuator[{att}].uc'", ', val'),
@@ -775,6 +797,21 @@ def selftest():
             ))
             expect_failure('a write to a read-only register is caught',
                            check_the_client_writes_no_register_the_firmware_makes_read_only)
+            # A read-only node at a later index must be caught: the mode is per node,
+            # and a check that stopped at the first concrete path would miss it.
+            with gzip.open(tree / 'atca.varlist.txt.gz', 'wt', encoding='utf-8') as fh:
+                fh.write('Path\tTypeStr\tMode\n')
+                for path in good_atca:
+                    mode = 'RO' if path.endswith('Base[5].bandDelayUs') else 'RW'
+                    fh.write(f'{path}\tUInt32\t{mode}\n')
+            expect_failure('a read-only register at a later index is caught',
+                           check_the_client_writes_no_register_the_firmware_makes_read_only)
+            with gzip.open(tree / 'atca.varlist.txt.gz', 'wt', encoding='utf-8') as fh:
+                fh.write('Path\tTypeStr\tMode\n')
+                for path in good_atca:
+                    mode = 'RO' if 'bandDelayUs' in path else 'RW'
+                    fh.write(f'{path}\tUInt32\t{mode}\n')
+
             # The same write through a name table must be caught too: the table serves a
             # setter as well as a getter, and recording it as a read alone would let a
             # table-driven write to a read-only register through.
@@ -787,6 +824,21 @@ def selftest():
             expect_failure('a table-driven write to a read-only register is caught',
                            check_the_client_writes_no_register_the_firmware_makes_read_only)
 
+            # An access outside the command module must be seen: a wait in the tuning
+            # code or a poll in the utilities reaches a register through the same
+            # helpers, and a scan of one file would let it bypass every gate here.
+            write_client(client_source(
+                ('_get_by_name', "f'band[{band}].delay_us'", ''),
+            ))
+            OTHER.write_text(
+                'class SmurfUtilMixin:\n'
+                '    def m(self, band=0):\n'
+                "        return self._wait_for(f'band[{band}].phantom', bool)\n",
+                encoding='utf-8')
+            expect_failure('an unresolvable name reached outside smurf_command.py is caught',
+                           check_the_client_reaches_only_names_the_map_resolves)
+            OTHER.write_text('class SmurfUtilMixin:\n    pass\n', encoding='utf-8')
+
             # A client the reader cannot recognise at all must fail rather than pass
             # by finding nothing: a parser that stopped matching would otherwise
             # report success over an empty set.
@@ -794,7 +846,7 @@ def selftest():
             expect_failure('a client whose accessors cannot be read is caught',
                            check_the_client_reaches_only_names_the_map_resolves)
     finally:
-        FIXTURES, COMMAND, PLATFORM_OF, platform.MAPS = saved
+        FIXTURES, COMMAND, CLIENT, PLATFORM_OF, platform.MAPS = saved
 
     print('')
     if failures:

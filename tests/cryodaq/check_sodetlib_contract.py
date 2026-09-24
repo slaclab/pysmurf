@@ -22,7 +22,7 @@
 # remove it deliberately without noticing.
 #
 # The private names are listed for the same reason and with a weaker promise.
-# sodetlib reaches sixteen underscore-prefixed attributes and methods, which are
+# sodetlib reaches fourteen underscore-prefixed attributes and methods, which are
 # not interface and are not guaranteed; they are recorded so that removing one is
 # something someone chose, and so that the list of what an eventual sodetlib
 # change has to stop using is written down rather than rediscovered.
@@ -60,6 +60,7 @@ MIXINS = (
     ('base/base_class.py', 'SmurfBase'),
     ('base/smurf_config_properties.py', 'SmurfConfigPropertiesMixin'),
     ('command/smurf_command.py', 'SmurfCommandMixin'),
+    ('command/smurf_atca_monitor.py', 'SmurfAtcaMonitorMixin'),
     ('util/smurf_util.py', 'SmurfUtilMixin'),
     ('tune/smurf_tune.py', 'SmurfTuneMixin'),
     ('debug/smurf_iv.py', 'SmurfIVMixin'),
