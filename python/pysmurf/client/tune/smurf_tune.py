@@ -2277,8 +2277,11 @@ class SmurfTuneMixin(SmurfBase):
             hold at the time, which is the previous scan's values if this one
             has not finished.
         timeout : float, optional, default 30.0
-            Seconds to wait for the scan to finish when `sync_group` is
-            True, before raising `TimeoutError`.
+            Seconds to wait for the scan to report itself finished when
+            `sync_group` is True, before raising `TimeoutError`. This bounds
+            the wait for the completion flag only; the scan itself runs
+            inside the trigger's request and is bounded by the client's
+            request deadline.
 
         Returns
         -------
@@ -2306,12 +2309,16 @@ class SmurfTuneMixin(SmurfBase):
         self.set_eta_scan_amplitude(band, tone_power, write_log=write_log)
         self.set_eta_scan_freq(band, freq, write_log=write_log)
 
-        self.set_run_eta_scan(band, 1, wait_done=False, write_log=write_log)
+        # runEtaScan is a rogue command, and a command call is a single request
+        # that returns when the server's function does -- so this line blocks for
+        # the scan, and what bounds it is the client's request deadline (set in
+        # SmurfBase, 30 s), not the wait below.
+        self.set_run_eta_scan(band, 1, write_log=write_log)
 
         if sync_group:
-            # The trigger above does not block, so wait for the scan to finish
-            # before reading its results. Waiting on the in-progress flag is
-            # sound rather than merely convenient: the server writes both result
+            # By the time the call returns the flag has normally fallen, and the
+            # wait is a check that it has. It is kept because the flag is what
+            # says the results are published: the server writes both result
             # arrays inside an update group and clears the flag outside it, so
             # the flag falls strictly after the arrays are published. The timeout
             # is explicit because a bare `_wait_for` waits forever.

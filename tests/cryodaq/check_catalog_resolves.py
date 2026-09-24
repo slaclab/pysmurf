@@ -242,11 +242,15 @@ def load_client_names():
             continue
         for value in node.value.values:
             if isinstance(value, ast.Constant) and isinstance(value.value, str):
-                found.append({
-                    'name': re.sub(r'\[\d+\]', '[*]', value.value),
-                    'direction': 'get',      # such a table serves a getter and a setter
-                    'line': value.lineno,
-                })
+                # Such a table serves a getter and a setter, so the name is recorded
+                # in both directions: recorded as a read alone, a table-driven write
+                # to a register the firmware makes read-only would go unchecked.
+                for direction in ('get', 'set'):
+                    found.append({
+                        'name': re.sub(r'\[\d+\]', '[*]', value.value),
+                        'direction': direction,
+                        'line': value.lineno,
+                    })
 
     if len(found) < 150:
         raise AssertionError(
@@ -449,6 +453,13 @@ def check_both_generations_are_really_different_trees():
              if not any(d in p for d in CARRIER_ONLY_DEVICES)]
     assert not stray, ('the carrier has paths the other lacks that are not the per-bay '
                        'front end or data links: ' + ', '.join(sorted(stray)[:4]))
+    # "Differ by exactly" is a claim in both directions: measured against the two full
+    # dumps, every RFSoC node is a carrier node, so anything here means the trees have
+    # diverged somewhere this check was not written to expect.
+    only_rfsoc = rfsoc - atca
+    assert not only_rfsoc, ('the RFSoC dump has paths the carrier lacks; the trees no '
+                            'longer differ by omission alone: ' +
+                            ', '.join(sorted(only_rfsoc)[:4]))
 
 
 def check_the_client_reaches_only_names_the_map_resolves():
@@ -717,6 +728,13 @@ def selftest():
             write('atca', good_atca + [base + 'Something.Unrelated'])
             expect_failure('a difference that is not the bay axis is caught',
                            check_both_generations_are_really_different_trees)
+            # A tree the RFSoC has and the carrier lacks must fail even when the carrier's
+            # own surplus is exactly the front end: the difference is asserted in both
+            # directions, or an RFSoC-only path could pass unseen.
+            write('atca', good_atca)
+            write('rfsoc', good_rfsoc + [base + 'OnlyOnRfsoc.Register'])
+            expect_failure('a path only the RFSoC has is caught',
+                           check_both_generations_are_really_different_trees)
             write('atca', good_atca)
             write('rfsoc', good_rfsoc)
 
@@ -756,6 +774,17 @@ def selftest():
                 ('_set_by_name', "f'band[{band}].delay_us'", ', val'),
             ))
             expect_failure('a write to a read-only register is caught',
+                           check_the_client_writes_no_register_the_firmware_makes_read_only)
+            # The same write through a name table must be caught too: the table serves a
+            # setter as well as a getter, and recording it as a read alone would let a
+            # table-driven write to a read-only register through.
+            write_client(client_source() + chr(10).join([
+                "    _TABLE_NAMES = {",
+                "        0x1: 'band[*].delay_us',",
+                "    }",
+                "",
+            ]))
+            expect_failure('a table-driven write to a read-only register is caught',
                            check_the_client_writes_no_register_the_firmware_makes_read_only)
 
             # A client the reader cannot recognise at all must fail rather than pass

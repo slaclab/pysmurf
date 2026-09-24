@@ -52,7 +52,9 @@ CONTRACT = HERE / 'sodetlib_contract.json'
 CLIENT = REPO / 'python' / 'pysmurf' / 'client'
 
 # Where a SmurfControl gets its methods. It is assembled from mixins, so the
-# surface is the union of their members and not any one class's.
+# surface is the union of their members and not any one class's. CryoCard is not
+# one of them: it is composed under ``S.C``, so a name on it is not ``S.<name>``
+# and must not stand in for one that has left the control object.
 MIXINS = (
     ('base/smurf_control.py', 'SmurfControl'),
     ('base/base_class.py', 'SmurfBase'),
@@ -62,7 +64,6 @@ MIXINS = (
     ('tune/smurf_tune.py', 'SmurfTuneMixin'),
     ('debug/smurf_iv.py', 'SmurfIVMixin'),
     ('debug/smurf_noise.py', 'SmurfNoiseMixin'),
-    ('command/cryo_card.py', 'CryoCard'),
 )
 
 
