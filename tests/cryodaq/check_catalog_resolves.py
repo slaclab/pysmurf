@@ -176,24 +176,70 @@ def load_nodes(stem):
     return nodes
 
 
-def _semantic_call(node, direction):
-    """The name pattern a ``_get_by_name``-style call reaches, or None if unreadable."""
-    if not node.args:
-        return None
-    literal = node.args[0]
-    if isinstance(literal, ast.Constant) and isinstance(literal.value, str):
-        pattern = literal.value
-    elif isinstance(literal, ast.JoinedStr):
+def _literal_pattern(expr):
+    """The name pattern a string literal or f-string spells, or None for anything else."""
+    if isinstance(expr, ast.Constant) and isinstance(expr.value, str):
+        return expr.value
+    if isinstance(expr, ast.JoinedStr):
         pattern = ''
-        for part in literal.values:
+        for part in expr.values:
             if isinstance(part, ast.Constant) and isinstance(part.value, str):
                 pattern += part.value
             elif isinstance(part, ast.FormattedValue):
                 pattern += '*'
             else:
                 return None
-    else:
-        return None
+        return pattern
+    return None
+
+
+def _local_names(func):
+    """Every ``name = <literal>`` a function assigns, by variable, or None for a
+    variable assigned more than once or from something that is not a literal."""
+    assigned = {}
+    for node in ast.walk(func):
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                pattern = _literal_pattern(node.value)
+                assigned[target.id] = None if target.id in assigned else pattern
+    return assigned
+
+
+# The one indirection allowed besides a local: a method that picks the name out of a
+# ``*_NAMES`` table by register number. Its names are checked by reading the table, so
+# the call is not a gap; anything else that computes a name is.
+TABLE_LOOKUPS = ('_lmk_name',)
+
+
+def _is_table_lookup(expr):
+    return (isinstance(expr, ast.Call) and isinstance(expr.func, ast.Attribute) and
+            expr.func.attr in TABLE_LOOKUPS)
+
+
+def _semantic_call(node, direction, locals_):
+    """The name pattern a ``_get_by_name``-style call reaches.
+
+    The argument is a literal, an f-string, or a local variable the enclosing
+    function assigned from one of those exactly once -- a few methods name the
+    register on its own line and then reach it twice. Anything else is refused
+    rather than skipped: a call this cannot read is a name no gate here checks,
+    and the way to reach a register the reader cannot see is to spell it here.
+    """
+    if not node.args:
+        raise AssertionError(f'line {node.lineno}: {node.func.attr} called with no name')
+    arg = node.args[0]
+    pattern = _literal_pattern(arg)
+    if pattern is None and isinstance(arg, ast.Name):
+        pattern = locals_.get(arg.id)
+    if pattern is None and _is_table_lookup(arg):
+        return None     # its names are read from the table itself, below
+    if pattern is None:
+        raise AssertionError(
+            f'line {node.lineno}: {node.func.attr}({ast.unparse(arg)}, ...) names its '
+            f'register in a way this check cannot read; use a literal, an f-string, or '
+            f'a local assigned once from one')
     # A literal index in a name -- ``evr_channel[0]`` where the accessor always
     # reaches channel zero -- is still that name's pattern with an index filled in,
     # so it is reduced to the pattern the map is keyed by. Without this a hand-written
@@ -231,13 +277,24 @@ def load_client_names():
         (ast.parse(path.read_text(encoding='utf-8'), filename=str(path)), path)
         for path in others]
     for root, path in scanned:
-        for node in ast.walk(root):
-            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
-                continue
-            if node.func.attr not in directions:
-                continue
-            call = _semantic_call(node, directions[node.func.attr])
-            if call is not None:
+        # Walked function by function, so a local name is resolved in the function that
+        # assigned it; a call outside any function has no locals to resolve against.
+        for func in [n for n in ast.walk(root)
+                     if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]:
+            if func.name in {'_get_by_name', '_set_by_name', '_wait_for'}:
+                continue        # the helpers themselves, whose argument is a parameter
+            locals_ = _local_names(func)
+            for node in ast.walk(func):
+                if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+                    continue
+                if node.func.attr not in directions:
+                    continue
+                if not (isinstance(node.func.value, ast.Name) and
+                        node.func.value.id == 'self'):
+                    continue    # someone else's method of the same name
+                call = _semantic_call(node, directions[node.func.attr], locals_)
+                if call is None:
+                    continue
                 if path != COMMAND:
                     call['line'] = f'{path.name}:{call["line"]}'
                 found.append(call)
@@ -823,6 +880,29 @@ def selftest():
             ]))
             expect_failure('a table-driven write to a read-only register is caught',
                            check_the_client_writes_no_register_the_firmware_makes_read_only)
+
+            # A name reached through a local variable must be read, not skipped: a
+            # typo in `name = f'band[{band}].ghost'` is as unresolvable as one at the
+            # call site.
+            write_client(client_source() + chr(10).join([
+                "    def via_local(self, band=0):",
+                "        name = f'band[{band}].ghost'",
+                "        return self._get_by_name(name)",
+                "",
+            ]))
+            expect_failure('an unresolvable name reached through a local is caught',
+                           check_the_client_reaches_only_names_the_map_resolves)
+
+            # A name this reader cannot see -- computed by a call -- must be refused
+            # outright, not passed over: skipping it is exactly how a register could be
+            # reached with nothing checking the name.
+            write_client(client_source() + chr(10).join([
+                "    def computed(self, band=0):",
+                "        return self._get_by_name(self.some_name(band))",
+                "",
+            ]))
+            expect_failure('a name computed in a way the check cannot read is refused',
+                           check_the_client_reaches_only_names_the_map_resolves)
 
             # An access outside the command module must be seen: a wait in the tuning
             # code or a poll in the utilities reaches a register through the same

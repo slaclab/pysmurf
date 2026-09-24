@@ -113,8 +113,15 @@ class SmurfBase:
             # Which platform this is comes from the firmware the tree reports, read
             # once here so that a system no map claims is refused on connection
             # rather than at the first register a method reaches. Every accessor
-            # resolves its names against this map from here on.
-            self._platform_map_cache = platform.identify(self._client.root)
+            # resolves its names against this map from here on. A refusal closes
+            # the client it was made through: __init__ does not complete, so
+            # nothing else would, and each retry would otherwise leave one open
+            # until exit.
+            try:
+                self._platform_map_cache = platform.identify(self._client.root)
+            except BaseException:
+                self._client.stop()
+                raise
             if atca_monitor:
                 self._atca = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._atca_port)
                 if self._atca.root is None:

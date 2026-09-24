@@ -2272,10 +2272,11 @@ class SmurfTuneMixin(SmurfBase):
         write_log : bool, optional, default False
             Whether to write log messages.
         sync_group : bool, optional, default True
-            Whether to wait for the scan to report itself finished before
-            reading its results. False returns whatever the result registers
-            hold at the time, which is the previous scan's values if this one
-            has not finished.
+            Whether to check that the scan has reported itself finished
+            before reading its results. The trigger is a rogue command and
+            blocks for the scan either way; what this adds is the wait on the
+            in-progress flag, which is what states the result arrays have been
+            published. False skips that check.
         timeout : float, optional, default 30.0
             Seconds to wait for the scan to report itself finished when
             `sync_group` is True, before raising `TimeoutError`. This bounds

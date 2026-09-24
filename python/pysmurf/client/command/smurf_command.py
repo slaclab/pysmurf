@@ -5871,7 +5871,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._get_by_name(f'bay[{bay}].daq.input[{lane}].mux_sel', **kwargs)
+        return self._get_by_name(f'bay[{bay}].daq.input[{lane}].mux_sel', **kwargs)
 
     def set_data_buffer_size(self, bay, val, **kwargs):
         r"""Sets the DaqMux data buffer size.
@@ -6315,7 +6315,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._get_by_name(f'bay[{bay}].daq.trigger', **kwargs)
+        return self._get_by_name(f'bay[{bay}].daq.trigger', **kwargs)
 
     def set_arm_hw_trigger(self, bay, val, **kwargs):
         r"""Arms the DaqMux hardware trigger (alternate register).
@@ -10057,7 +10057,7 @@ class SmurfCommandMixin(SmurfBase):
            this repository and sodetlib cannot see a test-stand script or a
            notebook.
         """
-        self._get_by_name(f'bay[{bay}].clock.enable', **kwargs)
+        return self._get_by_name(f'bay[{bay}].clock.enable', **kwargs)
 
     # The two clock-input registers of the LMK these methods are used to reach, by the
     # register number a caller passes. Only these two are ever asked for -- both call

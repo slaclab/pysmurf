@@ -237,13 +237,21 @@ def check_register_paths_in_data_files_are_in_platform_too():
     for path in sorted(PACKAGE.rglob('*')):
         if path.suffix == '.py' or not path.is_file():
             continue
+        if '__pycache__' in path.parts:
+            continue                     # the interpreter's own compiled copies
         rel = path.relative_to(PACKAGE)
         if in_platform(rel):
             continue
         try:
             text = path.read_text(encoding='utf-8')
-        except (UnicodeDecodeError, OSError):
-            continue                     # a binary file carries no register path
+        except UnicodeDecodeError:
+            # A file this cannot read is a file this cannot clear. The package ships
+            # no binary data today, so one appearing outside platform is refused
+            # rather than passed over: skipping it would be the one way to carry a
+            # register map past this rule.
+            offenders.append(f"{rel} is not UTF-8 text and cannot be checked for "
+                             f"register paths")
+            continue
         for lineno, line in enumerate(text.splitlines(), 1):
             if REGISTER_PATH_RE.search(line):
                 offenders.append(f"{rel}:{lineno} register path {line.strip()[:60]!r}")
@@ -362,8 +370,10 @@ def check_rules_fire_on_a_bad_package():
         (pkg / 'platform' / '__init__.py').write_text('')
         (pkg / 'platform' / '_x.py').write_text(bad_map)
         # A map shipped as data outside the platform package, which the source
-        # rules cannot see, plus the same thing in its legitimate home and a
-        # binary file -- neither of which may be reported.
+        # rules cannot see; the same thing in its legitimate home, which may not be
+        # reported; and a binary file outside platform, which must be -- not for
+        # what it holds but because it cannot be read, and a file this cannot
+        # read is one it cannot clear.
         (pkg / 'smuggled.json').write_text('{"path": "AMCc.FpgaTopLevel.AppTop"}')
         (pkg / 'platform' / 'shipped.json').write_text(
             '{"path": "AMCc.FpgaTopLevel.AppTop"}')
@@ -384,8 +394,8 @@ def check_rules_fire_on_a_bad_package():
         f"a register map shipped as data outside the platform package was not caught: {data_rule!r}"
     assert 'shipped.json' not in data_rule, \
         f"a data file in its legitimate home was reported: {data_rule!r}"
-    assert 'logo.bin' not in data_rule, \
-        f"a binary file was reported as carrying a register path: {data_rule!r}"
+    assert 'logo.bin' in data_rule, \
+        f"a binary file outside platform was passed over rather than refused: {data_rule!r}"
 
     rules = {r for r, _ in found}
     expected = {'imports', 'application', 'geometry', 'paths'}
