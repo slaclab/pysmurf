@@ -138,8 +138,13 @@ def resolves(paths, template):
 
 
 def short_head():
+    """The pysmurf revision the fixtures were pruned at, ``-dirty`` if the worktree was.
+
+    The fixtures depend on the map and on this script, so a build from uncommitted
+    edits to either must say so, as the dump's own provenance does for cryo-det.
+    """
     try:
-        return subprocess.run(['git', '-C', str(REPO), 'rev-parse', '--short', 'HEAD'],
+        return subprocess.run(['git', '-C', str(REPO), 'describe', '--always', '--dirty'],
                               capture_output=True, text=True, check=True).stdout.strip()
     except (subprocess.CalledProcessError, OSError):
         return 'unknown'

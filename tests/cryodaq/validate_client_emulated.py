@@ -185,6 +185,10 @@ def check_every_offered_name_resolves():
                 if name.startswith('carrier.regulator.')]
     assert attached, ('the regulator names resolve on an emulated tree, so they are no '
                       'longer server-attached and the exemption below is stale')
+    # ... and none of them, not merely not all of them: one regulator name resolving
+    # while another stays absent is the same staleness, half-way.
+    partly = [name for name in report.resolved if name.startswith('carrier.regulator.')]
+    assert not partly, f"server-attached names resolving on an emulated tree: {partly}"
     unresolved = [(name, why) for name, why in report.unresolved
                   if not name.startswith('carrier.regulator.')]
     detail = '; '.join(f"{name}: {why}" for name, why in unresolved[:8])

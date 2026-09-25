@@ -107,21 +107,23 @@ def parse(name: str) -> Tuple[str, Dict[str, int]]:
     of one system. A tuning loop reaching a per-channel register thousands of
     times pays for the regular expressions once rather than per call.
     """
+    # Checked here, before the cache hashes it: an unhashable non-string would
+    # otherwise surface as the cache's TypeError rather than as UnresolvedName.
+    if not isinstance(name, str) or not name:
+        raise UnresolvedName(str(name), reason='empty name')
     pattern, found = _parse_cached(name)
     return pattern, dict(found)
 
 
 @functools.lru_cache(maxsize=4096)
 def _parse_cached(name: str) -> Tuple[str, Tuple[Tuple[str, int], ...]]:
-    """``parse`` without the copy, keyed on the name. Indices as a pairs tuple.
+    """``parse`` without the copy, keyed on a non-empty string. Indices as a pairs tuple.
 
     Separate from ``parse`` so that what is cached is immutable: handing the same
     dictionary to two callers would let one of them change what the other reads.
     A malformed name raises here too, and the exception is not cached -- so a
     caller that fixes a typo is not told the old answer.
     """
-    if not isinstance(name, str) or not name:
-        raise UnresolvedName(str(name), reason='empty name')
     pattern: List[str] = []
     found: Dict[str, int] = {}
     for segment in name.split('.'):

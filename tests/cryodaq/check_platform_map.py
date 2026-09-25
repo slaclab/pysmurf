@@ -286,8 +286,10 @@ def check_caching_a_parse_does_not_share_its_indices():
         f'a second parse of {name} returned {second}'
     assert first_pattern == second_pattern == 'band[*].channel[*].tone.amplitude'
     # A malformed name must keep failing rather than being answered from a cache
-    # of the exception, and a name fixed afterwards must resolve.
-    for bad in ('band[4].tone.amplitude\n', ''):
+    # of the exception, and a name fixed afterwards must resolve. The unhashable
+    # ones are the cache's own failure mode: they must still get UnresolvedName,
+    # not the TypeError the cache would raise while keying on them.
+    for bad in ('band[4].tone.amplitude\n', '', None, [], ['band[4]'], {}):
         for _ in range(2):
             try:
                 platform.parse(bad)
