@@ -59,6 +59,16 @@ does not quietly need it.
 The selftest runs the source rules over a synthetic package that breaks each of them and fails if any
 rule passes it. A boundary check that cannot fail is not evidence.
 
+**What these gates do not enforce: the same rule on the pysmurf client.** `check_boundaries.py` scans
+`cryodaq` only, and `check_catalog_resolves.py` reads the client's semantic-name calls without refusing
+a raw one. That the client builds no register path is a *measurement* of the tree as it stands — one
+raw `_caput` remains, in a method scheduled for removal — not a gate on the next accessor someone
+writes. The gate is deliberately not here: `_caget`/`_caput` must keep accepting a raw path until
+sodetlib's remaining sites have moved (`docs/sodetlib_changes_required.md`), so a check today would
+start life with exemptions, and the rule is due to be enforced by the client's connection type itself
+rather than by a scan once `SmurfBase` sits on `cryodaq.connect`. Until then, a raw path in a client
+accessor is caught by review, and this paragraph is what says so.
+
 ### check_platform_map.py
 
 This script checks what the platform layer decides: which platform a system is, and which indices of
