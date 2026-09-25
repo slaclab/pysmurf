@@ -231,6 +231,17 @@ def check_the_scopes_are_the_ones_this_tree_has():
     """
     bands = SESSION.indices('band')
     assert bands == EXPECTED_BANDS, bands
+    # A band's channels run far past one probing window, so the enumeration has to
+    # reach the end of what the tree has -- and how many that is comes from the
+    # tree, not from this file: the per-channel array's length is the firmware's
+    # own count, and what the channel scope enumerates has to agree with it.
+    # (`n_channels` is a register, and reads zero over emulated memory.)
+    per_channel = len(SESSION.get(f'band[{BAND}].tone.amplitude'))
+    channels = SESSION.indices('channel', band=BAND)
+    assert per_channel > platform.MAX_SCOPE_INDEX, per_channel
+    assert channels == tuple(range(per_channel)), \
+        (f"band {BAND} enumerated {len(channels)} channels, last {channels[-1:]}; "
+         f"the per-channel array has {per_channel}")
     # Both platforms are bay-indexed, because the acquisition mux is. A tree with no
     # bays at all would mean the scope stopped being probed rather than that this
     # platform lacks the hardware, so it fails on either.
@@ -585,6 +596,23 @@ def add_library_paths(args):
             pr.addLibraryPath(path)
 
 
+def describe_source(args):
+    """Where the tree came from, in one line, for a dump's provenance.
+
+    The checkout's revision or the ZIP's name -- what was measured, read from the
+    input rather than asserted: a fixture built from another checkout must say so.
+    """
+    if args.zip:
+        return f"zip {os.path.basename(args.zip)}"
+    try:
+        head = subprocess.run(['git', '-C', args.cryo_det, 'describe', '--tags',
+                               '--always', '--dirty'],
+                              capture_output=True, text=True, check=True).stdout.strip()
+    except (subprocess.CalledProcessError, OSError):
+        head = 'unknown revision'
+    return f"cryo-det {head}" + (' (RFSoC)' if args.rfsoc else '')
+
+
 def free_port():
     """A port triple starting here is free right now; the server takes three."""
     held = []
@@ -724,7 +752,9 @@ def main():
         write_build_stamp(root, stamp_for(EXPECTED_IMAGE[args.rfsoc]))
         if args.dump_tree:
             root.saveVariableList(args.dump_tree)
-            print(f"  tree written to {args.dump_tree}")
+            with open(args.dump_tree + '.source', 'w', encoding='utf-8') as fh:
+                fh.write(describe_source(args) + '\n')
+            print(f"  tree written to {args.dump_tree} (source in .source)")
         print(f"Validating the cryodaq client on the {label} "
               f"({len(prechecks)} + {len(checks)} checks)")
         failed += run(prechecks)

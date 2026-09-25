@@ -196,9 +196,33 @@ def check_an_absent_scope_is_empty_rather_than_an_error():
     enumerated('umux-rfsoc', 'bay', (), ())
 
 
-def check_a_full_scope_is_enumerated_to_the_ceiling():
+def check_a_full_window_is_enumerated():
     every = tuple(range(platform.MAX_SCOPE_INDEX))
     enumerated('umux-atca', 'band', every, every)
+
+
+def check_a_scope_is_enumerated_past_the_window():
+    # A band has 512 channels, sixteen windows' worth. The enumeration has to reach
+    # the last one, and stop where the tree does: 512 present, and nothing after.
+    wanted = tuple(range(512))
+    present = {f"CryoChannel[{i}]." for i in wanted}
+
+    def has(path):
+        # presence() matches an index anywhere in the path, and the parent band's
+        # own [0] would match every probe; only the channel segment counts here.
+        return any(p in path + '.' for p in present)
+
+    for name in ('umux-atca', 'umux-rfsoc'):
+        got = platform.indices(platform.by_name(name), has, 'channel', band=0)
+        assert got == wanted, \
+            f"{name} channel enumerated {len(got)} indices, last {got[-1:]}, expected 512"
+
+
+def check_a_scope_ends_after_an_empty_window():
+    # Indices 0 and 40 are present: 40 is in the second window, so it is found; the
+    # third window (64-95) is empty, so nothing past it is probed. A gap wider than a
+    # window ends the scope -- that is the definition of its end.
+    enumerated('umux-atca', 'band', (0, 40, 100), (0, 40))
 
 
 def check_a_nested_scope_needs_its_parent():

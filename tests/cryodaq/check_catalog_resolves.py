@@ -130,9 +130,10 @@ KNOWN_READ_ONLY_WRITES = (
     'carrier.bsa.engine[*].buffer[*].empty',
 )
 
-# How far an index is probed for. Matches the platform layer's own ceiling, so a
-# scope this check enumerates is the scope a session would enumerate.
-MAX_INDEX = platform.MAX_SCOPE_INDEX
+# The probing window, the platform layer's own: indices are probed a window at a
+# time until a whole window finds nothing, so a scope this check enumerates is the
+# scope a session would enumerate -- to its end, however many the tree has.
+WINDOW = platform.MAX_SCOPE_INDEX
 
 SCOPE = re.compile(r'\{(\w+)\}')
 
@@ -345,9 +346,10 @@ def template_of(pmap, name):
 def indices_present(paths, template, scope, fixed):
     """Which indices of one scope a dump has, with the outer scopes pinned.
 
-    Every index below the ceiling is probed and a gap does not end the scope: a
-    firmware mask may leave one out and keep a higher one, so stopping at the
-    first miss would silently drop real hardware.
+    Probed a window at a time until a whole window is empty, as the platform layer
+    does: a gap does not end the scope -- a firmware mask may leave one out and
+    keep a higher one, so stopping at the first miss would silently drop real
+    hardware -- and a scope with hundreds of indices is enumerated to its end.
 
     An inner scope still unfilled is matched by prefix rather than substituted.
     Substituting a nominal ``0`` was wrong, and quietly: the attenuators are
@@ -355,20 +357,24 @@ def indices_present(paths, template, scope, fixed):
     *bay* as absent -- a whole platform's front end missing because an inner index
     does not start where the probe assumed.
     """
-    found = []
-    for i in range(MAX_INDEX):
+    def present(i):
         probe = template
         for name, value in dict(fixed, **{scope: i}).items():
             probe = probe.replace(f'{{{name}}}', str(value))
         remaining = SCOPE.search(probe)
         if remaining:
             prefix = probe[:remaining.start()]
-            if any(path.startswith(prefix) for path in paths):
-                found.append(i)
-            continue
-        if probe in paths:
-            found.append(i)
-    return found
+            return any(path.startswith(prefix) for path in paths)
+        return probe in paths
+
+    found = []
+    start = 0
+    while True:
+        window = [i for i in range(start, start + WINDOW) if present(i)]
+        if not window:
+            return found
+        found += window
+        start += WINDOW
 
 
 def expand(paths, template):

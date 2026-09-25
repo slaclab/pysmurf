@@ -27,6 +27,9 @@
 #     validate_client_emulated.py --cryo-det <checkout> --rfsoc --dump-tree rfsoc.txt
 #     prune_fixtures.py --atca atca.txt --rfsoc rfsoc.txt
 #
+# Each dump comes with a `.source` file naming the checkout revision or ZIP it was
+# built from; that is copied into the provenance rather than asserted here.
+#
 # Rerun after any change to the platform maps that reaches a new device, or the
 # fixtures will lack the rows the new names need and check_catalog_resolves.py will
 # report them absent. --check reports what would be written without writing it.
@@ -59,12 +62,13 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 FIXTURES = HERE / 'fixtures'
 
-# What each fixture is a dump of. The stems are what check_catalog_resolves.py reads.
-DESCRIPTION = {
-    'atca': ('MicrowaveMuxBpEthGen2 v2.5.1',
-             'pysmurf.core.roots.EmulationRoot over MemEmulate'),
-    'rfsoc': ('MicrowaveMuxZcu208_BaseBand',
-              'pysmurf.core.roots.EmulationRoot over MemEmulate, isRFSOC=True'),
+# How each tree is built; the stems are what check_catalog_resolves.py reads. *What* it
+# is built from is not written here: validate_client_emulated.py records that beside
+# each dump it writes (a `.source` file naming the checkout's revision or the ZIP),
+# and it is copied through, so a fixture rebuilt from another checkout says so.
+BUILT_BY = {
+    'atca': 'pysmurf.core.roots.EmulationRoot over MemEmulate',
+    'rfsoc': 'pysmurf.core.roots.EmulationRoot over MemEmulate, isRFSOC=True',
 }
 
 # How many per-channel entries to keep. Two rather than one so that a check which
@@ -164,6 +168,11 @@ def main():
         lines = source.read_text(encoding='utf-8').splitlines()
         if len(lines) < 2:
             sys.exit(f'{source}: not a tree dump')
+        sidecar = source.with_name(source.name + '.source')
+        if not sidecar.exists():
+            sys.exit(f'{sidecar}: no provenance beside the dump; write the dump with '
+                     f'validate_client_emulated.py --dump-tree, which records it')
+        origin = sidecar.read_text(encoding='utf-8').strip()
         kept = prune(lines, devices)
         pruned_paths[stem] = {line.split('\t', 1)[0] for line in kept[1:]}
         bands = scope_indices(kept, 'Base')
@@ -185,7 +194,7 @@ def main():
             sys.exit(f'{stem}: the pruned fixture answers differently from the full '
                      f'dump for {", ".join(differ)}; pruning must not change a verdict')
 
-        summary[stem] = {'kept': kept, 'rows': len(kept) - 1,
+        summary[stem] = {'kept': kept, 'origin': origin, 'rows': len(kept) - 1,
                          'rows_before': len(lines) - 1, 'bands': bands,
                          'front_end_bays': bays, 'daq_mux_bays': daq}
         print(f'  {stem:6s} {len(lines) - 1:6d} -> {len(kept) - 1:5d} rows  '
@@ -235,10 +244,9 @@ def main():
         '',
     ]
     for stem, facts in summary.items():
-        firmware, built_by = DESCRIPTION[stem]
         note += [f'{stem}.varlist.txt.gz',
-                 f'  firmware        {firmware}',
-                 f'  built by        {built_by}',
+                 f'  built from      {facts["origin"]}',
+                 f'  built by        {BUILT_BY[stem]}',
                  f'  rows            {facts["rows"]} of {facts["rows_before"]}',
                  f'  bands           {facts["bands"]}',
                  f'  front-end bays  {facts["front_end_bays"] or "none"}',

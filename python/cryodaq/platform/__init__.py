@@ -59,10 +59,13 @@ COMMAND = 'command'
 PROCESS = 'process'
 KINDS = (VALUE, COMMAND, PROCESS)
 
-# How far an index is probed for when enumerating a scope. Every index below it
-# is probed, with no stopping at the first gap: a firmware mask may leave one out
-# and keep a higher one, so a gap is a fact about the tree rather than the end of
-# the scope.
+# How an indexed scope is enumerated: in windows this wide, every index in a
+# window probed, and the next window probed as long as the last one found
+# anything. A gap inside a window does not end the scope -- a firmware mask may
+# leave a band out and keep a higher one, so a gap is a fact about the tree
+# rather than the end of the scope -- and a scope the hardware has hundreds of,
+# the channels of a band, is enumerated to its end without this file knowing
+# how many there are: how many of something a tree has is the tree's to say.
 MAX_SCOPE_INDEX = 32
 
 # Where a system reports the firmware it is running. Every generation supported
@@ -325,7 +328,8 @@ def indices(pmap: PlatformMap, has: Callable[[str], bool], scope: str,
         The indices present, in order, gaps included -- a disabled bay or a
         firmware band mask leaves one out without ending the scope. Empty when
         the tree has none, which is how a platform without the hardware behind
-        them is seen.
+        them is seen. The scope ends at the first ``MAX_SCOPE_INDEX`` consecutive
+        indices the tree lacks, however many it has before that.
     """
     if scope not in pmap.scopes:
         raise KeyError(f"{pmap.name} has no scope {scope!r}")
@@ -334,11 +338,17 @@ def indices(pmap: PlatformMap, has: Callable[[str], bool], scope: str,
     if missing:
         raise KeyError(f"scope {scope!r} is inside {parents}; give {', '.join(missing)}")
     present: List[int] = []
-    for i in range(MAX_SCOPE_INDEX):
-        values = dict(fixed, **{scope: i})
-        if any(has(_fill(t, values)) for t in templates):
-            present.append(i)
-    return tuple(present)
+    start = 0
+    while True:
+        found_in_window = False
+        for i in range(start, start + MAX_SCOPE_INDEX):
+            values = dict(fixed, **{scope: i})
+            if any(has(_fill(t, values)) for t in templates):
+                present.append(i)
+                found_in_window = True
+        if not found_in_window:
+            return tuple(present)
+        start += MAX_SCOPE_INDEX
 
 
 def _scopes_of(pattern: str) -> Tuple[str, ...]:
