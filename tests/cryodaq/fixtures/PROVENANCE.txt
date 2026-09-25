@@ -15,7 +15,7 @@ Do not edit them by hand. Regenerate them with that script (its header says
 how); a hand edit is a fixture that answers a question the firmware would
 answer differently.
 
-Built at pysmurf b25cd4d7-dirty.
+Built at pysmurf 0227885a-dirty.
 
 atca.varlist.txt.gz
   built from      cryo-det MicrowaveMuxBpEthGen2_v2.5.1-6-gfe6a0f50

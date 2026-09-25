@@ -32,7 +32,9 @@
 #
 # Rerun after any change to the platform maps that reaches a new device, or the
 # fixtures will lack the rows the new names need and check_catalog_resolves.py will
-# report them absent. --check reports what would be written without writing it.
+# report them absent. --check writes nothing and fails if the committed fixtures are not
+# what the input produces, so it can stand in a test job; the gzip stream is written
+# with a fixed timestamp so that identical input gives identical bytes.
 #-----------------------------------------------------------------------------
 # This file is part of the pysmurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -46,6 +48,7 @@
 import argparse
 import collections
 import gzip
+import io
 import os
 import pathlib
 import re
@@ -138,6 +141,24 @@ def resolves(paths, template):
     return any(pattern.match(p) for p in paths)
 
 
+def deterministic_gzip(text):
+    """The text gzipped so that the same text gives the same bytes on every run.
+
+    ``gzip.open`` stamps the header with the current time (and a filename), which
+    would make identical fixtures differ and defeat a byte comparison.
+    """
+    buf = io.BytesIO()
+    with gzip.GzipFile(fileobj=buf, mode='wb', mtime=0) as fh:
+        fh.write(text.encode('utf-8'))
+    return buf.getvalue()
+
+
+def without_build_stamp(data):
+    """A provenance file with its ``Built at pysmurf ...`` line removed."""
+    return b'\n'.join(line for line in data.split(b'\n')
+                      if not line.startswith(b'Built at pysmurf '))
+
+
 def short_head():
     """The pysmurf revision the fixtures were pruned at, ``-dirty`` if the worktree was.
 
@@ -218,15 +239,8 @@ def main():
     if summary['rfsoc']['front_end_bays']:
         sys.exit('the bayless fixture kept front-end bays')
 
-    if args.check:
-        print('\n--check: nothing written')
-        return 0
-
-    FIXTURES.mkdir(parents=True, exist_ok=True)
-    for stem, facts in summary.items():
-        with gzip.open(FIXTURES / f'{stem}.varlist.txt.gz', 'wt',
-                       encoding='utf-8') as fh:
-            fh.write('\n'.join(facts['kept']) + '\n')
+    fixtures = {f'{stem}.varlist.txt.gz': deterministic_gzip('\n'.join(facts['kept']) + '\n')
+                for stem, facts in summary.items()}
 
     note = [
         'Tree-dump fixtures for tests/cryodaq/check_catalog_resolves.py',
@@ -267,7 +281,28 @@ def main():
         'excludes those names. Absence from a dump is not evidence about the firmware',
         'unless you know which kind of dump you are holding.',
     ]
-    (FIXTURES / 'PROVENANCE.txt').write_text('\n'.join(note) + '\n', encoding='utf-8')
+    fixtures['PROVENANCE.txt'] = ('\n'.join(note) + '\n').encode('utf-8')
+
+    if args.check:
+        # The committed files must be what this input and this code produce. The
+        # one line allowed to differ names the commit the fixtures were built at,
+        # which by construction cannot match once they are committed.
+        stale = []
+        for filename, want in fixtures.items():
+            have = (FIXTURES / filename).read_bytes() if (FIXTURES / filename).exists() else b''
+            if filename == 'PROVENANCE.txt':
+                have, want = (without_build_stamp(x) for x in (have, want))
+            if have != want:
+                stale.append(filename)
+        if stale:
+            sys.exit(f'--check: committed fixture(s) differ from what this input produces: '
+                     f'{", ".join(stale)}; regenerate them')
+        print('\n--check: the committed fixtures are what this input produces; nothing written')
+        return 0
+
+    FIXTURES.mkdir(parents=True, exist_ok=True)
+    for filename, data in fixtures.items():
+        (FIXTURES / filename).write_bytes(data)
     print(f'\nwrote {len(summary)} fixture(s) and PROVENANCE.txt under {FIXTURES}')
     return 0
 

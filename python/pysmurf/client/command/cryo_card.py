@@ -29,6 +29,16 @@ def write_csv(filename, header, line):
         f.write(line+'\n')
 
 class CryoCard():
+    """The cryostat card, driven through the PIC's mailbox on the RTM.
+
+    .. versionchanged:: 11.5.0
+       Takes the two mailbox nodes instead of their paths with a server
+       address and port, and no longer opens its own connection. A caller
+       constructing one directly must pass the resolved nodes; no
+       compatibility path is kept, as the only known caller is
+       ``SmurfControl`` and this is a breaking release.
+    """
+
     def __init__(self, readpv, writepv, log=None):
         """
         Interact with the cryocard via the PIC. To interact via the RTM, use SmurfCommandMixin.
