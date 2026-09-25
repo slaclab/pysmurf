@@ -137,7 +137,7 @@ SCOPES.update({
     # Either direction proves a path: a firmware with one and not the other has wired up
     # fewer of one, which is a fact about the tree, as with the event receiver's scopes.
     'attenuator': ((_ATTENUATOR_UC, _ATTENUATOR_DC), ('bay',)),
-    'link': ((_JESD_RX_STATUS_VALID_COUNT,), ('bay',)),
+    'link': ((_JESD_RX_STATUS_VALID_COUNT, _JESD_TX_STATUS_VALID_COUNT), ('bay',)),
     'dac': ((_DAC,), ('bay',)),
     'tx_lane': ((_JESD_TX_DATA_OUT_MUX,), ('bay',)),
 })

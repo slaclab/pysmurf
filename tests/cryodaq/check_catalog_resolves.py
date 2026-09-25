@@ -75,6 +75,10 @@ CLIENT = COMMAND.parent.parent
 # Which platform map each committed dump belongs to.
 PLATFORM_OF = {'atca': 'umux-atca', 'rfsoc': 'umux-rfsoc'}
 
+# Fewer names resolving than this means the dump or the map has stopped being the real
+# one, not that the firmware shrank. The selftest lowers it: its fake maps are small.
+MIN_RESOLVED = 100
+
 # The subtrees the *server* adds on top of the firmware package, by their top-level node
 # name under the root. The map declares them -- they are its own section, because the
 # layer that creates them owns them -- and this reads the list rather than keeping a
@@ -256,9 +260,11 @@ def load_client_names():
     be a second description to keep in step. What is recorded is the name pattern, the
     direction, and the method -- enough to hold each to the firmware.
 
-    A name built at run time from something static reading cannot see is skipped, and
-    the count is asserted, so a parser that quietly stopped matching fails here rather
-    than checking nothing.
+    A name built at run time from something static reading cannot see is refused, not
+    skipped: a call this cannot read is a name no gate here checks. The one exception is
+    the table-driven helper in ``TABLE_LOOKUPS``, whose names are read from the table.
+    The count is asserted too, so a parser that quietly stopped matching fails here
+    rather than checking nothing.
     """
     source = COMMAND.read_text(encoding='utf-8')
     tree = ast.parse(source, filename=str(COMMAND))
@@ -474,7 +480,7 @@ def check_each_platform_offers_only_names_its_firmware_has():
         named = ', '.join(sorted(absent)[:8])
         assert not absent, (f'{len(absent)} name(s) the {PLATFORM_OF[stem]} map offers '
                             f'do not resolve on its firmware: {named}')
-        assert len(resolved) >= 100, \
+        assert len(resolved) >= MIN_RESOLVED, \
             f'only {len(resolved)} names resolved on {stem}; too few to mean much'
 
 
@@ -639,17 +645,31 @@ def selftest():
     import tempfile
     from dataclasses import replace
 
-    global FIXTURES, COMMAND, CLIENT, PLATFORM_OF
-    saved = (FIXTURES, COMMAND, CLIENT, PLATFORM_OF, platform.MAPS)
+    global FIXTURES, COMMAND, CLIENT, PLATFORM_OF, MIN_RESOLVED
+    saved = (FIXTURES, COMMAND, CLIENT, PLATFORM_OF, MIN_RESOLVED, platform.MAPS)
     failures = 0
 
-    def expect_failure(label, fn):
+    def expect_failure(label, fn, saying):
+        """Run a check and require it to refuse *for the reason this case sets up*.
+
+        Any AssertionError would be too weak: a case that tripped an unrelated
+        assertion -- a dump written without the column the check reads, a floor
+        met before the fault was reached -- would count as proving the fault is
+        caught when the check never got that far. Two cases did exactly that.
+        """
         nonlocal failures
         try:
             fn()
         except AssertionError as e:
-            print(f'  ok    {label}')
-            print(f'          refused with: {str(e)[:96]}')
+            if saying in str(e):
+                print(f'  ok    {label}')
+                print(f'          refused with: {str(e)[:96]}')
+            else:
+                failures += 1
+                print(f'  FAIL  {label}: refused for a different reason than the case '
+                      f'sets up')
+                print(f'          wanted: {saying}')
+                print(f'          got:    {str(e)[:96]}')
         except Exception as e:                                   # noqa: BLE001
             failures += 1
             print(f'  FAIL  {label}: raised {type(e).__name__} rather than refusing')
@@ -700,14 +720,21 @@ def selftest():
             tree = pathlib.Path(tmp)
             FIXTURES = tree
             PLATFORM_OF = {'atca': 'fake', 'rfsoc': 'fake_rfsoc'}
+            MIN_RESOLVED = 2                # the fake maps offer two names
             platform.MAPS = (fake, fake_bayless)
 
-            def write(stem, paths):
+            def write(stem, paths, ro=lambda path: False):
+                """A dump with the columns every check reads: path, type and mode.
+
+                Written with a mode for every row, as a real dump is, so a case that
+                turns on the mode is judged on it -- a dump without the column trips
+                load_nodes() first and the case never reaches the check it is for.
+                """
                 with gzip.open(tree / f'{stem}.varlist.txt.gz', 'wt',
                                encoding='utf-8') as fh:
-                    fh.write('Path\tTypeStr\n')
+                    fh.write('Path\tTypeStr\tMode\n')
                     for p in paths:
-                        fh.write(f'{p}\tUInt32\n')
+                        fh.write(f'{p}\tUInt32\t{"RO" if ro(p) else "RW"}\n')
 
             def write_client(text):
                 COMMAND.write_text(text, encoding='utf-8')
@@ -736,28 +763,36 @@ def selftest():
             write('atca', [p for p in good_atca if 'bandDelayUs' not in p])
             write('rfsoc', good_rfsoc)
             expect_failure('a name the carrier lacks is caught',
-                           check_each_platform_offers_only_names_its_firmware_has)
+                           check_each_platform_offers_only_names_its_firmware_has,
+                           'the fake map offers do not resolve on its firmware: '
+                           'band[*].delay_us')
 
             # A name the *other* platform's map offers and its firmware lacks must fail
             # too. That is the assertion the split makes possible: before it, this name
-            # was expected to be absent and its absence proved nothing.
+            # was expected to be absent and its absence proved nothing. The dump keeps
+            # a node no name reaches, so it is a tree without the register rather than
+            # an empty file, which load_dump() refuses on its own.
             write('atca', good_atca)
-            write('rfsoc', [p for p in good_rfsoc if 'bandDelayUs' not in p])
+            write('rfsoc', [base + 'SysgenCryo.Base[0].unrelated'])
             expect_failure('a name the bayless platform lacks is caught',
-                           check_each_platform_offers_only_names_its_firmware_has)
+                           check_each_platform_offers_only_names_its_firmware_has,
+                           'the fake_rfsoc map offers do not resolve on its firmware: '
+                           'band[*].delay_us')
 
             # A front-end name that resolves on a platform whose map does not offer it
             # means the dumps are not the trees the maps describe.
             write('rfsoc', good_atca)
             expect_failure('a front-end register present without a front end is caught',
-                           check_the_platforms_differ_by_the_hardware_one_lacks)
+                           check_the_platforms_differ_by_the_hardware_one_lacks,
+                           'resolves on the other platform too')
 
             # Two maps offering the same names make every comparison vacuous.
             write('atca', good_atca)
             write('rfsoc', good_rfsoc)
             platform.MAPS = (fake, replace(fake, name='fake_rfsoc'))
             expect_failure('two maps that offer the same names are caught',
-                           check_the_platforms_differ_by_the_hardware_one_lacks)
+                           check_the_platforms_differ_by_the_hardware_one_lacks,
+                           'the two maps offer the same names')
             platform.MAPS = (fake, fake_bayless)
 
             # A carrier-only name that is not front-end hardware means the maps disagree
@@ -770,7 +805,8 @@ def selftest():
             platform.MAPS = (odd, fake_bayless)
             write('atca', good_atca + [base + 'Something.Else'])
             expect_failure('a carrier-only name that is not the front end is caught',
-                           check_the_platforms_differ_by_the_hardware_one_lacks)
+                           check_the_platforms_differ_by_the_hardware_one_lacks,
+                           'not its front end or data links: unrelated')
             platform.MAPS = (fake, fake_bayless)
             write('atca', good_atca)
 
@@ -800,20 +836,23 @@ def selftest():
             # The same tree under two names must fail.
             write('rfsoc', good_atca)
             expect_failure('the same tree under two names is caught',
-                           check_both_generations_are_really_different_trees)
+                           check_both_generations_are_really_different_trees,
+                           'the two dumps hold identical paths')
 
             # A tree differing by something other than the bay axis must fail.
             write('rfsoc', good_atca + [base + 'Extra.Register'])
             write('atca', good_atca + [base + 'Something.Unrelated'])
             expect_failure('a difference that is not the bay axis is caught',
-                           check_both_generations_are_really_different_trees)
+                           check_both_generations_are_really_different_trees,
+                           'not the per-bay front end or data links')
             # A tree the RFSoC has and the carrier lacks must fail even when the carrier's
             # own surplus is exactly the front end: the difference is asserted in both
             # directions, or an RFSoC-only path could pass unseen.
             write('atca', good_atca)
             write('rfsoc', good_rfsoc + [base + 'OnlyOnRfsoc.Register'])
             expect_failure('a path only the RFSoC has is caught',
-                           check_both_generations_are_really_different_trees)
+                           check_both_generations_are_really_different_trees,
+                           'the RFSoC dump has paths the carrier lacks')
             write('atca', good_atca)
             write('rfsoc', good_rfsoc)
 
@@ -831,7 +870,8 @@ def selftest():
                 witness=(), scopes=scopes)
             platform.MAPS = (commanding, fake_bayless)
             expect_failure('a command the firmware declares readable is caught',
-                           check_the_map_declares_the_kind_the_firmware_declares)
+                           check_the_map_declares_the_kind_the_firmware_declares,
+                           'the map says command, but the firmware declares')
             platform.MAPS = (fake, fake_bayless)
 
             # A client reaching a name the map cannot resolve must fail: that is a
@@ -840,34 +880,25 @@ def selftest():
                 ('_get_by_name', "f'band[{band}].ghost'", ''),
             ))
             expect_failure('an accessor reaching an unresolvable name is caught',
-                           check_the_client_reaches_only_names_the_map_resolves)
+                           check_the_client_reaches_only_names_the_map_resolves,
+                           'the carrier does not have: band[*].ghost')
 
             # A client writing a register the firmware declares read-only must fail.
             # The mode comes from the dump, so the dump is what states it here.
-            with gzip.open(tree / 'atca.varlist.txt.gz', 'wt', encoding='utf-8') as fh:
-                fh.write('Path\tTypeStr\tMode\n')
-                for path in good_atca:
-                    mode = 'RO' if 'bandDelayUs' in path else 'RW'
-                    fh.write(f'{path}\tUInt32\t{mode}\n')
+            write('atca', good_atca, ro=lambda path: 'bandDelayUs' in path)
             write_client(client_source(
                 ('_set_by_name', "f'band[{band}].delay_us'", ', val'),
             ))
             expect_failure('a write to a read-only register is caught',
-                           check_the_client_writes_no_register_the_firmware_makes_read_only)
+                           check_the_client_writes_no_register_the_firmware_makes_read_only,
+                           'read-only: band[*].delay_us')
             # A read-only node at a later index must be caught: the mode is per node,
             # and a check that stopped at the first concrete path would miss it.
-            with gzip.open(tree / 'atca.varlist.txt.gz', 'wt', encoding='utf-8') as fh:
-                fh.write('Path\tTypeStr\tMode\n')
-                for path in good_atca:
-                    mode = 'RO' if path.endswith('Base[5].bandDelayUs') else 'RW'
-                    fh.write(f'{path}\tUInt32\t{mode}\n')
+            write('atca', good_atca, ro=lambda path: path.endswith('Base[5].bandDelayUs'))
             expect_failure('a read-only register at a later index is caught',
-                           check_the_client_writes_no_register_the_firmware_makes_read_only)
-            with gzip.open(tree / 'atca.varlist.txt.gz', 'wt', encoding='utf-8') as fh:
-                fh.write('Path\tTypeStr\tMode\n')
-                for path in good_atca:
-                    mode = 'RO' if 'bandDelayUs' in path else 'RW'
-                    fh.write(f'{path}\tUInt32\t{mode}\n')
+                           check_the_client_writes_no_register_the_firmware_makes_read_only,
+                           'Base[5].bandDelayUs')
+            write('atca', good_atca, ro=lambda path: 'bandDelayUs' in path)
 
             # The same write through a name table must be caught too: the table serves a
             # setter as well as a getter, and recording it as a read alone would let a
@@ -879,7 +910,8 @@ def selftest():
                 "",
             ]))
             expect_failure('a table-driven write to a read-only register is caught',
-                           check_the_client_writes_no_register_the_firmware_makes_read_only)
+                           check_the_client_writes_no_register_the_firmware_makes_read_only,
+                           'read-only: band[*].delay_us')
 
             # A name reached through a local variable must be read, not skipped: a
             # typo in `name = f'band[{band}].ghost'` is as unresolvable as one at the
@@ -891,7 +923,8 @@ def selftest():
                 "",
             ]))
             expect_failure('an unresolvable name reached through a local is caught',
-                           check_the_client_reaches_only_names_the_map_resolves)
+                           check_the_client_reaches_only_names_the_map_resolves,
+                           'the carrier does not have: band[*].ghost')
 
             # A name this reader cannot see -- computed by a call -- must be refused
             # outright, not passed over: skipping it is exactly how a register could be
@@ -902,7 +935,8 @@ def selftest():
                 "",
             ]))
             expect_failure('a name computed in a way the check cannot read is refused',
-                           check_the_client_reaches_only_names_the_map_resolves)
+                           check_the_client_reaches_only_names_the_map_resolves,
+                           'names its register in a way this check cannot read')
 
             # An access outside the command module must be seen: a wait in the tuning
             # code or a poll in the utilities reaches a register through the same
@@ -916,7 +950,8 @@ def selftest():
                 "        return self._wait_for(f'band[{band}].phantom', bool)\n",
                 encoding='utf-8')
             expect_failure('an unresolvable name reached outside smurf_command.py is caught',
-                           check_the_client_reaches_only_names_the_map_resolves)
+                           check_the_client_reaches_only_names_the_map_resolves,
+                           'band[*].phantom (line smurf_util.py:')
             OTHER.write_text('class SmurfUtilMixin:\n    pass\n', encoding='utf-8')
 
             # A client the reader cannot recognise at all must fail rather than pass
@@ -924,9 +959,10 @@ def selftest():
             # report success over an empty set.
             write_client('class SmurfCommandMixin:\n    pass\n')
             expect_failure('a client whose accessors cannot be read is caught',
-                           check_the_client_reaches_only_names_the_map_resolves)
+                           check_the_client_reaches_only_names_the_map_resolves,
+                           'the check has stopped recognising them')
     finally:
-        FIXTURES, COMMAND, CLIENT, PLATFORM_OF, platform.MAPS = saved
+        FIXTURES, COMMAND, CLIENT, PLATFORM_OF, MIN_RESOLVED, platform.MAPS = saved
 
     print('')
     if failures:

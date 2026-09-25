@@ -1,20 +1,21 @@
 Tree-dump fixtures for tests/cryodaq/check_catalog_resolves.py
 
-Each file lists every node a firmware package defines, one per line, tab-separated,
-as pyrogue's Root.saveVariableList() writes it. They are checked in so the name
-resolution check needs no hardware, no rogue and no network -- see the README in
-this directory for what the check does with them.
+Each file lists every node a firmware package defines, one per line,
+tab-separated, as pyrogue's Root.saveVariableList() writes it. They are
+checked in so the name resolution check needs no hardware, no rogue and no
+network -- see the README in this directory for what the check does with them.
 
-These are *pruned*. A full dump is some nine megabytes; a row is kept when the
-device it sits in is a device some register name reaches, keeping every index of
-that device, with the per-channel arrays thinned to two entries. Keeping every
-index is what matters: it is how the two generations can still be told apart, and
-how an off-by-one in an index scope is still caught.
+These are *pruned* by tests/cryodaq/prune_fixtures.py: a row is kept when the
+device it sits in is one a register name reaches, with every index of that
+device retained, and the per-channel arrays thinned to 2.
+Keeping every index is what matters: it is how the two generations can still
+be told apart, and how an off-by-one in an index scope is still caught.
 
-Do not edit them by hand. They are generated, and a hand edit is a fixture that
-answers a question the firmware would answer differently.
+Do not edit them by hand. Regenerate them with that script (its header says
+how); a hand edit is a fixture that answers a question the firmware would
+answer differently.
 
-Built from pysmurf 36264edf with cryo-det fe6a0f50.
+Built at pysmurf 9abd6e1d.
 
 atca.varlist.txt.gz
   firmware        MicrowaveMuxBpEthGen2 v2.5.1
@@ -32,10 +33,10 @@ rfsoc.varlist.txt.gz
   front-end bays  none
   daq mux bays    [0, 1]
 
-Note what a dump of a firmware *package* does not contain: the subtrees a running
-server adds -- SmurfProcessor, the stream writers, SmurfApplication, the capture
-receivers, setDefaults, Ready. These fixtures are EmulationRoot dumps, so they do
-carry them; a dump built straight from a released ZIP does not, which is why
-check_catalog_resolves.py has a --package-dump mode that excludes those names.
-Absence from a dump is not evidence about the firmware unless you know which kind
-of dump you are holding.
+Note what a dump of a firmware *package* does not contain: the subtrees a
+running server adds -- SmurfProcessor, the stream writers, SmurfApplication,
+the capture receivers, setDefaults, Ready. These fixtures are EmulationRoot
+dumps, so they do carry them; a dump built straight from a released ZIP does
+not, which is why check_catalog_resolves.py has a --package-dump mode that
+excludes those names. Absence from a dump is not evidence about the firmware
+unless you know which kind of dump you are holding.

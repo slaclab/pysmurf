@@ -201,11 +201,21 @@ jobs:
       #   writers, SmurfApplication and the rest are added by the server at start-up --
       #   so --package-dump excludes those names and requires every name under the
       #   firmware's own tree to resolve.
+      #
+      #   cryo-det is a private repository, so this needs the same token the
+      #   definitions check uses, not the workflow's own. Secrets are withheld from a
+      #   pull request opened from a fork; there the step says so and stops, and the
+      #   committed fixtures checked in test-client remain the evidence.
       - name: Resolve the names against a released firmware package
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           set -euo pipefail
+          if [ -z "${GITHUB_TOKEN}" ]; then
+            echo "::notice::no token for slaclab/cryo-det (fork pull request?);" \
+                 "the released-package resolution is skipped, the fixtures still run"
+            exit 0
+          fi
           tag=MicrowaveMuxBpEthGen2_v2.5.1
           zip=rogue_${tag}.zip
           id=$(curl --fail --silent --location \

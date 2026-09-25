@@ -237,13 +237,18 @@ def check_the_scopes_are_the_ones_this_tree_has():
     bays = SESSION.indices('bay')
     assert bays, 'neither platform has a tree without bays; the scope found none'
     if EXPECTED_FRONT_END[RFSOC]:
-        attenuated = [b for b in bays if SESSION.indices('attenuator', bay=b)]
-        assert attenuated, f"no bay of {list(bays)} carries attenuators"
-        # A path is a path in both directions, and the scope is proved by either -- so
-        # both names have to resolve on every path the scope found.
-        for att in SESSION.indices('attenuator', bay=attenuated[0]):
-            for direction in ('uc', 'dc'):
-                SESSION.pmap.path(f'bay[{attenuated[0]}].attenuator[{att}].{direction}')
+        # Every carrier bay has a front end, so every bay must enumerate attenuators;
+        # a path is a path in both directions, and the scope is proved by either -- so
+        # both nodes have to exist on every path the scope found. Asked of the tree
+        # through node(), which resolves the name and then looks the node up: the
+        # map's path() alone only formats the template and proves nothing about
+        # what this tree has.
+        for bay in bays:
+            atts = SESSION.indices('attenuator', bay=bay)
+            assert atts, f"bay {bay} carries no attenuators"
+            for att in atts:
+                for direction in ('uc', 'dc'):
+                    SESSION.node(f'bay[{bay}].attenuator[{att}].{direction}')
     else:
         # No front end, so the scopes it provides are not declared at all -- asking for
         # one is a KeyError and that is the map's statement of what this platform has,
@@ -697,6 +702,10 @@ def main():
                          'so the flag builds that tree without needing it')
     ap.add_argument('--port', type=int, default=None,
                     help='port to serve the emulated tree on (a free one by default)')
+    ap.add_argument('--dump-tree', metavar='PATH',
+                    help='also write the full node listing of the tree the checks ran '
+                         'on, as saveVariableList() writes it; prune_fixtures.py reads '
+                         'these to rebuild the committed fixtures')
     args = ap.parse_args()
     RFSOC = args.rfsoc
 
@@ -713,6 +722,9 @@ def main():
         # failure worth reporting, and it is reported by exiting, which a started
         # root that nobody stopped would prevent.
         write_build_stamp(root, stamp_for(EXPECTED_IMAGE[args.rfsoc]))
+        if args.dump_tree:
+            root.saveVariableList(args.dump_tree)
+            print(f"  tree written to {args.dump_tree}")
         print(f"Validating the cryodaq client on the {label} "
               f"({len(prechecks)} + {len(checks)} checks)")
         failed += run(prechecks)

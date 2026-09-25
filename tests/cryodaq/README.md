@@ -38,7 +38,9 @@ A seventh check applies that last rule to everything the package carries that is
 rule is enforced by reading string constants out of modules, so a register map shipped as data would
 satisfy it without being subject to it — and a register map is exactly the kind of thing that is
 easier to ship as data. Every non-source file outside the platform package is therefore read as text
-and held to the same rule; a binary file, which carries no path a client could use, is skipped.
+and held to the same rule; a file that is not UTF-8 text cannot be read for paths, so it is reported
+rather than passed over — the package ships no such file today, and one appearing would be the one
+way to carry a path this check cannot see.
 
 The sixth source check watches a different seam: the null publisher a session falls back to takes the
 same parameter *names* as pysmurf's real `Publisher`, compared by parsing both. A caller that passes
@@ -134,10 +136,11 @@ stopped matching fails here rather than quietly checking nothing.
 
 The dumps under `fixtures/` are pruned: a full one is some nine megabytes, almost all of it the
 per-channel registers of eight bands. A row is kept when the device it sits in is one a name reaches,
-with every index of that device retained, so both generations can still be told apart. The
-regeneration tool records their provenance and refuses to write a pair that resolves differently from
-the full dumps — a pruned fixture that changed an answer would be a smaller tree that happens to
-pass.
+with every index of that device retained, so both generations can still be told apart. They are
+rebuilt by `prune_fixtures.py` from full dumps that `validate_client_emulated.py --dump-tree` writes
+(its header gives the three commands); it records their provenance beside them and refuses to write a
+pair that resolves differently from the full dumps — a pruned fixture that changed an answer would be
+a smaller tree that happens to pass. Rerun it after any map change that reaches a new device.
 
 The pruned dumps are the fallback that keeps the check meaningful on a fork's pull request, where no
 token is available. Checking a *released* package is a second mode, `--package-dump`, run by the
