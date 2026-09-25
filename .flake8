@@ -48,6 +48,10 @@ rst-roles =
 rst-directives =
     envvar,
     exception,
+    # Sphinx renders these; docutils, which the docstring checker validates
+    # against, does not know them.
+    deprecated,
+    versionchanged,
 # enforces fstrings only
 extend-ignore =
     # Ignore f-strings, we like them:

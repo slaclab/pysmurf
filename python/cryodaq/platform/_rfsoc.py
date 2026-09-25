@@ -8,15 +8,16 @@
 # Description:
 #    The platform map for microwave-multiplexed readout on an RFSoC, whose data
 #    converters are on the chip: it has no per-bay JESD links and no AMC front
-#    end, so the names those registers back do not resolve on it and its bay
-#    scope is empty. A caller asks what a system offers rather than assuming.
+#    end, so it does not offer the names those registers back at all. Asking for
+#    one is an unresolved name rather than a path that reaches nothing, and the
+#    difference matters -- a map is a statement of what a platform has.
 #
-#    The registers come from _umux, which this platform shares with the others of
-#    its generation. It is a platform of its own because it is configured
-#    differently -- bring-up ordering and what has to be set up part company with
-#    a carrier even where the paths agree -- and that is the difference the
-#    bring-up procedures will need once they move into cryodaq. Nothing here
-#    reads or writes a register.
+#    The registers come from _umux, which is every register of this generation
+#    that does not depend on a separate converter board. It is a platform of its
+#    own because it is configured differently -- bring-up ordering and what has
+#    to be set up part company with a carrier even where the paths agree -- and
+#    that is the difference the bring-up procedures will need once they move into
+#    cryodaq. Nothing here reads or writes a register.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory

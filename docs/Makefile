@@ -2,7 +2,12 @@
 #
 
 # You can set these variables from the command line.
-SPHINXOPTS    =
+# -W makes a warning fail the build, so "the documentation builds" means "it builds
+# clean". The build is warning-free, so this costs nothing now and a broken
+# cross-reference or malformed docstring fails the pull request that introduces it
+# rather than becoming a log line nobody reads. Override on the command line
+# (SPHINXOPTS=) when working on a page and the warnings are the point.
+SPHINXOPTS    = -W
 SPHINXBUILD   = sphinx-build
 PAPER         =
 SOURCEDIR     = .

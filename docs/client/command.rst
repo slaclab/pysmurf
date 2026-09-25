@@ -22,8 +22,3 @@ smurf_command
 -------------
 .. automodule:: pysmurf.client.command.smurf_command
     :members:
-
-sync_group
-----------
-.. automodule:: pysmurf.client.command.sync_group
-    :members:

@@ -223,6 +223,44 @@ def check_register_paths_only_in_platform():
     report('paths')
 
 
+def check_register_paths_in_data_files_are_in_platform_too():
+    """The rule above, applied to what the package carries that is not source.
+
+    The register-path rule is enforced by reading string constants out of modules,
+    so a map shipped as data rather than as code would satisfy it without being
+    subject to it -- and a register map is exactly the kind of thing that is easier
+    to ship as data. Every non-source file in the package is therefore read as text
+    and held to the same rule, which is also what keeps the rule honest as the
+    package grows a catalog, a schema or a fixture.
+    """
+    offenders = []
+    for path in sorted(PACKAGE.rglob('*')):
+        if path.suffix == '.py' or not path.is_file():
+            continue
+        if '__pycache__' in path.parts:
+            continue                     # the interpreter's own compiled copies
+        rel = path.relative_to(PACKAGE)
+        if in_platform(rel):
+            continue
+        try:
+            text = path.read_text(encoding='utf-8')
+        except UnicodeDecodeError:
+            # A file this cannot read is a file this cannot clear. The package ships
+            # no binary data today, so one appearing outside platform is refused
+            # rather than passed over: skipping it would be the one way to carry a
+            # register map past this rule.
+            offenders.append(f"{rel} is not UTF-8 text and cannot be checked for "
+                             f"register paths")
+            continue
+        for lineno, line in enumerate(text.splitlines(), 1):
+            if REGISTER_PATH_RE.search(line):
+                offenders.append(f"{rel}:{lineno} register path {line.strip()[:60]!r}")
+                break                    # one report per file is enough to place it
+    listed = '\n'.join(f"    {o}" for o in offenders)
+    assert not offenders, (f"{len(offenders)} data file(s) outside cryodaq.platform "
+                           f"carry a register path:\n{listed}")
+
+
 def _parameter_names(tree, class_name, method):
     """The positional parameter names of one method of one class, from source."""
     for node in ast.walk(tree):
@@ -322,6 +360,8 @@ def check_rules_fire_on_a_bad_package():
         "RATE = 614.4\n"
         "note = 'the tes bias'\n"
     )
+    global PACKAGE
+    saved = PACKAGE
     with tempfile.TemporaryDirectory() as tmp:
         pkg = pathlib.Path(tmp) / 'cryodaq'
         (pkg / 'platform').mkdir(parents=True)
@@ -329,7 +369,34 @@ def check_rules_fire_on_a_bad_package():
         (pkg / '_client.py').write_text(bad_client)
         (pkg / 'platform' / '__init__.py').write_text('')
         (pkg / 'platform' / '_x.py').write_text(bad_map)
+        # A map shipped as data outside the platform package, which the source
+        # rules cannot see; the same thing in its legitimate home, which may not be
+        # reported; and a binary file outside platform, which must be -- not for
+        # what it holds but because it cannot be read, and a file this cannot
+        # read is one it cannot clear.
+        (pkg / 'smuggled.json').write_text('{"path": "AMCc.FpgaTopLevel.AppTop"}')
+        (pkg / 'platform' / 'shipped.json').write_text(
+            '{"path": "AMCc.FpgaTopLevel.AppTop"}')
+        (pkg / 'logo.bin').write_bytes(b'\x00\xff\xfe AMCc.FpgaTopLevel')
         found = violations(pkg)
+
+        PACKAGE = pkg
+        try:
+            check_register_paths_in_data_files_are_in_platform_too()
+        except AssertionError as e:
+            data_rule = str(e)
+        else:
+            data_rule = ''
+        finally:
+            PACKAGE = saved
+
+    assert 'smuggled.json' in data_rule, \
+        f"a register map shipped as data outside the platform package was not caught: {data_rule!r}"
+    assert 'shipped.json' not in data_rule, \
+        f"a data file in its legitimate home was reported: {data_rule!r}"
+    assert 'logo.bin' in data_rule, \
+        f"a binary file outside platform was passed over rather than refused: {data_rule!r}"
+
     rules = {r for r, _ in found}
     expected = {'imports', 'application', 'geometry', 'paths'}
     assert rules == expected, f"rules fired: {sorted(rules)}, expected {sorted(expected)}"

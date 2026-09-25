@@ -21,6 +21,7 @@ except ModuleNotFoundError:
     import warnings
     warnings.warn("Could not import pyrogue. Can only use offline mode.")
 
+from cryodaq import platform
 from pysmurf.client.command.cryo_card import CryoCard
 from pysmurf.client.util.pub import Publisher
 from .logger import SmurfLogger
@@ -109,6 +110,18 @@ class SmurfBase:
             self._client._monEnable = False
             # ensure that client socket is closed
             atexit.register(self._client.stop)
+            # Which platform this is comes from the firmware the tree reports, read
+            # once here so that a system no map claims is refused on connection
+            # rather than at the first register a method reaches. Every accessor
+            # resolves its names against this map from here on. A refusal closes
+            # the client it was made through: __init__ does not complete, so
+            # nothing else would, and each retry would otherwise leave one open
+            # until exit.
+            try:
+                self._platform_map_cache = platform.identify(self._client.root)
+            except BaseException:
+                self._client.stop()
+                raise
             if atca_monitor:
                 self._atca = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._atca_port)
                 if self._atca.root is None:
@@ -120,6 +133,8 @@ class SmurfBase:
         else:
             self._client = _DummyClient("OFFLINE: Server client")
             self._atca = _DummyClient("OFFLINE: ATCA monitor client")
+            # Offline there is no firmware to ask, and no register is reached.
+            self._platform_map_cache = None
 
         # If <pub_root>BACKEND environment variable is not set to 'udp', all
         # publish calls will be no-ops.
@@ -129,111 +144,20 @@ class SmurfBase:
         if self.offline is True:
             self.log('Offline mode')
 
-        # Setting paths for easier commands - Is there a better way to
-        # do this than just hardcoding paths? This needs to be cleaned
-        # up somehow
-
-        self.amcc = 'AMCc.'
-
-        self.smurf_application = self.amcc + 'SmurfApplication.'
-
-        self.smurf_processor = self.amcc + 'SmurfProcessor.'
-        self._predata_emulator = self.smurf_processor + 'PreDataEmulator.'
-        self._postdata_emulator = self.smurf_processor + 'PostDataEmulator.'
-        self.stream_data_source = self.amcc + 'StreamDataSource.'
-        self.channel_mapper = self.smurf_processor + 'ChannelMapper.'
-        self.frame_rx_stats = self.smurf_processor + 'FrameRxStats.'
-
-        self.fpga_top_level = self.amcc + 'FpgaTopLevel.'
-        self.app_top = self.fpga_top_level + 'AppTop.'
-        self.app_core = self.app_top + 'AppCore.'
-
-        # AppTop
-        self.dac_sig_gen = self.app_top + 'DacSigGen[{}].'
-
-        # AppCore
-        self.microwave_mux_core = self.app_core + 'MicrowaveMuxCore[{}].'
-        self.sysgencryo = self.app_core + 'SysgenCryo.'
-        self.timing_header = self.app_core + 'TimingHeader.'
-
-        # MicrowaveMuxCore[#]
-        self.DBG = self.microwave_mux_core + 'DBG.'
-        self.dac_root = self.microwave_mux_core + 'DAC[{}].'
-        self.att_root = self.microwave_mux_core + 'ATT.'
-
-        # LMK
-        self.lmk = self.microwave_mux_core + 'LMK.'
-
-        # SysgenCryo
-        self.band_root = self.sysgencryo + 'Base[{}].'
-        self.adc_root = self.sysgencryo + 'CryoAdcMux.'
-
-        self.cryo_root = self.band_root + 'CryoChannels.'
-        self.channel_root = self.cryo_root + 'CryoChannel[{}].'
-
-        self.streaming_root = self.amcc + 'streamingInterface.'
-
-        # FpgaTopLevel
-        self.fpgatl = self.amcc + 'FpgaTopLevel.'
-
-        # AppTop
-        self.apptop = self.fpgatl + 'AppTop.'
-
-        # AppCore
-        self.appcore = self.apptop + 'AppCore.'
-
-        # AmcCarrierCore
-        self.amccc = self.fpgatl + 'AmcCarrierCore.'
-
-        # Crossbar
-        self.crossbar = self.amccc + 'AxiSy56040.'
-
-        # Regulator
-        self.regulator = self.amccc + 'EM22xx.'
-
-        # CarrierBsi
-        self.amc_carrier_bsi = self.amccc + 'AmcCarrierBsi.'
-
-        # FPGA
-        self.ultrascale = self.amccc + 'AxiSysMonUltraScale.'
-
-        # Tx -> DAC , Rx <- ADC
-        self.axi_version = self.amccc + 'AxiVersion.'
-        self.waveform_engine_buffers_root = self.amccc + \
-            'AmcCarrierBsa.BsaWaveformEngine[{}].' + \
-            'WaveformEngineBuffers.'
-        self.stream_data_writer_root = self.amcc + 'streamDataWriter.'
-        self.jesd_tx_root = self.apptop + 'AppTopJesd[{}].JesdTx.'
-        self.jesd_rx_root = self.apptop + 'AppTopJesd[{}].JesdRx.'
-        self.daq_mux_root = self.apptop + 'DaqMuxV2[{}].'
-
-        # RTM paths
-        self.rtm_cryo_det_root = self.appcore + 'RtmCryoDet.'
-        self.rtm_spi_root = self.rtm_cryo_det_root + \
-            'RtmSpiSr.'
-        self.rtm_spi_max_root = self.rtm_cryo_det_root + \
-            'RtmSpiMax.'
-        self.rtm_spi_cryo_root = self.rtm_cryo_det_root + \
-            'SpiCryo.'
-        self.rtm_lut_ctrl_root = self.rtm_cryo_det_root + \
-            'LutCtrl.'
-        self.rtm_lut_ctrl = self.rtm_lut_ctrl_root + \
-            'Ctrl.'
-
-        # Timing paths
-        self.amctiming = self.amccc + 'AmcCarrierTiming.'
-        self.trigger_root = self.amctiming + 'EvrV2CoreTriggers.'
-        self.timing_status = self.amctiming + 'TimingFrameRx.'
-
         if offline:
             self.log('Offline mode, skipping CryoCard initialization')
             self.C = _DummyClient("OFFLINE: CryoCard client")
         else:
+            # The cryostat card is reached over a serial link on the RTM, through a
+            # pair of mailbox nodes. Where those are is a property of the platform,
+            # so they are resolved through its map and handed over as nodes; the
+            # card's own protocol is all that CryoCard then knows. It is given this
+            # client's tree rather than opening a second connection to the same
+            # endpoint, which is what it used to do.
+            pmap = self._platform_map_cache
             self.C = CryoCard(
-                self.rtm_spi_cryo_root + 'read',
-                self.rtm_spi_cryo_root + 'write',
-                server_addr=self._server_addr,
-                server_port=self._server_port,
+                self._client.root.getNode(pmap.path('rtm.cryocard.read')),
+                self._client.root.getNode(pmap.path('rtm.cryocard.write')),
                 log=self.log,
             )
 
@@ -308,49 +232,3 @@ class SmurfBase:
         log to STDOUT.
         """
         self.log.set_logfile(logfile)
-
-    def _band_root(self, band):
-        '''
-        Helper function that returns the epics path to a band.
-
-        Args
-        ----
-        band (int): The band to access
-
-        Returns
-        -------
-        path (string) : The string to be passed to caget/caput to access
-            the input band.
-        '''
-        return self.band_root.format(int(band))
-
-    def _cryo_root(self, band):
-        '''
-        Helper function that returns the epics path to cryoroot.
-
-        Args
-        ----
-        band (int): The band to access
-
-        Returns
-        -------
-        path (string) : The string to be passed to caget/caput to access
-            the input band.
-        '''
-        return self.cryo_root.format(int(band))
-
-    def _channel_root(self, band, channel):
-        """
-        Helper function that returns the epics path to channel root.
-
-        Args
-        ----
-        band (int) : The band to access
-        channel (int) : The channel to access.
-
-        Returns
-        -------
-        path (string) : The string to be passed to caget/caput to access
-            the input band.
-        """
-        return self.channel_root.format(int(band), int(channel))

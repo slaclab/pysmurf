@@ -27,6 +27,12 @@ superconducting microresonator arrays.
 
 .. toctree::
    :maxdepth: 3
+   :caption: Readout Core
+
+   cryodaq/index
+
+.. toctree::
+   :maxdepth: 3
    :caption: Client API
 
    client/base

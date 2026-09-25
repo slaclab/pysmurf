@@ -10,7 +10,7 @@
 #    names, and the lookup over it.
 #
 #    A semantic name is dotted, with indexed scopes: band[4].tone.amplitude,
-#    bay[0].attenuator.uc[1], stream.downsample.factor. Its pattern is the same
+#    bay[0].attenuator[1].uc, stream.downsample.factor. Its pattern is the same
 #    string with every index replaced by '*', and a map is a table from pattern
 #    to a register path template and the kind of node it is. Resolving a name is
 #    a dictionary lookup and a string format; a name with no entry, or with an
@@ -40,6 +40,7 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
+import functools
 import re
 from dataclasses import dataclass
 from typing import (Any, Callable, Dict, List, Mapping, Sequence, Tuple)
@@ -58,10 +59,13 @@ COMMAND = 'command'
 PROCESS = 'process'
 KINDS = (VALUE, COMMAND, PROCESS)
 
-# How far an index is probed for when enumerating a scope. Every index below it
-# is probed, with no stopping at the first gap: a firmware mask may leave one out
-# and keep a higher one, so a gap is a fact about the tree rather than the end of
-# the scope.
+# How an indexed scope is enumerated: in windows this wide, every index in a
+# window probed, and the next window probed as long as the last one found
+# anything. A gap inside a window does not end the scope -- a firmware mask may
+# leave a band out and keep a higher one, so a gap is a fact about the tree
+# rather than the end of the scope -- and a scope the hardware has hundreds of,
+# the channels of a band, is enumerated to its end without this file knowing
+# how many there are: how many of something a tree has is the tree's to say.
 MAX_SCOPE_INDEX = 32
 
 # Where a system reports the firmware it is running. Every generation supported
@@ -88,15 +92,38 @@ def parse(name: str) -> Tuple[str, Dict[str, int]]:
     tuple
         The pattern (``band[*].tone.amplitude``) and a mapping of scope to
         index (``{'band': 4}``). An index of ``*`` is reported as -1, so a
-        pattern parses but does not resolve.
+        pattern parses but does not resolve. The mapping is a fresh dictionary
+        each call, so a caller may keep or modify it.
 
     Raises
     ------
     UnresolvedName
         If the name is not well formed.
+
+    Notes
+    -----
+    Answers are cached, because a name parses to the same pattern every time and
+    the names in use are a small fixed set -- one per register, with the indices
+    of one system. A tuning loop reaching a per-channel register thousands of
+    times pays for the regular expressions once rather than per call.
     """
+    # Checked here, before the cache hashes it: an unhashable non-string would
+    # otherwise surface as the cache's TypeError rather than as UnresolvedName.
     if not isinstance(name, str) or not name:
         raise UnresolvedName(str(name), reason='empty name')
+    pattern, found = _parse_cached(name)
+    return pattern, dict(found)
+
+
+@functools.lru_cache(maxsize=4096)
+def _parse_cached(name: str) -> Tuple[str, Tuple[Tuple[str, int], ...]]:
+    """``parse`` without the copy, keyed on a non-empty string. Indices as a pairs tuple.
+
+    Separate from ``parse`` so that what is cached is immutable: handing the same
+    dictionary to two callers would let one of them change what the other reads.
+    A malformed name raises here too, and the exception is not cached -- so a
+    caller that fixes a typo is not told the old answer.
+    """
     pattern: List[str] = []
     found: Dict[str, int] = {}
     for segment in name.split('.'):
@@ -111,7 +138,7 @@ def parse(name: str) -> Tuple[str, Dict[str, int]]:
             raise UnresolvedName(name, reason=f"scope {ident!r} indexed twice")
         found[ident] = -1 if index == '*' else int(index)
         pattern.append(f"{ident}[*]")
-    return '.'.join(pattern), found
+    return '.'.join(pattern), tuple(found.items())
 
 
 def _fill(template: str, values: Mapping[str, int]) -> str:
@@ -303,7 +330,8 @@ def indices(pmap: PlatformMap, has: Callable[[str], bool], scope: str,
         The indices present, in order, gaps included -- a disabled bay or a
         firmware band mask leaves one out without ending the scope. Empty when
         the tree has none, which is how a platform without the hardware behind
-        them is seen.
+        them is seen. The scope ends at the first ``MAX_SCOPE_INDEX`` consecutive
+        indices the tree lacks, however many it has before that.
     """
     if scope not in pmap.scopes:
         raise KeyError(f"{pmap.name} has no scope {scope!r}")
@@ -312,11 +340,17 @@ def indices(pmap: PlatformMap, has: Callable[[str], bool], scope: str,
     if missing:
         raise KeyError(f"scope {scope!r} is inside {parents}; give {', '.join(missing)}")
     present: List[int] = []
-    for i in range(MAX_SCOPE_INDEX):
-        values = dict(fixed, **{scope: i})
-        if any(has(_fill(t, values)) for t in templates):
-            present.append(i)
-    return tuple(present)
+    start = 0
+    while True:
+        found_in_window = False
+        for i in range(start, start + MAX_SCOPE_INDEX):
+            values = dict(fixed, **{scope: i})
+            if any(has(_fill(t, values)) for t in templates):
+                present.append(i)
+                found_in_window = True
+        if not found_in_window:
+            return tuple(present)
+        start += MAX_SCOPE_INDEX
 
 
 def _scopes_of(pattern: str) -> Tuple[str, ...]:
@@ -335,7 +369,7 @@ def expand(pmap: PlatformMap, has: Callable[[str], bool], pattern: str) -> List[
     has : callable
         ``has(path) -> bool``.
     pattern : str
-        e.g. ``bay[*].attenuator.uc[*]``. A pattern with no scope expands to
+        e.g. ``bay[*].attenuator[*].uc``. A pattern with no scope expands to
         itself.
 
     Returns
