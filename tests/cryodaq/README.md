@@ -188,7 +188,8 @@ without noticing.
   measurement read something else, most likely a helper sodetlib defines itself, which would quietly
   weaken every assertion above. One such name is recorded as *not ours* and required to stay that way.
 * **A deliberately dropped name stays dropped, with a reason** — so the dropped list cannot silently stop
-  describing anything.
+  describing anything. What sodetlib has to change at each site that used a dropped name, and the one
+  site that needs a new pysmurf operation first, is written up in `docs/sodetlib_changes_required.md`.
 
 The surface is read from source with `ast`, as the union of the client's mixins, because `SmurfControl` is
 assembled from eight of them and no single class holds it. Reading source rather than importing is what

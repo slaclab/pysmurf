@@ -1379,16 +1379,9 @@ class SmurfCommandMixin(SmurfBase):
 
     # name changed in Rogue 4 from WriteConfig to SaveConfig.  Keeping
     # the write_config function for backwards compatibilty.
-    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def save_config(self, val, **kwargs):
         """
         Writes the current (un-masked) PyRogue settings to a yml file.
-
-        .. deprecated:: 11.5.0
-           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
-           It still works. If you call it, say so before it goes -- searching
-           this repository and sodetlib cannot see a test-stand script or a
-           notebook.
 
         Args
         ----
@@ -8180,7 +8173,6 @@ class SmurfCommandMixin(SmurfBase):
         if bias_50k is not None:
             self.set_amp_gate_voltage('50k', bias_50k, **kwargs)
 
-    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_amplifier_bias(self):
         """Deprecated. Use :func:`get_amplifier_biases` instead."""
         self.log('get_amplifier_bias: Deprecated. Calling get_amplifier_biases')
@@ -8688,17 +8680,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name('carrier.crate_id', **kwargs)
 
-    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_fpga_temp(self, **kwargs):
         """
         Gets the temperature of the UltraScale+ FPGA.  Returns float32,
         the temperature in degrees Celsius.
-
-        .. deprecated:: 11.5.0
-           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
-           It still works. If you call it, say so before it goes -- searching
-           this repository and sodetlib cannot see a test-stand script or a
-           notebook.
 
         Returns
         -------
@@ -8707,16 +8692,9 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name('carrier.fpga.temperature', **kwargs)
 
-    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_fpga_vccint(self, **kwargs):
         """
         No description
-
-        .. deprecated:: 11.5.0
-           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
-           It still works. If you call it, say so before it goes -- searching
-           this repository and sodetlib cannot see a test-stand script or a
-           notebook.
 
         Returns
         -------
@@ -8725,16 +8703,9 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name('carrier.fpga.vcc_int', **kwargs)
 
-    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_fpga_vccaux(self, **kwargs):
         """
         No description
-
-        .. deprecated:: 11.5.0
-           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
-           It still works. If you call it, say so before it goes -- searching
-           this repository and sodetlib cannot see a test-stand script or a
-           notebook.
 
         Returns
         -------
@@ -8743,16 +8714,9 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name('carrier.fpga.vcc_aux', **kwargs)
 
-    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_fpga_vccbram(self, **kwargs):
         """
         No description
-
-        .. deprecated:: 11.5.0
-           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
-           It still works. If you call it, say so before it goes -- searching
-           this repository and sodetlib cannot see a test-stand script or a
-           notebook.
 
         Returns
         -------
@@ -8761,16 +8725,9 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name('carrier.fpga.vcc_bram', **kwargs)
 
-    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_regulator_iout(self, **kwargs):
         """
         No description
-
-        .. deprecated:: 11.5.0
-           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
-           It still works. If you call it, say so before it goes -- searching
-           this repository and sodetlib cannot see a test-stand script or a
-           notebook.
 
         Returns
         -------
@@ -8783,16 +8740,9 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs
         ))
 
-    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_regulator_temp1(self, **kwargs):
         """
         No description
-
-        .. deprecated:: 11.5.0
-           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
-           It still works. If you call it, say so before it goes -- searching
-           this repository and sodetlib cannot see a test-stand script or a
-           notebook.
 
         Returns
         -------
@@ -8805,16 +8755,9 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs
         ))
 
-    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_regulator_temp2(self, **kwargs):
         """
         No description
-
-        .. deprecated:: 11.5.0
-           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
-           It still works. If you call it, say so before it goes -- searching
-           this repository and sodetlib cannot see a test-stand script or a
-           notebook.
 
         Returns
         -------
@@ -8828,18 +8771,11 @@ class SmurfCommandMixin(SmurfBase):
         ))
 
     # Cryo card comands
-    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_cryo_card_temp(self, enable_poll=False, disable_poll=False):
         """
         Get the self-reported temperature of the cryocard. This value is typically
         around 20 Celcius. Anything higher than 30 would indicate a problem. Anything
         below 0 C indicates the board is not connected.
-
-        .. deprecated:: 11.5.0
-           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
-           It still works. If you call it, say so before it goes -- searching
-           this repository and sodetlib cannot see a test-stand script or a
-           notebook.
 
         Returns
         -------
