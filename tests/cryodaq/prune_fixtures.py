@@ -75,14 +75,8 @@ BUILT_BY = {
 # enumerated a channel scope would still see more than a single index.
 KEEP_CHANNELS = 2
 
-INDEX = re.compile(r'\[\d+\]')
 CHANNEL = re.compile(r'CryoChannel\[(\d+)\]')
 SCOPE = re.compile(r'\{(\w+)\}')
-
-
-def generalise(path):
-    """A path with every index replaced, so one device matches all its indices."""
-    return INDEX.sub('[]', path)
 
 
 def path_templates():
@@ -99,11 +93,17 @@ def path_templates():
 
 
 def wanted_devices(templates):
-    """The devices a name reaches, index-generalised."""
+    """The devices a name reaches, as one pattern per device matching every index.
+
+    A scope placeholder may be bracketed (``Base[{band}]``) or run into the device
+    name (``Stream{capture}``); both become "any index", so a device is kept at
+    every index it has. Pinning an unbracketed one to 0 kept ``Stream0`` alone.
+    """
     devices = set()
     for template in templates.values():
         device = template.rsplit('.', 1)[0]
-        devices.add(generalise(SCOPE.sub('0', device)))
+        devices.add(re.compile(
+            '^' + re.escape(SCOPE.sub('\0', device)).replace('\0', r'\d+') + '$'))
     return devices
 
 
@@ -112,7 +112,8 @@ def prune(lines, devices):
     kept = [lines[0]]
     for line in lines[1:]:
         path = line.split('\t', 1)[0]
-        if generalise(path).rsplit('.', 1)[0] not in devices:
+        device = path.rsplit('.', 1)[0]
+        if not any(d.match(device) for d in devices):
             continue
         m = CHANNEL.search(path)
         if m and int(m.group(1)) >= KEEP_CHANNELS:

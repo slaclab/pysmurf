@@ -146,7 +146,7 @@ The pruned dumps are the fallback that keeps the check meaningful on a fork's pu
 token is available. Checking a *released* package is a second mode, `--package-dump`, run by the
 `test-server` job: it downloads the release asset, builds a tree from it with
 `dump_released_tree.py` (which needs rogue, hence that job rather than this one), and resolves the map
-against it. Currently **v2.5.1**, the version deployed on the reference crate; all **180** names under
+against it. Currently **v2.5.1**, the version deployed on the reference crate; all **182** names under
 the firmware's own tree resolve against it.
 
 The two modes ask different questions and the difference matters. A dump built from a package has no
