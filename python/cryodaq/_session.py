@@ -526,8 +526,10 @@ class Session:
         Parameters
         ----------
         scope : str
-            ``band``, ``bay``, ``uc`` or ``dc`` on a microwave-multiplexed
-            readout.
+            A scope this platform's map declares: ``band`` and ``bay`` on every
+            microwave-multiplexed readout; ``attenuator`` only where the
+            platform has an RF front end (the ATCA carrier does, the RFSoC
+            does not).
         ``**fixed``
             Indices of the scope's parents, where it has any: an attenuator is
             in a bay.
@@ -535,8 +537,15 @@ class Session:
         Returns
         -------
         tuple of int
-            Empty where this platform does not have the hardware behind the
-            scope, which is how such a system differs from one that does.
+            The indices this tree has, gaps included. Empty where the platform
+            declares the scope and this tree has none of the hardware behind it.
+
+        Raises
+        ------
+        KeyError
+            If the platform does not declare the scope at all -- the map's
+            statement that the hardware is not part of this platform, as
+            distinct from a tree that happens to have none of it.
         """
         return platform.indices(self.pmap, self._has, scope, **fixed)
 

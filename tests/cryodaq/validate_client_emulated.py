@@ -26,8 +26,10 @@
 # The RFSoC firmware's own package is a subclass of this one that does nothing but
 # default isRFSOC on, so setting the flag here builds that platform's tree without
 # needing its repository on the path -- and what the flag changes is the JESD and
-# signal-generator configuration, which is why the RFSoC has no bays. The scope
-# check names what each platform is expected to have and fails if either changes.
+# signal-generator configuration, which is why that platform has no RF front end and
+# no serial links to one. Both are bay-indexed even so, because the acquisition mux
+# is; what differs is what sits inside a bay. The scope check names what each platform
+# is expected to have and fails if either changes.
 #
 # An emulated register space reads back zeros, so the build stamp a platform is
 # identified by is blank. The stamp of the platform being built is therefore
@@ -108,10 +110,12 @@ EXPECTED_PLATFORM = {False: 'umux-atca', True: 'umux-rfsoc'}
 EXPECTED_IMAGE = {False: 'MicrowaveMuxBpEthGen2',
                   True: 'MicrowaveMuxZcu208_BaseBand'}
 
-# What each is expected to have, so that the difference between them is asserted
-# by name rather than noticed: an RFSoC has neither the per-bay data links nor the
-# RF front end that carries the attenuators.
-EXPECTED_BAYS = {False: True, True: False}      # keyed by args.rfsoc
+# What each is expected to have, so that the difference between them is asserted by
+# name rather than noticed. Both platforms have bays: the acquisition mux is indexed
+# by bay on either, which is why the scope is shared. What only the carrier has is
+# what sits inside a bay -- the RF front end carrying the attenuators, and the serial
+# links back from it -- so the difference is asserted there rather than on the scope.
+EXPECTED_FRONT_END = {False: True, True: False}      # keyed by args.rfsoc
 
 # The bands both trees have: the two are built from one firmware package, which
 # defines eight either way. Asserted rather than derived, so a package that
@@ -167,10 +171,28 @@ def check_the_platform_map_was_identified():
 
 
 def check_every_offered_name_resolves():
-    """Every name this tree offers reaches a node in it."""
+    """Every name this tree offers reaches a node in it.
+
+    Except the ones an attached device brings: the point-of-load regulator is reached
+    over I2C and is added by a *server* talking to real hardware, so an emulated tree
+    built from a firmware package has none of it. Excluded by name rather than by
+    letting the check pass on an empty set, and required to stay excluded -- a name
+    that starts resolving here has stopped being server-attached and should lose its
+    exemption.
+    """
     report = SESSION.validate()
-    detail = '; '.join(f"{name}: {why}" for name, why in report.unresolved[:8])
-    assert report.ok, f"{len(report.unresolved)} unresolved: {detail}"
+    attached = [name for name, _why in report.unresolved
+                if name.startswith('carrier.regulator.')]
+    assert attached, ('the regulator names resolve on an emulated tree, so they are no '
+                      'longer server-attached and the exemption below is stale')
+    # ... and none of them, not merely not all of them: one regulator name resolving
+    # while another stays absent is the same staleness, half-way.
+    partly = [name for name in report.resolved if name.startswith('carrier.regulator.')]
+    assert not partly, f"server-attached names resolving on an emulated tree: {partly}"
+    unresolved = [(name, why) for name, why in report.unresolved
+                  if not name.startswith('carrier.regulator.')]
+    detail = '; '.join(f"{name}: {why}" for name, why in unresolved[:8])
+    assert not unresolved, f"{len(unresolved)} unresolved: {detail}"
     assert len(report.resolved) >= 60, len(report.resolved)
     on_band = [name for name in report.resolved if name.startswith(f"band[{BAND}].ops.")]
     assert len(on_band) >= 20, f"only {len(on_band)} operation names on band {BAND}"
@@ -213,18 +235,54 @@ def check_the_scopes_are_the_ones_this_tree_has():
     """
     bands = SESSION.indices('band')
     assert bands == EXPECTED_BANDS, bands
+    # A band's channels run far past one probing window, so the enumeration has to
+    # reach the end of what the tree has -- and how many that is comes from the
+    # tree, not from this file: the per-channel array's length is the firmware's
+    # own count, and what the channel scope enumerates has to agree with it.
+    # (`n_channels` is a register, and reads zero over emulated memory.)
+    per_channel = len(SESSION.get(f'band[{BAND}].tone.amplitude'))
+    channels = SESSION.indices('channel', band=BAND)
+    assert per_channel > platform.MAX_SCOPE_INDEX, per_channel
+    assert channels == tuple(range(per_channel)), \
+        (f"band {BAND} enumerated {len(channels)} channels, last {channels[-1:]}; "
+         f"the per-channel array has {per_channel}")
+    # Both platforms are bay-indexed, because the acquisition mux is. A tree with no
+    # bays at all would mean the scope stopped being probed rather than that this
+    # platform lacks the hardware, so it fails on either.
     bays = SESSION.indices('bay')
-    if EXPECTED_BAYS[RFSOC]:
-        assert bays, 'a carrier tree has bays with data links or an RF front end'
-        attenuated = [b for b in bays if SESSION.indices('uc', bay=b)]
-        assert attenuated, f"no bay of {list(bays)} carries attenuators"
-        assert SESSION.indices('dc', bay=attenuated[0]), 'up-converters but no down-converters'
+    assert bays, 'neither platform has a tree without bays; the scope found none'
+    if EXPECTED_FRONT_END[RFSOC]:
+        # Every carrier bay has a front end, so every bay must enumerate attenuators;
+        # a path is a path in both directions, and the scope is proved by either -- so
+        # both nodes have to exist on every path the scope found. Asked of the tree
+        # through node(), which resolves the name and then looks the node up: the
+        # map's path() alone only formats the template and proves nothing about
+        # what this tree has.
+        for bay in bays:
+            atts = SESSION.indices('attenuator', bay=bay)
+            assert atts, f"bay {bay} carries no attenuators"
+            for att in atts:
+                for direction in ('uc', 'dc'):
+                    SESSION.node(f'bay[{bay}].attenuator[{att}].{direction}')
     else:
-        assert bays == (), f"an RFSoC tree has no bays, found {list(bays)}"
+        # No front end, so the scopes it provides are not declared at all -- asking for
+        # one is a KeyError and that is the map's statement of what this platform has,
+        # rather than a scope that exists and enumerates empty.
+        try:
+            SESSION.indices('attenuator', bay=bays[0])
+        except KeyError:
+            pass
+        else:
+            raise AssertionError(
+                "a platform with no RF front end declares the 'attenuator' scope")
         report = SESSION.validate()
-        offered = [name for name in report.resolved if name.startswith('bay[')]
-        tried = [name for name, _ in report.unresolved if name.startswith('bay[')]
-        assert not offered + tried, f"bay names without bays: {(offered + tried)[:4]}"
+        def front_end_name(name):
+            return '.attenuator.' in name or '.jesd.' in name
+
+        front_end = [name for name in report.resolved if front_end_name(name)]
+        tried = [name for name, _ in report.unresolved if front_end_name(name)]
+        assert not front_end + tried, \
+            f"front-end names without a front end: {(front_end + tried)[:4]}"
 
 
 def check_the_witness_set_reads_back():
@@ -542,6 +600,23 @@ def add_library_paths(args):
             pr.addLibraryPath(path)
 
 
+def describe_source(args):
+    """Where the tree came from, in one line, for a dump's provenance.
+
+    The checkout's revision or the ZIP's name -- what was measured, read from the
+    input rather than asserted: a fixture built from another checkout must say so.
+    """
+    if args.zip:
+        return f"zip {os.path.basename(args.zip)}"
+    try:
+        head = subprocess.run(['git', '-C', args.cryo_det, 'describe', '--tags',
+                               '--always', '--dirty'],
+                              capture_output=True, text=True, check=True).stdout.strip()
+    except (subprocess.CalledProcessError, OSError):
+        head = 'unknown revision'
+    return f"cryo-det {head}" + (' (RFSoC)' if args.rfsoc else '')
+
+
 def free_port():
     """A port triple starting here is free right now; the server takes three."""
     held = []
@@ -659,6 +734,10 @@ def main():
                          'so the flag builds that tree without needing it')
     ap.add_argument('--port', type=int, default=None,
                     help='port to serve the emulated tree on (a free one by default)')
+    ap.add_argument('--dump-tree', metavar='PATH',
+                    help='also write the full node listing of the tree the checks ran '
+                         'on, as saveVariableList() writes it; prune_fixtures.py reads '
+                         'these to rebuild the committed fixtures')
     args = ap.parse_args()
     RFSOC = args.rfsoc
 
@@ -675,6 +754,11 @@ def main():
         # failure worth reporting, and it is reported by exiting, which a started
         # root that nobody stopped would prevent.
         write_build_stamp(root, stamp_for(EXPECTED_IMAGE[args.rfsoc]))
+        if args.dump_tree:
+            root.saveVariableList(args.dump_tree)
+            with open(args.dump_tree + '.source', 'w', encoding='utf-8') as fh:
+                fh.write(describe_source(args) + '\n')
+            print(f"  tree written to {args.dump_tree} (source in .source)")
         print(f"Validating the cryodaq client on the {label} "
               f"({len(prechecks)} + {len(checks)} checks)")
         failed += run(prechecks)

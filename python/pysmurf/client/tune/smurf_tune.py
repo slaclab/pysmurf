@@ -26,7 +26,6 @@ import scipy.linalg as linalg
 import seaborn as sns
 
 from pysmurf.client.base import SmurfBase
-from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util.pub import set_action
 from pysmurf.client.util.tools import save_to_txt
 from ..util import tools
@@ -2236,7 +2235,7 @@ class SmurfTuneMixin(SmurfBase):
 
     @set_action()
     def eta_scan(self, band, subband, freq, tone_power, write_log=False,
-                 sync_group=True):
+                 sync_group=True, timeout=30.0):
         """Slow eta scan on one subband.
 
         Runs a slow eta scan on one channel.  Uses the first channel
@@ -2273,8 +2272,17 @@ class SmurfTuneMixin(SmurfBase):
         write_log : bool, optional, default False
             Whether to write log messages.
         sync_group : bool, optional, default True
-            Whether not to wait for register change using
-            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.SyncGroup`.
+            Whether to check that the scan has reported itself finished
+            before reading its results. The trigger is a rogue command and
+            blocks for the scan either way; what this adds is the wait on the
+            in-progress flag, which is what states the result arrays have been
+            published. False skips that check.
+        timeout : float, optional, default 30.0
+            Seconds to wait for the scan to report itself finished when
+            `sync_group` is True, before raising `TimeoutError`. This bounds
+            the wait for the completion flag only; the scan itself runs
+            inside the trigger's request and is bounded by the client's
+            request deadline.
 
         Returns
         -------
@@ -2302,20 +2310,24 @@ class SmurfTuneMixin(SmurfBase):
         self.set_eta_scan_amplitude(band, tone_power, write_log=write_log)
         self.set_eta_scan_freq(band, freq, write_log=write_log)
 
-        self.set_run_eta_scan(band, 1, wait_done=False, write_log=write_log)
-        pvs = [self._cryo_root(band) + self._eta_scan_results_real_reg,
-               self._cryo_root(band) + self._eta_scan_results_imag_reg]
+        # runEtaScan is a rogue command, and a command call is a single request
+        # that returns when the server's function does -- so this line blocks for
+        # the scan, and what bounds it is the client's request deadline (set in
+        # SmurfBase, 30 s), not the wait below.
+        self.set_run_eta_scan(band, 1, write_log=write_log)
 
         if sync_group:
-            sg = SyncGroup(pvs, self._client)
+            # By the time the call returns the flag has normally fallen, and the
+            # wait is a check that it has. It is kept because the flag is what
+            # says the results are published: the server writes both result
+            # arrays inside an update group and clears the flag outside it, so
+            # the flag falls strictly after the arrays are published. The timeout
+            # is explicit because a bare `_wait_for` waits forever.
+            self._wait_for(f'band[{band}].ops.in_progress', lambda x: x == 0,
+                           timeout=timeout)
 
-            sg.wait()
-            vals = sg.get_values()
-            rr = vals[pvs[0]]
-            ii = vals[pvs[1]]
-        else:
-            rr = self.get_eta_scan_results_real(band, len(freq))
-            ii = self.get_eta_scan_results_imag(band, len(freq))
+        rr = self.get_eta_scan_results_real(band, len(freq))
+        ii = self.get_eta_scan_results_imag(band, len(freq))
 
         self.set_amplitude_scale_channel(band, first_channel, 0)
 

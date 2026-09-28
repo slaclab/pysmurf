@@ -196,15 +196,39 @@ def check_an_absent_scope_is_empty_rather_than_an_error():
     enumerated('umux-rfsoc', 'bay', (), ())
 
 
-def check_a_full_scope_is_enumerated_to_the_ceiling():
+def check_a_full_window_is_enumerated():
     every = tuple(range(platform.MAX_SCOPE_INDEX))
     enumerated('umux-atca', 'band', every, every)
+
+
+def check_a_scope_is_enumerated_past_the_window():
+    # A band has 512 channels, sixteen windows' worth. The enumeration has to reach
+    # the last one, and stop where the tree does: 512 present, and nothing after.
+    wanted = tuple(range(512))
+    present = {f"CryoChannel[{i}]." for i in wanted}
+
+    def has(path):
+        # presence() matches an index anywhere in the path, and the parent band's
+        # own [0] would match every probe; only the channel segment counts here.
+        return any(p in path + '.' for p in present)
+
+    for name in ('umux-atca', 'umux-rfsoc'):
+        got = platform.indices(platform.by_name(name), has, 'channel', band=0)
+        assert got == wanted, \
+            f"{name} channel enumerated {len(got)} indices, last {got[-1:]}, expected 512"
+
+
+def check_a_scope_ends_after_an_empty_window():
+    # Indices 0 and 40 are present: 40 is in the second window, so it is found; the
+    # third window (64-95) is empty, so nothing past it is probed. A gap wider than a
+    # window ends the scope -- that is the definition of its end.
+    enumerated('umux-atca', 'band', (0, 40, 100), (0, 40))
 
 
 def check_a_nested_scope_needs_its_parent():
     pmap = platform.by_name('umux-atca')
     try:
-        platform.indices(pmap, presence(0), 'uc')
+        platform.indices(pmap, presence(0), 'attenuator')
     except KeyError as e:
         assert 'bay' in str(e), f"the error does not name the parent scope: {e}"
     else:
@@ -242,22 +266,93 @@ def check_a_name_carrying_whitespace_is_refused():
                 raise AssertionError(f"{name!r} parsed")
 
 
+def check_caching_a_parse_does_not_share_its_indices():
+    """Parsing is cached, and two callers still get dictionaries of their own.
+
+    A name parses to the same answer every time, so the answer is kept -- a tuning
+    loop reaching a per-channel register pays for the regular expressions once
+    rather than per call. The hazard a cache introduces is aliasing: handing the
+    same dictionary to two callers lets one of them change what the other reads,
+    and the symptom would be an index that is right until something else resolves
+    the same name.
+    """
+    name = 'band[4].channel[17].tone.amplitude'
+    first_pattern, first = platform.parse(name)
+    assert first == {'band': 4, 'channel': 17}, first
+    first['band'] = 99
+    first['injected'] = 1
+    second_pattern, second = platform.parse(name)
+    assert second == {'band': 4, 'channel': 17}, \
+        f'a second parse of {name} returned {second}'
+    assert first_pattern == second_pattern == 'band[*].channel[*].tone.amplitude'
+    # A malformed name must keep failing rather than being answered from a cache
+    # of the exception, and a name fixed afterwards must resolve. The unhashable
+    # ones are the cache's own failure mode: they must still get UnresolvedName,
+    # not the TypeError the cache would raise while keying on them.
+    for bad in ('band[4].tone.amplitude\n', '', None, [], ['band[4]'], {}):
+        for _ in range(2):
+            try:
+                platform.parse(bad)
+            except UnresolvedName:
+                pass
+            else:
+                raise AssertionError(f'{bad!r} parsed')
+    platform.parse('band[4].tone.amplitude')
+
+
 # --------------------------------------------------------------------------
 # what the maps share
 # --------------------------------------------------------------------------
 
-def check_the_generation_shares_one_register_table():
-    # The platforms of this generation are separate because they are configured
-    # differently, not because they read different registers. Sharing the table
-    # is the claim; a copy that drifted would be the failure.
+def check_the_generation_shares_every_register_it_can():
+    """The platforms differ only by the hardware one of them does not have.
+
+    They share most of their table and are separate platforms because they are
+    configured differently. What they do not share is the hardware only one carries:
+    a platform whose converters are on the FPGA's die has no RF front end and no
+    serial links to one, so it does not offer those names at all.
+
+    Two claims, and the second is the one that keeps the split honest: a name in both
+    maps must mean the same register in both -- a copy that drifted would be two
+    tables pretending to be one -- and no name may be offered by the platform with
+    *fewer* devices and not by the other, which would mean the sharing is backwards.
+    """
     atca = platform.by_name('umux-atca')
     rfsoc = platform.by_name('umux-rfsoc')
-    assert atca.patterns == rfsoc.patterns, \
-        "the two platforms of this generation no longer share their register table"
-    assert atca.witness == rfsoc.witness
-    for pattern in atca.patterns:
+    shared = set(atca.patterns) & set(rfsoc.patterns)
+    assert len(shared) > 100, \
+        f"only {len(shared)} names are shared; the maps have diverged"
+    for pattern in sorted(shared):
         assert atca.registers[pattern] == rfsoc.registers[pattern], \
             f"{pattern} differs between the two platforms"
+    assert set(rfsoc.witness) <= set(atca.witness), \
+        "the platform with fewer devices witnesses something the carrier does not"
+    extra = sorted(set(rfsoc.patterns) - set(atca.patterns))
+    assert not extra, (f"{rfsoc.name} offers name(s) the carrier does not: "
+                       f"{', '.join(extra[:6])}")
+
+
+def check_a_platform_offers_no_name_it_cannot_resolve():
+    """Every name a map offers builds a path, and every scope it needs is declared.
+
+    The split moved eleven names and four scopes into one platform's map. A name left
+    behind whose scope went with it would raise on the first call rather than at
+    import, so it is checked here: the pattern is filled with an index for each scope
+    it carries and the result must contain no placeholder.
+    """
+    for pmap in platform.MAPS:
+        for pattern in pmap.patterns:
+            scopes = [segment.split('[')[0] for segment in pattern.split('.')
+                      if segment.endswith('[*]')]
+            for scope in scopes:
+                assert scope in pmap.scopes, \
+                    f"{pmap.name} offers {pattern}, whose scope {scope!r} it does not declare"
+            name = pattern
+            for scope in scopes:
+                name = name.replace(f'{scope}[*]', f'{scope}[0]', 1)
+            path = pmap.path(name)
+            assert '{' not in path, \
+                f"{pmap.name}: {pattern} resolves to {path}, which has a placeholder left"
 
 
 def check_every_witness_name_is_in_the_map():

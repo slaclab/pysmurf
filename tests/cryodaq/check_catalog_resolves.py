@@ -1,0 +1,1042 @@
+#!/usr/bin/env python3
+#-----------------------------------------------------------------------------
+# Title      : Cryodaq Name Resolution Checks
+#-----------------------------------------------------------------------------
+# File       : check_catalog_resolves.py
+# Created    : 2026-09-18
+#-----------------------------------------------------------------------------
+# Description:
+# Checks that every register a semantic name claims is a register the firmware
+# actually has. The platform map is the contract between firmware and software, so
+# an entry that has drifted is a build failure here rather than a night on a crate.
+#
+# A tree dump is a tab-separated list of every node a firmware package defines,
+# one per line, produced from the package itself with no hardware involved. Names
+# are resolved through the platform layer -- the same lookup a running client does,
+# so what passes here is what would resolve on a system -- the resulting paths are
+# filled with the indices the dump turns out to have, and each one is looked up.
+# Nothing here connects to anything.
+#
+# Two generations are checked, and they differ by omission: one carries per-bay
+# data links and an RF front end the other does not. A name reaching those
+# registers resolves on one and not the other, so the checks assert *which* names
+# are absent rather than how many -- a name absent from a generation that carries
+# the hardware, and a name present on one that does not, both fail. The absence is
+# stated by device and not by scope, because the bay scope is not the difference:
+# the DAQ mux is indexed by bay on both.
+#
+# The compatibility layer is checked against the same dumps, since the names it
+# resolves are the ones that have to be there for a client to work at all: a name
+# in the map that nothing reaches is a loose end, and a name reached by a method
+# that resolves nowhere is a method that raises.
+#
+# This file reads its dumps from the repository, so it needs nothing installed and
+# runs where rogue is absent. A full dump is some nine megabytes, so what is
+# committed is pruned to the devices a name reaches, keeping every index of each --
+# that is what lets the two generations still be told apart. The pruning is what
+# makes this the fallback rather than the whole story: the run against every
+# released firmware package belongs in a job that can download them, and this one
+# is what keeps the check meaningful where those are out of reach.
+#-----------------------------------------------------------------------------
+# This file is part of the pysmurf software platform. It is subject to
+# the license terms in the LICENSE.txt file found in the top-level directory
+# of this distribution and at:
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part of the pysmurf software platform, including this file, may be
+# copied, modified, propagated, or distributed except according to the terms
+# contained in the LICENSE.txt file.
+#-----------------------------------------------------------------------------
+
+import argparse
+import ast
+import gzip
+import os
+import pathlib
+import re
+import sys
+
+sys.path.insert(0, os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    'python'))
+
+from cryodaq import platform                                         # noqa: E402
+from cryodaq.platform import _umux                                   # noqa: E402
+
+HERE = pathlib.Path(__file__).resolve().parent
+REPO = HERE.parent.parent
+FIXTURES = HERE / 'fixtures'
+COMMAND = (REPO / 'python' / 'pysmurf' / 'client' / 'command' / 'smurf_command.py')
+# The rest of the client, which reaches a register through the same helpers -- a
+# capture poll in the utilities, a completion wait in the tuning code -- and so has to
+# be held to the same gates. Every module under the package is read, not a list of
+# them, so a new access anywhere in the client is seen without editing this.
+CLIENT = COMMAND.parent.parent
+
+# Which platform map each committed dump belongs to.
+PLATFORM_OF = {'atca': 'umux-atca', 'rfsoc': 'umux-rfsoc'}
+
+# Fewer names resolving than this means the dump or the map has stopped being the real
+# one, not that the firmware shrank. The selftest lowers it: its fake maps are small.
+MIN_RESOLVED = 100
+
+# The subtrees the *server* adds on top of the firmware package, by their top-level node
+# name under the root. The map declares them -- they are its own section, because the
+# layer that creates them owns them -- and this reads the list rather than keeping a
+# second one that could drift. A dump taken from a *running server* has these; a dump
+# built from a released ZIP does not. Without the distinction, checking the map against
+# a released package reports ~54 false absences and the real ones are lost in them.
+# The capture receivers are numbered (Stream0..3), so theirs is a prefix.
+SERVER_ADDED_SUBTREES = tuple(n for n in _umux.SERVER_ADDED_ROOT_NODES if '{' not in n)
+SERVER_ADDED_PREFIXES = tuple(n.split('{')[0]
+                              for n in _umux.SERVER_ADDED_ROOT_NODES if '{' in n)
+
+# The device trees only a platform with a separate converter board has: the RF front
+# end and the serial links back from it. Used to check that the *dumps* differ the way
+# the maps say they do -- which names are absent is derived from the maps themselves
+# (see below), not listed here, so the two cannot disagree.
+CARRIER_ONLY_DEVICES = ('MicrowaveMuxCore', 'AppTopJesd')
+
+# Names whose nodes the server attaches to the tree at start-up, rather than the
+# firmware package declaring them: the four resonator-tuning processes and the
+# server's own configuration procedure. A dump records what a package defines, so
+# these are absent from one by construction and their absence says nothing about the
+# firmware. Named here so that "absent" means one thing everywhere else.
+SERVER_ATTACHED = (
+    # The point-of-load regulator, an I2C device the server attaches on top of the
+    # firmware package. Named here for the same reason as the tuning processes: a dump
+    # records what a package defines, so these are absent from one by construction. They
+    # are on a live carrier -- 129 rows of EM22xx, read from a crate.
+    'carrier.regulator.current',
+    'carrier.regulator.temperature[*]',
+    'band[*].ops.eta_scan',
+    'band[*].ops.find_freq',
+    'band[*].ops.gradient_descent',
+    'band[*].ops.new_gradient_descent',
+    'ops.setup',
+)
+
+# Writes to a read-only register that predate this check and are left in place. Each is
+# a method nothing calls, scheduled for removal, whose write the firmware has always
+# refused -- so it has never worked and fixing it would be inventing behaviour. Listed
+# rather than tolerated silently, so that removing the method removes the entry too and
+# a *new* such write still fails.
+KNOWN_READ_ONLY_WRITES = (
+    # set_waveform_wr_addr: the write pointer of a capture buffer is the firmware's to
+    # advance, and it declares the node RO.
+    'carrier.bsa.engine[*].buffer[*].write_address',
+    # set_waveform_empty: likewise the buffer's empty flag, which the firmware sets. That
+    # method also takes a value it never wrote, and a getter beside it reads the same
+    # register, so all it has ever done is fail.
+    'carrier.bsa.engine[*].buffer[*].empty',
+)
+
+# The probing window, the platform layer's own: indices are probed a window at a
+# time until a whole window finds nothing, so a scope this check enumerates is the
+# scope a session would enumerate -- to its end, however many the tree has.
+WINDOW = platform.MAX_SCOPE_INDEX
+
+SCOPE = re.compile(r'\{(\w+)\}')
+
+
+def load_dump(stem):
+    """The set of node paths in a tree dump.
+
+    A bare stem names a committed fixture; a path with a separator is read as given, so a
+    dump built from a released firmware ZIP can be checked without committing 9 MB of it.
+    Plain text and gzip are both accepted, since the fixtures are compressed and a fresh
+    dump is not.
+    """
+    if os.sep in str(stem) or str(stem).endswith(('.txt', '.gz')):
+        path = pathlib.Path(stem)
+    else:
+        path = FIXTURES / f'{stem}.varlist.txt.gz'
+    if not path.exists():
+        raise FileNotFoundError(f'no dump at {path}')
+    opener = gzip.open if path.suffix == '.gz' else open
+    with opener(path, 'rt', encoding='utf-8', errors='replace') as fh:
+        paths = {line.split('\t', 1)[0].strip() for line in fh if line.strip()}
+    paths.discard('Path')                       # the header row
+    if not paths:
+        raise AssertionError(f'{path} holds no paths')
+    return paths
+
+
+def load_nodes(stem):
+    """The declared type and access mode of every node in a committed dump, by path.
+
+    ``RO``, ``RW``, ``WO`` as the firmware declares them. This is what says whether a
+    register may be written, so it is read from the firmware rather than from anything
+    that describes the firmware -- a second statement of it would be a second thing to
+    keep in step, and the check below exists because those drift.
+    """
+    path = FIXTURES / f'{stem}.varlist.txt.gz'
+    nodes = {}
+    with gzip.open(path, 'rt', encoding='utf-8') as fh:
+        for line in fh:
+            parts = line.split('\t')
+            if len(parts) > 2 and parts[0] != 'Path':
+                nodes[parts[0]] = (parts[1].strip(), parts[2].strip())
+    if not nodes:
+        raise AssertionError(f'{path} declares no node types')
+    return nodes
+
+
+def _literal_pattern(expr):
+    """The name pattern a string literal or f-string spells, or None for anything else."""
+    if isinstance(expr, ast.Constant) and isinstance(expr.value, str):
+        return expr.value
+    if isinstance(expr, ast.JoinedStr):
+        pattern = ''
+        for part in expr.values:
+            if isinstance(part, ast.Constant) and isinstance(part.value, str):
+                pattern += part.value
+            elif isinstance(part, ast.FormattedValue):
+                pattern += '*'
+            else:
+                return None
+        return pattern
+    return None
+
+
+def _local_names(func):
+    """Every ``name = <literal>`` a function assigns, by variable, or None for a
+    variable assigned more than once or from something that is not a literal."""
+    assigned = {}
+    for node in ast.walk(func):
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                pattern = _literal_pattern(node.value)
+                assigned[target.id] = None if target.id in assigned else pattern
+    return assigned
+
+
+# The one indirection allowed besides a local: a method that picks the name out of a
+# ``*_NAMES`` table by register number. Its names are checked by reading the table, so
+# the call is not a gap; anything else that computes a name is.
+TABLE_LOOKUPS = ('_lmk_name',)
+
+
+def _is_table_lookup(expr):
+    return (isinstance(expr, ast.Call) and isinstance(expr.func, ast.Attribute) and
+            expr.func.attr in TABLE_LOOKUPS)
+
+
+def _semantic_call(node, direction, locals_):
+    """The name pattern a ``_get_by_name``-style call reaches.
+
+    The argument is a literal, an f-string, or a local variable the enclosing
+    function assigned from one of those exactly once -- a few methods name the
+    register on its own line and then reach it twice. Anything else is refused
+    rather than skipped: a call this cannot read is a name no gate here checks,
+    and the way to reach a register the reader cannot see is to spell it here.
+    """
+    if not node.args:
+        raise AssertionError(f'line {node.lineno}: {node.func.attr} called with no name')
+    arg = node.args[0]
+    pattern = _literal_pattern(arg)
+    if pattern is None and isinstance(arg, ast.Name):
+        pattern = locals_.get(arg.id)
+    if pattern is None and _is_table_lookup(arg):
+        return None     # its names are read from the table itself, below
+    if pattern is None:
+        raise AssertionError(
+            f'line {node.lineno}: {node.func.attr}({ast.unparse(arg)}, ...) names its '
+            f'register in a way this check cannot read; use a literal, an f-string, or '
+            f'a local assigned once from one')
+    # A literal index in a name -- ``evr_channel[0]`` where the accessor always
+    # reaches channel zero -- is still that name's pattern with an index filled in,
+    # so it is reduced to the pattern the map is keyed by. Without this a hand-written
+    # call site reads as a name the map does not have.
+    return {'name': re.sub(r'\[\d+\]', '[*]', pattern),
+            'direction': direction, 'line': node.lineno}
+
+
+def load_client_names():
+    """Every semantic name the client's accessors reach, and how each is reached.
+
+    Read out of the source with ``ast``: the accessors are hand-written, so the names
+    they resolve are in the calls themselves and a table of them beside the file would
+    be a second description to keep in step. What is recorded is the name pattern, the
+    direction, and the method -- enough to hold each to the firmware.
+
+    A name built at run time from something static reading cannot see is refused, not
+    skipped: a call this cannot read is a name no gate here checks. The one exception is
+    the table-driven helper in ``TABLE_LOOKUPS``, whose names are read from the table.
+    The count is asserted too, so a parser that quietly stopped matching fails here
+    rather than checking nothing.
+    """
+    source = COMMAND.read_text(encoding='utf-8')
+    tree = ast.parse(source, filename=str(COMMAND))
+    cls = next((n for n in tree.body
+                if isinstance(n, ast.ClassDef) and n.name == 'SmurfCommandMixin'), None)
+    if cls is None:
+        raise AssertionError(f'{COMMAND} has no class SmurfCommandMixin')
+
+    # `_wait_for` reads a register until a predicate holds, so it is a read.
+    directions = {'_get_by_name': 'get', '_set_by_name': 'set', '_wait_for': 'get'}
+    found = []
+    others = [path for path in sorted(CLIENT.rglob('*.py')) if path != COMMAND]
+    if not others:
+        raise AssertionError(f'no client modules beside {COMMAND.name} under {CLIENT}')
+    scanned = [(cls, COMMAND)] + [
+        (ast.parse(path.read_text(encoding='utf-8'), filename=str(path)), path)
+        for path in others]
+    for root, path in scanned:
+        # Walked function by function, so a local name is resolved in the function that
+        # assigned it; a call outside any function has no locals to resolve against.
+        for func in [n for n in ast.walk(root)
+                     if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]:
+            if func.name in {'_get_by_name', '_set_by_name', '_wait_for'}:
+                continue        # the helpers themselves, whose argument is a parameter
+            locals_ = _local_names(func)
+            for node in ast.walk(func):
+                if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+                    continue
+                if node.func.attr not in directions:
+                    continue
+                if not (isinstance(node.func.value, ast.Name) and
+                        node.func.value.id == 'self'):
+                    continue    # someone else's method of the same name
+                call = _semantic_call(node, directions[node.func.attr], locals_)
+                if call is None:
+                    continue
+                if path != COMMAND:
+                    call['line'] = f'{path.name}:{call["line"]}'
+                found.append(call)
+    # A few accessors choose their name from a table instead of writing it at the call
+    # site, because the caller passes a register number rather than naming the register:
+    # the LMK's clock-input pair is reached as get/set_lmk_reg(bay, 0x146). Reading the
+    # table gets those names checked like any other. Without this they would be reached
+    # by the client and resolved by nothing -- exactly the gap this file exists to close,
+    # hidden by the indirection rather than by a missing map entry.
+    for node in ast.walk(cls):
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(isinstance(t, ast.Name) and t.id.endswith('_NAMES')
+                   for t in node.targets):
+            continue
+        if not isinstance(node.value, ast.Dict):
+            continue
+        for value in node.value.values:
+            if isinstance(value, ast.Constant) and isinstance(value.value, str):
+                # Such a table serves a getter and a setter, so the name is recorded
+                # in both directions: recorded as a read alone, a table-driven write
+                # to a register the firmware makes read-only would go unchecked.
+                for direction in ('get', 'set'):
+                    found.append({
+                        'name': re.sub(r'\[\d+\]', '[*]', value.value),
+                        'direction': direction,
+                        'line': value.lineno,
+                    })
+
+    if len(found) < 150:
+        raise AssertionError(
+            f'only {len(found)} accessor call(s) found in {COMMAND.name}; the check has '
+            f'stopped recognising them rather than the client having lost them')
+    return found
+
+
+def template_of(pmap, name):
+    """The register path template a name pattern resolves to."""
+    return pmap.registers[name][0]
+
+
+def indices_present(paths, template, scope, fixed):
+    """Which indices of one scope a dump has, with the outer scopes pinned.
+
+    Probed a window at a time until a whole window is empty, as the platform layer
+    does: a gap does not end the scope -- a firmware mask may leave one out and
+    keep a higher one, so stopping at the first miss would silently drop real
+    hardware -- and a scope with hundreds of indices is enumerated to its end.
+
+    An inner scope still unfilled is matched by prefix rather than substituted.
+    Substituting a nominal ``0`` was wrong, and quietly: the attenuators are
+    indexed from one, so probing for ``ATT.UC[0]`` found nothing and reported the
+    *bay* as absent -- a whole platform's front end missing because an inner index
+    does not start where the probe assumed.
+    """
+    def present(i):
+        probe = template
+        for name, value in dict(fixed, **{scope: i}).items():
+            probe = probe.replace(f'{{{name}}}', str(value))
+        remaining = SCOPE.search(probe)
+        if remaining:
+            prefix = probe[:remaining.start()]
+            return any(path.startswith(prefix) for path in paths)
+        return probe in paths
+
+    found = []
+    start = 0
+    while True:
+        window = [i for i in range(start, start + WINDOW) if present(i)]
+        if not window:
+            return found
+        found += window
+        start += WINDOW
+
+
+def expand(paths, template):
+    """Every concrete path a template reaches in this dump.
+
+    Empty when a scope in the template has no indices here, which is how a
+    platform without the hardware behind a name is seen.
+    """
+    names = []
+    for name in SCOPE.findall(template):
+        if name not in names:
+            names.append(name)
+    if not names:
+        return [template] if template in paths else []
+
+    out = []
+
+    def walk(fixed, remaining):
+        if not remaining:
+            concrete = template
+            for name, value in fixed.items():
+                concrete = concrete.replace(f'{{{name}}}', str(value))
+            if concrete in paths:
+                out.append(concrete)
+            return
+        scope, rest = remaining[0], remaining[1:]
+        for i in indices_present(paths, template, scope, fixed):
+            walk(dict(fixed, **{scope: i}), rest)
+
+    walk({}, names)
+    return out
+
+
+def reaches_a_server_added_subtree(template):
+    """Is this template's node one the server adds rather than the firmware declaring it?
+
+    Decided on the template's first segment under the root, which is where a subtree
+    added to the root appears. Used only when resolving against a *package* dump: a dump
+    from a running server has these nodes, so excluding them there would weaken the check
+    for no reason.
+    """
+    parts = template.split('.')
+    if len(parts) < 2:
+        return False
+    head = parts[1]
+    if head in SERVER_ADDED_SUBTREES:
+        return True
+    bare = head.split('[')[0].split('{')[0]
+    return bare in SERVER_ADDED_SUBTREES or any(
+        bare.startswith(p) for p in SERVER_ADDED_PREFIXES)
+
+
+def resolution(stem, names=None, package_only=False, platform_name=None):
+    """Which names resolve in one dump, and which do not.
+
+    Resolution goes through the platform map, which is what a client does, so a name
+    that passes here is a name that would reach a register on a system running this
+    firmware. Every name the platform's map offers by default -- not the documented
+    subset, because a map is what a client resolves against and a name it offers
+    without a register behind it is the failure being looked for.
+
+    Some names are deliberately excluded: the operation nodes the server attaches at
+    start-up, and its own procedure. A dump records what a firmware package defines,
+    so those are absent from it by construction rather than by omission.
+
+    `package_only` says the dump came from a released firmware ZIP rather than from a
+    running server, so the whole server-added half of the tree is absent too and is
+    excluded on the same grounds. The committed fixtures are *not* package-only -- they
+    are built with the server's own root -- so the default is the stricter reading.
+    """
+    paths = load_dump(stem)
+    pmap = platform.by_name(platform_name or PLATFORM_OF[stem])
+    wanted = sorted(pmap.registers if names is None else names)
+    resolved, absent = {}, {}
+    for name in wanted:
+        if name in SERVER_ATTACHED:
+            continue
+        if package_only and name in pmap \
+                and reaches_a_server_added_subtree(template_of(pmap, name)):
+            continue
+        if name not in pmap:
+            absent[name] = 'not in this platform map'
+            continue
+        hits = expand(paths, template_of(pmap, name))
+        if hits:
+            resolved[name] = hits[0]
+        else:
+            absent[name] = template_of(pmap, name)
+    return resolved, absent
+
+
+def check_each_platform_offers_only_names_its_firmware_has():
+    """Every name a platform's map offers resolves on that platform's firmware.
+
+    This is the generality claim in the form the reachable firmware can support it,
+    and it is now the same assertion for both platforms rather than a special case
+    for one: a map is a statement of what a platform has, so a name it offers has to
+    reach something. A platform whose converters share the FPGA's die does not offer
+    the front-end names at all -- asking for one is an unresolved name, not a path
+    that reaches nothing.
+
+    What each platform has is read from the maps, not listed here. That matters: the
+    earlier version of this check carried its own list of carrier-only devices and
+    matched it against path strings, which was a second place the same fact was
+    written down and could have drifted from the maps it was checking.
+    """
+    for stem in sorted(PLATFORM_OF):
+        resolved, absent = resolution(stem)
+        named = ', '.join(sorted(absent)[:8])
+        assert not absent, (f'{len(absent)} name(s) the {PLATFORM_OF[stem]} map offers '
+                            f'do not resolve on its firmware: {named}')
+        assert len(resolved) >= MIN_RESOLVED, \
+            f'only {len(resolved)} names resolved on {stem}; too few to mean much'
+
+
+def check_the_platforms_differ_by_the_hardware_one_lacks():
+    """The two maps differ, and differ by exactly the hardware one platform lacks.
+
+    The difference has to be real in both directions. If the maps were identical this
+    whole comparison would be vacuous -- every name would resolve everywhere and
+    nothing would be shown about resolution not depending on a device existing. If a
+    name were missing for any other reason, the maps would disagree about the
+    generation rather than about the hardware.
+    """
+    atca = platform.by_name(PLATFORM_OF['atca'])
+    rfsoc = platform.by_name(PLATFORM_OF['rfsoc'])
+    carrier_only = set(atca.registers) - set(rfsoc.registers)
+    assert carrier_only, ('the two maps offer the same names, so nothing here shows '
+                          'that resolution does not depend on a device existing')
+    stray = sorted(n for n in carrier_only
+                   if not any(d in template_of(atca, n) for d in CARRIER_ONLY_DEVICES))
+    assert not stray, ('name(s) the carrier has and the other lacks that are not its '
+                       'front end or data links: ' + ', '.join(stray[:6]))
+    other_way = sorted(set(rfsoc.registers) - set(atca.registers))
+    assert not other_way, ('name(s) offered by the platform with fewer devices and not '
+                           'by the carrier: ' + ', '.join(other_way[:6]))
+    # And the firmware has to agree: every carrier-only name must resolve there and
+    # not on the other, or the maps are describing trees these dumps are not.
+    atca_paths, rfsoc_paths = load_dump('atca'), load_dump('rfsoc')
+    for name in sorted(carrier_only):
+        template = template_of(atca, name)
+        assert expand(atca_paths, template), \
+            f'{name} is declared carrier-only and does not resolve on the carrier'
+        assert not expand(rfsoc_paths, template), \
+            f'{name} is declared carrier-only and resolves on the other platform too'
+
+
+def check_both_generations_are_really_different_trees():
+    """The two dumps are not the same file under two names.
+
+    A check that compared a tree against itself would pass every assertion above and
+    prove nothing, so the difference is asserted directly, and asserted to be
+    the bay axis rather than merely non-empty.
+    """
+    atca, rfsoc = load_dump('atca'), load_dump('rfsoc')
+    assert atca != rfsoc, 'the two dumps hold identical paths'
+    only_atca = atca - rfsoc
+    assert only_atca, 'the carrier dump has nothing the other lacks'
+    stray = [p for p in only_atca
+             if not any(d in p for d in CARRIER_ONLY_DEVICES)]
+    assert not stray, ('the carrier has paths the other lacks that are not the per-bay '
+                       'front end or data links: ' + ', '.join(sorted(stray)[:4]))
+    # "Differ by exactly" is a claim in both directions: measured against the two full
+    # dumps, every RFSoC node is a carrier node, so anything here means the trees have
+    # diverged somewhere this check was not written to expect.
+    only_rfsoc = rfsoc - atca
+    assert not only_rfsoc, ('the RFSoC dump has paths the carrier lacks; the trees no '
+                            'longer differ by omission alone: ' +
+                            ', '.join(sorted(only_rfsoc)[:4]))
+
+
+def check_the_client_reaches_only_names_the_map_resolves():
+    """Every name the client's accessors reach resolves on the carrier.
+
+    A name that does not resolve is a method that raises the first time it is called, so
+    it is caught here rather than in a measurement. The names are read from the accessor
+    calls themselves and the map is asked to resolve each, which is the lookup a running
+    client does.
+
+    The map deliberately carries names no accessor reaches -- the operations use those
+    directly -- so only this direction is a failure.
+    """
+    resolved, _absent = resolution('atca')
+    reached = load_client_names()
+    # A name the server attaches rather than the firmware declaring it cannot be
+    # verified against a package dump, so it is excluded here for the same reason it is
+    # excluded above: its absence from a dump says nothing about whether it exists.
+    def unresolved(call):
+        if call['name'] in SERVER_ATTACHED:
+            return False
+        return call['name'] not in resolved
+
+    broken = sorted({f"{call['name']} (line {call['line']})" for call in reached
+                     if unresolved(call)})
+    assert not broken, ('name(s) the client reaches that the carrier does not have: ' +
+                        ', '.join(broken[:6]))
+    assert len({call['name'] for call in reached}) >= 100, \
+        'too few distinct names reached to mean much'
+
+
+def check_the_map_declares_the_kind_the_firmware_declares():
+    """A name the map calls a value is a value in the firmware, and a command a command.
+
+    The map states what kind of node each name reaches, and a client branches on it: a
+    value is read and written, a command is called. Getting it wrong is not caught by
+    resolution -- the path is right and the node is there -- so it surfaces only when
+    something tries to write a node that has to be called, which is a run against a tree
+    rather than a build.
+
+    What a dump can prove is only half of it, and the half it can is worth having. A
+    command is always write-only, so a name the map calls a *command* whose node is
+    readable is wrong and fails here. The converse does not follow: a write-only node may
+    be a command or an ordinary write-only variable -- ``SpiCryo.write`` and ``ReadAll``
+    are identical in every column a dump records -- so a value declared write-only is left
+    alone rather than guessed at.
+
+    The other direction is checked where the answer exists, against a real tree:
+    ``validate_client_emulated.py`` asks rogue itself through ``node.isCommand``, which is
+    what caught the four entries this check was added beside. Two checks, and each asserts
+    only what its evidence supports.
+    """
+    pmap = platform.by_name(PLATFORM_OF['atca'])
+    nodes = load_nodes('atca')
+    paths = load_dump('atca')
+    wrong = []
+    for name in sorted(pmap.registers):
+        if name in SERVER_ATTACHED:
+            continue
+        declared = pmap.registers[name][1]
+        for concrete in expand(paths, template_of(pmap, name)):
+            kind, mode = nodes.get(concrete, ('', ''))
+            if declared == 'command' and mode and mode != 'WO':
+                wrong.append(f'{name}: the map says command, but the firmware declares '
+                             f'{kind}/{mode} at {concrete} -- a command is write-only')
+    assert not wrong, ('name(s) whose kind the firmware disagrees with: ' +
+                       '; '.join(wrong[:6]))
+
+
+def check_the_client_writes_no_register_the_firmware_makes_read_only():
+    """No accessor writes a register the firmware declares readable only.
+
+    Whether a register may be written is the firmware's statement, in the access mode it
+    declares, so it is read from the dump rather than from anything describing the dump.
+    A write to a read-only node is refused at run time by the tree -- on a good day; the
+    point of checking here is the day it is not.
+    """
+    pmap = platform.by_name(PLATFORM_OF['atca'])
+    nodes = load_nodes('atca')
+    paths = load_dump('atca')
+    wrong = []
+    for call in load_client_names():
+        if call['direction'] != 'set' or call['name'] not in pmap:
+            continue
+        if call['name'] in KNOWN_READ_ONLY_WRITES:
+            continue
+        # Every concrete path, not the first: the mode is per node, and a firmware
+        # could make one index of a register read-only and leave the rest writable.
+        for concrete in expand(paths, template_of(pmap, call['name'])):
+            if nodes.get(concrete, ('', ''))[1] == 'RO':
+                wrong.append(f"{call['name']} (line {call['line']}) -> {concrete}")
+    assert not wrong, (
+        'accessor(s) writing a register the firmware declares read-only: ' +
+        ', '.join(sorted(wrong)[:6]))
+
+
+def selftest():
+    """Prove the checks fail on a tree they should reject.
+
+    Every assertion above passes when the map and the dumps agree. The risk is an
+    assertion that cannot fail -- comparing a tree with itself, or accepting an
+    empty resolution as success -- so each is driven with a deliberately wrong
+    input and required to complain.
+    """
+    import tempfile
+    from dataclasses import replace
+
+    global FIXTURES, COMMAND, CLIENT, PLATFORM_OF, MIN_RESOLVED
+    saved = (FIXTURES, COMMAND, CLIENT, PLATFORM_OF, MIN_RESOLVED, platform.MAPS)
+    failures = 0
+
+    def expect_failure(label, fn, saying):
+        """Run a check and require it to refuse *for the reason this case sets up*.
+
+        Any AssertionError would be too weak: a case that tripped an unrelated
+        assertion -- a dump written without the column the check reads, a floor
+        met before the fault was reached -- would count as proving the fault is
+        caught when the check never got that far. Two cases did exactly that.
+        """
+        nonlocal failures
+        try:
+            fn()
+        except AssertionError as e:
+            if saying in str(e):
+                print(f'  ok    {label}')
+                print(f'          refused with: {str(e)[:96]}')
+            else:
+                failures += 1
+                print(f'  FAIL  {label}: refused for a different reason than the case '
+                      f'sets up')
+                print(f'          wanted: {saying}')
+                print(f'          got:    {str(e)[:96]}')
+        except Exception as e:                                   # noqa: BLE001
+            failures += 1
+            print(f'  FAIL  {label}: raised {type(e).__name__} rather than refusing')
+            print(f'          {e}')
+        else:
+            failures += 1
+            print(f'  FAIL  {label}: accepted input it should have refused')
+
+    # Two fake maps standing in for the two real ones, differing the way they do: one
+    # carries the per-bay front end and one does not. They have to differ, or every
+    # check that compares them would pass while proving nothing.
+    base = 'AMCc.FpgaTopLevel.AppTop.AppCore.'
+    shared = {
+        'band[*].delay_us': (base + 'SysgenCryo.Base[{band}].bandDelayUs', 'value'),
+    }
+    carrier_only = {
+        'bay[*].attenuator[*].uc': (
+            base + 'MicrowaveMuxCore[{bay}].ATT.UC[{attenuator}]', 'value'),
+    }
+    scopes = {
+        'band': ((base + 'SysgenCryo.Base[{band}].bandDelayUs',), ()),
+        'bay': ((base + 'MicrowaveMuxCore[{bay}].ATT.UC[{attenuator}]',), ()),
+        'attenuator': ((base + 'MicrowaveMuxCore[{bay}].ATT.UC[{attenuator}]',), ('bay',)),
+    }
+    fake = platform.PlatformMap(name='fake', tags=('Fake',),
+                               registers=dict(shared, **carrier_only),
+                               witness=(), scopes=scopes)
+    fake_bayless = platform.PlatformMap(name='fake_rfsoc', tags=('FakeBayless',),
+                                        registers=dict(shared), witness=(),
+                                        scopes={'band': scopes['band']})
+    # A stand-in client. The names are read out of accessor calls, so what this
+    # selftest has to vary is source text rather than a table.
+    def client_source(*calls):
+        """A module defining one class whose methods make the given accessor calls."""
+        lines = ['class SmurfCommandMixin:']
+        for i, (accessor, literal, extra) in enumerate(calls):
+            lines.append(f'    def m{i}(self, band=0, bay=0, att=0, val=0):')
+            lines.append(f'        return self.{accessor}({literal}{extra})')
+        # The reader refuses a file with too few accessors to be the real client, so it
+        # is padded to that floor with calls to a name the fake map resolves.
+        for i in range(len(calls), 160):
+            lines.append(f'    def pad{i}(self, band=0):')
+            lines.append("        return self._get_by_name(f'band[{band}].delay_us')")
+        return chr(10).join(lines) + chr(10)
+
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            tree = pathlib.Path(tmp)
+            FIXTURES = tree
+            PLATFORM_OF = {'atca': 'fake', 'rfsoc': 'fake_rfsoc'}
+            MIN_RESOLVED = 2                # the fake maps offer two names
+            platform.MAPS = (fake, fake_bayless)
+
+            def write(stem, paths, ro=lambda path: False):
+                """A dump with the columns every check reads: path, type and mode.
+
+                Written with a mode for every row, as a real dump is, so a case that
+                turns on the mode is judged on it -- a dump without the column trips
+                load_nodes() first and the case never reaches the check it is for.
+                """
+                with gzip.open(tree / f'{stem}.varlist.txt.gz', 'wt',
+                               encoding='utf-8') as fh:
+                    fh.write('Path\tTypeStr\tMode\n')
+                    for p in paths:
+                        fh.write(f'{p}\tUInt32\t{"RO" if ro(p) else "RW"}\n')
+
+            def write_client(text):
+                COMMAND.write_text(text, encoding='utf-8')
+
+            # A stand-in client package: the command module and one other module
+            # beside it, as the real client has, so the scan of the rest of the
+            # package has something to read and can be shown to read it.
+            CLIENT = tree / 'client'
+            (CLIENT / 'command').mkdir(parents=True)
+            COMMAND = CLIENT / 'command' / 'smurf_command.py'
+            OTHER = CLIENT / 'smurf_util.py'
+            OTHER.write_text('class SmurfUtilMixin:\n    pass\n', encoding='utf-8')
+            write_client(client_source(
+                ('_get_by_name', "f'band[{band}].delay_us'", ''),
+                ('_set_by_name', "f'bay[{bay}].attenuator[{att}].uc'", ', val'),
+            ))
+
+            good_atca = [base + f'SysgenCryo.Base[{b}].bandDelayUs' for b in range(8)]
+            # Indexed from one, as the real attenuators are: an inner scope that does
+            # not start at zero is what the probe used to get wrong.
+            good_atca += [base + f'MicrowaveMuxCore[{y}].ATT.UC[{u}]'
+                          for y in range(2) for u in (1, 2, 3, 4)]
+            good_rfsoc = [base + f'SysgenCryo.Base[{b}].bandDelayUs' for b in range(8)]
+
+            # A name the firmware does not have must fail, on either platform.
+            write('atca', [p for p in good_atca if 'bandDelayUs' not in p])
+            write('rfsoc', good_rfsoc)
+            expect_failure('a name the carrier lacks is caught',
+                           check_each_platform_offers_only_names_its_firmware_has,
+                           'the fake map offers do not resolve on its firmware: '
+                           'band[*].delay_us')
+
+            # A name the *other* platform's map offers and its firmware lacks must fail
+            # too. That is the assertion the split makes possible: before it, this name
+            # was expected to be absent and its absence proved nothing. The dump keeps
+            # a node no name reaches, so it is a tree without the register rather than
+            # an empty file, which load_dump() refuses on its own.
+            write('atca', good_atca)
+            write('rfsoc', [base + 'SysgenCryo.Base[0].unrelated'])
+            expect_failure('a name the bayless platform lacks is caught',
+                           check_each_platform_offers_only_names_its_firmware_has,
+                           'the fake_rfsoc map offers do not resolve on its firmware: '
+                           'band[*].delay_us')
+
+            # A front-end name that resolves on a platform whose map does not offer it
+            # means the dumps are not the trees the maps describe.
+            write('rfsoc', good_atca)
+            expect_failure('a front-end register present without a front end is caught',
+                           check_the_platforms_differ_by_the_hardware_one_lacks,
+                           'resolves on the other platform too')
+
+            # Two maps offering the same names make every comparison vacuous.
+            write('atca', good_atca)
+            write('rfsoc', good_rfsoc)
+            platform.MAPS = (fake, replace(fake, name='fake_rfsoc'))
+            expect_failure('two maps that offer the same names are caught',
+                           check_the_platforms_differ_by_the_hardware_one_lacks,
+                           'the two maps offer the same names')
+            platform.MAPS = (fake, fake_bayless)
+
+            # A carrier-only name that is not front-end hardware means the maps disagree
+            # about the generation rather than about the hardware.
+            odd = platform.PlatformMap(
+                name='fake', tags=('Fake',),
+                registers=dict(fake.registers,
+                               **{'unrelated': (base + 'Something.Else', 'value')}),
+                witness=(), scopes=scopes)
+            platform.MAPS = (odd, fake_bayless)
+            write('atca', good_atca + [base + 'Something.Else'])
+            expect_failure('a carrier-only name that is not the front end is caught',
+                           check_the_platforms_differ_by_the_hardware_one_lacks,
+                           'not its front end or data links: unrelated')
+            platform.MAPS = (fake, fake_bayless)
+            write('atca', good_atca)
+
+            # The package-dump exclusion must be narrow: it may drop a name because the
+            # *server* owns its subtree, and must not drop one under the firmware's own
+            # tree. Asserted directly on the classifier, because a too-broad rule here
+            # would silently excuse a real absence when checking a released ZIP.
+            before_classifier = failures
+            for tmpl in (base + 'SysgenCryo.Base[0].bandDelayUs',
+                         'AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.FpgaVersion',
+                         'AMCc.ReadAll', 'AMCc.enable', 'AMCc.RogueVersion'):
+                if reaches_a_server_added_subtree(tmpl):
+                    failures += 1
+                    print(f'  FAIL  {tmpl} wrongly classed as server-added')
+            for tmpl in ('AMCc.SmurfProcessor.Filter.Disable',
+                         'AMCc.SmurfApplication.SmurfVersion',
+                         'AMCc.Stream{capture}.Updated',
+                         'AMCc.streamDataWriter.Open', 'AMCc.setDefaults.Start',
+                         'AMCc.Ready'):
+                if not reaches_a_server_added_subtree(tmpl):
+                    failures += 1
+                    print(f'  FAIL  {tmpl} not recognised as server-added')
+            if failures == before_classifier:
+                print('  ok    the package-dump exclusion covers the server subtrees '
+                      'and nothing under FpgaTopLevel')
+
+            # The same tree under two names must fail.
+            write('rfsoc', good_atca)
+            expect_failure('the same tree under two names is caught',
+                           check_both_generations_are_really_different_trees,
+                           'the two dumps hold identical paths')
+
+            # A tree differing by something other than the bay axis must fail.
+            write('rfsoc', good_atca + [base + 'Extra.Register'])
+            write('atca', good_atca + [base + 'Something.Unrelated'])
+            expect_failure('a difference that is not the bay axis is caught',
+                           check_both_generations_are_really_different_trees,
+                           'not the per-bay front end or data links')
+            # A tree the RFSoC has and the carrier lacks must fail even when the carrier's
+            # own surplus is exactly the front end: the difference is asserted in both
+            # directions, or an RFSoC-only path could pass unseen.
+            write('atca', good_atca)
+            write('rfsoc', good_rfsoc + [base + 'OnlyOnRfsoc.Register'])
+            expect_failure('a path only the RFSoC has is caught',
+                           check_both_generations_are_really_different_trees,
+                           'the RFSoC dump has paths the carrier lacks')
+            write('atca', good_atca)
+            write('rfsoc', good_rfsoc)
+
+            # A name the map calls a command whose node the firmware lets you read must
+            # fail: a command is write-only, so a readable one is not a command. This is
+            # the half of the question a dump can answer -- the other half, a value that
+            # is really a command, is caught against a real tree by
+            # validate_client_emulated.py, which asks rogue rather than a dump.
+            commanding = platform.PlatformMap(
+                name='fake', tags=('Fake',),
+                registers=dict(fake.registers,
+                               **{'band[*].delay_us': (
+                                   base + 'SysgenCryo.Base[{band}].bandDelayUs',
+                                   'command')}),
+                witness=(), scopes=scopes)
+            platform.MAPS = (commanding, fake_bayless)
+            expect_failure('a command the firmware declares readable is caught',
+                           check_the_map_declares_the_kind_the_firmware_declares,
+                           'the map says command, but the firmware declares')
+            platform.MAPS = (fake, fake_bayless)
+
+            # A client reaching a name the map cannot resolve must fail: that is a
+            # method which raises the first time it is called.
+            write_client(client_source(
+                ('_get_by_name', "f'band[{band}].ghost'", ''),
+            ))
+            expect_failure('an accessor reaching an unresolvable name is caught',
+                           check_the_client_reaches_only_names_the_map_resolves,
+                           'the carrier does not have: band[*].ghost')
+
+            # A client writing a register the firmware declares read-only must fail.
+            # The mode comes from the dump, so the dump is what states it here.
+            write('atca', good_atca, ro=lambda path: 'bandDelayUs' in path)
+            write_client(client_source(
+                ('_set_by_name', "f'band[{band}].delay_us'", ', val'),
+            ))
+            expect_failure('a write to a read-only register is caught',
+                           check_the_client_writes_no_register_the_firmware_makes_read_only,
+                           'read-only: band[*].delay_us')
+            # A read-only node at a later index must be caught: the mode is per node,
+            # and a check that stopped at the first concrete path would miss it.
+            write('atca', good_atca, ro=lambda path: path.endswith('Base[5].bandDelayUs'))
+            expect_failure('a read-only register at a later index is caught',
+                           check_the_client_writes_no_register_the_firmware_makes_read_only,
+                           'Base[5].bandDelayUs')
+            write('atca', good_atca, ro=lambda path: 'bandDelayUs' in path)
+
+            # The same write through a name table must be caught too: the table serves a
+            # setter as well as a getter, and recording it as a read alone would let a
+            # table-driven write to a read-only register through.
+            write_client(client_source() + chr(10).join([
+                "    _TABLE_NAMES = {",
+                "        0x1: 'band[*].delay_us',",
+                "    }",
+                "",
+            ]))
+            expect_failure('a table-driven write to a read-only register is caught',
+                           check_the_client_writes_no_register_the_firmware_makes_read_only,
+                           'read-only: band[*].delay_us')
+
+            # A name reached through a local variable must be read, not skipped: a
+            # typo in `name = f'band[{band}].ghost'` is as unresolvable as one at the
+            # call site.
+            write_client(client_source() + chr(10).join([
+                "    def via_local(self, band=0):",
+                "        name = f'band[{band}].ghost'",
+                "        return self._get_by_name(name)",
+                "",
+            ]))
+            expect_failure('an unresolvable name reached through a local is caught',
+                           check_the_client_reaches_only_names_the_map_resolves,
+                           'the carrier does not have: band[*].ghost')
+
+            # A name this reader cannot see -- computed by a call -- must be refused
+            # outright, not passed over: skipping it is exactly how a register could be
+            # reached with nothing checking the name.
+            write_client(client_source() + chr(10).join([
+                "    def computed(self, band=0):",
+                "        return self._get_by_name(self.some_name(band))",
+                "",
+            ]))
+            expect_failure('a name computed in a way the check cannot read is refused',
+                           check_the_client_reaches_only_names_the_map_resolves,
+                           'names its register in a way this check cannot read')
+
+            # An access outside the command module must be seen: a wait in the tuning
+            # code or a poll in the utilities reaches a register through the same
+            # helpers, and a scan of one file would let it bypass every gate here.
+            write_client(client_source(
+                ('_get_by_name', "f'band[{band}].delay_us'", ''),
+            ))
+            OTHER.write_text(
+                'class SmurfUtilMixin:\n'
+                '    def m(self, band=0):\n'
+                "        return self._wait_for(f'band[{band}].phantom', bool)\n",
+                encoding='utf-8')
+            expect_failure('an unresolvable name reached outside smurf_command.py is caught',
+                           check_the_client_reaches_only_names_the_map_resolves,
+                           'band[*].phantom (line smurf_util.py:')
+            OTHER.write_text('class SmurfUtilMixin:\n    pass\n', encoding='utf-8')
+
+            # A client the reader cannot recognise at all must fail rather than pass
+            # by finding nothing: a parser that stopped matching would otherwise
+            # report success over an empty set.
+            write_client('class SmurfCommandMixin:\n    pass\n')
+            expect_failure('a client whose accessors cannot be read is caught',
+                           check_the_client_reaches_only_names_the_map_resolves,
+                           'the check has stopped recognising them')
+    finally:
+        FIXTURES, COMMAND, CLIENT, PLATFORM_OF, MIN_RESOLVED, platform.MAPS = saved
+
+    print('')
+    if failures:
+        print(f'SELFTEST FAILED ({failures})')
+        return 1
+    print('SELFTEST PASS -- every check refuses the input it is meant to refuse.')
+    return 0
+
+
+def main():
+    ap = argparse.ArgumentParser(description='Resolve every name against tree dumps.')
+    ap.add_argument('--selftest', action='store_true',
+                    help='drive each check with a wrong input and require a complaint')
+    ap.add_argument('--package-dump', metavar='VARLIST',
+                    help='resolve against a dump built from a released firmware ZIP '
+                         'rather than the committed fixtures. Such a dump has no '
+                         'server-added subtrees, so those names are excluded; every '
+                         'name under the firmware tree still has to resolve.')
+    ap.add_argument('--platform', default='umux-atca',
+                    help='which map to resolve with --package-dump')
+    args = ap.parse_args()
+
+    if args.selftest:
+        return selftest()
+
+    if args.package_dump:
+        resolved, absent = resolution(args.package_dump, package_only=True,
+                                      platform_name=args.platform)
+        print(f'Resolving the {args.platform} map against a released firmware package')
+        print(f'  dump     : {args.package_dump}')
+        print(f'  resolved : {len(resolved)}')
+        print(f'  absent   : {len(absent)}')
+        for name, why in sorted(absent.items()):
+            print(f'    {name:46s} {why}')
+        if absent:
+            print(f'\nFAILED: {len(absent)} name(s) the map offers are not in this '
+                  f'released package.')
+            return 1
+        print(f'\nAll {len(resolved)} firmware-tree name(s) resolve against this '
+              f'released package.')
+        return 0
+
+    checks = sorted((name[len('check_'):], fn)
+                    for name, fn in globals().items()
+                    if name.startswith('check_'))
+    failed = []
+
+    print(f'Resolving cryodaq names against committed tree dumps '
+          f'({len(checks)} checks)')
+    for label, fn in checks:
+        try:
+            fn()
+        except Exception as e:                                   # noqa: BLE001
+            failed.append(label)
+            print(f'  FAIL  {label}')
+            print(f'          {type(e).__name__}: {e}')
+        else:
+            print(f'  ok    {label}')
+
+    print('')
+    if failed:
+        print(f'FAILED ({len(failed)}): {", ".join(failed)}')
+        return 1
+    resolved, _ = resolution('atca')
+    print(f'All checks passed ({len(resolved)} names resolved on the carrier, '
+          f'{len(set(c["name"] for c in load_client_names()))} names the client reaches).')
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -190,6 +190,55 @@ jobs:
           docker container exec server \
             /bin/bash -c "/usr/local/src/pysmurf/tests/core/validate_cryo_operations.py"
 
+      # - Resolve the register names against a RELEASED firmware package, not the
+      #   committed fixtures. The fixtures are pruned dumps built from this
+      #   repository's own cryo-det, so they answer "do the names match the tree we
+      #   build?"; this answers "do they match the tree SLAC shipped?", which is the
+      #   question a deployment cares about. Runs here rather than in test-client
+      #   because building a tree needs rogue, which only this container has.
+      #
+      #   A package dump has no server-added subtrees -- SmurfProcessor, the stream
+      #   writers, SmurfApplication and the rest are added by the server at start-up --
+      #   so --package-dump excludes those names and requires every name under the
+      #   firmware's own tree to resolve.
+      #
+      #   cryo-det is a private repository, so this needs the same token the
+      #   definitions check uses, not the workflow's own. Secrets are withheld from a
+      #   pull request opened from a fork; there the step says so and stops, and the
+      #   committed fixtures checked in test-client remain the evidence.
+      - name: Resolve the names against a released firmware package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GITHUB_TOKEN}" ]; then
+            echo "::notice::no token for slaclab/cryo-det (fork pull request?);" \
+                 "the released-package resolution is skipped, the fixtures still run"
+            exit 0
+          fi
+          tag=MicrowaveMuxBpEthGen2_v2.5.1
+          zip=rogue_${tag}.zip
+          id=$(curl --fail --silent --location \
+                 --header "Authorization: token ${GITHUB_TOKEN}" \
+                 "https://api.github.com/repos/slaclab/cryo-det/releases/tags/${tag}" \
+               | python3 -c "import json,sys;
+          print(next(a['id'] for a in json.load(sys.stdin)['assets']
+                     if a['name'] == '${zip}'))")
+          curl --fail --silent --location \
+               --header "Authorization: token ${GITHUB_TOKEN}" \
+               --header "Accept: application/octet-stream" \
+               --output "${zip}" \
+               "https://api.github.com/repos/slaclab/cryo-det/releases/assets/${id}"
+          docker container cp "${zip}" server:/tmp/"${zip}"
+          docker container cp tests/cryodaq/dump_released_tree.py \
+            server:/tmp/dump_released_tree.py
+          docker container exec server /bin/bash -c \
+            "python3 /tmp/dump_released_tree.py --zip /tmp/${zip} \
+               --out /tmp/released.varlist.txt"
+          docker container cp server:/tmp/released.varlist.txt ./released.varlist.txt
+          python3 tests/cryodaq/check_catalog_resolves.py \
+            --package-dump ./released.varlist.txt
+
   # Client tests
   test-client:
     name: Client Tests
@@ -212,6 +261,20 @@ jobs:
       # supplied values, so this needs no tree and no rogue either.
       - name: Check the cryodaq platform maps
         run: python3 tests/cryodaq/check_platform_map.py
+
+      # Resolve every catalog name against committed dumps of both firmware
+      # generations, so a name that no longer matches the firmware fails a build
+      # rather than a night on a crate. Reads the dumps out of the repository, so
+      # this needs nothing installed and runs on a fork's pull request too.
+      - name: Resolve the cryodaq names against firmware tree dumps
+        run: python3 tests/cryodaq/check_catalog_resolves.py
+
+      # sodetlib drives this client from another repository, so its use of it cannot
+      # be found by reading this one: a refactor here can remove a method nothing
+      # here calls and break an observatory's analysis code. The surface it depends
+      # on is frozen, so a removal has to be a decision rather than an accident.
+      - name: Check the sodetlib compatibility contract
+        run: python3 tests/cryodaq/check_sodetlib_contract.py
 
       # Setup Docker build environment
       - name: Set up docker build enviroment
@@ -260,6 +323,18 @@ jobs:
         run: |
           docker container exec client \
             /bin/bash -c "python3 -c 'import cryodaq; cryodaq.connect'"
+
+      # - Import the register layer and check it resolves names rather than building
+      #   paths. The client reaches registers through cryodaq.platform now, so an
+      #   install that left that package out would still import the client and then
+      #   fail on the first register access.
+      - name: Test the register layer resolves by name
+        run: |
+          docker container exec client \
+            /bin/bash -c "python3 -c 'from pysmurf.client.command.smurf_command \
+            import SmurfCommandMixin as M; \
+            assert hasattr(M, \"_get_by_name\") and hasattr(M, \"_resolve\"); \
+            import cryodaq.platform as p; assert p.MAPS'"
 
   # Build
 

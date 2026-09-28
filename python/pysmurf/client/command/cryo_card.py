@@ -18,11 +18,6 @@ import time
 import os
 
 import numpy as np
-try:
-    import pyrogue.interfaces
-    ROGUE_AVAILABLE  = True
-except ModuleNotFoundError:
-    ROGUE_AVAILABLE  = False
 
 from ..base.logger import SmurfLogger
 
@@ -34,22 +29,43 @@ def write_csv(filename, header, line):
         f.write(line+'\n')
 
 class CryoCard():
-    def __init__(self, readpv_in, writepv_in, log=None, server_addr="localhost", server_port=9000):
+    """The cryostat card, driven through the PIC's mailbox on the RTM.
+
+    .. versionchanged:: 11.5.0
+       Takes the two mailbox nodes instead of their paths with a server
+       address and port, and no longer opens its own connection. A caller
+       constructing one directly must pass the resolved nodes; no
+       compatibility path is kept, as the only known caller is
+       ``SmurfControl`` and this is a breaking release.
+    """
+
+    def __init__(self, readpv, writepv, log=None):
         """
         Interact with the cryocard via the PIC. To interact via the RTM, use SmurfCommandMixin.
         Needs to be compatible with the C02 and C04 cryocards.
+
+        The card is reached over a serial link on the RTM, as a pair of mailbox
+        nodes: one written with a command word and one read for the reply. The
+        caller resolves those two and passes them in, so where they live is a
+        property of the platform rather than of this class -- what this class
+        knows is the card's protocol, which is the same wherever the mailboxes
+        are.
+
+        Args
+        ----
+        readpv : rogue node
+            The mailbox a reply is read from.
+        writepv : rogue node
+            The mailbox a command word is written to.
+        log : SmurfLogger, optional
+            Where to log retries and failures.
 
         Ref https://github.com/slaclab/smurfc/blob/C02/firmware/src/ccard.h
         Ref https://github.com/slaclab/smurfc/blob/C04/firmware/src/ccard.h
         """
 
-        if not ROGUE_AVAILABLE:
-            raise ImportError(
-                "pyrogue is required to use the CryoCard class. Use offline mode or install pyrogue."
-            )
-        self._client = pyrogue.interfaces.VirtualClient(addr=server_addr, port=server_port)
-        self.readpv = self._client.root.getNode(readpv_in)
-        self.writepv = self._client.root.getNode(writepv_in)
+        self.readpv = readpv
+        self.writepv = writepv
 
         self.fw_version_address = 0x0
         self.relay_address = 0x2
