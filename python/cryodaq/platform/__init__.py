@@ -42,7 +42,7 @@
 
 import functools
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import (Any, Callable, Dict, List, Mapping, Sequence, Tuple)
 
 from cryodaq._errors import ConnectError, UnresolvedName
@@ -162,7 +162,12 @@ class PlatformMap:
         belonging to this map. More than one where several firmware lines share
         a platform's registers and its bring-up.
     registers : mapping
-        Name pattern to ``(path template, kind)``.
+        Name pattern to ``(path template, kind)``: the core table, every name an
+        operation, the description or a live client method reaches.
+    extended : mapping
+        The same shape, for the names only deprecated compatibility accessors
+        reach. Resolved exactly like the core table; kept apart because they
+        leave with those accessors, and a checker holds the two disjoint.
     witness : tuple of str
         Name patterns worth reading back to record how a system was left.
     scopes : mapping
@@ -174,17 +179,28 @@ class PlatformMap:
     registers: Mapping[str, Tuple[str, str]]
     witness: Tuple[str, ...]
     scopes: Mapping[str, Tuple[Tuple[str, ...], Tuple[str, ...]]]
+    extended: Mapping[str, Tuple[str, str]] = field(default_factory=dict)
 
     def __contains__(self, pattern: str) -> bool:
-        return pattern in self.registers
+        return pattern in self.registers or pattern in self.extended
 
     def __len__(self) -> int:
-        return len(self.registers)
+        return len(self.registers) + len(self.extended)
 
     @property
     def patterns(self) -> Tuple[str, ...]:
-        """Every name pattern in the map, sorted."""
-        return tuple(sorted(self.registers))
+        """Every name pattern in the map, core and extended, sorted."""
+        return tuple(sorted(set(self.registers) | set(self.extended)))
+
+    @property
+    def entries(self) -> Mapping[str, Tuple[str, str]]:
+        """Every name pattern with its ``(path template, kind)``, core and extended."""
+        return {**self.registers, **self.extended}
+
+    def _lookup(self, pattern: str) -> Tuple[str, str]:
+        if pattern in self.registers:
+            return self.registers[pattern]
+        return self.extended[pattern]
 
     def entry(self, name: str) -> Tuple[str, str]:
         """The register path and kind a concrete name resolves to.
@@ -196,12 +212,12 @@ class PlatformMap:
             than a name.
         """
         pattern, found = parse(name)
-        if pattern not in self.registers:
+        if pattern not in self:
             raise UnresolvedName(name, pattern=pattern, reason='not in this platform map')
         if any(index < 0 for index in found.values()):
             raise UnresolvedName(name, pattern=pattern,
                                  reason='a pattern, not a name: every scope needs an index')
-        template, kind = self.registers[pattern]
+        template, kind = self._lookup(pattern)
         return _fill(template, found), kind
 
     def path(self, name: str) -> str:
@@ -222,6 +238,7 @@ def _from_module(module: Any) -> PlatformMap:
     """Build the map a platform module declares as data."""
     return PlatformMap(name=module.NAME, tags=tuple(module.TAGS),
                        registers=dict(module.REGISTERS),
+                       extended=dict(getattr(module, 'EXTENDED', {})),
                        witness=tuple(module.WITNESS),
                        scopes=dict(module.SCOPES))
 

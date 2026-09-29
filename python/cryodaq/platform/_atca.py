@@ -30,7 +30,7 @@
 
 from cryodaq.platform import _umux
 
-__all__ = ['NAME', 'TAGS', 'REGISTERS', 'WITNESS', 'SCOPES']
+__all__ = ['NAME', 'TAGS', 'REGISTERS', 'EXTENDED', 'WITNESS', 'SCOPES']
 
 NAME = 'umux-atca'
 
@@ -110,13 +110,11 @@ REGISTERS.update({
     'bay[*].attenuator[*].uc': (_ATTENUATOR_UC, _V),
     'bay[*].attenuator[*].dc': (_ATTENUATOR_DC, _V),
     'bay[*].dac[*].temperature': (_DAC_TEMPERATURE, _V),
-    'bay[*].dac[*].enable': (_DAC_ENABLE, _V),
     'bay[*].dac[*].jesd_reset_n': (_DAC_JESD_RESET_N, _V),
     'bay[*].dac[*].reset': (_DAC_RESET, _V),
     'bay[*].debug.enable': (_BAY_DEBUG_ENABLE, _V),
     'bay[*].clock.enable': (_LMK_ENABLE, _V),
     'bay[*].clock.power_up_sys_ref': (_LMK_POWER_UP_SYS_REF, _C),
-    'bay[*].clock.select_external_reference': (_SELECT_EXTERNAL_REFERENCE, _C),
     'bay[*].clock_input.enable': (_LMK_CLOCK_INPUT_ENABLE, _V),
     'bay[*].clock_input.select': (_LMK_CLOCK_INPUT_SELECT, _V),
     # the serial links back from it
@@ -125,6 +123,13 @@ REGISTERS.update({
     'bay[*].jesd.rx_enable': (_JESD_RX_ENABLE, _V),
     'bay[*].jesd.tx_enable': (_JESD_TX_ENABLE, _V),
     'bay[*].jesd.tx_lane[*].data_out_mux': (_JESD_TX_DATA_OUT_MUX, _V),
+})
+
+# The carrier's names only deprecated accessors reach; see the shared map's EXTENDED.
+EXTENDED = dict(_umux.EXTENDED)
+EXTENDED.update({
+    'bay[*].dac[*].enable': (_DAC_ENABLE, _V),
+    'bay[*].clock.select_external_reference': (_SELECT_EXTERNAL_REFERENCE, _C),
     'bay[*].jesd.link[*].rx_status_valid_count': (_JESD_RX_STATUS_VALID_COUNT, _V),
     'bay[*].jesd.link[*].tx_status_valid_count': (_JESD_TX_STATUS_VALID_COUNT, _V),
 })

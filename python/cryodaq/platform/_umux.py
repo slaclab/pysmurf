@@ -8,8 +8,10 @@
 # Description:
 #    The map between the register tree of a microwave-multiplexed readout and
 #    cryodaq's semantic names. It is data only: register path templates, the
-#    table of names built from them, the registers worth recording as a witness
-#    of how a system was left, and how to enumerate the indexed scopes.
+#    tables of names built from them -- the core, and an extended table of names
+#    only deprecated compatibility accessors still reach -- the registers worth
+#    recording as a witness of how a system was left, and how to enumerate the
+#    indexed scopes.
 #
 #    This module and its siblings are the only places in cryodaq where a
 #    register path appears. Nothing here reads or writes a register, and nothing
@@ -33,7 +35,7 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-__all__ = ['REGISTERS', 'WITNESS', 'SCOPES', 'BUILD_STAMP', 'SERVER_ADDED_ROOT_NODES']
+__all__ = ['REGISTERS', 'EXTENDED', 'WITNESS', 'SCOPES', 'BUILD_STAMP', 'SERVER_ADDED_ROOT_NODES']
 
 # --------------------------------------------------------------------------
 # register paths, as templates over the indexed scopes
@@ -512,12 +514,6 @@ REGISTERS = {
     'carrier.fpga.vcc_bram': (FPGA_VCC_BRAM, _V),
     'carrier.bsa.engine[*].buffer[*].start_address': (BSA_BUFFER_START_ADDR, _V),
     'carrier.bsa.engine[*].buffer[*].end_address': (BSA_BUFFER_END_ADDR, _V),
-    'carrier.bsa.engine[*].buffer[*].write_address': (BSA_BUFFER_WRITE_ADDR, _V),
-    'band[*].decimation': (DECIMATION, _V),
-    'band[*].analysis_scale': (ANALYSIS_SCALE, _V),
-    'band[*].tone.scale': (TONE_SCALE, _V),
-    'band[*].frequency_error': (FREQUENCY_ERROR_ARRAY, _V),
-    'band[*].channel[*].frequency_error': (CHANNEL_FREQUENCY_ERROR, _V),
     'bay[*].tone_file.load': (LOAD_TONE_FILE, _C),
     # firmware identity
     'firmware.version': (FPGA_VERSION, _V),
@@ -529,7 +525,6 @@ REGISTERS = {
     'stream.enable': (STREAM_ENABLE, _V),
     'stream.downsample.factor': (DOWNSAMPLE_FACTOR, _V),
     'stream.filter.disable': (FILTER_DISABLE, _V),
-    'stream.frame_count': (FRAME_COUNT, _V),
     # flux ramp
     'flux_ramp.ramp_max_cnt': (RAMP_MAX_CNT, _V),
     'flux_ramp.enable_trigger': (ENABLE_RAMP_TRIGGER, _V),
@@ -561,60 +556,14 @@ REGISTERS = {
     # the server's own nodes, and what it writes captured data to
     'server.rogue_version': (ROGUE_VERSION, _V),
     'stream.data_source_enable': (STREAM_DATA_SOURCE_ENABLE, _V),
-    'timing.user_config[*]': (USER_CONFIG, _V),
-    # the timing receive link's error and reset counters
-    'timing.crc_error_count': (TIMING_CRC_ERROR_COUNT, _V),
-    'timing.rx_decode_error_count': (TIMING_RX_DECODE_ERROR_COUNT, _V),
-    'timing.rx_dsp_error_count': (TIMING_RX_DSP_ERROR_COUNT, _V),
-    'timing.rx_reset_count': (TIMING_RX_RESET_COUNT, _V),
-    'timing.evr_channel[*].count': (EVR_CHANNEL_COUNT, _V),
-    'timing.evr_trigger[*].delay': (EVR_TRIGGER_DELAY, _V),
     # the carrier's thermal shutdown threshold
-    'carrier.fpga.overtemp_threshold': (FPGA_OVERTEMP_THRESHOLD, _V),
     'carrier.regulator.current': (REGULATOR_CURRENT, _V),
     'carrier.regulator.temperature[*]': (REGULATOR_TEMPERATURE, _V),
-    # the RTM waveform controller's status
-    'rtm.waveform.busy': (RTM_LUT_BUSY, _V),
-    'rtm.waveform.max_address': (RTM_LUT_MAX_ADDRESS, _V),
-    'rtm.waveform.trigger_count': (RTM_LUT_TRIGGER_COUNT, _V),
-    'rtm.waveform.software_trigger': (RTM_LUT_SOFTWARE_TRIGGER, _C),
-    # per-band
-    'band[*].counter_select': (COUNTER_SELECT, _V),
-    'band[*].lms.frequency': (LMS_FREQUENCY, _V),
-    'band[*].rf_enable': (RF_ENABLE, _V),
-    # the application block and the streaming path
-    'application.directory': (SMURF_DIRECTORY, _V),
-    'application.startup_script': (STARTUP_SCRIPT, _V),
-    'stream.mode': (STREAM_MODE, _V),
-    'stream.bay_select': (STREAM_BAY_SELECT, _V),
-    'readout_delay': (READOUT_DELAY, _V),
-    'debug.timing_override.bay[*].timing_channel[*]':
-        (DEBUG_TIMING_OVERRIDE, _V),
-    'stream.channel_count': (CHANNEL_COUNT, _V),
-    'stream.data_file.max_size': (DATA_FILE_MAX_SIZE, _V),
-    'stream.frame_out_of_order_count': (FRAME_OUT_OF_ORDER_COUNT, _V),
-    'stream.frame_size': (FRAME_SIZE, _V),
-    'stream.data_source_period': (STREAM_DATA_SOURCE_PERIOD, _V),
-    'stream.legacy_interface.data_file': (STREAMING_DATA_FILE, _V),
-    'stream.legacy_interface.open': (STREAMING_OPEN, _C),
-    'stream.legacy_interface.is_open': (STREAMING_IS_OPEN, _V),
     # the two synthetic data sources
-    'stream.pre_emulator.enable': (PRE_EMULATOR_ENABLE, _V),
-    'stream.pre_emulator.disable': (PRE_EMULATOR_DISABLE, _V),
-    'stream.pre_emulator.type': (PRE_EMULATOR_TYPE, _V),
-    'stream.pre_emulator.amplitude': (PRE_EMULATOR_AMPLITUDE, _V),
-    'stream.pre_emulator.offset': (PRE_EMULATOR_OFFSET, _V),
-    'stream.pre_emulator.period': (PRE_EMULATOR_PERIOD, _V),
-    'stream.post_emulator.enable': (POST_EMULATOR_ENABLE, _V),
-    'stream.post_emulator.type': (POST_EMULATOR_TYPE, _V),
-    'stream.post_emulator.amplitude': (POST_EMULATOR_AMPLITUDE, _V),
-    'stream.post_emulator.offset': (POST_EMULATOR_OFFSET, _V),
-    'stream.post_emulator.period': (POST_EMULATOR_PERIOD, _V),
     'stream.capture[*].data': (CAPTURE_DATA, _V),
     'stream.capture[*].updated': (CAPTURE_UPDATED, _V),
     'stream.data_file.open': (DATA_FILE_OPEN, _C),
     'stream.data_file.close': (DATA_FILE_CLOSE, _C),
-    'stream.frame_loss_count': (FRAME_LOSS_COUNT, _V),
     'stream.downsample.mode': (DOWNSAMPLE_MODE, _V),
     'stream.filter.reset': (FILTER_RESET, _C),
     'stream.unwrapper.reset': (UNWRAPPER_RESET, _C),
@@ -716,6 +665,63 @@ REGISTERS.update({f'band[*].ops.{name}': (path, _P)
                   for name, path in OPS_PROCESSES.items()})
 REGISTERS.update({f'band[*].ops.{name}': (path, _C)
                   for name, path in OPS_COMMANDS.items()})
+
+# Names only the compatibility layer's deprecated accessors reach. Kept apart from the
+# table above because they leave with those accessors, in the release after the one that
+# ships their warning: a name here is not the core's, and nothing in cryodaq or in a
+# live pysmurf method may resolve one. The same session resolves both tables; the split
+# is a statement about who needs the name, checked in the tests, not a second lookup.
+EXTENDED = {
+    'carrier.bsa.engine[*].buffer[*].write_address': (BSA_BUFFER_WRITE_ADDR, _V),
+    'band[*].decimation': (DECIMATION, _V),
+    'band[*].analysis_scale': (ANALYSIS_SCALE, _V),
+    'band[*].tone.scale': (TONE_SCALE, _V),
+    'band[*].frequency_error': (FREQUENCY_ERROR_ARRAY, _V),
+    'band[*].channel[*].frequency_error': (CHANNEL_FREQUENCY_ERROR, _V),
+    'stream.frame_count': (FRAME_COUNT, _V),
+    'timing.user_config[*]': (USER_CONFIG, _V),
+    'timing.crc_error_count': (TIMING_CRC_ERROR_COUNT, _V),
+    'timing.rx_decode_error_count': (TIMING_RX_DECODE_ERROR_COUNT, _V),
+    'timing.rx_dsp_error_count': (TIMING_RX_DSP_ERROR_COUNT, _V),
+    'timing.rx_reset_count': (TIMING_RX_RESET_COUNT, _V),
+    'timing.evr_channel[*].count': (EVR_CHANNEL_COUNT, _V),
+    'timing.evr_trigger[*].delay': (EVR_TRIGGER_DELAY, _V),
+    'carrier.fpga.overtemp_threshold': (FPGA_OVERTEMP_THRESHOLD, _V),
+    'rtm.waveform.busy': (RTM_LUT_BUSY, _V),
+    'rtm.waveform.max_address': (RTM_LUT_MAX_ADDRESS, _V),
+    'rtm.waveform.trigger_count': (RTM_LUT_TRIGGER_COUNT, _V),
+    'rtm.waveform.software_trigger': (RTM_LUT_SOFTWARE_TRIGGER, _C),
+    'band[*].counter_select': (COUNTER_SELECT, _V),
+    'band[*].lms.frequency': (LMS_FREQUENCY, _V),
+    'band[*].rf_enable': (RF_ENABLE, _V),
+    'application.directory': (SMURF_DIRECTORY, _V),
+    'application.startup_script': (STARTUP_SCRIPT, _V),
+    'stream.mode': (STREAM_MODE, _V),
+    'stream.bay_select': (STREAM_BAY_SELECT, _V),
+    'readout_delay': (READOUT_DELAY, _V),
+    'debug.timing_override.bay[*].timing_channel[*]':
+        (DEBUG_TIMING_OVERRIDE, _V),
+    'stream.channel_count': (CHANNEL_COUNT, _V),
+    'stream.data_file.max_size': (DATA_FILE_MAX_SIZE, _V),
+    'stream.frame_out_of_order_count': (FRAME_OUT_OF_ORDER_COUNT, _V),
+    'stream.frame_size': (FRAME_SIZE, _V),
+    'stream.data_source_period': (STREAM_DATA_SOURCE_PERIOD, _V),
+    'stream.legacy_interface.data_file': (STREAMING_DATA_FILE, _V),
+    'stream.legacy_interface.open': (STREAMING_OPEN, _C),
+    'stream.legacy_interface.is_open': (STREAMING_IS_OPEN, _V),
+    'stream.pre_emulator.enable': (PRE_EMULATOR_ENABLE, _V),
+    'stream.pre_emulator.disable': (PRE_EMULATOR_DISABLE, _V),
+    'stream.pre_emulator.type': (PRE_EMULATOR_TYPE, _V),
+    'stream.pre_emulator.amplitude': (PRE_EMULATOR_AMPLITUDE, _V),
+    'stream.pre_emulator.offset': (PRE_EMULATOR_OFFSET, _V),
+    'stream.pre_emulator.period': (PRE_EMULATOR_PERIOD, _V),
+    'stream.post_emulator.enable': (POST_EMULATOR_ENABLE, _V),
+    'stream.post_emulator.type': (POST_EMULATOR_TYPE, _V),
+    'stream.post_emulator.amplitude': (POST_EMULATOR_AMPLITUDE, _V),
+    'stream.post_emulator.offset': (POST_EMULATOR_OFFSET, _V),
+    'stream.post_emulator.period': (POST_EMULATOR_PERIOD, _V),
+    'stream.frame_loss_count': (FRAME_LOSS_COUNT, _V),
+}
 
 # The registers worth reading back to record what a system was left in: the ramp and
 # its trigger, streaming, and per band the delay and whether its signal processing is
