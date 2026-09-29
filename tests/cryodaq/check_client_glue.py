@@ -84,15 +84,31 @@ def _compile(path, class_name, namespace):
     return namespace[class_name]
 
 
+class _Absent:
+    """Stands in for a module the class body names and these checks never reach.
+
+    The command module's methods mention ``np`` and ``version`` in their bodies,
+    which the compiled class needs bound at call time and not before; the three
+    accessors under test touch neither on the paths driven here, and the job this
+    runs in installs nothing. An attribute reached on one is a check that
+    wandered off its path, and says so.
+    """
+
+    def __init__(self, name):
+        self._name = name
+
+    def __getattr__(self, attr):
+        raise AssertionError(f'a check reached {self._name}.{attr}, which is not installed here')
+
+
 def glue():
     """The three accessors, on an object that has just what they read."""
     import functools
     import typing
-    import numpy
-    ns = {'np': numpy, 'functools': functools, 'time': time, 'cryodaq': cryodaq,
-          'warnings': __import__('warnings'), 'os': __import__('os'),
-          'subprocess': __import__('subprocess'), 'Literal': typing.Literal,
-          'version': __import__('packaging.version', fromlist=['version'])}
+    ns = {'np': _Absent('numpy'), 'functools': functools, 'time': time,
+          'cryodaq': cryodaq, 'warnings': __import__('warnings'),
+          'os': __import__('os'), 'subprocess': __import__('subprocess'),
+          'Literal': typing.Literal, 'version': _Absent('packaging.version')}
     Mixin = _compile(COMMAND, 'SmurfCommandMixin', ns)
 
     class Client:
