@@ -557,33 +557,50 @@ def check_names_and_kinds_are_refused_when_wrong():
         raise AssertionError('a value was called')
 
 
+# How many times a child is run for the exit check below. The abort it guards
+# against is intermittent -- measured at 11 of 60 runs with the client left to its
+# destructors -- so one clean exit is no evidence; at this count a rate that high
+# escapes with probability under one in a thousand.
+EXIT_TRIALS = 40
+
+
 def check_a_session_left_open_still_lets_the_interpreter_exit():
     """Forgetting to close costs the transport nothing, and the process nothing.
 
-    The link monitor runs in a thread that is not a daemon, so the interpreter
+    Two ways an unclosed session could cost the process, one per monitor
+    setting. With the monitor on, its thread is not a daemon, so the interpreter
     waits for it on the way out; a session nobody closed would wait for good, and
     the case is an interactive session, where nothing guarantees a ``close``.
-    It cannot be checked in this process -- what is being checked is an exit --
-    so a child opens a session, returns without closing it, and has to be gone
-    before the deadline. A child that hangs is the defect, and it is reported as
-    the timeout it is rather than as a failure to connect.
+    With it off, a rogue client left to its destructors aborts the process during
+    finalisation some of the time (``FATAL: exception not rethrown``, exit 134)
+    -- after everything the program meant to print, so a run looks clean and its
+    exit code says otherwise. Neither can be checked in this process, what is
+    being checked being an exit: a child opens a session, returns without closing
+    it, and has to be gone, and gone cleanly, before the deadline. The abort is
+    intermittent, so the child runs ``EXIT_TRIALS`` times and every exit counts.
     """
     for kwargs in ({}, {'monitor': False}):
         source = ('import cryodaq\n'
                   f"session = cryodaq.connect({ENDPOINT!r}, **{kwargs!r})\n"
                   "print(session.pmap.name)\n")
-        try:
-            done = subprocess.run([sys.executable, '-c', source], text=True,
-                                  timeout=EXIT_DEADLINE_S, capture_output=True)
-        except subprocess.TimeoutExpired:
-            raise AssertionError(
-                f"a child that connected with {kwargs or 'the defaults'} and never "
-                f"closed was still running after {EXIT_DEADLINE_S}s: an unclosed "
-                "session holds the interpreter open") from None
-        assert done.returncode == 0, \
-            f"the child exited {done.returncode}: {done.stderr.strip()[-400:]}"
-        assert EXPECTED_PLATFORM[RFSOC] in done.stdout, \
-            f"the child never connected: {done.stdout.strip()!r} {done.stderr.strip()[-200:]}"
+        exits = {}
+        for _ in range(EXIT_TRIALS):
+            try:
+                done = subprocess.run([sys.executable, '-c', source], text=True,
+                                      timeout=EXIT_DEADLINE_S, capture_output=True)
+            except subprocess.TimeoutExpired:
+                raise AssertionError(
+                    f"a child that connected with {kwargs or 'the defaults'} and never "
+                    f"closed was still running after {EXIT_DEADLINE_S}s: an unclosed "
+                    "session holds the interpreter open") from None
+            exits[done.returncode] = exits.get(done.returncode, 0) + 1
+            assert EXPECTED_PLATFORM[RFSOC] in done.stdout, \
+                f"the child never connected: {done.stdout.strip()!r} {done.stderr.strip()[-200:]}"
+        assert exits == {0: EXIT_TRIALS}, (
+            f"with {kwargs or 'the defaults'}, {EXIT_TRIALS} children that never closed "
+            f"exited {exits}: a non-zero exit after a clean run is the client being torn "
+            f"down by its destructors rather than stopped (last stderr: "
+            f"{done.stderr.strip()[-200:]!r})")
 
 
 # --------------------------------------------------------------------------
