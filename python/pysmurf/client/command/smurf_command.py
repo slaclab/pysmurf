@@ -78,6 +78,8 @@ class SmurfCommandMixin(SmurfBase):
         ValueError
             If nothing in this tree answers to it.
         """
+        if self._session is None:
+            raise AttributeError("OFFLINE: Server client not available.")
         try:
             return self._session.node(name)
         except cryodaq.UnresolvedName as err:

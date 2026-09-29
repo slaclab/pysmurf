@@ -1,24 +1,39 @@
 #!/usr/bin/env python3
-"""Check the glue between the legacy pysmurf client and its cryodaq session.
-
-``SmurfBase`` holds a ``cryodaq.Session``; ``_caget``, ``_caput`` and ``_wait_for``
-reach the tree through it. What those three promise their callers is checked here
-against a stand-in session, with no hardware and no rogue:
-
-* a semantic name resolves through the session and a string the map does not
-  know is tried as a register path, so callers outside this repository that
-  still spell a path keep working until they have moved;
-* a name nothing answers to raises ``ValueError`` naming it, as it always has;
-* ``_wait_for`` polls with a fresh read, raises ``TimeoutError`` when its bound
-  runs out, honours the bound it was given -- and, given none, **waits forever**,
-  which is the behaviour it has always had and its docstring now states;
-* the log handler maps every ``logging`` level onto the SmurfLogger level that
-  shows it at the same verbosity, and never sends an error somewhere quiet.
-
-The client is not imported: its dependency stack includes a plotting library
-that is not installed where this runs. The class bodies under test are compiled
-on their own from source, as ``check_sodetlib_contract.py`` reads them.
-"""
+#-----------------------------------------------------------------------------
+# Title      : Cryodaq Client Glue Checks
+#-----------------------------------------------------------------------------
+# File       : check_client_glue.py
+# Created    : 2026-09-29
+#-----------------------------------------------------------------------------
+# Description:
+# Checks the glue between the legacy pysmurf client and its cryodaq session.
+# SmurfBase holds a Session; _caget, _caput and _wait_for reach the tree
+# through it. What those three promise their callers is checked here against a
+# stand-in session, with no hardware and no rogue:
+#
+# * a semantic name resolves through the session, and a string the map does
+#   not know is tried as a register path, so callers outside this repository
+#   that still spell a path keep working until they have moved;
+# * a name nothing answers to raises ValueError naming it, as it always has;
+# * _wait_for polls with a fresh read, raises TimeoutError when its bound runs
+#   out, honours the bound it was given -- and, given none, waits forever,
+#   which is the behaviour it has always had and its docstring states;
+# * the log handler maps every logging level onto the SmurfLogger level that
+#   shows it at the same verbosity, and never sends an error somewhere quiet.
+#
+# The client is not imported: its dependency stack includes a plotting library
+# that is not installed where this runs. The class bodies under test are
+# compiled on their own from source, as check_sodetlib_contract.py reads them.
+#-----------------------------------------------------------------------------
+# This file is part of the pysmurf software platform. It is subject to
+# the license terms in the LICENSE.txt file found in the top-level directory
+# of this distribution and at:
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part of the pysmurf software platform, including this file, may be
+# copied, modified, propagated, or distributed except according to the terms
+# contained in the LICENSE.txt file.
+#-----------------------------------------------------------------------------
+"""Check the glue between the legacy pysmurf client and its cryodaq session."""
 import ast
 import logging
 import pathlib
@@ -167,6 +182,20 @@ def check_a_name_nothing_answers_to_raises_value_error():
             assert bad in str(e), f"{e} does not name {bad!r}"
         else:
             raise AssertionError(f"{bad!r} was not refused")
+
+
+def check_offline_reaches_no_register_and_says_so():
+    client = glue()({})
+    client._session = None
+    client.offline = True
+    assert client._caget(NAME) is None, 'offline, a read answers None'
+    assert client._caput(NAME, 1) is None, 'offline, a write is not attempted'
+    try:
+        client._wait_for(NAME, bool, timeout=0.01)
+    except AttributeError as e:
+        assert 'OFFLINE' in str(e), f"an offline wait should say so: {e}"
+    else:
+        raise AssertionError('an offline wait returned as if a register had answered')
 
 
 def check_wait_for_reads_fresh_and_returns_when_the_condition_holds():
