@@ -587,14 +587,14 @@ def check_the_client_reaches_only_names_the_map_resolves():
         'too few distinct names reached to mean much'
 
 
-def check_the_extended_table_holds_exactly_the_names_only_deprecated_accessors_reach():
+def check_the_legacy_table_holds_exactly_the_names_only_deprecated_accessors_reach():
     """The map's two tables are split by who needs the name, and the split is exact.
 
-    A name is in the extended table when the only client code reaching it is a method
+    A name is in the legacy table when the only client code reaching it is a method
     scheduled for removal, and in the core table otherwise. Both directions are
     failures: a core name no live code reaches -- unless an operation, the description
     or the witness list reaches it, which the map states by keeping it -- is a name
-    that should leave with the accessors, and an extended name a live method reaches
+    that should leave with the accessors, and a legacy name a live method reaches
     would be deleted from under that method. The tables are also held disjoint, so a
     name cannot be in both and answer to whichever is asked first.
     """
@@ -603,14 +603,14 @@ def check_the_extended_table_holds_exactly_the_names_only_deprecated_accessors_r
     live = {c['name'] for c in reached if not c['deprecated']}
     dead_only = {c['name'] for c in reached if c['deprecated']} - live
     for pmap in platform.MAPS:
-        both = set(pmap.registers) & set(pmap.extended)
+        both = set(pmap.registers) & set(pmap.legacy)
         assert not both, f"{pmap.name}: in both tables: {sorted(both)[:6]}"
-        misplaced = sorted(set(pmap.extended) & live)
-        assert not misplaced, (f"{pmap.name}: extended name(s) a live method reaches: " +
+        misplaced = sorted(set(pmap.legacy) & live)
+        assert not misplaced, (f"{pmap.name}: legacy name(s) a live method reaches: " +
                                ', '.join(misplaced[:6]))
         should_leave = sorted(set(pmap.registers) & dead_only)
         assert not should_leave, (f"{pmap.name}: core name(s) only deprecated accessors "
-                                  f"reach; move to EXTENDED: " + ', '.join(should_leave[:6]))
+                                  f"reach; move to LEGACY: " + ', '.join(should_leave[:6]))
     assert len(dead_only) >= 40, \
         f"only {len(dead_only)} names are reached by deprecated accessors alone; the mark scan has stopped seeing them"
 
@@ -1009,7 +1009,7 @@ def selftest():
                            'the check has stopped recognising them')
 
             # The two-table split. A client with forty-odd deprecated methods, each
-            # reaching a name of its own, and one live method: the extended table has
+            # reaching a name of its own, and one live method: the legacy table has
             # to hold exactly the deprecated names.
             def split_client(live_names, dead_names):
                 lines = ['class SmurfCommandMixin:',
@@ -1031,28 +1031,28 @@ def selftest():
             dead_patterns = {f'band[*].old{i}': (base + f'Old{i}[{{band}}]', 'value')
                              for i in range(45)}
             write_client(split_client(['band[{band}].delay_us'], dead_names))
-            split = replace(fake, registers=dict(shared), extended=dead_patterns)
+            split = replace(fake, registers=dict(shared), legacy=dead_patterns)
             platform.MAPS = (split, replace(fake_bayless, registers=dict(shared),
-                                            extended=dead_patterns))
-            check_the_extended_table_holds_exactly_the_names_only_deprecated_accessors_reach()
+                                            legacy=dead_patterns))
+            check_the_legacy_table_holds_exactly_the_names_only_deprecated_accessors_reach()
             print('  ok    a correct two-table split passes')
 
             platform.MAPS = (replace(split, registers=dict(shared, **{
                 'band[*].old0': dead_patterns['band[*].old0']}),
-                extended={k: v for k, v in dead_patterns.items() if k != 'band[*].old0'}),)
+                legacy={k: v for k, v in dead_patterns.items() if k != 'band[*].old0'}),)
             expect_failure('a core name only deprecated accessors reach is caught',
-                           check_the_extended_table_holds_exactly_the_names_only_deprecated_accessors_reach,
-                           'move to EXTENDED: band[*].old0')
+                           check_the_legacy_table_holds_exactly_the_names_only_deprecated_accessors_reach,
+                           'move to LEGACY: band[*].old0')
 
             platform.MAPS = (replace(split, registers={},
-                                     extended=dict(dead_patterns, **shared)),)
-            expect_failure('an extended name a live method reaches is caught',
-                           check_the_extended_table_holds_exactly_the_names_only_deprecated_accessors_reach,
-                           'extended name(s) a live method reaches: band[*].delay_us')
+                                     legacy=dict(dead_patterns, **shared)),)
+            expect_failure('a legacy name a live method reaches is caught',
+                           check_the_legacy_table_holds_exactly_the_names_only_deprecated_accessors_reach,
+                           'legacy name(s) a live method reaches: band[*].delay_us')
 
-            platform.MAPS = (replace(split, extended=dict(dead_patterns, **shared)),)
+            platform.MAPS = (replace(split, legacy=dict(dead_patterns, **shared)),)
             expect_failure('a name in both tables is caught',
-                           check_the_extended_table_holds_exactly_the_names_only_deprecated_accessors_reach,
+                           check_the_legacy_table_holds_exactly_the_names_only_deprecated_accessors_reach,
                            'in both tables')
     finally:
         FIXTURES, COMMAND, CLIENT, PLATFORM_OF, MIN_RESOLVED, platform.MAPS = saved

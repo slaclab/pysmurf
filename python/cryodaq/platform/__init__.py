@@ -164,7 +164,7 @@ class PlatformMap:
     registers : mapping
         Name pattern to ``(path template, kind)``: the core table, every name an
         operation, the description or a live client method reaches.
-    extended : mapping
+    legacy : mapping
         The same shape, for the names only deprecated compatibility accessors
         reach. Resolved exactly like the core table; kept apart because they
         leave with those accessors, and a checker holds the two disjoint.
@@ -179,28 +179,28 @@ class PlatformMap:
     registers: Mapping[str, Tuple[str, str]]
     witness: Tuple[str, ...]
     scopes: Mapping[str, Tuple[Tuple[str, ...], Tuple[str, ...]]]
-    extended: Mapping[str, Tuple[str, str]] = field(default_factory=dict)
+    legacy: Mapping[str, Tuple[str, str]] = field(default_factory=dict)
 
     def __contains__(self, pattern: str) -> bool:
-        return pattern in self.registers or pattern in self.extended
+        return pattern in self.registers or pattern in self.legacy
 
     def __len__(self) -> int:
-        return len(self.registers) + len(self.extended)
+        return len(self.registers) + len(self.legacy)
 
     @property
     def patterns(self) -> Tuple[str, ...]:
-        """Every name pattern in the map, core and extended, sorted."""
-        return tuple(sorted(set(self.registers) | set(self.extended)))
+        """Every name pattern in the map, core and legacy, sorted."""
+        return tuple(sorted(set(self.registers) | set(self.legacy)))
 
     @property
     def entries(self) -> Mapping[str, Tuple[str, str]]:
-        """Every name pattern with its ``(path template, kind)``, core and extended."""
-        return {**self.registers, **self.extended}
+        """Every name pattern with its ``(path template, kind)``, core and legacy."""
+        return {**self.registers, **self.legacy}
 
     def _lookup(self, pattern: str) -> Tuple[str, str]:
         if pattern in self.registers:
             return self.registers[pattern]
-        return self.extended[pattern]
+        return self.legacy[pattern]
 
     def entry(self, name: str) -> Tuple[str, str]:
         """The register path and kind a concrete name resolves to.
@@ -238,7 +238,7 @@ def _from_module(module: Any) -> PlatformMap:
     """Build the map a platform module declares as data."""
     return PlatformMap(name=module.NAME, tags=tuple(module.TAGS),
                        registers=dict(module.REGISTERS),
-                       extended=dict(getattr(module, 'EXTENDED', {})),
+                       legacy=dict(getattr(module, 'LEGACY', {})),
                        witness=tuple(module.WITNESS),
                        scopes=dict(module.SCOPES))
 

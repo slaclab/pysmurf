@@ -151,11 +151,11 @@ stopped matching fails here rather than quietly checking nothing.
   be called. Rogue writes a command out as a write-only `int`, which is what makes it checkable from a
   dump; only that shape is judged, and the nodes it cannot tell apart are left alone rather than
   guessed at.
-* **The extended table holds exactly the names only deprecated accessors reach** — each platform map
-  is two tables: `REGISTERS`, the core, and `EXTENDED`, the names that leave with the compatibility
+* **The legacy table holds exactly the names only deprecated accessors reach** — each platform map
+  is two tables: `REGISTERS`, the core, and `LEGACY`, the names that leave with the compatibility
   layer's deprecated methods. Which table a name belongs in is decided by who reaches it, read from the
   same accessor scan with the `_scheduled_for_removal` mark on each method: a name a live method reaches
-  may not be extended, a name only marked methods reach may not be core, and no name may be in both.
+  may not be legacy, a name only marked methods reach may not be core, and no name may be in both.
   The two resolve identically through one session; the split is a statement about who needs a name,
   so that deleting the methods deletes their names and nothing else.
 

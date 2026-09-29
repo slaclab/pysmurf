@@ -8,7 +8,7 @@
 # Description:
 #    The map between the register tree of a microwave-multiplexed readout and
 #    cryodaq's semantic names. It is data only: register path templates, the
-#    tables of names built from them -- the core, and an extended table of names
+#    tables of names built from them -- the core, and a legacy table of names
 #    only deprecated compatibility accessors still reach -- the registers worth
 #    recording as a witness of how a system was left, and how to enumerate the
 #    indexed scopes.
@@ -35,7 +35,7 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-__all__ = ['REGISTERS', 'EXTENDED', 'WITNESS', 'SCOPES', 'BUILD_STAMP', 'SERVER_ADDED_ROOT_NODES']
+__all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES', 'BUILD_STAMP', 'SERVER_ADDED_ROOT_NODES']
 
 # --------------------------------------------------------------------------
 # register paths, as templates over the indexed scopes
@@ -666,12 +666,13 @@ REGISTERS.update({f'band[*].ops.{name}': (path, _P)
 REGISTERS.update({f'band[*].ops.{name}': (path, _C)
                   for name, path in OPS_COMMANDS.items()})
 
-# Names only the compatibility layer's deprecated accessors reach. Kept apart from the
-# table above because they leave with those accessors, in the release after the one that
+# Names only the compatibility layer's deprecated accessors reach. The registers are
+# current firmware; it is the accessors that are legacy. Kept apart from the table above
+# because the names leave with those accessors, in the release after the one that
 # ships their warning: a name here is not the core's, and nothing in cryodaq or in a
 # live pysmurf method may resolve one. The same session resolves both tables; the split
 # is a statement about who needs the name, checked in the tests, not a second lookup.
-EXTENDED = {
+LEGACY = {
     'carrier.bsa.engine[*].buffer[*].write_address': (BSA_BUFFER_WRITE_ADDR, _V),
     'band[*].decimation': (DECIMATION, _V),
     'band[*].analysis_scale': (ANALYSIS_SCALE, _V),

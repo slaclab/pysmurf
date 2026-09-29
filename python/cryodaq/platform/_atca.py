@@ -30,7 +30,7 @@
 
 from cryodaq.platform import _umux
 
-__all__ = ['NAME', 'TAGS', 'REGISTERS', 'EXTENDED', 'WITNESS', 'SCOPES']
+__all__ = ['NAME', 'TAGS', 'REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES']
 
 NAME = 'umux-atca'
 
@@ -125,9 +125,9 @@ REGISTERS.update({
     'bay[*].jesd.tx_lane[*].data_out_mux': (_JESD_TX_DATA_OUT_MUX, _V),
 })
 
-# The carrier's names only deprecated accessors reach; see the shared map's EXTENDED.
-EXTENDED = dict(_umux.EXTENDED)
-EXTENDED.update({
+# The carrier's names only deprecated accessors reach; see the shared map's LEGACY.
+LEGACY = dict(_umux.LEGACY)
+LEGACY.update({
     'bay[*].dac[*].enable': (_DAC_ENABLE, _V),
     'bay[*].clock.select_external_reference': (_SELECT_EXTERNAL_REFERENCE, _C),
     'bay[*].jesd.link[*].rx_status_valid_count': (_JESD_RX_STATUS_VALID_COUNT, _V),
