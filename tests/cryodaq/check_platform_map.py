@@ -323,7 +323,7 @@ def check_the_generation_shares_every_register_it_can():
     assert len(shared) > 100, \
         f"only {len(shared)} names are shared; the maps have diverged"
     for pattern in sorted(shared):
-        assert atca.registers[pattern] == rfsoc.registers[pattern], \
+        assert atca.entries[pattern] == rfsoc.entries[pattern], \
             f"{pattern} differs between the two platforms"
     assert set(rfsoc.witness) <= set(atca.witness), \
         "the platform with fewer devices witnesses something the carrier does not"

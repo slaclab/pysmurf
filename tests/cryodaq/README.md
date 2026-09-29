@@ -13,9 +13,9 @@ executable that prints one `ok` or `FAIL` line per check and exits non-zero if a
 
 ### check_boundaries.py
 
-This script checks the layer boundaries of [cryodaq](../../python/cryodaq). Ten checks: six read the
-package as source, one reads what it carries that is not source, two run it, and the last is the
-script's own selftest. None needs rogue or a CryoDet package, so this runs anywhere Python does.
+This script checks the layer boundaries of [cryodaq](../../python/cryodaq). Twelve checks: six read the
+package as source, one reads what it carries that is not source, two run it, one reads the pysmurf
+client, and two are the script's own selftests. None needs rogue or a CryoDet package, so this runs anywhere Python does.
 
 The rules five of the source checks enforce — the first is that there is a package to read at all, and
 the second covers the two import rules below it:
@@ -59,15 +59,21 @@ does not quietly need it.
 The selftest runs the source rules over a synthetic package that breaks each of them and fails if any
 rule passes it. A boundary check that cannot fail is not evidence.
 
-**What these gates do not enforce: the same rule on the pysmurf client.** `check_boundaries.py` scans
-`cryodaq` only, and `check_catalog_resolves.py` reads the client's semantic-name calls without refusing
-a raw one. That the client builds no register path is a *measurement* of the tree as it stands — one
-raw `_caput` remains, in a method scheduled for removal — not a gate on the next accessor someone
-writes. The gate is deliberately not here: `_caget`/`_caput` must keep accepting a raw path until
-sodetlib's remaining sites have moved (`docs/sodetlib_changes_required.md`), so a check today would
-start life with exemptions, and the rule is due to be enforced by the client's connection type itself
-rather than by a scan once `SmurfBase` sits on `cryodaq.connect`. Until then, a raw path in a client
-accessor is caught by review, and this paragraph is what says so.
+**One rogue stack in the pysmurf client.** The one check that reads `python/pysmurf/client` holds
+it to what stage 4 made true: the legacy client connects through `cryodaq.connect` and reaches every
+register through its session, so no client module imports `pyrogue` or `rogue` at module level -- not
+even guarded by a `try` -- and nothing constructs a `VirtualClient` except the shelf-manager monitor,
+at the one site the check names. That monitor is a different server with no platform map, and until it
+has one it is reached the old way, inside the function that opens it. A second selftest breaks each of
+these on a synthetic client and fails if any passes.
+
+**What these gates do not enforce: a raw register path in a client accessor.** `check_catalog_resolves.py`
+reads the client's semantic-name calls without refusing a raw one. That the client builds no register
+path is a *measurement* of the tree as it stands, not a gate on the next accessor someone writes. The
+gate is deliberately not here: `_caget`/`_caput` must keep accepting a raw path until sodetlib's
+remaining sites have moved (`docs/sodetlib_changes_required.md`), so a check today would start life
+with exemptions. Until then, a raw path in a client accessor is caught by review, and this paragraph is
+what says so.
 
 ### check_platform_map.py
 
@@ -143,6 +149,13 @@ stopped matching fails here rather than quietly checking nothing.
   be called. Rogue writes a command out as a write-only `int`, which is what makes it checkable from a
   dump; only that shape is judged, and the nodes it cannot tell apart are left alone rather than
   guessed at.
+* **The extended table holds exactly the names only deprecated accessors reach** — each platform map
+  is two tables: `REGISTERS`, the core, and `EXTENDED`, the names that leave with the compatibility
+  layer's deprecated methods. Which table a name belongs in is decided by who reaches it, read from the
+  same accessor scan with the `_scheduled_for_removal` mark on each method: a name a live method reaches
+  may not be extended, a name only marked methods reach may not be core, and no name may be in both.
+  The two resolve identically through one session; the split is a statement about who needs a name,
+  so that deleting the methods deletes their names and nothing else.
 
 The dumps under `fixtures/` are pruned: a full one is some nine megabytes, almost all of it the
 per-channel registers of eight bands. A row is kept when the device it sits in is one a name reaches,
@@ -207,6 +220,20 @@ lets this run on the bare runner beside the other checks here, where the client'
 
 Seven selftest cases drive each check with input it must refuse, including a client whose mixins cannot be
 read at all — a contract check that passes by finding nothing is worse than none.
+
+### check_client_glue.py
+
+This script checks the glue between the legacy pysmurf client and its cryodaq session. `SmurfBase`
+holds a session; `_caget`, `_caput` and `_wait_for` reach the tree through it. The class bodies are
+compiled from source on their own, as the contract check reads them, because importing the client
+brings in a plotting stack this job does not have; the session is a stand-in with a real platform map.
+Seven checks: a semantic name resolves through the session; a raw register path is still accepted
+(callers outside this repository still spell some — see `docs/sodetlib_changes_required.md`); a name
+nothing answers to raises `ValueError` naming it, as it always did; `_wait_for` reads afresh each poll,
+raises `TimeoutError` at the bound it was given, and with no bound waits forever — a hazard its
+docstring is required to state, since the one caller that passes none has always blocked that way; and
+the handler that carries the session's `logging` records into `SmurfLogger` maps every level the right
+way round, the two numberings running in opposite directions.
 
 ### validate_client_emulated.py
 

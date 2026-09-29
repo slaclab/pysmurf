@@ -85,6 +85,11 @@ REGISTER_PATH_RE = re.compile(
 # arguments and can be discovered by name.
 PACKAGE = DEFAULT_PACKAGE
 
+# The legacy client, which holds one cryodaq session and no rogue client of its
+# own -- except the shelf manager's monitor, a different server, reached where named.
+CLIENT = REPO / 'python' / 'pysmurf' / 'client'
+ATCA_MONITOR_EXCEPTION = 'base/base_class.py:__init__'
+
 
 # --------------------------------------------------------------------------
 # helpers
@@ -339,6 +344,90 @@ def check_connect_judges_its_arguments_before_needing_rogue():
         else:
             session.close()
             raise AssertionError(f"{bad!r} {kwargs!r} was accepted")
+
+
+def rogue_reaches(client):
+    """Where the legacy client reaches rogue directly, as ``file:line detail`` strings.
+
+    The client connects through ``cryodaq.connect`` and reaches every register
+    through the session, so a ``pyrogue`` or ``rogue`` import at module level, or a
+    ``VirtualClient`` constructed anywhere, is a second client stack beside the
+    session's. The one place allowed to construct a client is named in
+    ``ATCA_MONITOR_EXCEPTION``: the shelf manager's monitor is a different server
+    with no platform map, and until it has one it is reached the old way, inside a
+    function -- so the import there is inside the function too.
+    """
+    found = []
+    for path in sorted(client.rglob('*.py')):
+        rel = path.relative_to(client)
+        tree = ast.parse(path.read_text(), filename=str(path))
+        for node in tree.body:             # module level only: a local import is a function's
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                names = ([a.name for a in node.names] if isinstance(node, ast.Import)
+                         else [node.module or ''])
+                for name in names:
+                    if name.split('.')[0] in MAP_FORBIDDEN_IMPORTS:
+                        found.append(f"{rel}:{node.lineno} imports {name} at module level")
+            elif isinstance(node, ast.Try):
+                for stmt in node.body:
+                    if isinstance(stmt, (ast.Import, ast.ImportFrom)):
+                        names = ([a.name for a in stmt.names] if isinstance(stmt, ast.Import)
+                                 else [stmt.module or ''])
+                        for name in names:
+                            if name.split('.')[0] in MAP_FORBIDDEN_IMPORTS:
+                                found.append(
+                                    f"{rel}:{stmt.lineno} imports {name} at module level (guarded)")
+        for func in ast.walk(tree):
+            if not isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            for node in ast.walk(func):
+                if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and
+                        node.func.attr == 'VirtualClient'):
+                    where = f"{rel}:{func.name}"
+                    if where != ATCA_MONITOR_EXCEPTION:
+                        found.append(f"{rel}:{node.lineno} constructs a VirtualClient in {func.name}")
+    return found
+
+
+def check_the_client_has_one_rogue_stack():
+    bad = rogue_reaches(CLIENT)
+    if bad:
+        raise AssertionError(f"{len(bad)} second-stack site(s):\n" +
+                             '\n'.join(f"    {b}" for b in bad))
+
+
+def check_the_one_stack_rule_fires():
+    good = (
+        "import cryodaq\n"
+        "class Base:\n"
+        "    def __init__(self, atca_monitor):\n"
+        "        if atca_monitor:\n"
+        "            import pyrogue.interfaces\n"
+        "            self._atca = pyrogue.interfaces.VirtualClient(addr='a', port=1)\n"
+    )
+    bad = (
+        "try:\n"
+        "    import pyrogue.interfaces\n"
+        "except ModuleNotFoundError:\n"
+        "    pass\n"
+        "from pyrogue import VariableWait\n"
+        "class Base:\n"
+        "    def connect(self):\n"
+        "        self._client = pyrogue.interfaces.VirtualClient(addr='a', port=1)\n"
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        client = pathlib.Path(tmp)
+        (client / 'base').mkdir()
+        (client / 'base' / 'base_class.py').write_text(good)
+        assert rogue_reaches(client) == [], \
+            f"the allowed ATCA-monitor site was reported: {rogue_reaches(client)}"
+        (client / 'base' / 'base_class.py').write_text(bad)
+        found = rogue_reaches(client)
+        details = '\n'.join(found)
+        for needle in ('imports pyrogue.interfaces at module level (guarded)',
+                       'imports pyrogue at module level',
+                       'constructs a VirtualClient in connect'):
+            assert needle in details, f"rule for {needle!r} did not fire:\n{details}"
 
 
 def check_rules_fire_on_a_bad_package():

@@ -198,6 +198,15 @@ def _literal_pattern(expr):
     return None
 
 
+def _scheduled_for_removal(func):
+    """Whether a method wears the client's ``_scheduled_for_removal`` mark."""
+    for deco in func.decorator_list:
+        target = deco.func if isinstance(deco, ast.Call) else deco
+        if isinstance(target, ast.Name) and target.id == '_scheduled_for_removal':
+            return True
+    return False
+
+
 def _local_names(func):
     """Every ``name = <literal>`` a function assigns, by variable, or None for a
     variable assigned more than once or from something that is not a literal."""
@@ -291,6 +300,7 @@ def load_client_names():
             if func.name in {'_get_by_name', '_set_by_name', '_wait_for'}:
                 continue        # the helpers themselves, whose argument is a parameter
             locals_ = _local_names(func)
+            deprecated = _scheduled_for_removal(func)
             for node in ast.walk(func):
                 if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
                     continue
@@ -304,6 +314,7 @@ def load_client_names():
                     continue
                 if path != COMMAND:
                     call['line'] = f'{path.name}:{call["line"]}'
+                call['deprecated'] = deprecated
                 found.append(call)
     # A few accessors choose their name from a table instead of writing it at the call
     # site, because the caller passes a register number rather than naming the register:
@@ -329,6 +340,7 @@ def load_client_names():
                         'name': re.sub(r'\[\d+\]', '[*]', value.value),
                         'direction': direction,
                         'line': value.lineno,
+                        'deprecated': False,
                     })
 
     if len(found) < 150:
@@ -340,7 +352,7 @@ def load_client_names():
 
 def template_of(pmap, name):
     """The register path template a name pattern resolves to."""
-    return pmap.registers[name][0]
+    return pmap.entries[name][0]
 
 
 def indices_present(paths, template, scope, fixed):
@@ -447,7 +459,7 @@ def resolution(stem, names=None, package_only=False, platform_name=None):
     """
     paths = load_dump(stem)
     pmap = platform.by_name(platform_name or PLATFORM_OF[stem])
-    wanted = sorted(pmap.registers if names is None else names)
+    wanted = sorted(pmap.entries if names is None else names)
     resolved, absent = {}, {}
     for name in wanted:
         if name in SERVER_ATTACHED:
@@ -501,14 +513,14 @@ def check_the_platforms_differ_by_the_hardware_one_lacks():
     """
     atca = platform.by_name(PLATFORM_OF['atca'])
     rfsoc = platform.by_name(PLATFORM_OF['rfsoc'])
-    carrier_only = set(atca.registers) - set(rfsoc.registers)
+    carrier_only = set(atca.entries) - set(rfsoc.entries)
     assert carrier_only, ('the two maps offer the same names, so nothing here shows '
                           'that resolution does not depend on a device existing')
     stray = sorted(n for n in carrier_only
                    if not any(d in template_of(atca, n) for d in CARRIER_ONLY_DEVICES))
     assert not stray, ('name(s) the carrier has and the other lacks that are not its '
                        'front end or data links: ' + ', '.join(stray[:6]))
-    other_way = sorted(set(rfsoc.registers) - set(atca.registers))
+    other_way = sorted(set(rfsoc.entries) - set(atca.entries))
     assert not other_way, ('name(s) offered by the platform with fewer devices and not '
                            'by the carrier: ' + ', '.join(other_way[:6]))
     # And the firmware has to agree: every carrier-only name must resolve there and
@@ -575,6 +587,34 @@ def check_the_client_reaches_only_names_the_map_resolves():
         'too few distinct names reached to mean much'
 
 
+def check_the_extended_table_holds_exactly_the_names_only_deprecated_accessors_reach():
+    """The map's two tables are split by who needs the name, and the split is exact.
+
+    A name is in the extended table when the only client code reaching it is a method
+    scheduled for removal, and in the core table otherwise. Both directions are
+    failures: a core name no live code reaches -- unless an operation, the description
+    or the witness list reaches it, which the map states by keeping it -- is a name
+    that should leave with the accessors, and an extended name a live method reaches
+    would be deleted from under that method. The tables are also held disjoint, so a
+    name cannot be in both and answer to whichever is asked first.
+    """
+    from cryodaq import platform
+    reached = load_client_names()
+    live = {c['name'] for c in reached if not c['deprecated']}
+    dead_only = {c['name'] for c in reached if c['deprecated']} - live
+    for pmap in platform.MAPS:
+        both = set(pmap.registers) & set(pmap.extended)
+        assert not both, f"{pmap.name}: in both tables: {sorted(both)[:6]}"
+        misplaced = sorted(set(pmap.extended) & live)
+        assert not misplaced, (f"{pmap.name}: extended name(s) a live method reaches: " +
+                               ', '.join(misplaced[:6]))
+        should_leave = sorted(set(pmap.registers) & dead_only)
+        assert not should_leave, (f"{pmap.name}: core name(s) only deprecated accessors "
+                                  f"reach; move to EXTENDED: " + ', '.join(should_leave[:6]))
+    assert len(dead_only) >= 40, \
+        f"only {len(dead_only)} names are reached by deprecated accessors alone; the mark scan has stopped seeing them"
+
+
 def check_the_map_declares_the_kind_the_firmware_declares():
     """A name the map calls a value is a value in the firmware, and a command a command.
 
@@ -600,10 +640,10 @@ def check_the_map_declares_the_kind_the_firmware_declares():
     nodes = load_nodes('atca')
     paths = load_dump('atca')
     wrong = []
-    for name in sorted(pmap.registers):
+    for name in sorted(pmap.entries):
         if name in SERVER_ATTACHED:
             continue
-        declared = pmap.registers[name][1]
+        declared = pmap.entries[name][1]
         for concrete in expand(paths, template_of(pmap, name)):
             kind, mode = nodes.get(concrete, ('', ''))
             if declared == 'command' and mode and mode != 'WO':
@@ -967,6 +1007,53 @@ def selftest():
             expect_failure('a client whose accessors cannot be read is caught',
                            check_the_client_reaches_only_names_the_map_resolves,
                            'the check has stopped recognising them')
+
+            # The two-table split. A client with forty-odd deprecated methods, each
+            # reaching a name of its own, and one live method: the extended table has
+            # to hold exactly the deprecated names.
+            def split_client(live_names, dead_names):
+                lines = ['class SmurfCommandMixin:',
+                         '    def _scheduled_for_removal(reason):',
+                         '        return lambda f: f']
+                for i, name in enumerate(live_names):
+                    lines += [f'    def live{i}(self, band=0):',
+                              f"        return self._get_by_name(f'{name}')"]
+                for i, name in enumerate(dead_names):
+                    lines += ["    @_scheduled_for_removal('old')",
+                              f'    def dead{i}(self, band=0):',
+                              f"        return self._get_by_name(f'{name}')"]
+                for i in range(len(live_names) + len(dead_names), 160):
+                    lines += [f'    def pad{i}(self, band=0):',
+                              "        return self._get_by_name(f'band[{band}].delay_us')"]
+                return chr(10).join(lines) + chr(10)
+
+            dead_names = [f'band[{{band}}].old{i}' for i in range(45)]
+            dead_patterns = {f'band[*].old{i}': (base + f'Old{i}[{{band}}]', 'value')
+                             for i in range(45)}
+            write_client(split_client(['band[{band}].delay_us'], dead_names))
+            split = replace(fake, registers=dict(shared), extended=dead_patterns)
+            platform.MAPS = (split, replace(fake_bayless, registers=dict(shared),
+                                            extended=dead_patterns))
+            check_the_extended_table_holds_exactly_the_names_only_deprecated_accessors_reach()
+            print('  ok    a correct two-table split passes')
+
+            platform.MAPS = (replace(split, registers=dict(shared, **{
+                'band[*].old0': dead_patterns['band[*].old0']}),
+                extended={k: v for k, v in dead_patterns.items() if k != 'band[*].old0'}),)
+            expect_failure('a core name only deprecated accessors reach is caught',
+                           check_the_extended_table_holds_exactly_the_names_only_deprecated_accessors_reach,
+                           'move to EXTENDED: band[*].old0')
+
+            platform.MAPS = (replace(split, registers={},
+                                     extended=dict(dead_patterns, **shared)),)
+            expect_failure('an extended name a live method reaches is caught',
+                           check_the_extended_table_holds_exactly_the_names_only_deprecated_accessors_reach,
+                           'extended name(s) a live method reaches: band[*].delay_us')
+
+            platform.MAPS = (replace(split, extended=dict(dead_patterns, **shared)),)
+            expect_failure('a name in both tables is caught',
+                           check_the_extended_table_holds_exactly_the_names_only_deprecated_accessors_reach,
+                           'in both tables')
     finally:
         FIXTURES, COMMAND, CLIENT, PLATFORM_OF, MIN_RESOLVED, platform.MAPS = saved
 
