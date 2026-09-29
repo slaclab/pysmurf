@@ -355,14 +355,38 @@ def _imports_of(node):
     return []
 
 
-def _is_virtual_client_call(node):
+def _client_aliases(tree):
+    """Every bare name a module binds to ``VirtualClient``, wherever it binds it.
+
+    ``from pyrogue.interfaces import VirtualClient as VC`` is a client constructed
+    under another name; ``VC = pyrogue.interfaces.VirtualClient`` is the same by
+    assignment. Both are read so that spelling the call differently is not a way
+    past the rule.
+    """
+    names = {'VirtualClient'}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                if alias.name == 'VirtualClient':
+                    names.add(alias.asname or alias.name)
+        elif isinstance(node, ast.Assign):
+            value = node.value
+            if ((isinstance(value, ast.Attribute) and value.attr == 'VirtualClient') or
+                    (isinstance(value, ast.Name) and value.id in names)):
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        names.add(target.id)
+    return names
+
+
+def _is_virtual_client_call(node, aliases):
     """Whether a call constructs a ``VirtualClient``, however the name is reached."""
     if not isinstance(node, ast.Call):
         return False
     callee = node.func
     if isinstance(callee, ast.Attribute):
         return callee.attr == 'VirtualClient'
-    return isinstance(callee, ast.Name) and callee.id == 'VirtualClient'
+    return isinstance(callee, ast.Name) and callee.id in aliases
 
 
 def rogue_reaches(client):
@@ -382,6 +406,7 @@ def rogue_reaches(client):
     for path in sorted(client.rglob('*.py')):
         rel = path.relative_to(client)
         tree = ast.parse(path.read_text(), filename=str(path))
+        aliases = _client_aliases(tree)
         # Every node's enclosing function -- qualified by its class, or None -- so
         # that "inside a function" is decided by the tree and not by which statement
         # shapes were thought of, and the exemption names one method of one class.
@@ -403,7 +428,7 @@ def rogue_reaches(client):
             for name in _imports_of(node):
                 if name in MAP_FORBIDDEN_IMPORTS and func is None:
                     found.append(f"{rel}:{node.lineno} imports {name} outside any function")
-            if _is_virtual_client_call(node):
+            if _is_virtual_client_call(node, aliases):
                 if f"{rel}:{func}" != ATCA_MONITOR_EXCEPTION:
                     found.append(f"{rel}:{node.lineno} constructs a VirtualClient in "
                                  f"{func if func is not None else 'the module body'}")
@@ -450,6 +475,12 @@ def check_the_one_stack_rule_fires():
         "    def __init__(self):\n"
         "        self.c = pyrogue.interfaces.VirtualClient(addr='a', port=1)\n"
         "top = pyrogue.interfaces.VirtualClient(addr='a', port=1)\n"
+        "def aliased():\n"
+        "    from pyrogue.interfaces import VirtualClient as VC\n"
+        "    return VC('a', 1)\n"
+        "def assigned():\n"
+        "    Maker = pyrogue.interfaces.VirtualClient\n"
+        "    return Maker('a', 1)\n"
     )
     with tempfile.TemporaryDirectory() as tmp:
         client = pathlib.Path(tmp)
@@ -468,9 +499,11 @@ def check_the_one_stack_rule_fires():
                        ':11 constructs a VirtualClient in Base.connect',
                        ':14 constructs a VirtualClient in Base.other',
                        ':17 constructs a VirtualClient in Second.__init__',
-                       ':18 constructs a VirtualClient in the module body'):
+                       ':18 constructs a VirtualClient in the module body',
+                       ':21 constructs a VirtualClient in aliased',
+                       ':24 constructs a VirtualClient in assigned'):
             assert needle in details, f"rule for {needle!r} did not fire:\n{details}"
-        assert len(found) == 9, f"expected 9 findings, got {len(found)}:\n{details}"
+        assert len(found) == 11, f"expected 11 findings, got {len(found)}:\n{details}"
 
 
 def check_rules_fire_on_a_bad_package():
