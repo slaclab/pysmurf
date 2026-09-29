@@ -251,9 +251,6 @@ class SmurfControl(SmurfCommandMixin,
             else:
                 self.log.set_logfile(None)
 
-            # Is this an RFSoC?
-            self.is_rfsoc = (True if 'Zcu' in self.get_fpga_build_stamp() else False)
-
             # Which bays were enabled on pysmurf server startup?
             self.bays = self.which_bays()
 

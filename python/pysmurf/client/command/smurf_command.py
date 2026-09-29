@@ -23,12 +23,8 @@ from typing import Literal
 
 import numpy as np
 from packaging import version
-try:
-    from pyrogue import VariableWait
-except ModuleNotFoundError:
-    # there will be warnings elsewhere
-    pass
 
+import cryodaq
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.util import tools, dscounters
 
@@ -64,51 +60,34 @@ class SmurfCommandMixin(SmurfBase):
             return warn_then_call
         return mark
 
-    def _platform_map(self):
-        """The register map of the system this client is connected to.
+    def _node(self, name):
+        """The rogue node a semantic name -- or, for now, a register path -- reaches.
 
-        Identified from the firmware when the client connected and kept, since a
-        running system does not change which platform it is. Offline, where there
-        is no firmware to ask, there is no map and none is needed: offline reads
-        and writes do not reach a register.
-
-        Returns
-        -------
-        cryodaq.platform.PlatformMap or None
-            None offline.
-        """
-        return self._platform_map_cache
-
-    def _resolve(self, name):
-        """The register path a semantic name reaches on this system.
-
-        The one place a semantic name becomes a register path. What the name
-        resolves to is a property of the platform's map, so a firmware change that
-        moves a register is a change there and not here.
+        Names resolve through the session's platform map, which is where a
+        register's path lives. A string the map does not know is taken as a
+        register path and looked up directly; that route exists for the callers
+        outside this package which still spell a path, and goes when they stop.
 
         Parameters
         ----------
         name : str
             e.g. ``band[4].feedback_enable``.
 
-        Returns
-        -------
-        str
-
         Raises
         ------
-        cryodaq.UnresolvedName
-            If this platform's map has no such name. Raised rather than returning
-            None so that a name which has fallen out of the map fails where it is
-            used, naming itself.
+        ValueError
+            If nothing in this tree answers to it.
         """
-        pmap = self._platform_map()
-        if pmap is None:
-            # Offline there is no map to resolve against, and the accessors below
-            # short-circuit before touching a register. The name is passed through
-            # so a log line still says which register was meant.
-            return name
-        return pmap.path(name)
+        try:
+            return self._session.node(name)
+        except cryodaq.UnresolvedName as err:
+            if err.reason == 'not in this tree':
+                # A name the map knows, at a path this firmware lacks.
+                raise ValueError(f"Invalid node: {name}") from err
+        var = self._session.root.getNode(name)
+        if var is None:
+            raise ValueError(f"Invalid node: {name}")
+        return var
 
     def _get_by_name(self, name, **kwargs):
         """Read the register a semantic name reaches.
@@ -125,7 +104,7 @@ class SmurfCommandMixin(SmurfBase):
         any
             The value, or None offline.
         """
-        return self._caget(self._resolve(name), **kwargs)
+        return self._caget(name, **kwargs)
 
     def _set_by_name(self, name, val, **kwargs):
         """Write the register a semantic name reaches.
@@ -139,7 +118,7 @@ class SmurfCommandMixin(SmurfBase):
         \\**kwargs
             Passed to :func:`_caput`.
         """
-        self._caput(self._resolve(name), val, **kwargs)
+        self._caput(name, val, **kwargs)
 
     def _skipifrfsoc(func):
         def skipper(self, *args,**kwargs):
@@ -206,11 +185,7 @@ class SmurfCommandMixin(SmurfBase):
 
         # execute the set
         if execute and not self.offline:
-            # NB this used to support getting the _atca root, but I can't
-            # find any instances of this actually being used
-            var = self._client.root.getNode(pvname)
-            if var is None:
-                raise ValueError(f"Invalid node: {pvname}")
+            var = self._node(pvname)
 
             # handle different uses of `put`
             if var.isCommand:
@@ -293,9 +268,7 @@ class SmurfCommandMixin(SmurfBase):
             # don't perform the read
             return None
 
-        var = self._client.root.getNode(pvname)
-        if var is None:
-            raise ValueError(f"Invalid node: {pvname}")
+        var = self._node(pvname)
 
         if write_log:
             self.log('caget ' + pvname, log_level)
@@ -320,8 +293,13 @@ class SmurfCommandMixin(SmurfBase):
         return ret
 
 
-    def _wait_for(self, name, condition, timeout=None):
+    def _wait_for(self, name, condition, timeout=None, poll=0.2):
         """Wait for the register a semantic name reaches to satisfy a condition.
+
+        The register is read every ``poll`` seconds until ``condition`` accepts
+        the value or ``timeout`` runs out. **With no timeout the wait is
+        unbounded** -- that has always been this method's behaviour, and a caller
+        that wants a bound passes one.
 
         Args
         ----
@@ -330,20 +308,29 @@ class SmurfCommandMixin(SmurfBase):
         condition : function
             Returns True if the given variable value is such that we
             should stop waiting, False otherwise.
-        timeout : float
-            Timeout in seconds. Default is None.
+        timeout : float or None
+            Seconds to wait before raising. None waits forever.
+        poll : float, optional, default 0.2
+            Seconds between reads.
+
+        Raises
+        ------
+        TimeoutError
+            If ``timeout`` seconds pass without ``condition`` accepting a value.
         """
-        path = self._resolve(name)
-        var = self._client.root.getNode(path)
-        if var is None:
-            raise ValueError(f"Invalid node: {path}")
+        var = self._node(name)
 
-        if timeout is None:
-            timeout = 0
-
-        ret = VariableWait([var], lambda vals: condition(vals[0].value), timeout)
-        if not ret:
-            raise TimeoutError(f"Timed out after {timeout}s waiting on {name}.")
+        deadline = None if timeout is None else time.monotonic() + timeout
+        while True:
+            if condition(var.get()):
+                return
+            if deadline is not None:
+                left = deadline - time.monotonic()
+                if left <= 0:
+                    raise TimeoutError(f"Timed out after {timeout}s waiting on {name}.")
+                time.sleep(min(poll, left))
+            else:
+                time.sleep(poll)
 
 
     def get_pysmurf_version(self, **kwargs):
@@ -10106,26 +10093,23 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name(self._lmk_name(bay, reg), **kwargs)
 
-    _mcetransmit_debug_reg = 'AMCc.mcetransmitDebug'
-
-    @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
+    @_scheduled_for_removal('the MCE transmit path it addressed predates rogue 6')
     def set_mcetransmit_debug(self, val, **kwargs):
         """
         Sets the mcetransmit debug bit. If 1, the debugger will
         print to the pyrogue screen.
 
         .. deprecated:: 11.5.0
-           Scheduled for removal: nothing in pysmurf or sodetlib calls it.
-           It still works. If you call it, say so before it goes -- searching
-           this repository and sodetlib cannot see a test-stand script or a
-           notebook.
+           Scheduled for removal: the register it wrote, ``mcetransmitDebug``,
+           is in no supported firmware and the write has always been refused.
+           If you call it, say so before it goes.
 
         Args
         ----
         val : int
             0 or 1 for the debug bit.
         """
-        self._caput(self._mcetransmit_debug_reg, val, **kwargs)
+        raise ValueError("Invalid node: mcetransmitDebug (no supported firmware has it)")
 
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_frame_count(self, **kwargs):
@@ -11617,13 +11601,12 @@ class SmurfCommandMixin(SmurfBase):
             # disable downstream filtering
             S.set_filter_disable(True)
             S.set_downsample_factor(1)
-            S._caput(S.smurf_processor + "Unwrapper:Disable",1)
 
             # select IQ streaming mode
             # bypasses CORDIC, send I and Q over both bays
             # in this case we select bands corresponding to bay 0
-            S._caput(f'{S.app_core}baySelStream', 0, write_log=True)
-            S._caput(f'{S.app_core}modeStream', 1, write_log=True)
+            S.set_bay_sel_stream(0, write_log=True)
+            S.set_mode_stream(1, write_log=True)
 
         .. deprecated:: 11.5.0
            Scheduled for removal: nothing in pysmurf or sodetlib calls it.
@@ -11660,13 +11643,12 @@ class SmurfCommandMixin(SmurfBase):
             # disable downstream filtering
             S.set_filter_disable(True)
             S.set_downsample_factor(1)
-            S._caput(S.smurf_processor + "Unwrapper:Disable",1)
 
             # select IQ streaming mode
             # bypasses CORDIC, send I and Q over both bays
             # in this case we select bands corresponding to bay 0
-            S._caput(f'{S.app_core}baySelStream', 0, write_log=True)
-            S._caput(f'{S.app_core}modeStream', 1, write_log=True)
+            S.set_bay_sel_stream(0, write_log=True)
+            S.set_mode_stream(1, write_log=True)
 
         .. deprecated:: 11.5.0
            Scheduled for removal: nothing in pysmurf or sodetlib calls it.

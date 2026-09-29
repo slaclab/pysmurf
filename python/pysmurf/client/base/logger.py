@@ -9,9 +9,10 @@
 # M. Hasselfield and ported by S. Rahlin
 #-----------------------------------------------------------------------------
 import datetime as dt
+import logging
 import sys
 
-__all__ = ['Logger', 'SmurfLogger']
+__all__ = ['Logger', 'SmurfLogger', 'SmurfLogHandler']
 
 class Logger(object):
     """Basic prioritized logger, by M. Hasselfield."""
@@ -108,3 +109,49 @@ class SmurfLogger(Logger):
     # root argument added as hack so that MPI/non-MPI code can get along
     def write(self, s, level=0, root=False):
         super(SmurfLogger, self).write(s, self.get_level(level))
+
+
+class SmurfLogHandler(logging.Handler):
+    """Deliver records from a standard ``logging`` logger to a SmurfLogger.
+
+    The two loggers number their levels in opposite directions. A SmurfLogger
+    level is a verbosity threshold -- a message shows when its level is at or
+    below the configured verbosity, so ``0`` always shows and ``2`` is the
+    quietest. ``logging`` runs the other way: ``ERROR`` (40) is louder than
+    ``INFO`` (20). Handing a SmurfLogger straight to a library that logs
+    through ``logging`` would send every error through the wrong comparison
+    and the log would go dark, errors first. This handler is the translation,
+    in the one direction ever needed.
+
+    Parameters
+    ----------
+    smurf_log : SmurfLogger
+        Where the records go.
+    levels : dict
+        The SmurfLogger's named levels (``user``, ``error``, ``info``,
+        ``task``), as ``SmurfBase.init_log`` collects them.
+    """
+
+    def __init__(self, smurf_log, levels):
+        super().__init__()
+        self._log = smurf_log
+        # Highest logging level first; a record maps to the first row it reaches.
+        self._table = (
+            (logging.ERROR, levels['error']),
+            (25, levels['user']),           # cryodaq's USER level
+            (logging.INFO, levels['info']),
+            (logging.DEBUG, levels['task']),
+        )
+
+    def translate(self, levelno):
+        """The SmurfLogger level a ``logging`` level number maps to."""
+        for threshold, level in self._table:
+            if levelno >= threshold:
+                return level
+        return self._table[-1][1]
+
+    def emit(self, record):
+        try:
+            self._log(record.getMessage(), self.translate(record.levelno))
+        except Exception:
+            self.handleError(record)
