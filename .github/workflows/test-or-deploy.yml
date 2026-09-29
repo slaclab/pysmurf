@@ -332,17 +332,17 @@ jobs:
           docker container exec client \
             /bin/bash -c "python3 -c 'import cryodaq; cryodaq.connect'"
 
-      # - Import the register layer and check it resolves names rather than building
-      #   paths. The client reaches registers through cryodaq.platform now, so an
-      #   install that left that package out would still import the client and then
-      #   fail on the first register access.
-      - name: Test the register layer resolves by name
+      # - Import the client and check it reaches registers through a cryodaq
+      #   session rather than building paths. An install that left the cryodaq
+      #   package out would still import the client and then fail on the first
+      #   register access.
+      - name: Test the client reaches registers through the session
         run: |
           docker container exec client \
             /bin/bash -c "python3 -c 'from pysmurf.client.command.smurf_command \
             import SmurfCommandMixin as M; \
-            assert hasattr(M, \"_get_by_name\") and hasattr(M, \"_resolve\"); \
-            import cryodaq.platform as p; assert p.MAPS'"
+            assert hasattr(M, \"_node\") and hasattr(M, \"_get_by_name\"); \
+            import cryodaq; assert cryodaq.connect and cryodaq.platform.MAPS'"
 
   # Build
 
