@@ -88,7 +88,7 @@ PACKAGE = DEFAULT_PACKAGE
 # The legacy client, which holds one cryodaq session and no rogue client of its
 # own -- except the shelf manager's monitor, a different server, reached where named.
 CLIENT = REPO / 'python' / 'pysmurf' / 'client'
-ATCA_MONITOR_EXCEPTION = 'base/base_class.py:__init__'
+ATCA_MONITOR_EXCEPTION = 'base/base_class.py:SmurfBase.__init__'
 
 
 # --------------------------------------------------------------------------
@@ -346,46 +346,67 @@ def check_connect_judges_its_arguments_before_needing_rogue():
             raise AssertionError(f"{bad!r} {kwargs!r} was accepted")
 
 
+def _imports_of(node):
+    """The top-level module names an import statement names."""
+    if isinstance(node, ast.Import):
+        return [a.name.split('.')[0] for a in node.names]
+    if isinstance(node, ast.ImportFrom):
+        return [(node.module or '').split('.')[0]]
+    return []
+
+
+def _is_virtual_client_call(node):
+    """Whether a call constructs a ``VirtualClient``, however the name is reached."""
+    if not isinstance(node, ast.Call):
+        return False
+    callee = node.func
+    if isinstance(callee, ast.Attribute):
+        return callee.attr == 'VirtualClient'
+    return isinstance(callee, ast.Name) and callee.id == 'VirtualClient'
+
+
 def rogue_reaches(client):
     """Where the legacy client reaches rogue directly, as ``file:line detail`` strings.
 
     The client connects through ``cryodaq.connect`` and reaches every register
-    through the session, so a ``pyrogue`` or ``rogue`` import at module level, or a
-    ``VirtualClient`` constructed anywhere, is a second client stack beside the
-    session's. The one place allowed to construct a client is named in
-    ``ATCA_MONITOR_EXCEPTION``: the shelf manager's monitor is a different server
-    with no platform map, and until it has one it is reached the old way, inside a
+    through the session, so a ``pyrogue`` or ``rogue`` import anywhere outside a
+    function body -- at module level, under a module-level ``if``, in a ``try``
+    or its handlers, in a class body -- or a ``VirtualClient`` constructed
+    anywhere, is a second client stack beside the session's. The one place
+    allowed to construct a client is named in ``ATCA_MONITOR_EXCEPTION``, as
+    ``file:function``: the shelf manager's monitor is a different server with no
+    platform map, and until it has one it is reached the old way, inside a
     function -- so the import there is inside the function too.
     """
     found = []
     for path in sorted(client.rglob('*.py')):
         rel = path.relative_to(client)
         tree = ast.parse(path.read_text(), filename=str(path))
-        for node in tree.body:             # module level only: a local import is a function's
-            if isinstance(node, (ast.Import, ast.ImportFrom)):
-                names = ([a.name for a in node.names] if isinstance(node, ast.Import)
-                         else [node.module or ''])
-                for name in names:
-                    if name.split('.')[0] in MAP_FORBIDDEN_IMPORTS:
-                        found.append(f"{rel}:{node.lineno} imports {name} at module level")
-            elif isinstance(node, ast.Try):
-                for stmt in node.body:
-                    if isinstance(stmt, (ast.Import, ast.ImportFrom)):
-                        names = ([a.name for a in stmt.names] if isinstance(stmt, ast.Import)
-                                 else [stmt.module or ''])
-                        for name in names:
-                            if name.split('.')[0] in MAP_FORBIDDEN_IMPORTS:
-                                found.append(
-                                    f"{rel}:{stmt.lineno} imports {name} at module level (guarded)")
-        for func in ast.walk(tree):
-            if not isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                continue
-            for node in ast.walk(func):
-                if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and
-                        node.func.attr == 'VirtualClient'):
-                    where = f"{rel}:{func.name}"
-                    if where != ATCA_MONITOR_EXCEPTION:
-                        found.append(f"{rel}:{node.lineno} constructs a VirtualClient in {func.name}")
+        # Every node's enclosing function -- qualified by its class, or None -- so
+        # that "inside a function" is decided by the tree and not by which statement
+        # shapes were thought of, and the exemption names one method of one class.
+        enclosing = {}
+
+        def visit(node, scope, func):
+            for child in ast.iter_child_nodes(node):
+                if isinstance(child, ast.ClassDef):
+                    inner_scope, inner_func = scope + [child.name], func
+                elif isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    inner_scope, inner_func = scope, '.'.join(scope + [child.name])
+                else:
+                    inner_scope, inner_func = scope, func
+                enclosing[child] = func
+                visit(child, inner_scope, inner_func)
+        visit(tree, [], None)
+
+        for node, func in enclosing.items():
+            for name in _imports_of(node):
+                if name in MAP_FORBIDDEN_IMPORTS and func is None:
+                    found.append(f"{rel}:{node.lineno} imports {name} outside any function")
+            if _is_virtual_client_call(node):
+                if f"{rel}:{func}" != ATCA_MONITOR_EXCEPTION:
+                    found.append(f"{rel}:{node.lineno} constructs a VirtualClient in "
+                                 f"{func if func is not None else 'the module body'}")
     return found
 
 
@@ -399,21 +420,36 @@ def check_the_client_has_one_rogue_stack():
 def check_the_one_stack_rule_fires():
     good = (
         "import cryodaq\n"
-        "class Base:\n"
+        "class SmurfBase:\n"
         "    def __init__(self, atca_monitor):\n"
         "        if atca_monitor:\n"
         "            import pyrogue.interfaces\n"
         "            self._atca = pyrogue.interfaces.VirtualClient(addr='a', port=1)\n"
     )
+    # Every shape a second stack could take that is not inside a function: a
+    # guarded import, a plain one, one under a module-level if, one in an except
+    # handler, one in a class body; a VirtualClient constructed by attribute, by
+    # bare name after a local import, at module level, and in a second __init__
+    # of the file that holds the exemption.
     bad = (
         "try:\n"
         "    import pyrogue.interfaces\n"
         "except ModuleNotFoundError:\n"
-        "    pass\n"
+        "    import rogue\n"
         "from pyrogue import VariableWait\n"
+        "if True:\n"
+        "    import pyrogue as pr\n"
         "class Base:\n"
+        "    import rogue.interfaces\n"
         "    def connect(self):\n"
         "        self._client = pyrogue.interfaces.VirtualClient(addr='a', port=1)\n"
+        "    def other(self):\n"
+        "        from pyrogue.interfaces import VirtualClient\n"
+        "        return VirtualClient('a', 1)\n"
+        "class Second:\n"
+        "    def __init__(self):\n"
+        "        self.c = pyrogue.interfaces.VirtualClient(addr='a', port=1)\n"
+        "top = pyrogue.interfaces.VirtualClient(addr='a', port=1)\n"
     )
     with tempfile.TemporaryDirectory() as tmp:
         client = pathlib.Path(tmp)
@@ -424,10 +460,17 @@ def check_the_one_stack_rule_fires():
         (client / 'base' / 'base_class.py').write_text(bad)
         found = rogue_reaches(client)
         details = '\n'.join(found)
-        for needle in ('imports pyrogue.interfaces at module level (guarded)',
-                       'imports pyrogue at module level',
-                       'constructs a VirtualClient in connect'):
+        for needle in (':2 imports pyrogue outside any function',
+                       ':4 imports rogue outside any function',
+                       ':5 imports pyrogue outside any function',
+                       ':7 imports pyrogue outside any function',
+                       ':9 imports rogue outside any function',
+                       ':11 constructs a VirtualClient in Base.connect',
+                       ':14 constructs a VirtualClient in Base.other',
+                       ':17 constructs a VirtualClient in Second.__init__',
+                       ':18 constructs a VirtualClient in the module body'):
             assert needle in details, f"rule for {needle!r} did not fire:\n{details}"
+        assert len(found) == 9, f"expected 9 findings, got {len(found)}:\n{details}"
 
 
 def check_rules_fire_on_a_bad_package():

@@ -60,12 +60,14 @@ The selftest runs the source rules over a synthetic package that breaks each of 
 rule passes it. A boundary check that cannot fail is not evidence.
 
 **One rogue stack in the pysmurf client.** The one check that reads `python/pysmurf/client` holds
-it to what stage 4 made true: the legacy client connects through `cryodaq.connect` and reaches every
-register through its session, so no client module imports `pyrogue` or `rogue` at module level -- not
-even guarded by a `try` -- and nothing constructs a `VirtualClient` except the shelf-manager monitor,
-at the one site the check names. That monitor is a different server with no platform map, and until it
-has one it is reached the old way, inside the function that opens it. A second selftest breaks each of
-these on a synthetic client and fails if any passes.
+it to how the client is built: it connects through `cryodaq.connect` and reaches every register
+through its session, so no client module imports `pyrogue` or `rogue` outside a function body -- not
+at module level, not guarded by a `try`, not under an `if`, not in a class body -- and nothing
+constructs a `VirtualClient` except the shelf-manager monitor, in the one method the check names. That monitor is a different server with no platform map, and until it
+has one it is reached the old way, inside the function that opens it. A second selftest writes nine
+shapes of second stack into a synthetic client -- imports in every position, a client built by
+attribute, by bare name, at module level and in another class's `__init__` -- and requires each to be
+reported and the allowed site not to be.
 
 **What these gates do not enforce: a raw register path in a client accessor.** `check_catalog_resolves.py`
 reads the client's semantic-name calls without refusing a raw one. That the client builds no register
