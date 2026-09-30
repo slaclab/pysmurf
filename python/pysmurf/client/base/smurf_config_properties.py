@@ -16,7 +16,17 @@
 """Defines the mixin class :class:`SmurfConfigPropertiesMixin`."""
 import numpy as np
 
-__all__ = ['SmurfConfigPropertiesMixin', 'delay_writes']
+__all__ = ['SmurfConfigPropertiesMixin', 'delay_writes', 'PER_BAND_KEYS']
+
+# The per-band keys exposed as {band: value} dictionaries.
+PER_BAND_KEYS = ('amplitude_scale', 'att_uc', 'att_dc', 'iq_swap_in', 'iq_swap_out',
+                 'data_out_mux', 'band_delay_us', 'trigger_reset_delay', 'lms_gain',
+                 'feedback_enable', 'feedback_gain', 'feedback_limit_khz', 'feedback_polarity',
+                 'lms_freq_hz', 'delta_freq', 'feedback_start_frac', 'feedback_end_frac',
+                 'gradient_descent_gain', 'gradient_descent_averages',
+                 'gradient_descent_converge_hz', 'gradient_descent_step_hz',
+                 'gradient_descent_momentum', 'gradient_descent_beta', 'eta_scan_averages',
+                 'eta_scan_del_f')
 
 
 def delay_writes(band):
@@ -82,6 +92,7 @@ class SmurfConfigPropertiesMixin:
         self._bad_mask = None
         self._attenuator = None
         self._amplitude_scale = None
+        self._per_band_tables = None
         self._pA_per_phi0 = None
         self._bias_line_resistance = None
         self._high_low_current_ratio = None
@@ -108,7 +119,19 @@ class SmurfConfigPropertiesMixin:
         self._fraction_full_scale = v['tune']['fraction_full_scale']
         self._tune_dir = v['paths']['tune']
         self._status_dir = v['paths']['status']
-        self._amplitude_scale = self._per_band('amplitude_scale')
+        # Every per-band table is built once and handed out as the same
+        # dictionary each time: callers write into them -- tracking_setup stores
+        # the LMS frequency it measured, sodetlib the tone power it chose -- and
+        # a copy would take the write and lose it.
+        self._per_band_tables = {key: {band: block.get(key) for band, block in v['bands'].items()}
+                                 for key in PER_BAND_KEYS}
+        # The three deprecated delay views read the `delay` block, 0 / None where a
+        # band gives band_delay_us instead, as the legacy properties did.
+        delays = {band: block.get('delay') or {} for band, block in v['bands'].items()}
+        self._per_band_tables['ref_phase_delay'] = {b: d.get('ref_phase', 0) for b, d in delays.items()}
+        self._per_band_tables['ref_phase_delay_fine'] = {b: d.get('ref_phase_fine', 0) for b, d in delays.items()}
+        self._per_band_tables['lms_delay'] = {b: d.get('lms') for b, d in delays.items()}
+        self._amplitude_scale = self._per_band_tables['amplitude_scale']
 
         att = v['attenuator']
         self._attenuator = {'band': np.array([att[k] for k in att], dtype=int),
@@ -140,11 +163,10 @@ class SmurfConfigPropertiesMixin:
         return node
 
     def _per_band(self, key):
-        """``{band: value}`` for one per-band key, or None with no configuration."""
-        bands = self._value('bands')
-        if bands is None:
+        """The live ``{band: value}`` dictionary for one per-band key; None with no configuration."""
+        if self.config is None:
             return None
-        return {band: block.get(key) for band, block in bands.items()}
+        return self._per_band_tables[key]
 
     # ------------------------------------------------------------------
     # paths and scalars
@@ -329,20 +351,17 @@ class SmurfConfigPropertiesMixin:
     @property
     def ref_phase_delay(self):
         """``delay.ref_phase`` per band, or 0 where the band gives ``band_delay_us``."""
-        return {b: (blk.get('delay') or {}).get('ref_phase', 0)
-                for b, blk in (self._value('bands') or {}).items()} if self.config else None
+        return self._per_band('ref_phase_delay')
 
     @property
     def ref_phase_delay_fine(self):
         """``delay.ref_phase_fine`` per band, or 0."""
-        return {b: (blk.get('delay') or {}).get('ref_phase_fine', 0)
-                for b, blk in (self._value('bands') or {}).items()} if self.config else None
+        return self._per_band('ref_phase_delay_fine')
 
     @property
     def lms_delay(self):
         """``delay.lms`` per band, or None meaning the same as ``ref_phase``."""
-        return {b: (blk.get('delay') or {}).get('lms')
-                for b, blk in (self._value('bands') or {}).items()} if self.config else None
+        return self._per_band('lms_delay')
 
     @property
     def trigger_reset_delay(self):
@@ -356,18 +375,22 @@ class SmurfConfigPropertiesMixin:
 
     @property
     def feedback_enable(self):
+        """Feedback enabled per band."""
         return self._per_band('feedback_enable')
 
     @property
     def feedback_gain(self):
+        """Feedback gain per band."""
         return self._per_band('feedback_gain')
 
     @property
     def feedback_limit_khz(self):
+        """Feedback limit per band, kHz."""
         return self._per_band('feedback_limit_khz')
 
     @property
     def feedback_polarity(self):
+        """Feedback polarity per band."""
         return self._per_band('feedback_polarity')
 
     @property
@@ -377,44 +400,55 @@ class SmurfConfigPropertiesMixin:
 
     @property
     def delta_freq(self):
+        """Frequency step for the eta scan per band, MHz."""
         return self._per_band('delta_freq')
 
     @property
     def feedback_start_frac(self):
+        """Where in the flux ramp feedback starts, per band, as a fraction."""
         return self._per_band('feedback_start_frac')
 
     @property
     def feedback_end_frac(self):
+        """Where in the flux ramp feedback ends, per band, as a fraction."""
         return self._per_band('feedback_end_frac')
 
     @property
     def gradient_descent_gain(self):
+        """Gradient descent gain per band."""
         return self._per_band('gradient_descent_gain')
 
     @property
     def gradient_descent_averages(self):
+        """Gradient descent averages per band."""
         return self._per_band('gradient_descent_averages')
 
     @property
     def gradient_descent_converge_hz(self):
+        """Gradient descent convergence criterion per band, Hz."""
         return self._per_band('gradient_descent_converge_hz')
 
     @property
     def gradient_descent_step_hz(self):
+        """Gradient descent step per band, Hz."""
         return self._per_band('gradient_descent_step_hz')
 
     @property
     def gradient_descent_momentum(self):
+        """Gradient descent momentum per band."""
         return self._per_band('gradient_descent_momentum')
 
     @property
     def gradient_descent_beta(self):
+        """Gradient descent beta per band."""
         return self._per_band('gradient_descent_beta')
 
     @property
     def eta_scan_averages(self):
+        """Eta scan averages per band."""
         return self._per_band('eta_scan_averages')
 
     @property
     def eta_scan_del_f(self):
+        """Eta scan frequency step per band, Hz."""
         return self._per_band('eta_scan_del_f')

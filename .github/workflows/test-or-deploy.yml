@@ -245,9 +245,13 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [flake8, docker-definitions]   # Run only if all checks passed
     steps:
-      # Checkout the code
+      # Checkout the code, with history: the configuration round-trip check
+      # below runs the loader this branch replaced out of the revision that
+      # last had it, so that revision has to be in the clone.
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
 
       # Check that the cryodaq client keeps to its layer boundaries. Reads
       # source with 'ast', and imports the package to use the part of it that is
@@ -294,6 +298,16 @@ jobs:
           python3 -m pip install --quiet pyyaml
           python3 tests/cryodaq/check_config_resolves.py
           python3 tests/cryodaq/check_config_resolves.py --selftest
+
+      # pysmurf's own schema, default and legacy converter: every shipped .cfg
+      # resolves to the values the loader it replaced produced, run out of git
+      # history; a record that has been through JSON gives the same properties;
+      # a write into a per-band property persists. Needs the client's numeric
+      # stack, so the packages are installed for this step.
+      - name: Check the pysmurf configuration schema against the shipped files
+        run: |
+          python3 -m pip install --quiet numpy schema pyyaml
+          python3 tests/cryodaq/check_pysmurf_config.py
 
       # Setup Docker build environment
       - name: Set up docker build enviroment

@@ -71,7 +71,7 @@ Usage
 
 .. code-block:: python
 
-   S = pysmurf.SmurfControl(cfg_file='/path/to/slot4.yaml')
+   S = pysmurf.client.SmurfControl(cfg_file='/path/to/slot4.yaml')
    S.setup()
 
    S.config.values['wiring']['R_sh']
@@ -87,17 +87,21 @@ a dated copy). A client started later with no file adopts it:
 
 .. code-block:: python
 
-   S = pysmurf.SmurfControl()      # online, no cfg_file
+   S = pysmurf.client.SmurfControl()      # online, no cfg_file
 
 The server is asked first. If it has restarted and forgotten, the sidecar is
 read and checked against the system: the firmware identity and the registers
-the configuration set (ramp, trigger, streaming, per-band DSP enable). A
+the configuration set (JESD lock, timing link, ramp, trigger, streaming,
+per-band DSP enable). A server that has just restarted disagrees on the JESD
+lock until ``setup()`` runs again, and that is the answer it gives. A
 disagreement raises :class:`cryodaq.DescriptionMismatch` naming the register
 and both values; a system nothing remembers configuring raises
 ``RuntimeError`` asking for ``setup()``. Deleting the sidecar and running
 ``setup()`` again is always a valid recovery. The sidecar is a cache of what
 the server knows, not a configuration file: nothing writes back into the files
-you gave.
+you gave. A client with no file looks for the sidecar under the packaged
+default's ``paths.status``; a site that overrides ``paths.status`` in its file
+finds nothing there and is refused, and gives the file.
 
 Sections
 --------

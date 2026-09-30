@@ -390,6 +390,37 @@ def check_a_record_read_back_through_json_gives_the_same_properties():
     assert list(adopted.values['bands']) == [4] and isinstance(list(adopted.values['bands'])[0], int)
 
 
+def check_a_write_into_a_per_band_property_persists():
+    # Callers write into these dictionaries -- tracking_setup stores the LMS
+    # frequency it measured, sodetlib the tone power it chose -- and read the
+    # value back later. A property rebuilt on each access takes the write on a
+    # temporary and loses it; review found exactly that at smurf_tune.py's
+    # `self.lms_freq_hz[band] = lms_freq_hz`. Every per-band property must hand
+    # out the same dictionary each time.
+    from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin
+    holder = SmurfConfigPropertiesMixin()
+    holder.copy_config_to_properties(load_mapping(minimal()))
+    # The per-band properties are found, not listed: whatever answers with a
+    # dict keyed by band is one, so a new one is covered without an edit here.
+    def is_per_band(n):
+        return (not n.startswith('_') and isinstance(getattr(type(holder), n, None), property) and
+                isinstance(getattr(holder, n), dict) and 4 in getattr(holder, n))
+    per_band = [n for n in dir(holder) if is_per_band(n)]
+    assert len(per_band) >= 25, f"only {len(per_band)} per-band properties found: {per_band}"
+    lost = []
+    for name in per_band:
+        table = getattr(holder, name)
+        assert isinstance(table, dict) and 4 in table, f"{name} is not a per-band dict: {table!r}"
+        table[4] = 'written'
+        if getattr(holder, name)[4] != 'written' or getattr(holder, name) is not table:
+            lost.append(name)
+    assert not lost, f"a write into these per-band properties is lost: {lost}"
+    # And the one sodetlib reads back after tracking_setup, by name, the way it is written.
+    holder.lms_freq_hz[4] = 12345.0
+    assert holder.lms_freq_hz[4] == 12345.0
+    assert holder._amplitude_scale is holder.amplitude_scale, 'the private field is the same dict'
+
+
 def check_the_converter_drops_only_what_nothing_read():
     seen = set()
     for cfg in CFG_FILES:
