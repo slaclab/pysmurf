@@ -284,6 +284,17 @@ jobs:
       - name: Check the client glue over the session
         run: python3 tests/cryodaq/check_client_glue.py
 
+      # A configuration split over layers resolves to what the equivalent single
+      # file does, every key names the layer that set it, and a recorded
+      # description is refused when it no longer matches the system. Reading the
+      # YAML fixtures needs PyYAML -- the one package this job installs, and the
+      # one cryodaq.config defers importing until a file is read.
+      - name: Check configuration resolution and the published description
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 tests/cryodaq/check_config_resolves.py
+          python3 tests/cryodaq/check_config_resolves.py --selftest
+
       # Setup Docker build environment
       - name: Set up docker build enviroment
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4

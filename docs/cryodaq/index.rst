@@ -40,6 +40,28 @@ Session
     :members: connect, Session, Paths, ValidationReport, endpoint_of
     :undoc-members:
 
+config
+------
+
+How a configuration is resolved from layered YAML files, and how the result is
+recorded beside the system it configured. A file names what it builds on with
+``inherit:``; the application supplies a default under everything and a
+``validate`` callable that judges what the keys mean. The result carries every
+key's provenance and a hash of the values, so two layerings that agree on every
+value agree on the hash.
+
+``Session.publish`` writes a resolution to the server's ``Description`` device
+and to a sidecar file; ``Session.resolved`` reads it back -- from the server
+while it remembers, from the sidecar after a restart, checked against the
+witness registers the configuration set. A sidecar that disagrees with the
+system raises :class:`~cryodaq.DescriptionMismatch` naming the field and both
+values; deleting it and configuring again is always a valid recovery.
+
+.. automodule:: cryodaq.config
+    :members: load, Resolved, merge, flatten, sidecar_path, write_sidecar,
+              read_sidecar
+    :undoc-members:
+
 Errors
 ------
 

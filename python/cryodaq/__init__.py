@@ -43,21 +43,26 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-from cryodaq import platform
-from cryodaq._errors import ConnectError, CryodaqError, UnresolvedName
+from cryodaq import config, platform
+from cryodaq._errors import (ConfigError, ConnectError, CryodaqError,
+                             DescriptionMismatch, UnresolvedName)
 from cryodaq._session import (LOG_ERROR, LOG_INFO, LOG_USER, NullPublisher,
                               Paths, Session, ValidationReport, connect,
                               endpoint_of)
+from cryodaq.config import Resolved
 from cryodaq.platform import COMMAND, PROCESS, VALUE, PlatformMap
 
 __all__ = [
     # the interface
     'connect', 'Session', 'Paths', 'ValidationReport', 'NullPublisher',
     'endpoint_of',
+    # configuration
+    'config', 'Resolved',
     # the map
     'platform', 'PlatformMap', 'VALUE', 'COMMAND', 'PROCESS',
     # errors
-    'CryodaqError', 'ConnectError', 'UnresolvedName',
+    'CryodaqError', 'ConnectError', 'UnresolvedName', 'ConfigError',
+    'DescriptionMismatch',
     # logging levels
     'LOG_ERROR', 'LOG_INFO', 'LOG_USER',
 ]
