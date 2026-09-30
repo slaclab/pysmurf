@@ -72,10 +72,11 @@ packages = [
     "/python/pysmurf",
     "/python/cryodaq",
 ]
-# include cython extensions
+# include cython extensions, and the client's default configuration
 artifacts = [
     "python/pysmurf/**/*.so",
     "python/pysmurf/**/*.pyd",
+    "python/pysmurf/client/config/*.yaml",
 ]
 
 # build cython extensions

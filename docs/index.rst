@@ -37,6 +37,7 @@ superconducting microresonator arrays.
 
    client/base
    client/command
+   client/config
    client/debug
    client/tune
    client/util
