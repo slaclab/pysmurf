@@ -232,6 +232,15 @@ def check_wait_for_without_a_bound_is_documented_as_unbounded():
     assert node.reads == 31, node.reads
 
 
+def check_wait_for_with_a_zero_bound_is_unbounded_as_it_always_was():
+    # The wait used to hand its timeout to rogue, where 0 means no timeout; a
+    # caller spelling "forever" as 0 must not now be told the deadline has passed.
+    node = _Node([1] * 30 + [0])
+    client = glue()({PATH: node})
+    client._wait_for(NAME, lambda x: x == 0, timeout=0, poll=0.0)
+    assert node.reads == 31, node.reads
+
+
 def check_the_log_handler_maps_levels_the_right_way_round():
     Handler = handler_class()
     seen = []

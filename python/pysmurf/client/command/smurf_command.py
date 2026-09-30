@@ -301,7 +301,9 @@ class SmurfCommandMixin(SmurfBase):
         The register is read every ``poll`` seconds until ``condition`` accepts
         the value or ``timeout`` runs out. **With no timeout the wait is
         unbounded** -- that has always been this method's behaviour, and a caller
-        that wants a bound passes one.
+        that wants a bound passes one. The bound is checked between reads, not
+        inside one: each read is a request to the server with the session's
+        own timeout, so a wait can outlast its ``timeout`` by up to one request.
 
         Args
         ----
@@ -311,7 +313,8 @@ class SmurfCommandMixin(SmurfBase):
             Returns True if the given variable value is such that we
             should stop waiting, False otherwise.
         timeout : float or None
-            Seconds to wait before raising. None waits forever.
+            Seconds to wait before raising. None waits forever, and so does 0,
+            which is what an unbounded wait was spelled as before.
         poll : float, optional, default 0.2
             Seconds between reads.
 
@@ -322,7 +325,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         var = self._node(name)
 
-        deadline = None if timeout is None else time.monotonic() + timeout
+        deadline = None if not timeout else time.monotonic() + timeout
         while True:
             if condition(var.get()):
                 return

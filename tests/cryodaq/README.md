@@ -13,11 +13,11 @@ executable that prints one `ok` or `FAIL` line per check and exits non-zero if a
 
 ### check_boundaries.py
 
-This script checks the layer boundaries of [cryodaq](../../python/cryodaq). Twelve checks: six read the
-package as source, one reads what it carries that is not source, two run it, one reads the pysmurf
-client, and two are the script's own selftests. None needs rogue or a CryoDet package, so this runs anywhere Python does.
+This script checks the layer boundaries of [cryodaq](../../python/cryodaq). Most checks read the
+package as source; one reads what it carries that is not source, two run it, one reads the pysmurf
+client, and the rest are the script's own selftests. None needs rogue or a CryoDet package, so this runs anywhere Python does.
 
-The rules five of the source checks enforce — the first is that there is a package to read at all, and
+The rules the source checks enforce — the first is that there is a package to read at all, and
 the second covers the two import rules below it:
 
 * **Import direction** — nothing under `cryodaq` imports `pysmurf`, `smurf` or `sodetlib`: the
@@ -34,7 +34,7 @@ the second covers the two import rules below it:
   maps. This is the firmware/software boundary: it is what "the client does not know the register
   map" means mechanically.
 
-A seventh check applies that last rule to everything the package carries that is *not* source. The
+A further check applies that last rule to everything the package carries that is *not* source. The
 rule is enforced by reading string constants out of modules, so a register map shipped as data would
 satisfy it without being subject to it — and a register map is exactly the kind of thing that is
 easier to ship as data. Every non-source file outside the platform package is therefore read as text
@@ -221,7 +221,7 @@ The surface is read from source with `ast`, as the union of the client's mixins,
 assembled from eight of them and no single class holds it. Reading source rather than importing is what
 lets this run on the bare runner beside the other checks here, where the client's plotting stack is absent.
 
-Seven selftest cases drive each check with input it must refuse, including a client whose mixins cannot be
+Selftest cases drive each check with input it must refuse, including a client whose mixins cannot be
 read at all — a contract check that passes by finding nothing is worse than none.
 
 ### check_client_glue.py
@@ -230,11 +230,12 @@ This script checks the glue between the legacy pysmurf client and its cryodaq se
 holds a session; `_caget`, `_caput` and `_wait_for` reach the tree through it. The class bodies are
 compiled from source on their own, as the contract check reads them, because importing the client
 brings in a plotting stack this job does not have; the session is a stand-in with a real platform map.
-Seven checks: a semantic name resolves through the session; a raw register path is still accepted
+The checks: a semantic name resolves through the session; a raw register path is still accepted
 (callers outside this repository still spell some — see `docs/sodetlib_changes_required.md`); a name
 nothing answers to raises `ValueError` naming it, as it always did; `_wait_for` reads afresh each poll,
-raises `TimeoutError` at the bound it was given, and with no bound waits forever — a hazard its
-docstring is required to state, since the one caller that passes none has always blocked that way; and
+raises `TimeoutError` at the bound it was given, and with no bound — `None`, or the `0` that used to
+mean the same to rogue — waits forever, a hazard its docstring is required to state, since the one
+caller that passes none has always blocked that way; and
 the handler that carries the session's `logging` records into `SmurfLogger` maps every level the right
 way round, the two numberings running in opposite directions.
 
@@ -263,7 +264,7 @@ refused — by rogue, which is where that range lives. Each runs one at a time, 
 opens: pyrogue caches one client per address and port, so two sessions on one endpoint are one
 transport — closing either closes both — and the client takes one deadline, whichever connected last.
 
-The eighteen checks over that session cover the map against the tree (every name the map offers
+The checks over that session cover the map against the tree (every name the map offers
 resolves; each node is the kind the map declares; the twenty contract names are present on every band;
 the witness registers read back; the indexed scopes are the ones this tree has) and the session itself
 (what the server says it is; read and write by name, whole and by array index; a name the tree declares

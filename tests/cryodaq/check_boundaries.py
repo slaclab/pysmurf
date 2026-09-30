@@ -400,9 +400,11 @@ def rogue_reaches(client):
     allowed to construct a client is named in ``ATCA_MONITOR_EXCEPTION``, as
     ``file:function``: the shelf manager's monitor is a different server with no
     platform map, and until it has one it is reached the old way, inside a
-    function -- so the import there is inside the function too.
+    function -- so the import there is inside the function too. The exemption is
+    for one client: a second construction in the same function is a second stack.
     """
     found = []
+    exempt = []
     for path in sorted(client.rglob('*.py')):
         rel = path.relative_to(client)
         tree = ast.parse(path.read_text(), filename=str(path))
@@ -429,9 +431,14 @@ def rogue_reaches(client):
                 if name in MAP_FORBIDDEN_IMPORTS and func is None:
                     found.append(f"{rel}:{node.lineno} imports {name} outside any function")
             if _is_virtual_client_call(node, aliases):
-                if f"{rel}:{func}" != ATCA_MONITOR_EXCEPTION:
+                if f"{rel}:{func}" == ATCA_MONITOR_EXCEPTION:
+                    exempt.append(f"{rel}:{node.lineno}")
+                else:
                     found.append(f"{rel}:{node.lineno} constructs a VirtualClient in "
                                  f"{func if func is not None else 'the module body'}")
+    if len(exempt) > 1:
+        found.append(f"{ATCA_MONITOR_EXCEPTION} constructs {len(exempt)} VirtualClients "
+                     f"({', '.join(exempt)}); the exemption is for one")
     return found
 
 
@@ -504,6 +511,12 @@ def check_the_one_stack_rule_fires():
                        ':24 constructs a VirtualClient in assigned'):
             assert needle in details, f"rule for {needle!r} did not fire:\n{details}"
         assert len(found) == 11, f"expected 11 findings, got {len(found)}:\n{details}"
+        # The exemption admits one construction, not the method: a second client
+        # beside the monitor's, in the very function that is allowed one, is caught.
+        (client / 'base' / 'base_class.py').write_text(
+            good + "        self._client = pyrogue.interfaces.VirtualClient(addr='b', port=2)\n")
+        found = rogue_reaches(client)
+        assert len(found) == 1 and 'constructs 2 VirtualClients' in found[0], found
 
 
 def check_rules_fire_on_a_bad_package():

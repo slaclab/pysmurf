@@ -601,8 +601,9 @@ def check_the_legacy_table_holds_exactly_the_names_only_deprecated_accessors_rea
     failures: a core name no live code reaches -- unless an operation, the description
     or the witness list reaches it, which the map states by keeping it -- is a name
     that should leave with the accessors, and a legacy name a live method reaches
-    would be deleted from under that method. The tables are also held disjoint: the
-    map takes their union, and a name in both would silently be whichever won.
+    would be deleted from under that method, and a legacy name no accessor reaches
+    would never be taken away. The tables are also held disjoint: the map takes their
+    union, and a name in both would silently be whichever won.
     """
     reached = load_client_names()
     live = {c['name'] for c in reached if not c['deprecated']}
@@ -613,6 +614,10 @@ def check_the_legacy_table_holds_exactly_the_names_only_deprecated_accessors_rea
         misplaced = sorted(set(legacy) & live)
         assert not misplaced, (f"{name}: legacy name(s) a live method reaches: " +
                                ', '.join(misplaced[:6]))
+        orphaned = sorted(set(legacy) - dead_only)
+        assert not orphaned, (f"{name}: legacy name(s) no accessor reaches at all -- "
+                              f"nothing would take them away; delete or justify: " +
+                              ', '.join(orphaned[:6]))
         should_leave = sorted(set(registers) & dead_only)
         assert not should_leave, (f"{name}: core name(s) only deprecated accessors "
                                   f"reach; move to LEGACY: " + ', '.join(should_leave[:6]))
@@ -1052,6 +1057,12 @@ def selftest():
             expect_failure('a legacy name a live method reaches is caught',
                            check_the_legacy_table_holds_exactly_the_names_only_deprecated_accessors_reach,
                            'legacy name(s) a live method reaches: band[*].delay_us')
+
+            TABLES = (('fake', dict(shared), dict(
+                dead_patterns, **{'band[*].orphan': (base + 'Orphan[{band}]', 'value')})),)
+            expect_failure('a legacy name no accessor reaches is caught',
+                           check_the_legacy_table_holds_exactly_the_names_only_deprecated_accessors_reach,
+                           'no accessor reaches at all')
 
             TABLES = (('fake', dict(shared), dict(dead_patterns, **shared)),)
             expect_failure('a name in both tables is caught',

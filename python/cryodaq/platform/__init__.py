@@ -42,7 +42,7 @@
 
 import functools
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import (Any, Callable, Dict, List, Mapping, Sequence, Tuple)
 
 from cryodaq._errors import ConnectError, UnresolvedName
@@ -173,9 +173,9 @@ class PlatformMap:
 
     name: str
     tags: Tuple[str, ...]
+    registers: Mapping[str, Tuple[str, str]]
     witness: Tuple[str, ...]
     scopes: Mapping[str, Tuple[Tuple[str, ...], Tuple[str, ...]]]
-    registers: Mapping[str, Tuple[str, str]] = field(default_factory=dict)
 
     def __contains__(self, pattern: str) -> bool:
         return pattern in self.registers
