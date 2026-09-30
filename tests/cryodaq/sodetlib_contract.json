@@ -1,5 +1,5 @@
 {
-  "description": "The methods sodetlib calls on a SmurfControl, frozen so that a change to this client cannot remove one without the removal being a decision. Generated from a measurement of sodetlib at the commit named below; regenerate only when sodetlib's own use changes, and say why in the commit message.",
+  "description": "The methods sodetlib calls on a SmurfControl, frozen so that a change to this client cannot remove one without the removal being a decision. Generated from a measurement of sodetlib at the commit named below; regenerate only when sodetlib's own use changes, and say why in the commit message. `properties` are the configuration properties sodetlib reads as attributes (`S.R_sh`, `S.bands`), public or through the private field; `property_shapes` the array shapes its indexing depends on.",
   "sodetlib_commit": "04cfa27",
   "public": [
     "flux_ramp_off",
@@ -90,6 +90,25 @@
     "_rtm_slow_dac_bit_to_volt",
     "_rtm_slow_dac_nbits"
   ],
+  "properties": [
+    "R_sh",
+    "amplitude_scale",
+    "bad_mask",
+    "bands",
+    "bias_group_to_pair",
+    "bias_line_resistance",
+    "high_low_current_ratio",
+    "lms_freq_hz",
+    "n_bias_groups",
+    "pA_per_phi0",
+    "pic_to_bias_group"
+  ],
+  "property_shapes": {
+    "pic_to_bias_group": "ndarray (n, 2) int",
+    "bias_group_to_pair": "ndarray (n, 3) int",
+    "bad_mask": "ndarray (n, 2) float",
+    "amplitude_scale": "dict {band: int}, the live one"
+  },
   "not_ours": [
     "_sodetlib_cfg"
   ],

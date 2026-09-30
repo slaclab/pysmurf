@@ -97,7 +97,7 @@ class SmurfIVMixin(SmurfBase):
         n_bias_groups = self._n_bias_groups
 
         if bias_groups is None:
-            bias_groups = self._all_groups
+            bias_groups = self.all_groups
         bias_groups = np.array(bias_groups)
 
         if overbias_voltage != 0.:
@@ -160,7 +160,7 @@ class SmurfIVMixin(SmurfBase):
         np.save(path, iv_raw_data)
         self.pub.register_file(path, 'iv_raw', format='npy')
 
-        R_sh=self._R_sh
+        R_sh=self.R_sh
 
         if do_analysis:
             self.log(f'Analyzing IV (do_analysis={do_analysis}).')
@@ -226,14 +226,14 @@ class SmurfIVMixin(SmurfBase):
             bias_low_array = original_biases
 
         if overbias_voltage is not None: # only overbias if this is set
-            if self._high_current_mode_bool:
+            if self.high_current_mode_bool:
                 tes_bias = 2. # Probably should actually move this over to
             else: #overbias_tes_all
                 tes_bias = 19.9
             self.overbias_tes_all(
                 overbias_voltage=overbias_voltage,
                 overbias_wait=overbias_wait, tes_bias=tes_bias,
-                high_current_mode=self._high_current_mode_bool)
+                high_current_mode=self.high_current_mode_bool)
 
         ### make arrays of voltages to set ###
         # first, figure out the length of the longest sweep
@@ -296,7 +296,7 @@ class SmurfIVMixin(SmurfBase):
 
         if analyze:
             self.analyze_plc_from_file(fn_plc_raw_data, make_plot=make_plot,
-                show_plot=show_plot, save_plot=save_plot, R_sh=self._R_sh,
+                show_plot=show_plot, save_plot=save_plot, R_sh=self.R_sh,
                 phase_excursion_min=phase_excursion_min, channels=channels)
 
         return path
@@ -646,7 +646,7 @@ class SmurfIVMixin(SmurfBase):
         v_bias = np.abs(v_bias)
 
         if R_sh is None:
-            R_sh = self._R_sh
+            R_sh = self.R_sh
 
         if pA_per_phi0 is None:
             pA_per_phi0 = self._pA_per_phi0

@@ -664,7 +664,7 @@ class SmurfNoiseMixin(SmurfBase):
                         np.max(self.get_amplitude_scale_array(band)),dtype=int))
                 self.run_serial_gradient_descent(band)
                 self.run_serial_eta_scan(band)
-                self.tracking_setup(band,lms_freq_hz=self._lms_freq_hz[band],
+                self.tracking_setup(band,lms_freq_hz=self.lms_freq_hz[band],
                     save_plot=True, make_plot=True, channel=self.which_on(band),
                     show_plot=False)
 
@@ -942,7 +942,7 @@ class SmurfNoiseMixin(SmurfBase):
             fs = self.get_sample_frequency()
 
         if R_sh is None:
-            R_sh = self._R_sh
+            R_sh = self.R_sh
 
         if isinstance(bias,str):
             self.log(f'Biases being read from {bias}')
@@ -1573,7 +1573,7 @@ class SmurfNoiseMixin(SmurfBase):
             The returned values from noise_all_vs_noise_solo.
         """
         if fs is None:
-            fs = self._fs
+            fs = self.fs
 
         keys = ret.keys()
         all_dir = ret.pop('all')
@@ -1651,7 +1651,7 @@ class SmurfNoiseMixin(SmurfBase):
             V_b *= self._high_low_current_ratio
         I_b = V_b/self._bias_line_resistance # bias current running through shunt+TES network
         if R_sh is None:
-            R_sh = self._R_sh
+            R_sh = self.R_sh
         V_tes = I_b*R_sh*R_tes/(R_sh+R_tes) # voltage across TES
         NEP = V_tes*NEI # power spectral density
         T_CMB = 2.7
@@ -1714,7 +1714,7 @@ class SmurfNoiseMixin(SmurfBase):
         channel = channel.astype(int)
 
         if fs is None:
-            fs = self._fs
+            fs = self.fs
 
         if isinstance(tone,str):
             self.log(f'Tone powers being read from {tone}')
