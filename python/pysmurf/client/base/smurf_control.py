@@ -16,13 +16,14 @@
 """Defines the SmurfControl class.
 """
 import glob
+import json
 import os
 import time
 
 import numpy as np
 
-from pysmurf.client.base.smurf_config import SmurfConfig
-from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin
+from pysmurf.client import config as smurf_config
+from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin, delay_writes
 from pysmurf.client.command.smurf_atca_monitor import SmurfAtcaMonitorMixin
 from pysmurf.client.command.smurf_command import SmurfCommandMixin
 from pysmurf.client.debug.smurf_iv import SmurfIVMixin
@@ -51,7 +52,12 @@ class SmurfControl(SmurfCommandMixin,
     Args
     ----
     cfg_file : str, optional, default None
-       Config file path.  Must be provided if not on offline mode.
+       Configuration file: YAML over the packaged default, or a legacy
+       JSON ``.cfg`` (converted with a deprecation warning). Online, it may
+       be omitted for a system that has already been configured: the
+       configuration is then read back from the server, or from the sidecar
+       the configuring client wrote, checked against the system. A system
+       that has neither is refused with a request to run ``setup()``.
     data_dir : str, optional, default None
        Path to the data directory.
     name : str, optional, default None
@@ -70,20 +76,21 @@ class SmurfControl(SmurfCommandMixin,
        implemented here are in smurf_cmd.py.
     no_dir :  bool, optional, default False
        Whether to make a skip making a directory.
-    validate_config : bool, optional, default True
-       Whether to check if the input config file is correct.
 
     Attributes
     ----------
-    config : :class:`~pysmurf.client.base.smurf_config.SmurfConfig` or None
-       ???
+    config : :class:`cryodaq.Resolved` or None
+       The resolved configuration, with every key's provenance; None
+       offline with no file.
     output_dir : str or None
-       ???
+       Where this session's outputs go, once ``initialize`` has run.
 
     Raises
     ------
-    ValueError
-       If not `offline` and `cfg_file` is None.
+    RuntimeError
+       If not `offline`, `cfg_file` is None and the system is not configured.
+    cryodaq.DescriptionMismatch
+       If the sidecar found for the system disagrees with its registers.
 
     See Also
     --------
@@ -94,7 +101,7 @@ class SmurfControl(SmurfCommandMixin,
 
     def __init__(self, cfg_file=None, data_dir=None, name=None, make_logfile=True,
                  setup=False, offline=False, smurf_cmd_mode=False,
-                 shelf_manager='shm-smrf-sp01', no_dir=False, validate_config=True,
+                 shelf_manager='shm-smrf-sp01', no_dir=False,
                  data_path_id=None, **kwargs):
         """Constructor for the SmurfControl class.
 
@@ -108,27 +115,27 @@ class SmurfControl(SmurfCommandMixin,
         self._pv_cache = {}
 
         # Class attributes
-        self.config = None
         self.output_dir = None
+        self._cfg_file = cfg_file
+        # Scratch the tuning writes into the status dump; not configuration.
+        self._outputs = {}
 
-        # Require specification of configuration file if not in
-        # offline mode.  If configuration file is specified, load into
-        # config attribute.
         SmurfConfigPropertiesMixin.__init__(self)
-        if not offline and cfg_file is None:
-            raise ValueError('Must provide config file.')
-        elif cfg_file is not None:
-            self.config = SmurfConfig(cfg_file)
-            # Populate SmurfConfigPropertiesMixin properties with
-            # values from loaded pysmurf configuration file.
-            self.copy_config_to_properties(self.config)
+        if cfg_file is not None:
+            self.copy_config_to_properties(smurf_config.load(cfg_file))
 
         # Save shelf manager - Should this be in the config?
         self.shelf_manager = shelf_manager
 
         super().__init__(offline=offline, **kwargs)
 
-        if cfg_file is not None or data_dir is not None:
+        # Online with no file: the system may already be configured, and
+        # then what it was configured with is the configuration.
+        if cfg_file is None and not offline:
+            self._reattach()
+
+        # A reattached instance has a configuration too, and gets its directories.
+        if self.config is not None or data_dir is not None:
             self.initialize(data_dir=data_dir,
                 name=name, make_logfile=make_logfile, setup=setup,
                 smurf_cmd_mode=smurf_cmd_mode, no_dir=no_dir,
@@ -182,7 +189,7 @@ class SmurfControl(SmurfCommandMixin,
                   'This will break may things!')
         elif smurf_cmd_mode:
             # Get data dir
-            self.data_dir = self._smurf_cmd_dir
+            self.data_dir = self.smurf_cmd_dir
             self.start_time = self.get_timestamp()
 
             # Define output and plot dirs
@@ -206,7 +213,7 @@ class SmurfControl(SmurfCommandMixin,
             if data_dir is not None:
                 self.data_dir = data_dir
             else:
-                self.data_dir = self._default_data_dir
+                self.data_dir = self.default_data_dir
 
             self.date = time.strftime("%Y%m%d")
 
@@ -313,9 +320,6 @@ class SmurfControl(SmurfCommandMixin,
                     ' risk!',
                     self.LOG_ERROR)
 
-        # initialize outputs cfg
-        self.config.update('outputs', {})
-
     def setup(self, write_log=True, payload_size=2048, force_configure=False, **kwargs):
         r"""Configures SMuRF system.
 
@@ -411,13 +415,13 @@ class SmurfControl(SmurfCommandMixin,
         # Thermal OT protection - should this be moved after
         # setDefaults?
         ultrascale_temperature_limit_degC = (
-            self._ultrascale_temperature_limit_degC)
+            self.ultrascale_temperature_limit_degC)
         if ultrascale_temperature_limit_degC is not None:
             self.log('Setting ultrascale OT protection limit '+
                      f'to {ultrascale_temperature_limit_degC}C', self.LOG_USER)
             # OT threshold in degrees C
             self.set_ultrascale_ot_threshold(
-                self._ultrascale_temperature_limit_degC,
+                self.ultrascale_temperature_limit_degC,
                 write_log=write_log)
 
         # Which bands are we configuring?
@@ -506,125 +510,87 @@ class SmurfControl(SmurfCommandMixin,
             # The per band configs. May want to make available per-band
             # values.
             for band in bands:
-                self.set_iq_swap_in(band, self._iq_swap_in[band],
+                self.set_iq_swap_in(band, self.iq_swap_in[band],
                                     write_log=write_log, **kwargs)
-                self.set_iq_swap_out(band, self._iq_swap_out[band],
+                self.set_iq_swap_out(band, self.iq_swap_out[band],
                                      write_log=write_log, **kwargs)
 
-                if self._ref_phase_delay[band]:
-                    self.set_ref_phase_delay(
-                        band,
-                        self._ref_phase_delay[band],
-                        write_log=write_log, **kwargs)
-                    self.set_ref_phase_delay_fine(
-                        band,
-                        self._ref_phase_delay_fine[band],
-                        write_log=write_log, **kwargs)
-
-                    # The lmsDelay register matches the system latency
-                    # for LMS feedback.  The readout has both actuator
-                    # and sensor delay, so this delay is needed to
-                    # compensate the feedback.
-                    #
-                    # actuator being the delay from DSP -> synthesis
-                    # filter bank -> JESD -> DAC -> RF tracked freq
-                    # out
-                    #
-                    # sensor delay being RF in resonator -> ADC input
-                    # -> JESD -> filter bank -> demod (edited)
-                    #
-                    # The delay is needed because we are playing out a
-                    # FM waveform on the RF DACs and it takes ~us to
-                    # get the results.
-                    #
-                    # In production SMuRF firmware, lmsDelay should be
-                    # set equal to refPhaseDelay, and both are
-                    # integers that count 2.4 MHz ticks.  If none
-                    # provided in cfg, enforce that constraint.  If
-                    # provided in cfg, override with provided value.
-                    if self._lms_delay[band] is None:
-                        self.set_lms_delay(
-                            band, int(self._ref_phase_delay[band]),
-                            write_log=write_log, **kwargs)
-                    else:
-                        self.set_lms_delay(
-                            band, self._lms_delay[band],
-                            write_log=write_log, **kwargs)
-                # we'll use the next band_delay_us
-                else:
-                    if self._band_delay_us[band] is None:
-                        raise RuntimeError("Must define either refPhaseDelay " +
-                                           "and refPhaseDelayFine or bandDelayUs")
-                    self.set_band_delay_us(
-                        band,
-                        self._band_delay_us[band],
-                        write_log=write_log, **kwargs)
+                # The band delay, either as the three firmware registers
+                # the configuration names directly or as a total the
+                # firmware derives them from; delay_writes decides which.
+                # The lmsDelay register matches the system latency for LMS
+                # feedback -- actuator (DSP -> DAC -> RF) plus sensor (RF ->
+                # ADC -> demod) -- and in production firmware equals
+                # refPhaseDelay unless the configuration says otherwise.
+                for register, value in delay_writes(self.config.values['bands'][band]):
+                    getattr(self, f'set_{register}')(band, value,
+                                                     write_log=write_log, **kwargs)
 
                 self.set_lms_gain(
-                    band, self._lms_gain[band],
+                    band, self.lms_gain[band],
                     write_log=write_log, **kwargs)
 
                 self.set_trigger_reset_delay(
-                    band, self._trigger_reset_delay[band],
+                    band, self.trigger_reset_delay[band],
                     write_log=write_log, **kwargs)
 
                 self.set_feedback_enable(
-                    band, self._feedback_enable[band],
+                    band, self.feedback_enable[band],
                     write_log=write_log, **kwargs)
                 self.set_feedback_gain(
-                    band, self._feedback_gain[band],
+                    band, self.feedback_gain[band],
                     write_log=write_log, **kwargs)
                 self.set_feedback_limit_khz(
-                    band, self._feedback_limit_khz[band],
+                    band, self.feedback_limit_khz[band],
                     write_log=write_log, **kwargs)
                 self.set_feedback_polarity(
-                    band, self._feedback_polarity[band],
+                    band, self.feedback_polarity[band],
                     write_log=write_log, **kwargs)
 
                 if not self.is_rfsoc:
-                    for dmx in np.array(self._data_out_mux[band]):
+                    for dmx in np.array(self.data_out_mux[band]):
                         self.set_data_out_mux(
                             int(self.band_to_bay(band)), int(dmx),
                             "UserData", write_log=write_log, **kwargs)
 
                 self.set_dsp_enable(
-                    band, self._dsp_enable,
+                    band, self.dsp_enable,
                     write_log=write_log, **kwargs)
 
                 # Tuning defaults
                 self.set_gradient_descent_gain(
-                    band, self._gradient_descent_gain[band],
+                    band, self.gradient_descent_gain[band],
                     write_log=write_log, **kwargs)
                 self.set_gradient_descent_averages(
-                    band, self._gradient_descent_averages[band],
+                    band, self.gradient_descent_averages[band],
                     write_log=write_log, **kwargs)
                 self.set_gradient_descent_converge_hz(
-                    band, self._gradient_descent_converge_hz[band],
+                    band, self.gradient_descent_converge_hz[band],
                     write_log=write_log, **kwargs)
                 self.set_gradient_descent_step_hz(
-                    band, self._gradient_descent_step_hz[band],
+                    band, self.gradient_descent_step_hz[band],
                     write_log=write_log, **kwargs)
                 self.set_gradient_descent_momentum(
-                    band, self._gradient_descent_momentum[band],
+                    band, self.gradient_descent_momentum[band],
                     write_log=write_log, **kwargs)
                 self.set_gradient_descent_beta(
-                    band, self._gradient_descent_beta[band],
+                    band, self.gradient_descent_beta[band],
                     write_log=write_log, **kwargs)
                 self.set_eta_scan_averages(
-                    band, self._eta_scan_averages[band],
+                    band, self.eta_scan_averages[band],
                     write_log=write_log, **kwargs)
                 self.set_eta_scan_del_f(
-                    band, self._eta_scan_del_f[band],
+                    band, self.eta_scan_del_f[band],
                     write_log=write_log, **kwargs)
 
             # Set UC and DC attenuators
             if not self.is_rfsoc:
                 for band in bands:
                     self.set_att_uc(
-                        band, self._att_uc[band],
+                        band, self.att_uc[band],
                         write_log=write_log)
                     self.set_att_dc(
-                        band, self._att_dc[band],
+                        band, self.att_dc[band],
                         write_log=write_log)
 
                 # Things that have to be done for both AMC bays, regardless of whether or not an AMC
@@ -653,7 +619,7 @@ class SmurfControl(SmurfCommandMixin,
 
             # Make sure flux ramp starts off
             self.flux_ramp_off(write_log=write_log)
-            self.flux_ramp_setup(self._reset_rate_khz,
+            self.flux_ramp_setup(self.reset_rate_khz,
                                  self._fraction_full_scale,
                                  write_log=write_log)
 
@@ -689,8 +655,8 @@ class SmurfControl(SmurfCommandMixin,
             # distribute across the backplane. If from backplane, assume we're
             # not on slot 2, and receive timing from backplane. If external,
             # receive external reference from the front of the panel.
-            if self._timing_reference is not None:
-                timing_reference = self._timing_reference
+            if self.timing_reference is not None:
+                timing_reference = self.timing_reference
 
                 timing_options = ['ext_ref', 'backplane', 'fiber']
                 assert (timing_reference in timing_options), (
@@ -706,6 +672,15 @@ class SmurfControl(SmurfCommandMixin,
                 self.set_timing_mode(timing_reference)
 
             self.log('Done with setup.', self.LOG_USER)
+
+            # Publish what this system was just configured with, so a
+            # client that connects later -- with no file -- can read it
+            # back, and so a restarted server still has a record.
+            sidecar = self._session.publish(
+                self.config, extra={'pysmurf_version': self.get_pysmurf_version(),
+                                    'config_file': self._cfg_file})
+            self.log(f'Published the resolved configuration; sidecar {sidecar}',
+                     self.LOG_INFO)
         else:
             self.log('Setup failed!', self.LOG_ERROR)
 
@@ -762,38 +737,56 @@ class SmurfControl(SmurfCommandMixin,
         return timestamp
 
     def add_output(self, key, val):
-        """Adds key/value pair to pysmurf configuration dictionary.
+        """Records a key/value pair for the next :meth:`write_output`.
 
-        NEED LONGER DESCRIPTION OF ADD OUTPUT MEMBER FUNCTION HERE.
+        The outputs are scratch beside the configuration -- what a tuning run
+        found -- and never become configuration.
 
         Args
         ----
         key : any
-            The name of the key to update.
+            The name of the key to record.
         val : any
-            The value to assign to the key.
+            The value to record.
         """
-        self.config.update_subkey('outputs', key, val)
-
+        self._outputs[key] = val
 
     def write_output(self, filename=None):
-        """Writes internal pysmurf configuration to disk.
+        """Writes the resolved configuration and the recorded outputs to disk, as JSON.
 
-        Dump the current configuration to a file. This wraps around the config
-        file writing in the config object. Files are timestamped and dumped to
-        the S.output_dir by default.
+        Files are timestamped and dumped to ``S.output_dir`` by default.
 
         Args
         ----
         filename : str, optional, default None
-              Full path of output configuration file to write to disk.
+              Full path of the file to write.
         """
-
         timestamp = self.get_timestamp()
-        if filename is not None:
-            output_file = filename
-        else:
-            output_file = timestamp + '.cfg'
+        output_file = filename if filename is not None else timestamp + '.cfg'
+        # An absolute filename stands on its own; a relative one goes under output_dir.
+        full_path = output_file if os.path.isabs(output_file) \
+            else os.path.join(self.output_dir, output_file)
+        record = {'config': self.config.to_dict() if self.config is not None else None,
+                  'outputs': self._outputs}
+        with open(full_path, 'w') as f:
+            json.dump(record, f, indent=4, default=str)
 
-        full_path = os.path.join(self.output_dir, output_file)
-        self.config.write(full_path)
+    def _reattach(self):
+        """Adopt the configuration a running system was given, when there is no file.
+
+        The server is asked first; a restarted server has forgotten, and then
+        the sidecar the configuring client wrote is read and checked against
+        the system's registers. Nothing is guessed: a system nothing remembers
+        configuring is refused.
+        """
+        resolved = self._session.resolved()
+        if resolved is not None:
+            resolved = smurf_config.adopt(resolved)
+        if resolved is None:
+            raise RuntimeError(
+                f"{self._session.endpoint} is not configured and no cfg_file was "
+                f"given; run SmurfControl(cfg_file=...).setup() first")
+        self.copy_config_to_properties(resolved)
+        self.log(f'Reattached to the published configuration {resolved.hash[:12]} '
+                 f'({" <- ".join(os.path.basename(p) for p in resolved.layers)})',
+                 self.LOG_USER)

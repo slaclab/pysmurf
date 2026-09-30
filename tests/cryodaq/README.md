@@ -25,6 +25,11 @@ the second covers the two import rules below it:
   `cryodaq.platform` package rather than one of its map modules.
 * **The maps import no rogue** — a map is data, and the lookup over it is arithmetic on strings.
   A map module that reached for a tree would be doing the client's work in the wrong layer.
+* **Rogue is imported only where a session opens or a server runs** — elsewhere in the package a
+  `pyrogue`/`rogue` import sits inside a function body, so the package imports where rogue is not
+  installed; a module-level one, under a `try` or not, is reported. The one module exempt is the
+  server-side `Description` device, which exists only where a server runs and is imported by a
+  root rather than by the package.
 * **No application names** — `is_rfsoc`, `tes`, `bias_group` and `pA_per_phi0` appear nowhere under
   `cryodaq`. Which detectors are wired where belongs to the application above it, and branching on
   platform identity is what a per-platform map exists to avoid.
@@ -42,7 +47,7 @@ and held to the same rule; a file that is not UTF-8 text cannot be read for path
 rather than passed over — the package ships no such file today, and one appearing would be the one
 way to carry a path this check cannot see.
 
-The sixth source check watches a different seam: the null publisher a session falls back to takes the
+A further source check watches a different seam: the null publisher a session falls back to takes the
 same parameter *names* as pysmurf's real `Publisher`, compared by parsing both. A caller that passes
 them by keyword — sodetlib does — would get a `TypeError` from a stand-in that renamed them, so the
 names are interface and not detail. It reads source because this script runs where pysmurf's own
@@ -239,6 +244,35 @@ caller that passes none has always blocked that way; and
 the handler that carries the session's `logging` records into `SmurfLogger` maps every level the right
 way round, the two numberings running in opposite directions.
 
+### check_config_resolves.py
+
+This script checks `cryodaq.config` and the session's publish/reattach path, with synthetic fixtures
+under `fixtures/config/` — three layers whose keys mean nothing, a flat file written to equal their
+resolution, and the expected result as JSON — so what is proven is the machinery and not any
+application's schema. The checks: the layers resolve to the committed result; the flat equivalent
+gives the same values and the same hash; every leaf names the layer and the line that set it, and
+nothing else has provenance; a default mapping sits under everything; the application's `validate`
+sees the merged values and its answer is the result; and each fault the layering can have — a loop
+in `inherit:`, an unreadable or unparsable layer, one that is not a mapping, an `inherit` that is not
+a path or list of paths — is refused naming the file and, where there is one, the key. The sidecar
+checks: a write is atomic (a rename that fails leaves the old record and no temporary behind), a
+record round-trips with its dated copy, a corrupt one is refused naming the file. Then, over a
+stand-in tree with the firmware, application, description and witness registers, a real `Session`
+publishes and reads back: the server is preferred while it remembers, the sidecar is used after a
+restart or on a server with no description node, and a sidecar that disagrees with the system on a
+firmware field or a configured witness raises `DescriptionMismatch` naming the field and both values.
+Only the *configured* witnesses are recorded and compared — the ones the configuring operation alone
+changes — since a band delay or an attenuator is re-tuned in normal use and a record that refused
+every reattach after a tune would be a record nobody kept.
+
+The selftest points each check at a fixture set with one thing wrong — a wrong expected result, a flat
+file that differs, a marker that lies about its layer, a leaf without provenance, a line off by one,
+a shallow merge, a write that leaves half a file, a reattach that skips the witness compare, a
+sidecar that records the tuning witnesses — and requires the complaint to name that thing.
+
+Needs PyYAML, which `cryodaq.config` imports where it reads a file; the CI job installs it for this
+step alone.
+
 ### validate_client_emulated.py
 
 This script drives a `cryodaq` session against an emulated firmware tree.
@@ -272,6 +306,8 @@ read-only refused, and the value read back to show the refusal was the only thin
 value changed on the tree underneath the session seen by the next read, which is what every bounded
 wait rests on; a command; a process under a bounded wait; the whole tree still reachable through
 `session.root`; a wrong name and a wrong kind each refused with an exception that says which; a
+configuration published to the server's own `Description` device and read back from it in preference
+to the sidecar, which is where the description names are shown to reach real nodes; a
 session a program never closed still letting the interpreter exit, which is checked in a child process
 because what it asserts is an exit). The
 per-band ones work on a band
