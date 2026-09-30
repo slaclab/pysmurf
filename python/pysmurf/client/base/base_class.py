@@ -14,17 +14,12 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import atexit
+import logging
 
-try:
-    import pyrogue.interfaces
-except ModuleNotFoundError:
-    import warnings
-    warnings.warn("Could not import pyrogue. Can only use offline mode.")
-
-from cryodaq import platform
+import cryodaq
 from pysmurf.client.command.cryo_card import CryoCard
 from pysmurf.client.util.pub import Publisher
-from .logger import SmurfLogger
+from .logger import SmurfLogger, SmurfLogHandler
 
 class _DummyClient:
     """Dummy client to raise informative error messages
@@ -97,32 +92,27 @@ class SmurfBase:
         self._server_port = server_port
         self._atca_port = atca_port
 
-        # suppress client logging errors
-        # this doesn't work because rogue filters only can lower the level...
-        #rogue.Logging.setFilter('pyrogue.ZmqClient', rogue.Logging.Critical)
+        # If <pub_root>BACKEND environment variable is not set to 'udp', all
+        # publish calls will be no-ops.
+        self.pub = Publisher(env_root=pub_root, script_id=script_id)
 
-        # connect to rogue servers
+        # connect to the rogue server
         if not offline:
-            self._client = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._server_port)
-            # Set a 30s timeout. And warn every 5s
-            self._client.setTimeout(5000, 30000)  # ms
-            # disable monitor thread that hangs on exit
-            self._client._monEnable = False
-            # ensure that client socket is closed
-            atexit.register(self._client.stop)
-            # Which platform this is comes from the firmware the tree reports, read
-            # once here so that a system no map claims is refused on connection
-            # rather than at the first register a method reaches. Every accessor
-            # resolves its names against this map from here on. A refusal closes
-            # the client it was made through: __init__ does not complete, so
-            # nothing else would, and each retry would otherwise leave one open
-            # until exit.
-            try:
-                self._platform_map_cache = platform.identify(self._client.root)
-            except BaseException:
-                self._client.stop()
-                raise
+            # The connection is a cryodaq session: one client, a 30 s request
+            # timeout warning every 5 s, no link monitor (its thread hangs the
+            # interpreter on exit), closed on the way out, and the platform
+            # identified from the firmware the tree reports -- so a system no map
+            # claims is refused here rather than at the first register a method
+            # reaches. What the session logs arrives through the handler below,
+            # since its level numbering runs the other way from SmurfLogger's.
+            self._session = cryodaq.connect(
+                f'{server_addr}:{server_port}', timeout=30.0, monitor=False,
+                publisher=self.pub, logger=self._cryodaq_logger())
+            self.is_rfsoc = self._session.pmap.name == 'umux-rfsoc'
             if atca_monitor:
+                # The shelf manager's monitor is a second rogue server with its
+                # own tree, outside the platform map; it is reached directly.
+                import pyrogue.interfaces
                 self._atca = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._atca_port)
                 if self._atca.root is None:
                     self.log(f"Could not connect to ATCA monitor at port {self._atca_port}.")
@@ -131,14 +121,10 @@ class SmurfBase:
             else:
                 self._atca = _DummyClient("ATCA monitor client")
         else:
-            self._client = _DummyClient("OFFLINE: Server client")
-            self._atca = _DummyClient("OFFLINE: ATCA monitor client")
             # Offline there is no firmware to ask, and no register is reached.
-            self._platform_map_cache = None
-
-        # If <pub_root>BACKEND environment variable is not set to 'udp', all
-        # publish calls will be no-ops.
-        self.pub = Publisher(env_root=pub_root, script_id=script_id)
+            self._session = None
+            self.is_rfsoc = False
+            self._atca = _DummyClient("OFFLINE: ATCA monitor client")
 
         self.offline = offline
         if self.offline is True:
@@ -150,14 +136,11 @@ class SmurfBase:
         else:
             # The cryostat card is reached over a serial link on the RTM, through a
             # pair of mailbox nodes. Where those are is a property of the platform,
-            # so they are resolved through its map and handed over as nodes; the
-            # card's own protocol is all that CryoCard then knows. It is given this
-            # client's tree rather than opening a second connection to the same
-            # endpoint, which is what it used to do.
-            pmap = self._platform_map_cache
+            # so they are resolved by name and handed over as nodes; the card's
+            # own protocol is all that CryoCard then knows.
             self.C = CryoCard(
-                self._client.root.getNode(pmap.path('rtm.cryocard.read')),
-                self._client.root.getNode(pmap.path('rtm.cryocard.write')),
+                self._session.node('rtm.cryocard.read'),
+                self._session.node('rtm.cryocard.write'),
                 log=self.log,
             )
 
@@ -175,6 +158,43 @@ class SmurfBase:
 
         # LUT table length for arbitrary waveform generation
         self._lut_table_array_length = 2048
+
+    @property
+    def _client(self):
+        """The rogue client the session holds.
+
+        Kept for the methods that still ask the tree by register path; every
+        other register is reached by name through the session.
+
+        .. deprecated:: 11.5.0
+            Goes with the methods scheduled for removal.
+        """
+        if self._session is None:
+            return _DummyClient("OFFLINE: Server client")
+        return self._session._client
+
+    def _cryodaq_logger(self):
+        """A ``logging`` logger whose records land in this object's log.
+
+        Private to this instance -- named after it -- and not propagated, so a
+        second SmurfControl in the same process does not receive the first's
+        session messages.
+        """
+        logger = logging.getLogger(f'cryodaq.pysmurf.{id(self)}')
+        logger.handlers.clear()
+        logger.addHandler(SmurfLogHandler(self.log, self._log_levels()))
+        logger.setLevel(logging.DEBUG)
+        logger.propagate = False
+        return logger
+
+    def _log_levels(self):
+        """The named log levels, ``{'user': 0, 'error': 0, 'info': 1, 'task': 2}``."""
+        levels = dict()
+        for k in dir(self):
+            if not k.startswith('LOG_'):
+                continue
+            levels[k.split('LOG_', 1)[1].lower()] = getattr(self, k)
+        return levels
 
     def init_log(self, verbose=0, logger=SmurfLogger, logfile=None,
                  log_timestamp=True, log_prefix=None, **kwargs):
@@ -207,16 +227,9 @@ class SmurfBase:
 
         timestamp = log_timestamp
         prefix = log_prefix
-        levels = dict()
-        for k in dir(self):
-            if not k.startswith('LOG_'):
-                continue
-            v = getattr(self, k)
-            name = k.split('LOG_', 1)[1].lower()
-            levels[name] = v
         log = logger(verbosity=verbose, logfile=logfile,
                      timestamp=timestamp, prefix=prefix,
-                     levels=levels, **kwargs)
+                     levels=self._log_levels(), **kwargs)
         return log
 
     def set_verbose(self, level):

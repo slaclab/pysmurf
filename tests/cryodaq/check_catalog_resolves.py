@@ -60,7 +60,7 @@ sys.path.insert(0, os.path.join(
     'python'))
 
 from cryodaq import platform                                         # noqa: E402
-from cryodaq.platform import _umux                                   # noqa: E402
+from cryodaq.platform import _atca, _rfsoc, _umux                    # noqa: E402
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent.parent
@@ -78,6 +78,12 @@ PLATFORM_OF = {'atca': 'umux-atca', 'rfsoc': 'umux-rfsoc'}
 # Fewer names resolving than this means the dump or the map has stopped being the real
 # one, not that the firmware shrank. The selftest lowers it: its fake maps are small.
 MIN_RESOLVED = 100
+
+# Each platform module's two tables, core and legacy. The map itself holds their union
+# and does not tell them apart -- a name resolves the same way from either -- so the
+# split is checked here, against the modules that declare it.
+TABLES = ((_atca.NAME, _atca.REGISTERS, _atca.LEGACY),
+          (_rfsoc.NAME, _rfsoc.REGISTERS, _rfsoc.LEGACY))
 
 # The subtrees the *server* adds on top of the firmware package, by their top-level node
 # name under the root. The map declares them -- they are its own section, because the
@@ -198,6 +204,15 @@ def _literal_pattern(expr):
     return None
 
 
+def _scheduled_for_removal(func):
+    """Whether a method wears the client's ``_scheduled_for_removal`` mark."""
+    for deco in func.decorator_list:
+        target = deco.func if isinstance(deco, ast.Call) else deco
+        if isinstance(target, ast.Name) and target.id == '_scheduled_for_removal':
+            return True
+    return False
+
+
 def _local_names(func):
     """Every ``name = <literal>`` a function assigns, by variable, or None for a
     variable assigned more than once or from something that is not a literal."""
@@ -291,6 +306,7 @@ def load_client_names():
             if func.name in {'_get_by_name', '_set_by_name', '_wait_for'}:
                 continue        # the helpers themselves, whose argument is a parameter
             locals_ = _local_names(func)
+            deprecated = _scheduled_for_removal(func)
             for node in ast.walk(func):
                 if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
                     continue
@@ -304,6 +320,7 @@ def load_client_names():
                     continue
                 if path != COMMAND:
                     call['line'] = f'{path.name}:{call["line"]}'
+                call['deprecated'] = deprecated
                 found.append(call)
     # A few accessors choose their name from a table instead of writing it at the call
     # site, because the caller passes a register number rather than naming the register:
@@ -329,6 +346,7 @@ def load_client_names():
                         'name': re.sub(r'\[\d+\]', '[*]', value.value),
                         'direction': direction,
                         'line': value.lineno,
+                        'deprecated': False,
                     })
 
     if len(found) < 150:
@@ -575,6 +593,38 @@ def check_the_client_reaches_only_names_the_map_resolves():
         'too few distinct names reached to mean much'
 
 
+def check_the_legacy_table_holds_exactly_the_names_only_deprecated_accessors_reach():
+    """The map's two tables are split by who needs the name, and the split is exact.
+
+    A name is in the legacy table when the only client code reaching it is a method
+    scheduled for removal, and in the core table otherwise. Both directions are
+    failures: a core name no live code reaches -- unless an operation, the description
+    or the witness list reaches it, which the map states by keeping it -- is a name
+    that should leave with the accessors, and a legacy name a live method reaches
+    would be deleted from under that method, and a legacy name no accessor reaches
+    would never be taken away. The tables are also held disjoint: the map takes their
+    union, and a name in both would silently be whichever won.
+    """
+    reached = load_client_names()
+    live = {c['name'] for c in reached if not c['deprecated']}
+    dead_only = {c['name'] for c in reached if c['deprecated']} - live
+    for name, registers, legacy in TABLES:
+        both = set(registers) & set(legacy)
+        assert not both, f"{name}: in both tables: {sorted(both)[:6]}"
+        misplaced = sorted(set(legacy) & live)
+        assert not misplaced, (f"{name}: legacy name(s) a live method reaches: " +
+                               ', '.join(misplaced[:6]))
+        orphaned = sorted(set(legacy) - dead_only)
+        assert not orphaned, (f"{name}: legacy name(s) no accessor reaches at all -- "
+                              f"nothing would take them away; delete or justify: " +
+                              ', '.join(orphaned[:6]))
+        should_leave = sorted(set(registers) & dead_only)
+        assert not should_leave, (f"{name}: core name(s) only deprecated accessors "
+                                  f"reach; move to LEGACY: " + ', '.join(should_leave[:6]))
+    assert len(dead_only) >= 40, \
+        f"only {len(dead_only)} names are reached by deprecated accessors alone; the mark scan has stopped seeing them"
+
+
 def check_the_map_declares_the_kind_the_firmware_declares():
     """A name the map calls a value is a value in the firmware, and a command a command.
 
@@ -651,8 +701,8 @@ def selftest():
     import tempfile
     from dataclasses import replace
 
-    global FIXTURES, COMMAND, CLIENT, PLATFORM_OF, MIN_RESOLVED
-    saved = (FIXTURES, COMMAND, CLIENT, PLATFORM_OF, MIN_RESOLVED, platform.MAPS)
+    global FIXTURES, COMMAND, CLIENT, PLATFORM_OF, MIN_RESOLVED, TABLES
+    saved = (FIXTURES, COMMAND, CLIENT, PLATFORM_OF, MIN_RESOLVED, TABLES, platform.MAPS)
     failures = 0
 
     def expect_failure(label, fn, saying):
@@ -967,8 +1017,59 @@ def selftest():
             expect_failure('a client whose accessors cannot be read is caught',
                            check_the_client_reaches_only_names_the_map_resolves,
                            'the check has stopped recognising them')
+
+            # The two-table split. A client with forty-odd deprecated methods, each
+            # reaching a name of its own, and one live method: the legacy table has
+            # to hold exactly the deprecated names.
+            def split_client(live_names, dead_names):
+                lines = ['class SmurfCommandMixin:',
+                         '    def _scheduled_for_removal(reason):',
+                         '        return lambda f: f']
+                for i, name in enumerate(live_names):
+                    lines += [f'    def live{i}(self, band=0):',
+                              f"        return self._get_by_name(f'{name}')"]
+                for i, name in enumerate(dead_names):
+                    lines += ["    @_scheduled_for_removal('old')",
+                              f'    def dead{i}(self, band=0):',
+                              f"        return self._get_by_name(f'{name}')"]
+                for i in range(len(live_names) + len(dead_names), 160):
+                    lines += [f'    def pad{i}(self, band=0):',
+                              "        return self._get_by_name(f'band[{band}].delay_us')"]
+                return chr(10).join(lines) + chr(10)
+
+            dead_names = [f'band[{{band}}].old{i}' for i in range(45)]
+            dead_patterns = {f'band[*].old{i}': (base + f'Old{i}[{{band}}]', 'value')
+                             for i in range(45)}
+            write_client(split_client(['band[{band}].delay_us'], dead_names))
+            TABLES = (('fake', dict(shared), dead_patterns),
+                      ('fake_rfsoc', dict(shared), dead_patterns))
+            check_the_legacy_table_holds_exactly_the_names_only_deprecated_accessors_reach()
+            print('  ok    a correct two-table split passes')
+
+            TABLES = (('fake', dict(shared, **{
+                'band[*].old0': dead_patterns['band[*].old0']}),
+                {k: v for k, v in dead_patterns.items() if k != 'band[*].old0'}),)
+            expect_failure('a core name only deprecated accessors reach is caught',
+                           check_the_legacy_table_holds_exactly_the_names_only_deprecated_accessors_reach,
+                           'move to LEGACY: band[*].old0')
+
+            TABLES = (('fake', {}, dict(dead_patterns, **shared)),)
+            expect_failure('a legacy name a live method reaches is caught',
+                           check_the_legacy_table_holds_exactly_the_names_only_deprecated_accessors_reach,
+                           'legacy name(s) a live method reaches: band[*].delay_us')
+
+            TABLES = (('fake', dict(shared), dict(
+                dead_patterns, **{'band[*].orphan': (base + 'Orphan[{band}]', 'value')})),)
+            expect_failure('a legacy name no accessor reaches is caught',
+                           check_the_legacy_table_holds_exactly_the_names_only_deprecated_accessors_reach,
+                           'no accessor reaches at all')
+
+            TABLES = (('fake', dict(shared), dict(dead_patterns, **shared)),)
+            expect_failure('a name in both tables is caught',
+                           check_the_legacy_table_holds_exactly_the_names_only_deprecated_accessors_reach,
+                           'in both tables')
     finally:
-        FIXTURES, COMMAND, CLIENT, PLATFORM_OF, MIN_RESOLVED, platform.MAPS = saved
+        FIXTURES, COMMAND, CLIENT, PLATFORM_OF, MIN_RESOLVED, TABLES, platform.MAPS = saved
 
     print('')
     if failures:

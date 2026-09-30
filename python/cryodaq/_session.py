@@ -693,10 +693,7 @@ def connect(target: str, *, timeout: Optional[float] = DEFAULT_TIMEOUT_S,
         False turns it off, which is what the client this replaces did. True
         does not turn one back on: rogue's monitor loop ends for good once the
         flag drops, so nothing can restart a monitor another client stopped.
-        The monitor's thread is not a daemon, so a session left open would hold
-        the interpreter at exit; leaving the monitor running therefore also
-        registers the close that a caller who never called ``close`` did not --
-        see *Notes*.
+        Either way a session nobody closed is closed at exit -- see *Notes*.
     platform_name : str, optional
         Which platform this is, for a system whose firmware cannot say: an
         emulated register space reports an empty build stamp, and a bench system
@@ -739,13 +736,17 @@ def connect(target: str, *, timeout: Optional[float] = DEFAULT_TIMEOUT_S,
     all the others. Concurrent sessions on one endpoint are not supported;
     a program that wants two needs two processes.
 
-    **A session nobody closes is closed at exit.** rogue's link monitor runs in a
-    thread that is not a daemon, so the interpreter waits for it on the way out
-    and a session left open would never let go -- the case being an interactive
-    session, where nothing guarantees a ``close``. What ends it is registered
-    with ``threading`` rather than ``atexit``: the wait for non-daemon threads
-    happens before ``atexit`` runs, so an ``atexit`` handler is already too late
-    to stop the thread being waited for.
+    **A session nobody closes is closed at exit.** For two reasons, one per
+    monitor setting. With the monitor on, its thread is not a daemon, so the
+    interpreter waits for it on the way out and a session left open would never
+    let go -- the case being an interactive session, where nothing guarantees a
+    ``close``. With it off, a client left to its destructors aborts the process
+    during finalisation some of the time (``FATAL: exception not rethrown``,
+    slaclab/rogue#1294), after everything the program meant to print. What ends
+    the client is a full ``stop()`` registered with ``threading`` rather than
+    ``atexit``: the wait for non-daemon threads happens before ``atexit`` runs,
+    so an ``atexit`` handler is already too late to stop a thread being waited
+    for, and the same hook is early enough for the other case.
     """
     host, port = endpoint_of(target)
     endpoint = f"{host}:{port}"
@@ -780,14 +781,20 @@ def connect(target: str, *, timeout: Optional[float] = DEFAULT_TIMEOUT_S,
         warn = WARN_INTERVAL_S if timeout is None else min(WARN_INTERVAL_S, timeout)
         client.setTimeout(math.ceil(warn * 1000),
                           0 if timeout is None else math.ceil(timeout * 1000))
-        # The monitor thread is what notices a dead server; a caller who turns it
-        # off is asking for the historical behaviour of not being told. It is
-        # also not a daemon thread, so leaving it running is a promise to end it:
-        # where that promise cannot be made, a caller who forgot close() would
-        # pay for it with an interpreter that will not exit, and no monitor is
-        # the better of those two.
-        if not monitor or not _stop_when_the_interpreter_does(
-                client, endpoint, logger or log):
+        # Every client is stopped on the way out of the interpreter, monitor or
+        # no monitor. A client nobody stopped is torn down by its C++ destructors
+        # during finalisation, and rogue then aborts the process some of the time
+        # ("FATAL: exception not rethrown", exit 134/139) after everything the
+        # program meant to print -- a clean run with a crashed exit, measured at
+        # a few per cent of runs (slaclab/rogue#1294). A full stop() registered
+        # early is what does not abort. The monitor thread is what notices a dead
+        # server; a caller who turns it off is asking for the historical behaviour
+        # of not being told. It is also not a daemon thread, so leaving it running
+        # is a promise to end it: where that promise cannot be made, a caller who
+        # forgot close() would pay for it with an interpreter that will not exit,
+        # and no monitor is the better of those two.
+        registered = _stop_when_the_interpreter_does(client, endpoint, logger or log)
+        if not monitor or not registered:
             client._monEnable = False
         # Not a second opinion on rogue's handshake, which raises on its own and
         # is already reported above: rogue hands back a cached client for an

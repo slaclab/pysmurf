@@ -901,7 +901,7 @@ class SmurfUtilMixin(SmurfBase):
             publisher.
         IQ_mode : bool, optional, default to False
             Whether or not you want to take data in IQ streaming mode.
-            You must have S._caget(f'{S.app_core}modeStream')=1.
+            You must have S.get_mode_stream() == 1.
 
 
         Returns
@@ -1022,7 +1022,7 @@ class SmurfUtilMixin(SmurfBase):
         filter_wait_time : float, optional, default 0.1
             Time in seconds to wait after filter reset.
         IQ_mode : bool, optional, defaulte False
-            Whether to take data in IQ streaming mode. Need S._caget(f'{S.app_core}modeStream')=1
+            Whether to take data in IQ streaming mode. Need S.get_mode_stream() == 1
 
         Returns
         -------
@@ -1218,7 +1218,7 @@ class SmurfUtilMixin(SmurfBase):
         gcp_mode (bool) : Indicates that the data was written in GCP mode. This
             is the legacy data mode which was depracatetd in Rogue 4.
         IQ_mode : bool, optional, default False
-            Whether data was taken with IQ stream mode:  S._caget(f'{S.app_core}modeStream')=1
+            Whether data was taken with IQ stream mode:  S.get_mode_stream() == 1
         fast_reader : bool, optional, default True
             Use a cython-optimized file reader. Will fallback on python reader if cython
             is not available, but this is much slower.
@@ -1710,9 +1710,9 @@ class SmurfUtilMixin(SmurfBase):
         else:
             self.set_arm_hw_trigger(bay, 1, write_log=write_log)
 
-        # A bounded wait. The timeout is passed explicitly because `_wait_for`
-        # turns None into 0, and 0 means "no timeout" to `VariableWait` -- so
-        # omitting it waits for a flag that may never rise, with no way out.
+        # A bounded wait. The timeout is passed explicitly because a bare
+        # `_wait_for` waits forever -- for a flag that may never rise, with no
+        # way out.
         for capture in captures:
             self._wait_for(f'stream.capture[{capture}].updated', bool,
                            timeout=timeout)
@@ -3393,7 +3393,7 @@ class SmurfUtilMixin(SmurfBase):
             An array of SMuRF channel numbers.  Must be the same
             length as band.
         IQ_mode : Bool, optiona, default False
-            Applies to IQ stream mode with S._caget(f'{S.app_core}modeStream')=1
+            Applies to IQ stream mode with S.get_mode_stream() == 1
 
         Returns
         -------

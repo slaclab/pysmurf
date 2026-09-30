@@ -162,7 +162,9 @@ class PlatformMap:
         belonging to this map. More than one where several firmware lines share
         a platform's registers and its bring-up.
     registers : mapping
-        Name pattern to ``(path template, kind)``.
+        Name pattern to ``(path template, kind)``. A platform module declares
+        this as two tables, core and legacy; the map holds their union and does
+        not distinguish them, since a name resolves the same way from either.
     witness : tuple of str
         Name patterns worth reading back to record how a system was left.
     scopes : mapping
@@ -196,7 +198,7 @@ class PlatformMap:
             than a name.
         """
         pattern, found = parse(name)
-        if pattern not in self.registers:
+        if pattern not in self:
             raise UnresolvedName(name, pattern=pattern, reason='not in this platform map')
         if any(index < 0 for index in found.values()):
             raise UnresolvedName(name, pattern=pattern,
@@ -221,7 +223,7 @@ class PlatformMap:
 def _from_module(module: Any) -> PlatformMap:
     """Build the map a platform module declares as data."""
     return PlatformMap(name=module.NAME, tags=tuple(module.TAGS),
-                       registers=dict(module.REGISTERS),
+                       registers={**module.REGISTERS, **module.LEGACY},
                        witness=tuple(module.WITNESS),
                        scopes=dict(module.SCOPES))
 
