@@ -71,6 +71,11 @@ DEFAULT_PACKAGE = REPO / 'python' / 'cryodaq'
 APPLICATION_IMPORTS = ('pysmurf', 'smurf', 'sodetlib')
 # Top-level modules the map layer must never import: it holds no tree access.
 MAP_FORBIDDEN_IMPORTS = ('pyrogue', 'rogue')
+# Where the rest of the package may import them: inside a function, so the
+# package imports where rogue is not installed -- or in the one module that
+# exists only where a server runs, and is imported by a root rather than by
+# the package.
+SERVER_SIDE_MODULES = ('_description.py',)
 # Identifiers that mark the application boundary.
 APPLICATION_NAMES = ('is_rfsoc', 'tes', 'bias_group', 'pA_per_phi0')
 APPLICATION_NAMES_RE = re.compile(r'\b(' + '|'.join(APPLICATION_NAMES) + r')\b')
@@ -114,6 +119,25 @@ def imported_modules(tree):
                 yield alias.name, 0
         elif isinstance(node, ast.ImportFrom):
             yield node.module or '', node.level
+
+
+def module_level_imports(tree):
+    """Yield (dotted module name, lineno) for every import not inside a function.
+
+    A module-level `if`, `try` or class body still counts: none of them defers
+    the import to a call, so the module still needs the package to import.
+    """
+    def walk(node):
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                continue
+            if isinstance(child, ast.Import):
+                for alias in child.names:
+                    yield alias.name, child.lineno
+            elif isinstance(child, ast.ImportFrom):
+                yield child.module or '', child.lineno
+            yield from walk(child)
+    yield from walk(tree)
 
 
 def imported_from(tree):
@@ -172,6 +196,10 @@ def violations(package):
                        (level == 1 and name.startswith('platform.')))
             if private and not platform:
                 found.append(('imports', f"{rel}: reaches into {name}"))
+        if rel.name not in SERVER_SIDE_MODULES:
+            for name, lineno in module_level_imports(tree):
+                if name.split('.')[0] in MAP_FORBIDDEN_IMPORTS:
+                    found.append(('rogue', f"{rel}:{lineno} imports {name} at module level"))
         for module, name, level in imported_from(tree):
             # `from cryodaq.platform import _umux`. A public name out of the
             # package is how the client is meant to reach the maps, so only a
@@ -222,6 +250,10 @@ def check_no_application_names():
 
 def check_no_geometry_literals():
     report('geometry')
+
+
+def check_rogue_is_imported_only_where_a_session_opens_or_a_server_runs():
+    report('rogue')
 
 
 def check_register_paths_only_in_platform():
@@ -531,7 +563,16 @@ def check_rules_fire_on_a_bad_package():
         "def f(is_rfsoc, x):\n"
         "    n = 512\n"
         "    return 'AMCc.FpgaTopLevel.AppTop', x.bias_group, n\n"
+        # A deferred import is how a module may reach rogue; one under a `try`
+        # at module level is not deferred at all.
+        "def g():\n"
+        "    import pyrogue.interfaces\n"
+        "try:\n"
+        "    import rogue\n"
+        "except ImportError:\n"
+        "    rogue = None\n"
     )
+    server_side = "import pyrogue\nclass D(pyrogue.Device):\n    pass\n"
     bad_map = (
         "import sodetlib\n"
         "import pyrogue as pr\n"
@@ -545,6 +586,7 @@ def check_rules_fire_on_a_bad_package():
         (pkg / 'platform').mkdir(parents=True)
         (pkg / '__init__.py').write_text('')
         (pkg / '_client.py').write_text(bad_client)
+        (pkg / SERVER_SIDE_MODULES[0]).write_text(server_side)
         (pkg / 'platform' / '__init__.py').write_text('')
         (pkg / 'platform' / '_x.py').write_text(bad_map)
         # A map shipped as data outside the platform package, which the source
@@ -576,17 +618,23 @@ def check_rules_fire_on_a_bad_package():
         f"a binary file outside platform was passed over rather than refused: {data_rule!r}"
 
     rules = {r for r, _ in found}
-    expected = {'imports', 'application', 'geometry', 'paths'}
+    expected = {'imports', 'application', 'geometry', 'paths', 'rogue'}
     assert rules == expected, f"rules fired: {sorted(rules)}, expected {sorted(expected)}"
     details = '\n'.join(d for _, d in found)
     for needle in ('imports pysmurf', 'reaches into platform._umux',
                    'reaches into cryodaq.platform._atca', 'imports sodetlib',
                    'imports pyrogue inside cryodaq.platform',
                    "identifier 'is_rfsoc'", "identifier 'bias_group'",
-                   "mentions 'tes'", 'literal 512', 'literal 614.4', 'register path'):
+                   "mentions 'tes'", 'literal 512', 'literal 614.4', 'register path',
+                   '_client.py:11 imports rogue at module level',
+                   '_x.py:2 imports pyrogue at module level'):
         assert needle in details, f"rule for {needle!r} did not fire:\n{details}"
     assert 'platform.parse' not in details, \
         f"the public map lookup was reported as a violation:\n{details}"
+    assert 'pyrogue.interfaces' not in details, \
+        f"an import deferred into a function was reported:\n{details}"
+    assert SERVER_SIDE_MODULES[0] not in details, \
+        f"the server-side module's own import was reported:\n{details}"
 
 
 # --------------------------------------------------------------------------

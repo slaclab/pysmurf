@@ -361,6 +361,23 @@ def check_every_witness_name_is_in_the_map():
             assert name in pmap, f"{pmap.name} witnesses {name}, which it cannot resolve"
 
 
+def check_the_configured_witnesses_are_a_proper_subset_of_the_witnesses():
+    # A recorded description is checked against the configured witnesses only,
+    # so every one of them is a witness, and there is at least one witness that
+    # is not -- the set a tune moves -- or the distinction is not doing anything.
+    for pmap in platform.MAPS:
+        configured, all_ = set(pmap.witness_configured), set(pmap.witness)
+        assert configured, f"{pmap.name} checks a recorded description against nothing"
+        assert configured <= all_, \
+            f"{pmap.name} checks names it does not witness: {sorted(configured - all_)}"
+        assert all_ - configured, f"{pmap.name} witnesses nothing a tune may change"
+        # Expanded over a tree with band 0 and bay 0, the configured names are the
+        # ones the witness list expands to, minus the tuning ones.
+        has = lambda path: path.endswith(('[0]', 'Base[0]')) or '[' not in path  # noqa: E731
+        both = set(platform.witness_names(pmap, has, pmap.witness_configured))
+        assert both <= set(platform.witness_names(pmap, has)), pmap.name
+
+
 # --------------------------------------------------------------------------
 
 def main():

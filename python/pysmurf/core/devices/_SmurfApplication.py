@@ -55,13 +55,6 @@ class SmurfApplication(pyrogue.Device):
             value=' '.join(sys.argv[1:]),
             mode='RO'))
 
-        self.add(pyrogue.LocalVariable(
-            name='SomePySmurfVariable',
-            description='PySMuRF Variable Example',
-            mode='RW',
-            value=0, # Initial value determine variable type, (int, float, list, etc)
-        ))
-
         # This variable will hold a list of the enabled bays. We set here the initial
         # value as a list of 2 elements, which will be its maximum size (as we have at
         # most 2 enabled bays). Its EPICS PV will be created with the initial size of

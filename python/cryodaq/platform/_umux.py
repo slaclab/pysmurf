@@ -35,7 +35,8 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-__all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES', 'BUILD_STAMP', 'SERVER_ADDED_ROOT_NODES']
+__all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'WITNESS_CONFIGURED', 'SCOPES',
+           'BUILD_STAMP', 'SERVER_ADDED_ROOT_NODES']
 
 # --------------------------------------------------------------------------
 # register paths, as templates over the indexed scopes
@@ -83,6 +84,13 @@ SMURF_DIRECTORY = f'{APPLICATION}.SmurfDirectory'
 STARTUP_SCRIPT = f'{APPLICATION}.StartupScript'
 JESD_STATUS = f'{APPLICATION}.JesdStatus'
 CHECK_JESD = f'{APPLICATION}.CheckJesd'
+
+# Where the server carries the configuration it was last given, published by the
+# operation that applied it: the resolved values as JSON, their hash, and when.
+DESCRIPTION = f'{ROOT}.Description'
+RESOLVED_CONFIG = f'{DESCRIPTION}.ResolvedConfig'
+RESOLVED_HASH = f'{DESCRIPTION}.Hash'
+RESOLVED_WRITTEN_AT = f'{DESCRIPTION}.WrittenAt'
 
 # The data processor: the channel map, the downsampler, the low-pass filter and the
 # file writer, in the order a sample passes through them.
@@ -159,8 +167,8 @@ STREAMING_IS_OPEN = f'{STREAMING_INTERFACE}.IsOpen'
 # are numbered, so theirs keeps its index placeholder.
 SERVER_ADDED_ROOT_NODES = tuple(
     p.split('.')[1]
-    for p in (READY, SET_DEFAULTS, APPLICATION, PROCESSOR, STREAM_DATA_SOURCE,
-              CAPTURE, STREAM_WRITER, STREAMING_INTERFACE))
+    for p in (READY, SET_DEFAULTS, APPLICATION, DESCRIPTION, PROCESSOR,
+              STREAM_DATA_SOURCE, CAPTURE, STREAM_WRITER, STREAMING_INTERFACE))
 
 # --------------------------------------------------------------------------
 # the FPGA
@@ -508,6 +516,9 @@ REGISTERS = {
     'save_config.running': (SAVE_CONFIG_RUNNING, _V),
     'save_config.message': (SAVE_CONFIG_MESSAGE, _V),
     'application.check_jesd': (CHECK_JESD, _C),
+    'description.resolved_config': (RESOLVED_CONFIG, _V),
+    'description.hash': (RESOLVED_HASH, _V),
+    'description.written_at': (RESOLVED_WRITTEN_AT, _V),
     'carrier.fpga.temperature': (FPGA_TEMPERATURE, _V),
     'carrier.fpga.vcc_int': (FPGA_VCC_INT, _V),
     'carrier.fpga.vcc_aux': (FPGA_VCC_AUX, _V),
@@ -730,13 +741,21 @@ LEGACY = {
 # on. Patterns, expanded over the indices the tree turns out to have. A platform adds
 # the witnesses of the hardware only it has -- the data links' lock state and the
 # attenuator settings are a carrier's, and are in that platform's own map.
-WITNESS = (
+#
+# The first group is what the configuring operation leaves and nothing else moves
+# until it runs again, so a recorded description is checked against these on reattach.
+# The rest -- the band delay here, a carrier's attenuators -- are set by configuration
+# and then re-measured or re-tuned in normal use, so they are recorded but a change in
+# one is not a reason to refuse the record.
+WITNESS_CONFIGURED = (
     'application.jesd_status',
     'timing.rx_link_up',
     'flux_ramp.ramp_max_cnt',
     'flux_ramp.enable_trigger',
     'flux_ramp.start_mode',
     'stream.enable',
-    'band[*].delay_us',
     'band[*].dsp.enable',
+)
+WITNESS = WITNESS_CONFIGURED + (
+    'band[*].delay_us',
 )

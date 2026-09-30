@@ -28,9 +28,10 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-from cryodaq.platform._umux import LEGACY, REGISTERS, SCOPES, WITNESS
+from cryodaq.platform._umux import (LEGACY, REGISTERS, SCOPES, WITNESS,
+                                    WITNESS_CONFIGURED)
 
-__all__ = ['NAME', 'TAGS', 'REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES']
+__all__ = ['NAME', 'TAGS', 'REGISTERS', 'LEGACY', 'WITNESS', 'WITNESS_CONFIGURED', 'SCOPES']
 
 NAME = 'umux-rfsoc'
 
