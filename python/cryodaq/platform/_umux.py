@@ -670,8 +670,9 @@ REGISTERS.update({f'band[*].ops.{name}': (path, _C)
 # current firmware; it is the accessors that are legacy. Kept apart from the table above
 # because the names leave with those accessors, in the release after the one that
 # ships their warning: a name here is not the core's, and nothing in cryodaq or in a
-# live pysmurf method may resolve one. The same session resolves both tables; the split
-# is a statement about who needs the name, checked in the tests, not a second lookup.
+# live pysmurf method may resolve one. The PlatformMap takes the union of the two and
+# does not tell them apart; the split is a statement about who needs the name, made
+# here and checked in the tests, not a second lookup.
 LEGACY = {
     'carrier.bsa.engine[*].buffer[*].write_address': (BSA_BUFFER_WRITE_ADDR, _V),
     'band[*].decimation': (DECIMATION, _V),

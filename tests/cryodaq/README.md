@@ -156,8 +156,9 @@ stopped matching fails here rather than quietly checking nothing.
   layer's deprecated methods. Which table a name belongs in is decided by who reaches it, read from the
   same accessor scan with the `_scheduled_for_removal` mark on each method: a name a live method reaches
   may not be legacy, a name only marked methods reach may not be core, and no name may be in both.
-  The two resolve identically through one session; the split is a statement about who needs a name,
-  so that deleting the methods deletes their names and nothing else.
+  The `PlatformMap` itself holds the union and does not tell the tables apart -- the split lives in
+  the platform modules and is checked there -- so that deleting the methods deletes their names and
+  nothing else.
 
 The dumps under `fixtures/` are pruned: a full one is some nine megabytes, almost all of it the
 per-channel registers of eight bands. A row is kept when the device it sits in is one a name reaches,

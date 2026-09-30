@@ -60,7 +60,7 @@ sys.path.insert(0, os.path.join(
     'python'))
 
 from cryodaq import platform                                         # noqa: E402
-from cryodaq.platform import _umux                                   # noqa: E402
+from cryodaq.platform import _atca, _rfsoc, _umux                    # noqa: E402
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent.parent
@@ -78,6 +78,12 @@ PLATFORM_OF = {'atca': 'umux-atca', 'rfsoc': 'umux-rfsoc'}
 # Fewer names resolving than this means the dump or the map has stopped being the real
 # one, not that the firmware shrank. The selftest lowers it: its fake maps are small.
 MIN_RESOLVED = 100
+
+# Each platform module's two tables, core and legacy. The map itself holds their union
+# and does not tell them apart -- a name resolves the same way from either -- so the
+# split is checked here, against the modules that declare it.
+TABLES = ((_atca.NAME, _atca.REGISTERS, _atca.LEGACY),
+          (_rfsoc.NAME, _rfsoc.REGISTERS, _rfsoc.LEGACY))
 
 # The subtrees the *server* adds on top of the firmware package, by their top-level node
 # name under the root. The map declares them -- they are its own section, because the
@@ -352,7 +358,7 @@ def load_client_names():
 
 def template_of(pmap, name):
     """The register path template a name pattern resolves to."""
-    return pmap.entries[name][0]
+    return pmap.registers[name][0]
 
 
 def indices_present(paths, template, scope, fixed):
@@ -459,7 +465,7 @@ def resolution(stem, names=None, package_only=False, platform_name=None):
     """
     paths = load_dump(stem)
     pmap = platform.by_name(platform_name or PLATFORM_OF[stem])
-    wanted = sorted(pmap.entries if names is None else names)
+    wanted = sorted(pmap.registers if names is None else names)
     resolved, absent = {}, {}
     for name in wanted:
         if name in SERVER_ATTACHED:
@@ -513,14 +519,14 @@ def check_the_platforms_differ_by_the_hardware_one_lacks():
     """
     atca = platform.by_name(PLATFORM_OF['atca'])
     rfsoc = platform.by_name(PLATFORM_OF['rfsoc'])
-    carrier_only = set(atca.entries) - set(rfsoc.entries)
+    carrier_only = set(atca.registers) - set(rfsoc.registers)
     assert carrier_only, ('the two maps offer the same names, so nothing here shows '
                           'that resolution does not depend on a device existing')
     stray = sorted(n for n in carrier_only
                    if not any(d in template_of(atca, n) for d in CARRIER_ONLY_DEVICES))
     assert not stray, ('name(s) the carrier has and the other lacks that are not its '
                        'front end or data links: ' + ', '.join(stray[:6]))
-    other_way = sorted(set(rfsoc.entries) - set(atca.entries))
+    other_way = sorted(set(rfsoc.registers) - set(atca.registers))
     assert not other_way, ('name(s) offered by the platform with fewer devices and not '
                            'by the carrier: ' + ', '.join(other_way[:6]))
     # And the firmware has to agree: every carrier-only name must resolve there and
@@ -595,21 +601,20 @@ def check_the_legacy_table_holds_exactly_the_names_only_deprecated_accessors_rea
     failures: a core name no live code reaches -- unless an operation, the description
     or the witness list reaches it, which the map states by keeping it -- is a name
     that should leave with the accessors, and a legacy name a live method reaches
-    would be deleted from under that method. The tables are also held disjoint, so a
-    name cannot be in both and answer to whichever is asked first.
+    would be deleted from under that method. The tables are also held disjoint: the
+    map takes their union, and a name in both would silently be whichever won.
     """
-    from cryodaq import platform
     reached = load_client_names()
     live = {c['name'] for c in reached if not c['deprecated']}
     dead_only = {c['name'] for c in reached if c['deprecated']} - live
-    for pmap in platform.MAPS:
-        both = set(pmap.registers) & set(pmap.legacy)
-        assert not both, f"{pmap.name}: in both tables: {sorted(both)[:6]}"
-        misplaced = sorted(set(pmap.legacy) & live)
-        assert not misplaced, (f"{pmap.name}: legacy name(s) a live method reaches: " +
+    for name, registers, legacy in TABLES:
+        both = set(registers) & set(legacy)
+        assert not both, f"{name}: in both tables: {sorted(both)[:6]}"
+        misplaced = sorted(set(legacy) & live)
+        assert not misplaced, (f"{name}: legacy name(s) a live method reaches: " +
                                ', '.join(misplaced[:6]))
-        should_leave = sorted(set(pmap.registers) & dead_only)
-        assert not should_leave, (f"{pmap.name}: core name(s) only deprecated accessors "
+        should_leave = sorted(set(registers) & dead_only)
+        assert not should_leave, (f"{name}: core name(s) only deprecated accessors "
                                   f"reach; move to LEGACY: " + ', '.join(should_leave[:6]))
     assert len(dead_only) >= 40, \
         f"only {len(dead_only)} names are reached by deprecated accessors alone; the mark scan has stopped seeing them"
@@ -640,10 +645,10 @@ def check_the_map_declares_the_kind_the_firmware_declares():
     nodes = load_nodes('atca')
     paths = load_dump('atca')
     wrong = []
-    for name in sorted(pmap.entries):
+    for name in sorted(pmap.registers):
         if name in SERVER_ATTACHED:
             continue
-        declared = pmap.entries[name][1]
+        declared = pmap.registers[name][1]
         for concrete in expand(paths, template_of(pmap, name)):
             kind, mode = nodes.get(concrete, ('', ''))
             if declared == 'command' and mode and mode != 'WO':
@@ -691,8 +696,8 @@ def selftest():
     import tempfile
     from dataclasses import replace
 
-    global FIXTURES, COMMAND, CLIENT, PLATFORM_OF, MIN_RESOLVED
-    saved = (FIXTURES, COMMAND, CLIENT, PLATFORM_OF, MIN_RESOLVED, platform.MAPS)
+    global FIXTURES, COMMAND, CLIENT, PLATFORM_OF, MIN_RESOLVED, TABLES
+    saved = (FIXTURES, COMMAND, CLIENT, PLATFORM_OF, MIN_RESOLVED, TABLES, platform.MAPS)
     failures = 0
 
     def expect_failure(label, fn, saying):
@@ -1031,31 +1036,29 @@ def selftest():
             dead_patterns = {f'band[*].old{i}': (base + f'Old{i}[{{band}}]', 'value')
                              for i in range(45)}
             write_client(split_client(['band[{band}].delay_us'], dead_names))
-            split = replace(fake, registers=dict(shared), legacy=dead_patterns)
-            platform.MAPS = (split, replace(fake_bayless, registers=dict(shared),
-                                            legacy=dead_patterns))
+            TABLES = (('fake', dict(shared), dead_patterns),
+                      ('fake_rfsoc', dict(shared), dead_patterns))
             check_the_legacy_table_holds_exactly_the_names_only_deprecated_accessors_reach()
             print('  ok    a correct two-table split passes')
 
-            platform.MAPS = (replace(split, registers=dict(shared, **{
+            TABLES = (('fake', dict(shared, **{
                 'band[*].old0': dead_patterns['band[*].old0']}),
-                legacy={k: v for k, v in dead_patterns.items() if k != 'band[*].old0'}),)
+                {k: v for k, v in dead_patterns.items() if k != 'band[*].old0'}),)
             expect_failure('a core name only deprecated accessors reach is caught',
                            check_the_legacy_table_holds_exactly_the_names_only_deprecated_accessors_reach,
                            'move to LEGACY: band[*].old0')
 
-            platform.MAPS = (replace(split, registers={},
-                                     legacy=dict(dead_patterns, **shared)),)
+            TABLES = (('fake', {}, dict(dead_patterns, **shared)),)
             expect_failure('a legacy name a live method reaches is caught',
                            check_the_legacy_table_holds_exactly_the_names_only_deprecated_accessors_reach,
                            'legacy name(s) a live method reaches: band[*].delay_us')
 
-            platform.MAPS = (replace(split, legacy=dict(dead_patterns, **shared)),)
+            TABLES = (('fake', dict(shared), dict(dead_patterns, **shared)),)
             expect_failure('a name in both tables is caught',
                            check_the_legacy_table_holds_exactly_the_names_only_deprecated_accessors_reach,
                            'in both tables')
     finally:
-        FIXTURES, COMMAND, CLIENT, PLATFORM_OF, MIN_RESOLVED, platform.MAPS = saved
+        FIXTURES, COMMAND, CLIENT, PLATFORM_OF, MIN_RESOLVED, TABLES, platform.MAPS = saved
 
     print('')
     if failures:

@@ -162,12 +162,9 @@ class PlatformMap:
         belonging to this map. More than one where several firmware lines share
         a platform's registers and its bring-up.
     registers : mapping
-        Name pattern to ``(path template, kind)``: the core table, every name an
-        operation, the description or a live client method reaches.
-    legacy : mapping
-        The same shape, for the names only deprecated compatibility accessors
-        reach. Resolved exactly like the core table; kept apart because they
-        leave with those accessors, and a checker holds the two disjoint.
+        Name pattern to ``(path template, kind)``. A platform module declares
+        this as two tables, core and legacy; the map holds their union and does
+        not distinguish them, since a name resolves the same way from either.
     witness : tuple of str
         Name patterns worth reading back to record how a system was left.
     scopes : mapping
@@ -176,31 +173,20 @@ class PlatformMap:
 
     name: str
     tags: Tuple[str, ...]
-    registers: Mapping[str, Tuple[str, str]]
     witness: Tuple[str, ...]
     scopes: Mapping[str, Tuple[Tuple[str, ...], Tuple[str, ...]]]
-    legacy: Mapping[str, Tuple[str, str]] = field(default_factory=dict)
+    registers: Mapping[str, Tuple[str, str]] = field(default_factory=dict)
 
     def __contains__(self, pattern: str) -> bool:
-        return pattern in self.registers or pattern in self.legacy
+        return pattern in self.registers
 
     def __len__(self) -> int:
-        return len(self.registers) + len(self.legacy)
+        return len(self.registers)
 
     @property
     def patterns(self) -> Tuple[str, ...]:
-        """Every name pattern in the map, core and legacy, sorted."""
-        return tuple(sorted(set(self.registers) | set(self.legacy)))
-
-    @property
-    def entries(self) -> Mapping[str, Tuple[str, str]]:
-        """Every name pattern with its ``(path template, kind)``, core and legacy."""
-        return {**self.registers, **self.legacy}
-
-    def _lookup(self, pattern: str) -> Tuple[str, str]:
-        if pattern in self.registers:
-            return self.registers[pattern]
-        return self.legacy[pattern]
+        """Every name pattern in the map, sorted."""
+        return tuple(sorted(self.registers))
 
     def entry(self, name: str) -> Tuple[str, str]:
         """The register path and kind a concrete name resolves to.
@@ -217,7 +203,7 @@ class PlatformMap:
         if any(index < 0 for index in found.values()):
             raise UnresolvedName(name, pattern=pattern,
                                  reason='a pattern, not a name: every scope needs an index')
-        template, kind = self._lookup(pattern)
+        template, kind = self.registers[pattern]
         return _fill(template, found), kind
 
     def path(self, name: str) -> str:
@@ -237,8 +223,7 @@ class PlatformMap:
 def _from_module(module: Any) -> PlatformMap:
     """Build the map a platform module declares as data."""
     return PlatformMap(name=module.NAME, tags=tuple(module.TAGS),
-                       registers=dict(module.REGISTERS),
-                       legacy=dict(getattr(module, 'LEGACY', {})),
+                       registers={**module.REGISTERS, **module.LEGACY},
                        witness=tuple(module.WITNESS),
                        scopes=dict(module.SCOPES))
 

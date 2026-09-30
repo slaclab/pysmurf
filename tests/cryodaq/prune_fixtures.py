@@ -90,7 +90,7 @@ def path_templates():
     """
     out = {}
     for pmap in platform.MAPS:
-        for name, (template, _) in pmap.entries.items():
+        for name, (template, _) in pmap.registers.items():
             out.setdefault(name, template)
     return out
 
