@@ -107,7 +107,15 @@ class Resolved:
     layers: Tuple[str, ...]
 
     def get(self, key: str, default: Any = None) -> Any:
-        """The value at a dotted ``key``, or ``default`` when there is none."""
+        """The value at a dotted key.
+
+        Parameters
+        ----------
+        key : str
+            Dotted path into ``values``, e.g. ``'bands.4.att_uc'``.
+        default : object, optional
+            Returned when no value sits at ``key``.
+        """
         node: Any = self.values
         for part in key.split('.'):
             if not isinstance(node, Mapping) or part not in node:
@@ -124,7 +132,19 @@ class Resolved:
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> 'Resolved':
-        """Rebuild from ``to_dict``'s output; the hash is recomputed and checked."""
+        """Rebuild from ``to_dict``'s output; the hash is recomputed and checked.
+
+        Parameters
+        ----------
+        data : mapping
+            What ``to_dict`` returned, possibly after a trip through JSON:
+            ``values``, ``provenance``, ``hash`` and ``layers``.
+
+        Raises
+        ------
+        ConfigError
+            If ``data['hash']`` is present and is not the hash of ``data['values']``.
+        """
         values = data['values']
         recorded = data.get('hash')
         computed = hash_of(values)
@@ -138,7 +158,14 @@ class Resolved:
 
 
 def hash_of(values: Mapping[str, Any]) -> str:
-    """SHA-256 of the canonical JSON of ``values``."""
+    """SHA-256 of the canonical JSON of a mapping.
+
+    Parameters
+    ----------
+    values : mapping
+        Nested configuration values; keys are stringified and sorted, so two
+        mappings equal as JSON hash the same whatever their key types or order.
+    """
     canonical = json.dumps(_plain(values), sort_keys=True, separators=(',', ':'))
     return hashlib.sha256(canonical.encode('utf-8')).hexdigest()
 
@@ -217,6 +244,14 @@ def merge(lower: Mapping[str, Any], upper: Mapping[str, Any]) -> Dict[str, Any]:
     A list is replaced whole -- there is no way to say "these too" for a list,
     and appending silently would make the result depend on a layer the author
     of ``upper`` may never have seen.
+
+    Parameters
+    ----------
+    lower : mapping
+        The layer underneath.
+    upper : mapping
+        The layer on top; where both have a mapping at a key the two merge,
+        otherwise ``upper``'s value wins. Neither argument is modified.
     """
     out: Dict[str, Any] = dict(lower)
     for key, value in upper.items():
@@ -228,7 +263,15 @@ def merge(lower: Mapping[str, Any], upper: Mapping[str, Any]) -> Dict[str, Any]:
 
 
 def flatten(values: Mapping[str, Any], prefix: str = '') -> Dict[str, Any]:
-    """Leaves of a nested mapping as ``{'a.b.c': value}``; empty mappings are leaves."""
+    """Leaves of a nested mapping as ``{'a.b.c': value}``; empty mappings are leaves.
+
+    Parameters
+    ----------
+    values : mapping
+        The nested mapping.
+    prefix : str
+        Prepended to every key; the recursion passes ``'a.b.'`` down.
+    """
     out: Dict[str, Any] = {}
     for key, value in values.items():
         dotted = f"{prefix}{key}"
@@ -318,10 +361,17 @@ def load(path: Union[str, Path], *, default: Optional[Layer] = None,
 # --------------------------------------------------------------------------
 
 def record_path(status_dir: Union[str, Path], endpoint: str) -> Path:
-    """Where the configuration record for ``endpoint`` lives under ``status_dir``.
+    """Where the configuration record for an endpoint lives under a status directory.
 
     One file per endpoint: ``<status_dir>/resolved/<endpoint-slug>.json``, the
     slug being the endpoint with every run of non-alphanumerics made ``_``.
+
+    Parameters
+    ----------
+    status_dir : str or Path
+        The status directory; ``RECORD_DIR`` is created under it when written.
+    endpoint : str
+        The server, as ``host:port``.
     """
     slug = _SLUG.sub('_', endpoint).strip('_') or 'unnamed'
     return Path(status_dir) / RECORD_DIR / f"{slug}.json"
@@ -344,10 +394,19 @@ def write_record(resolved: Resolved, path: Union[str, Path], *,
         What was applied.
     path : str or Path
         Usually ``record_path(...)``. Its directory is created.
-    endpoint, firmware, witness, extra : optional
-        What to record about the system: its endpoint, the firmware identity
-        fields of the session's description, the witness registers read after
-        the configuration was applied, and anything the application adds.
+    endpoint : str, optional
+        The server the configuration was applied to, as ``host:port``.
+    firmware : mapping, optional
+        The firmware identity fields of the session's description, so the
+        record says what hardware it was written for.
+    witness : mapping, optional
+        Semantic name to value, the witness registers read after the
+        configuration was applied.
+    extra : mapping, optional
+        Anything the application wants kept with the record -- its version,
+        the file it started from.
+    history : bool
+        Keep the dated copy. False writes ``path`` alone.
 
     Returns
     -------
@@ -392,6 +451,11 @@ def _replace_atomically(path: Path, text: str) -> None:
 
 def read_record(path: Union[str, Path]) -> Dict[str, Any]:
     """The record ``write_record`` wrote at ``path``.
+
+    Parameters
+    ----------
+    path : str or Path
+        The record file.
 
     Raises
     ------

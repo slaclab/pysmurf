@@ -72,7 +72,16 @@ def load(path: Union[str, Path]) -> _config.Resolved:
 
 
 def load_mapping(values: Dict[str, Any], *, name: str = 'in-memory') -> _config.Resolved:
-    """Resolve an already-read mapping over the packaged default, as ``load`` would a file."""
+    """Resolve an already-read mapping over the packaged default, as ``load`` would a file.
+
+    Parameters
+    ----------
+    values : dict
+        A mapping in the schema's shape -- a converted legacy file, or one
+        built in code.
+    name : str
+        What the provenance calls this layer in place of a file path.
+    """
     import tempfile
     # The loader reads files, so a mapping goes through one; its provenance
     # then names `name` rather than the temporary path.
@@ -93,6 +102,17 @@ def load_mapping(values: Dict[str, Any], *, name: str = 'in-memory') -> _config.
 
 def adopt(resolved: _config.Resolved) -> _config.Resolved:
     """A resolution read back from the server, in the shape ``load`` gives.
+
+    Parameters
+    ----------
+    resolved : cryodaq.Resolved
+        As ``Resolved.from_dict`` rebuilt it from the server's record.
+
+    Raises
+    ------
+    cryodaq.ConfigError
+        If re-validation changed the hash: the record would not be the one
+        that was written.
 
     A record travels as JSON, which has no integer keys: the bands come back as
     ``{'4': ...}`` where ``load`` gave ``{4: ...}``, and so do the wiring tables.

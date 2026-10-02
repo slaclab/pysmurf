@@ -77,6 +77,11 @@ def read_json_with_comments(path: Union[str, Path]) -> Dict[str, Any]:
     A ``#`` inside a string is not a comment. The old reader cut the line at
     the first ``#`` wherever it was; no shipped file has one in a string, and
     this reads the same files the same way.
+
+    Parameters
+    ----------
+    path : str or Path
+        The legacy file.
     """
     text = Path(path).read_text(encoding='utf-8')
     stripped = _COMMENT.sub(lambda m: m.group(1) or '', text)
@@ -176,10 +181,23 @@ def convert(path: Union[str, Path], *, warn: bool = True) -> Dict[str, Any]:
 
 
 def to_yaml(mapping: Dict[str, Any]) -> str:
-    """``mapping`` as YAML text, keys in the order given, floats in a form YAML reads as floats."""
+    """A mapping as YAML text, keys in the order given, floats in a form YAML reads as floats.
+
+    Parameters
+    ----------
+    mapping : dict
+        What ``convert`` returned, or any mapping in the schema's shape.
+    """
     return yaml.safe_dump(mapping, sort_keys=False, default_flow_style=False)
 
 
 def convert_files(pairs: List[Tuple[Path, Path]]) -> None:
+    """Convert legacy files to YAML on disk, without the deprecation warning.
+
+    Parameters
+    ----------
+    pairs : list of (Path, Path)
+        ``(source .cfg, destination .yaml)`` per file; destinations are overwritten.
+    """
     for src, dst in pairs:
         dst.write_text(to_yaml(convert(src, warn=False)))

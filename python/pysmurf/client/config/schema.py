@@ -50,7 +50,15 @@ BAND_KEYS = ('iq_swap_in', 'iq_swap_out', 'feedback_enable', 'feedback_polarity'
 
 
 class ConfigInvalid(ValueError):
-    """A configuration value pysmurf cannot use. ``key`` is the dotted key at fault."""
+    """A configuration value pysmurf cannot use.
+
+    Parameters
+    ----------
+    key : str
+        The dotted key at fault, e.g. ``'bands.4.att_uc'``.
+    reason : str
+        What is wrong with it, in a few words.
+    """
 
     def __init__(self, key: str, reason: str):
         self.key = key
