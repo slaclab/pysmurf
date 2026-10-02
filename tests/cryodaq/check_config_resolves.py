@@ -21,7 +21,7 @@
 # The record checks use a stand-in session that has just what the session's
 # record and reattach paths touch -- a description, a way to read and write a
 # name, a status path -- so both are driven without a server, including the
-# server that has restarted and the one that has no description node at all.
+# server that has restarted and the one that has no ApplicationConfig node at all.
 #-----------------------------------------------------------------------------
 # This file is part of the pysmurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -327,8 +327,8 @@ class _Client:
         pass
 
 
-def system(*, configured, with_description=True, status_dir):
-    """A Session on a stand-in tree with the firmware, application and witness registers."""
+def system(*, configured, with_node=True, status_dir):
+    """A Session on a stand-in tree with the firmware, application, config-node and witness registers."""
     from cryodaq import _session
     pmap = cryodaq.platform.by_name('umux-atca')
     values = {'firmware.version': 0x2050000, 'firmware.build_stamp': 'MicrowaveMuxBpEthGen2: x',
@@ -341,7 +341,7 @@ def system(*, configured, with_description=True, status_dir):
     # A band exists where its scope's proving node does; the stand-in has band 0.
     for template, in (pmap.scopes['band'][0],):
         nodes[template.format(band=0)] = _Node(None)
-    if with_description:
+    if with_node:
         for n in (_session.RESOLVED_CONFIG, _session.RESOLVED_HASH, _session.RESOLVED_WRITTEN_AT):
             nodes[pmap.path(n)] = _Node('')
     return _session.Session(_Client(_Tree(nodes)), pmap, endpoint='stand-in:9012',
@@ -357,7 +357,7 @@ def check_record_config_writes_the_server_and_the_file_and_resolved_config_reads
     assert sess.description['resolved_config_hash'] is None
     path = sess.record_config(resolved, extra={'note': 1})
     assert path == config.record_path(d, 'stand-in:9012') and path.is_file()
-    assert sess.get('description.hash') == resolved.hash
+    assert sess.get('application_config.hash') == resolved.hash
     assert sess.description['resolved_config_hash'] == resolved.hash
     record = config.read_record(path)
     assert record['witness']['stream.enable'] == 1 and record['witness']['band[0].delay_us'] == 2.5
@@ -369,7 +369,7 @@ def check_record_config_writes_the_server_and_the_file_and_resolved_config_reads
     assert config._plain(again.values) == config._plain(resolved.values)
 
 
-def check_a_server_that_has_restarted_or_has_no_description_answers_none():
+def check_a_server_that_has_restarted_or_has_no_config_node_answers_none():
     d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_reattach_'))
     resolved = resolve()
     system(configured=True, status_dir=d).record_config(resolved)
@@ -378,9 +378,9 @@ def check_a_server_that_has_restarted_or_has_no_description_answers_none():
     # is not an answer; the system has to be configured again.
     restarted = system(configured=False, status_dir=d)
     assert restarted.resolved_config() is None, 'a record on disk was adopted after a restart'
-    # A server with no description node records to disk, and still has nothing
+    # A server with no ApplicationConfig node records to disk, and still has nothing
     # to read back -- the warning says so.
-    old = system(configured=True, with_description=False, status_dir=d)
+    old = system(configured=True, with_node=False, status_dir=d)
     path = old.record_config(resolved)
     assert path.is_file() and old.description['resolved_config_hash'] is None
     assert old.resolved_config() is None, 'a record on disk stood in for a server node'
@@ -536,7 +536,7 @@ def selftest():
         _session.Session.resolved_config = from_disk
         try:
             expect_failure('a reattach that falls back to the record on disk is caught',
-                           check_a_server_that_has_restarted_or_has_no_description_answers_none,
+                           check_a_server_that_has_restarted_or_has_no_config_node_answers_none,
                            'was adopted')
         finally:
             _session.Session.resolved_config = real_resolved

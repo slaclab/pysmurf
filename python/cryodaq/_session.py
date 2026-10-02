@@ -94,9 +94,9 @@ PROCESS_RUNNING = 'Running'
 # The names a recorded configuration is written to and read back from, and the
 # description fields kept with the on-disk record so a reader knows what system
 # it was written for.
-RESOLVED_CONFIG = 'description.resolved_config'
-RESOLVED_HASH = 'description.hash'
-RESOLVED_WRITTEN_AT = 'description.written_at'
+RESOLVED_CONFIG = 'application_config.resolved'
+RESOLVED_HASH = 'application_config.hash'
+RESOLVED_WRITTEN_AT = 'application_config.written_at'
 FIRMWARE_FIELDS = ('platform', 'firmware_version', 'firmware_build_stamp',
                    'firmware_git_hash')
 
@@ -524,7 +524,18 @@ class Session:
             time.sleep(min(poll, left))
 
     def stop(self, name: str) -> None:
-        """Ask the process a name reaches to stop. It may take a moment to notice."""
+        """Ask the process a name reaches to stop. It may take a moment to notice.
+
+        Parameters
+        ----------
+        name : str
+            A process name, e.g. ``band[4].ops.find_freq``.
+
+        Raises
+        ------
+        UnresolvedName
+            If the name is not a process in this tree.
+        """
         path, kind = self.pmap.entry(name)
         if kind != platform.PROCESS:
             raise UnresolvedName(name, pattern=path, reason=f"a {kind}; not a process")
@@ -661,7 +672,7 @@ class Session:
                       extra: Optional[Mapping[str, Any]] = None) -> Path:
         """Record ``resolved`` as the configuration this system now has.
 
-        Written to the server's description nodes, when its tree has them --
+        Written to the server's ``ApplicationConfig`` nodes, when its tree has them --
         that is where :meth:`resolved_config` reads it back from -- and to the
         on-disk record always, with the firmware identity and the witness
         registers read back now, so the file says what system it was written
@@ -688,7 +699,7 @@ class Session:
             self.set(RESOLVED_HASH, resolved.hash)
             self.set(RESOLVED_WRITTEN_AT, written_at)
         except UnresolvedName:
-            self.log.warning("%s: this server has no description node; the "
+            self.log.warning("%s: this server has no ApplicationConfig node; the "
                              "configuration is recorded on disk only", self.endpoint)
         else:
             self.description['resolved_config_hash'] = resolved.hash
@@ -701,8 +712,8 @@ class Session:
     def resolved_config(self) -> Optional[config.Resolved]:
         """The configuration this server was last given, as it carries it.
 
-        A server that has restarted carries nothing: its description is empty
-        and ``configured`` is false, and the answer is None -- it has to be
+        A server that has restarted carries nothing: its ``ApplicationConfig``
+        is empty and ``configured`` is false, and the answer is None -- it has to be
         configured again, whatever a record on disk says it once had.
 
         Returns

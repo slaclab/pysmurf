@@ -75,7 +75,7 @@ MAP_FORBIDDEN_IMPORTS = ('pyrogue', 'rogue')
 # package imports where rogue is not installed -- or in the one module that
 # exists only where a server runs, and is imported by a root rather than by
 # the package.
-SERVER_SIDE_MODULES = ('_description.py',)
+SERVER_SIDE_MODULES = ('_application_config.py',)
 # Identifiers that mark the application boundary.
 APPLICATION_NAMES = ('is_rfsoc', 'tes', 'bias_group', 'pA_per_phi0')
 APPLICATION_NAMES_RE = re.compile(r'\b(' + '|'.join(APPLICATION_NAMES) + r')\b')

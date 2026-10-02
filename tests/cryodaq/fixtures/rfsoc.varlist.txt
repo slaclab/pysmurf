@@ -52,12 +52,12 @@ AMCc.SmurfApplication.ConfiguringInProgress	bool	RO	{False: 'False', True: 'True
 AMCc.SmurfApplication.SystemConfigured	bool	RO	{False: 'False', True: 'True'}	0	[]	The system was configured correctly
 AMCc.SmurfApplication.CheckJesd	int	WO	None	0	[]	Check JESD health status
 AMCc.SmurfApplication.JesdStatus	int	RO	{0: 'Unlocked', 1: 'Locked', 2: 'Checking', 3: 'Not found'}	0	[]	JESD health status (updates by calling the "CheckJesd" command)
-AMCc.Description.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
-AMCc.Description.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
-AMCc.Description.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
-AMCc.Description.ResolvedConfig	str	RW	None	0	['NoConfig', 'NoState']	Resolved configuration, as JSON
-AMCc.Description.Hash	str	RW	None	0	['NoConfig', 'NoState']	SHA-256 of the resolved values
-AMCc.Description.WrittenAt	str	RW	None	0	['NoConfig', 'NoState']	When the configuration was published, UTC
+AMCc.ApplicationConfig.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
+AMCc.ApplicationConfig.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
+AMCc.ApplicationConfig.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
+AMCc.ApplicationConfig.Resolved	str	RW	None	0	['NoConfig', 'NoState']	Resolved configuration, as JSON
+AMCc.ApplicationConfig.Hash	str	RW	None	0	['NoConfig', 'NoState']	SHA-256 of the resolved values
+AMCc.ApplicationConfig.WrittenAt	str	RW	None	0	['NoConfig', 'NoState']	When the configuration was recorded, UTC
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion

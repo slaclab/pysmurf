@@ -50,7 +50,7 @@ recorded beside the system it configured. A file names what it builds on with
 key's provenance and a hash of the values, so two layerings that agree on every
 value agree on the hash.
 
-``Session.record_config`` writes a resolution to the server's ``Description``
+``Session.record_config`` writes a resolution to the server's ``ApplicationConfig``
 device and to a record on disk; ``Session.resolved_config`` reads it back from
 the server. A server that has restarted carries nothing and is configured
 again -- the file is a record of what the system was given, with the firmware

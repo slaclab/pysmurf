@@ -28,7 +28,7 @@ the second covers the two import rules below it:
 * **Rogue is imported only where a session opens or a server runs** — elsewhere in the package a
   `pyrogue`/`rogue` import sits inside a function body, so the package imports where rogue is not
   installed; a module-level one, under a `try` or not, is reported. The one module exempt is the
-  server-side `Description` device, which exists only where a server runs and is imported by a
+  server-side `ApplicationConfig` device, which exists only where a server runs and is imported by a
   root rather than by the package.
 * **No application names** — `is_rfsoc`, `tes`, `bias_group` and `pA_per_phi0` appear nowhere under
   `cryodaq`. Which detectors are wired where belongs to the application above it, and branching on
@@ -258,9 +258,9 @@ a path or list of paths — is refused naming the file and, where there is one, 
 configuration-record checks: a write is atomic (a rename that fails leaves the old record and no
 temporary behind), a record round-trips with its dated copy, a corrupt one is refused naming the
 file. Then, over a stand-in tree with the firmware, application, description and witness registers,
-a real `Session` records and reads back: `record_config` writes the server's description nodes and
+a real `Session` records and reads back: `record_config` writes the server's `ApplicationConfig` nodes and
 the file, `resolved_config` answers from the server alone, and a server that has restarted — or has
-no description node — answers `None` whatever the file on disk says, since a restarted server is one
+no `ApplicationConfig` node — answers `None` whatever the file on disk says, since a restarted server is one
 to configure again, not one to trust a cache about.
 
 The selftest points each check at a fixture set with one thing wrong — a wrong expected result, a flat
@@ -303,7 +303,7 @@ read-only refused, and the value read back to show the refusal was the only thin
 value changed on the tree underneath the session seen by the next read, which is what every bounded
 wait rests on; a command; a process under a bounded wait; the whole tree still reachable through
 `session.root`; a wrong name and a wrong kind each refused with an exception that says which; a
-configuration recorded to the server's own `Description` device and read back from it with the file
+configuration recorded to the server's own `ApplicationConfig` device and read back from it with the file
 on disk gone, which is where the description names are shown to reach real nodes; a
 session a program never closed still letting the interpreter exit, which is checked in a child process
 because what it asserts is an exit). The

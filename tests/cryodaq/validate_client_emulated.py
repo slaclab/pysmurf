@@ -394,9 +394,9 @@ def check_the_description_says_what_the_server_is():
 
 
 def check_a_recorded_configuration_is_read_back_from_the_server():
-    """record_config() writes the description nodes the real server attaches; resolved_config() reads them.
+    """record_config() writes the ApplicationConfig nodes the real server attaches; resolved_config() reads them.
 
-    The tree here is the server's own root, so the Description device is the
+    The tree here is the server's own root, so the ApplicationConfig device is the
     one a live server has, not a stand-in; this is where the semantic names
     for it are shown to reach real nodes, and where the answer is shown to come
     from the server and not from the record on disk it also wrote.
@@ -412,7 +412,7 @@ def check_a_recorded_configuration_is_read_back_from_the_server():
     try:
         path = SESSION.record_config(resolved, extra={'source': 't1'})
         assert path.is_file(), path
-        assert SESSION.get('description.hash') == resolved.hash
+        assert SESSION.get('application_config.hash') == resolved.hash
         assert SESSION.description['resolved_config_hash'] == resolved.hash
         again = SESSION.resolved_config()
         assert again is not None and again.hash == resolved.hash and again.values == resolved.values
@@ -421,7 +421,7 @@ def check_a_recorded_configuration_is_read_back_from_the_server():
         assert SESSION.resolved_config().hash == resolved.hash, 'the record did not come from the server'
     finally:
         SESSION.paths = saved_paths
-        for name in ('description.resolved_config', 'description.hash', 'description.written_at'):
+        for name in ('application_config.resolved', 'application_config.hash', 'application_config.written_at'):
             SESSION.set(name, '')
         SESSION.description['resolved_config_hash'] = None
 
