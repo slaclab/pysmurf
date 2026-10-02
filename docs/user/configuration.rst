@@ -81,64 +81,237 @@ Usage
 Reattaching without a file
 --------------------------
 
-``setup()`` publishes the resolved configuration to the server and to a
-*sidecar* file under ``paths.status`` (``resolved/<host>_<port>.json``, with
-a dated copy). A client started later with no file adopts it:
+``setup()`` records the resolved configuration on the server, and a client
+started later with no file reads it back from there:
 
 .. code-block:: python
 
    S = pysmurf.client.SmurfControl()      # online, no cfg_file
 
-The server is asked first. If it has restarted and forgotten, the sidecar is
-read and checked against the system: the firmware identity and the registers
-the configuration set (JESD lock, timing link, ramp, trigger, streaming,
-per-band DSP enable). A server that has just restarted disagrees on the JESD
-lock until ``setup()`` runs again, and that is the answer it gives. A
-disagreement raises :class:`cryodaq.DescriptionMismatch` naming the register
-and both values; a system nothing remembers configuring raises
-``RuntimeError`` asking for ``setup()``. Deleting the sidecar and running
-``setup()`` again is always a valid recovery. The sidecar is a cache of what
-the server knows, not a configuration file: nothing writes back into the files
-you gave. A client with no file looks for the sidecar under the packaged
-default's ``paths.status``; a site that overrides ``paths.status`` in its file
-finds nothing there and is refused, and gives the file.
+The server carries it while it stays up. A server that has restarted has
+forgotten, and is not configured: the client raises ``RuntimeError`` asking
+for ``setup()`` with a file. Nothing is guessed from disk, and nothing writes
+back into the files you gave.
 
-Sections
---------
+``setup()`` also writes the resolution to a record under ``paths.status``
+(``resolved/<host>_<port>.json``, with a dated copy), together with the
+firmware identity and the witness registers as they read at that moment. It
+is a record of what the system was given and when -- the answer to "what was
+slot 4 running yesterday" -- and nothing reads it back into a client. The
+values an operation measures will be kept the same way.
 
-.. list-table::
-   :header-rows: 1
+Reference
+---------
 
-   * - Section
-     - Holds
-   * - ``paths``
-     - ``data``, ``smurf_cmd``, ``tune``, ``status`` directories
-   * - ``wiring``
-     - ``R_sh``, ``bias_line_resistance``, ``high_low_current_ratio``,
-       ``high_current_mode``, ``pA_per_phi0``, ``pic_to_bias_group``,
-       ``bias_group_to_pair``, ``all_bias_groups``, ``bad_mask``
-       (``[[lo_MHz, hi_MHz], ...]``)
-   * - ``attenuator``
-     - which band each of the four RF attenuators serves
-   * - ``amplifier``
-     - 4K/50K bias values and voltage-to-DAC conversions, as the amplifier
-       commands read them
-   * - ``flux_ramp``, ``timing``, ``fs``, ``dsp_enable``
-     - counter bits; ``ext_ref``, ``backplane`` or ``fiber``; sample rate
-   * - ``tune``
-     - ``default_tune``, ``fraction_full_scale``, ``reset_rate_khz``
-   * - ``band_default``, ``bands``
-     - per-band settings, below
+Every key the schema knows, by section, with its meaning and units and the
+name it had in a legacy ``.cfg`` file where that differs. A key marked
+*required* has no default: the site's file must set it. Where a value is read
+by one method in particular, that method is named; the per-band keys are the
+values ``setup()`` writes to the firmware for each band it configures.
 
-Per-band keys
--------------
+paths
+^^^^^
 
-``iq_swap_in``, ``iq_swap_out``, ``feedback_enable``, ``feedback_polarity``,
-``feedback_gain``, ``feedback_limit_khz``, ``att_uc``, ``att_dc``,
-``amplitude_scale``, ``data_out_mux``, ``trigger_reset_delay``, ``lms_gain``,
-and the tuning parameters ``lms_freq_hz``, ``delta_freq``,
-``feedback_start_frac``, ``feedback_end_frac``, ``gradient_descent_*``,
-``eta_scan_averages``, ``eta_scan_del_f``.
+``data``
+    Root of the data tree, ``/data/smurf_data`` by default. Each client
+    session makes a dated directory under it for its outputs and plots.
+    Legacy ``smurf_to_mce:default_data_dir``.
+``smurf_cmd``
+    Where ``smurf_cmd.py`` (the command-line interface) writes instead of a
+    dated session directory. Legacy ``smurf_to_mce:smurf_cmd_dir``.
+``tune``
+    Where tune files are written and looked for. Legacy
+    ``smurf_to_mce:tune_dir``.
+``status``
+    Where status dumps and the configuration records go. Legacy
+    ``smurf_to_mce:status_dir``.
+
+wiring
+^^^^^^
+
+The TES bias chain and the readout wiring, assumed the same for every
+channel. Legacy ``constant:`` section, except where noted.
+
+``R_sh`` (ohms, *required*)
+    Resistance of the TES shunt resistors. Read by the IV analysis
+    (``analyze_iv``, ``run_iv``, ``partial_load_curve_all``), the noise
+    analysis and ``bias_bump``.
+``bias_line_resistance`` (ohms, *required*)
+    Total low-current-mode TES bias line resistance: the inline resistance on
+    the cryostat card with its relays in the low-current position, plus the
+    cryocable (including any cold resistors). The TES and shunt themselves
+    are usually negligible beside it. Read by ``analyze_iv``, ``bias_bump``,
+    ``identify_bias_groups``.
+``high_low_current_ratio`` (unitless, *required*)
+    Ratio of the current sourced by the cryostat card for the same applied
+    bias voltage in high- versus low-current relay mode; greater than one,
+    and well approximated by the ratio of the card's low- to high-current
+    path resistances. Read wherever a bias is converted to a current.
+``high_current_mode`` (0 or 1)
+    Whether ``smurf_cmd.py`` biases in high-current mode. Legacy
+    ``high_current_mode_bool``.
+``pA_per_phi0`` (pA per Φ₀)
+    Conversion from demodulated SQUID phase to TES current, the same for every
+    channel; 9×10⁶ by default. Read by the IV and noise analyses and
+    ``bias_bump``.
+``pic_to_bias_group`` (``{pic_channel: bias_group}``, *required*)
+    Which TES bias group each cryostat-card PIC channel drives. Legacy: a list
+    of ``[pic, group]`` pairs; exposed to analysis code as the ``(n, 2)`` array
+    ``S.pic_to_bias_group``.
+``bias_group_to_pair`` (``{bias_group: [dac_plus, dac_minus]}``, *required*)
+    The bipolar RTM DAC pair behind each TES bias group. Legacy: a list of
+    ``[group, dac+, dac-]`` triples; exposed as the ``(n, 3)`` array
+    ``S.bias_group_to_pair`` with the group first. ``S.n_bias_groups`` is
+    the number of groups here.
+``all_bias_groups`` (list of int, *required*)
+    The bias groups this system drives, each in ``[0, 16)``; what
+    ``run_iv`` and ``overbias_tes_all`` iterate over. Legacy ``all_groups``.
+``bad_mask`` (``[[lo_MHz, hi_MHz], ...]``)
+    RF frequency intervals in which resonator candidates are ignored by
+    ``relock`` -- which ``setup_notches`` and ``track_and_check`` call --
+    and so by most tuning. Exposed as the ``(n, 2)`` array ``S.bad_mask``.
+
+attenuator
+^^^^^^^^^^
+
+``att1`` … ``att4`` (band number, *required*)
+    Which 500 MHz band each of the four RF attenuators on a carrier bay
+    serves. Only bands 0–3 are named: the mapping is the same on both bays
+    (band modulo 4). Read by ``band_to_att`` and ``att_to_band``, which
+    every ``att_uc``/``att_dc`` write goes through.
+
+amplifier
+^^^^^^^^^
+
+The cryostat-card amplifier biasing, read as a mapping by the amplifier
+commands (``set_amplifier_bias``, ``set_hemt_gate_voltage``,
+``get_hemt_drain_current`` and their 50 K counterparts). The keys are the
+legacy ones unchanged.
+
+``hemt_Vg``, ``LNA_Vg`` (volts, *required*)
+    Desired 4 K HEMT and 50 K LNA gate voltages at the output of the
+    cryostat card; what ``set_amplifier_bias`` applies.
+``bit_to_V_hemt``, ``bit_to_V_50k`` (volts per bit, *required*)
+    Conversion from the RTM DAC's digital value to the gate voltage at the
+    cryostat-card output. Depends on the card's voltage divider, so it is
+    the card's, not the DAC's.
+``dac_num_50k`` (1–32, *required*)
+    The RTM DAC wired to the 50 K LNA gate, numbered as on the RTM
+    schematic (``DAC1`` … ``DAC32``); DAC32 on cryostat card C02 with JMP4
+    populated.
+``hemt_Vd_series_resistor``, ``50K_amp_Vd_series_resistor`` (ohms)
+    The resistor inline with each amplifier's drain supply, before the
+    regulator, from which the drain current is inferred. 200 Ω (R44) and
+    10 Ω (R54) on cryostat card revision C02.
+``hemt_Id_offset``, ``50k_Id_offset`` (mA, *required*)
+    The current the DC/DC regulator itself draws through that resistor,
+    subtracted from the measured total to give the amplifier's drain current.
+``hemt_gate_min_voltage``, ``hemt_gate_max_voltage`` (volts, *required*)
+    Software limits on the 4 K HEMT gate voltage; ``set_hemt_gate_voltage``
+    refuses a value outside them unless told to ``override``.
+``hemt``, ``50k``
+    Per-amplifier addressing for the two-amplifier cryostat card: the drain
+    op-amp gain, the PIC address of the drain monitor, the power-enable
+    bitmask, and optionally the gate DAC number.
+``hemt1``, ``hemt2``, ``50k1``, ``50k2``
+    The same for the four-amplifier card, each with the drain DAC number and
+    its volts-to-DAC conversion (``drain_conversion_m``/``_b``), the drain
+    sense resistor, default and limit drain and gate voltages, and the gate
+    DAC's bit-to-volt conversion.
+
+flux_ramp, timing, fs, dsp_enable, ultrascale_temperature_limit_degC
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``flux_ramp.num_flux_ramp_counter_bits`` (20 or 32, *required*)
+    Width of the firmware's flux ramp counter, which sets how a ramp rate is
+    turned into a DAC step size in ``flux_ramp_setup``.
+``timing.timing_reference`` (``ext_ref``, ``backplane`` or ``fiber``, *required*)
+    The timing source ``setup()`` selects with ``set_timing_mode``. Legacy
+    ``smurf_to_mce:timing_reference``.
+``fs`` (Hz, *required*)
+    The sample rate the noise analysis assumes when it is not told one.
+``dsp_enable`` (0 or 1)
+    Whether ``setup()`` enables baseband DSP -- tone generation, tracking,
+    feedback and streaming -- on each band it configures.
+``ultrascale_temperature_limit_degC`` (°C, or ``null``)
+    If set, ``setup()`` arms the FPGA over-temperature shutdown at this
+    limit. Legacy ``smurf_to_mce:ultrascale_temperature_limit_degC``.
+
+tune
+^^^^
+
+``default_tune`` (path, or ``null``)
+    A tune file to load when the client starts. Legacy
+    ``smurf_to_mce:default_tune``.
+``fraction_full_scale`` (0–1, *required*)
+    The flux ramp amplitude as a fraction of the DAC's full scale, used by
+    ``tracking_setup`` and ``flux_ramp_setup`` when not given one.
+    ``S.fraction_full_scale`` is writable: ``tracking_setup`` stores the
+    value it settled on. Legacy ``tune_band:fraction_full_scale``.
+``reset_rate_khz`` (kHz, *required*)
+    The flux ramp reset rate ``setup()`` and ``tracking_setup`` use when not
+    given one. Legacy ``tune_band:reset_rate_khz``.
+
+band_default and bands
+^^^^^^^^^^^^^^^^^^^^^^
+
+One block per band under ``bands``, keyed by band number; ``band_default``
+is applied under each block first. Every key below is exposed as a
+``{band: value}`` dictionary (``S.att_uc[4]``) that tuning code reads and,
+for some, writes into. Legacy: ``init:band_#`` for the firmware settings and
+``tune_band:<key>:<band>`` for the tuning parameters.
+
+``iq_swap_in``, ``iq_swap_out`` (0 or 1)
+    Swap I and Q at the analysis filter bank input / synthesis filter bank
+    output, flipping the spectrum about the band centre; corrects a
+    hardware-dependent sideband convention.
+``feedback_enable`` (0 or 1), ``feedback_polarity`` (0 or 1)
+    Whether the tone-tracking loop applies frequency corrections to the
+    band's channels, and the sign of the correction (which depends on the eta
+    calibration's convention and the wiring).
+``feedback_gain`` (int16, *required*)
+    Integral gain of the tracking loop: scales the frequency error before it
+    accumulates into each tone's frequency correction. Distinct from
+    ``lms_gain``.
+``feedback_limit_khz`` (kHz, *required*)
+    Maximum excursion of a tone from its programmed centre frequency; the
+    accumulated feedback is clamped at it.
+``att_uc``, ``att_dc`` (attenuator steps, *required*)
+    The up-converter (tone output) and down-converter (return path)
+    attenuator settings for the band, written through the ``attenuator``
+    mapping above.
+``amplitude_scale`` (tone power, 0–15, *required*)
+    The tone amplitude tuning starts from; ``setup_notches`` and the like
+    write the per-channel power they chose back into this dictionary.
+``data_out_mux`` (``[lane, lane]``)
+    Which two JESD transmit lanes carry the band's DAC data. Firmware-fixed
+    per band and filled in by the schema (bands 0/4 → ``[2, 3]``, 1/5 →
+    ``[0, 1]``, 2/6 → ``[6, 7]``, 3/7 → ``[8, 9]``); set it only to override.
+``trigger_reset_delay`` (processing-clock ticks, *required*)
+    Delay between the flux ramp reset trigger and the integrator reset,
+    adjusted so the reset lands on the ramp's glitch.
+``lms_gain`` (0–7, *required*)
+    Adaptation rate of the LMS estimator of the flux ramp harmonics, applied
+    as a power-of-two shift (effective gain 2^value).
+``lms_freq_hz`` (Hz)
+    The tracking demodulation frequency: flux ramp rate × flux quanta per
+    ramp. ``tracking_setup`` measures it when asked and writes the result
+    into this dictionary. Legacy ``lms_freq``.
+``delta_freq`` (MHz)
+    Half-width of the window around a resonance that ``eta_estimator``
+    and ``find_peak`` fit in.
+``feedback_start_frac``, ``feedback_end_frac`` (fraction of the ramp)
+    The part of each flux ramp cycle, in ``[0, 1)`` and ``(0, 1]``, within
+    which the tracking feedback is applied.
+``gradient_descent_gain``, ``_averages``, ``_converge_hz``, ``_step_hz``, ``_momentum``, ``_beta``
+    The serial gradient descent's learning rate, measurements averaged per
+    gradient sample, convergence threshold (Hz), probe offset (Hz),
+    optimiser mode (1 momentum, 0 adaptive step) and running-average decay.
+``eta_scan_averages``, ``eta_scan_del_f`` (count; Hz)
+    For ``run_serial_eta_scan``: frequency-error samples averaged per point,
+    and the offset about each resonator at which the error is sampled.
+``band_delay_us`` (microseconds) or ``delay``
+    The round-trip delay compensation, one of two ways; see below.
 
 The band delay is given one of two ways. ``band_delay_us`` is the total in
 microseconds, from ``S.estimate_phase_delay(band)``, and the firmware derives
@@ -149,9 +322,15 @@ wins when present::
      4:
        delay: {ref_phase: 6, ref_phase_fine: 0, lms: 24}
 
-``lms`` left out means the same value as ``ref_phase``. Converted legacy files
-carry their ``refPhaseDelay``/``refPhaseDelayFine``/``lmsDelay`` as a ``delay``
-block, so what ``setup()`` writes does not change.
+``ref_phase`` is the coarse round-trip delay (``refPhaseDelay``) in
+processing-clock ticks -- 2.4 MHz ticks on current firmware, so 6 is 2.5 µs;
+``ref_phase_fine`` (``refPhaseDelayFine``) adds a lag to the DAC output in
+307.2 MHz ticks and so *subtracts* from the total; ``lms`` (``lmsDelay``)
+aligns the feedback with the flux ramp phase and is typically equal to
+``ref_phase``. ``lms`` left out means the same value as ``ref_phase``.
+Converted legacy files carry their ``refPhaseDelay``/``refPhaseDelayFine``/
+``lmsDelay`` as a ``delay`` block, so what ``setup()`` writes does not
+change. Both include the digital delay, so they vary with firmware version.
 
 Firmware Defaults
 -----------------
