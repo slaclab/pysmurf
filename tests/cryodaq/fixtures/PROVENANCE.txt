@@ -17,7 +17,7 @@ answer differently.
 
 Built at pysmurf 2ef76397-dirty.
 
-atca.varlist.txt.gz
+atca.varlist.txt
   built from      cryo-det MicrowaveMuxBpEthGen2_v2.5.1-6-gfe6a0f50
   built by        pysmurf.core.roots.EmulationRoot over MemEmulate
   rows            3689 of 63594
@@ -25,7 +25,7 @@ atca.varlist.txt.gz
   front-end bays  [0, 1]
   daq mux bays    [0, 1]
 
-rfsoc.varlist.txt.gz
+rfsoc.varlist.txt
   built from      cryo-det MicrowaveMuxBpEthGen2_v2.5.1-6-gfe6a0f50 (RFSoC)
   built by        pysmurf.core.roots.EmulationRoot over MemEmulate, isRFSOC=True
   rows            2175 of 59982
