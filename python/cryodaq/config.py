@@ -59,7 +59,7 @@ import yaml
 from cryodaq._errors import ConfigError
 
 __all__ = ['Resolved', 'load', 'merge', 'flatten', 'INHERIT_KEY', 'DEFAULT_LAYER',
-           'write_record', 'read_record', 'record_path', 'RECORD_DIR']
+           'VALIDATED_LAYER', 'write_record', 'read_record', 'record_path', 'RECORD_DIR']
 
 # The key a layer names its parents with. Consumed by the resolution; it is not
 # a value and does not appear in the result.
@@ -68,6 +68,10 @@ INHERIT_KEY = 'inherit'
 # What provenance calls the layer the application supplied as a mapping rather
 # than a file. A default read from a file is named by its path like any other.
 DEFAULT_LAYER = '<default>'
+
+# What provenance calls a value no layer set: the application's validator
+# filled it in. Its line is 0.
+VALIDATED_LAYER = '<validated>'
 
 # Where configuration records live under a status directory, and the dated-copy format.
 RECORD_DIR = 'resolved'
@@ -92,8 +96,9 @@ class Resolved:
         The merged values, ``inherit`` removed.
     provenance : mapping
         Dotted key to ``(layer, line)``: which layer set the value that
-        survived, and the line in it. Only leaves have provenance; a mapping's
-        is that of its keys.
+        survived, and the line in it; ``(VALIDATED_LAYER, 0)`` for a value the
+        validator filled in. Every leaf of ``values`` has an entry and nothing
+        else does; a mapping's provenance is that of its keys.
     hash : str
         SHA-256 of the canonical JSON of ``values``, so two resolutions that
         agree on every value agree here, whatever their layering.
@@ -118,8 +123,14 @@ class Resolved:
         """
         node: Any = self.values
         for part in key.split('.'):
-            if not isinstance(node, Mapping) or part not in node:
+            if not isinstance(node, Mapping):
                 return default
+            if part not in node:
+                # A validator may have made numeric keys int (``bands: {4: ...}``);
+                # the dotted path is text either way.
+                if not (part.isdigit() and int(part) in node):
+                    return default
+                part = int(part)  # type: ignore[assignment]
             node = node[part]
         return node
 
@@ -321,7 +332,8 @@ def load(path: Union[str, Path], *, default: Optional[Layer] = None,
     validate : callable, optional
         ``validate(values) -> values``, the application's judgement of what the
         merged values mean. It may fill in or coerce; whatever it returns is the
-        result. Its exceptions are not caught here.
+        result, and a leaf it added is attributed to ``VALIDATED_LAYER``. Its
+        exceptions are not caught here.
 
     Returns
     -------
@@ -345,13 +357,12 @@ def load(path: Union[str, Path], *, default: Optional[Layer] = None,
         values = merge(values, data)
         for dotted in flatten(data):
             provenance[dotted] = (name, lines.get(dotted, 0))
-    # A key a higher layer replaced with a mapping, or removed by replacing its
-    # parent, must not keep a stale line: provenance describes the result.
-    survivors = set(flatten(values))
-    provenance = {k: v for k, v in provenance.items() if k in survivors}
-
     if validate is not None:
         values = validate(values)
+    # Provenance describes the result. A key a higher layer replaced with a
+    # mapping, removed by replacing its parent, or dropped by the validator
+    # keeps no stale line; one the validator filled in is the validator's.
+    provenance = {k: provenance.get(k, (VALIDATED_LAYER, 0)) for k in flatten(values)}
     return Resolved(values=values, provenance=provenance, hash=hash_of(values),
                     layers=tuple(name for name, _, _ in chain))
 

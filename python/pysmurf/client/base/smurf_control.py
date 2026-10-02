@@ -676,7 +676,8 @@ class SmurfControl(SmurfCommandMixin,
             # back, and on disk, so what it was given stays on record.
             record = self._session.record_config(
                 self.config, extra={'pysmurf_version': self.get_pysmurf_version(),
-                                    'config_file': self._cfg_file})
+                                    'config_file': (None if self._cfg_file is None
+                                                    else str(self._cfg_file))})
             self.log(f'Recorded the resolved configuration; {record}', self.LOG_INFO)
         else:
             self.log('Setup failed!', self.LOG_ERROR)

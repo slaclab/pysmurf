@@ -131,7 +131,9 @@ def _schema():
             'high_current_mode': _bool_int,
             'pA_per_phi0': Use(float),
             'pic_to_bias_group': {Use(int): int},
-            'bias_group_to_pair': {Use(int): [int, int]},
+            # A list schema checks each element, not the count: say two.
+            'bias_group_to_pair': {Use(int): And([int], lambda l: len(l) == 2,
+                                                 error='a bias group names two DACs, [plus, minus]')},
             'all_bias_groups': [_in_range(0, 16)],
             'bad_mask': [And([Use(float)], lambda l: len(l) == 2 and l[0] < l[1] and
                              all(4000 <= x <= 8000 for x in l))],
@@ -212,7 +214,10 @@ def validate(values: Dict[str, Any]) -> Dict[str, Any]:
     try:
         checked = _schema().validate(values)
     except SchemaError as e:
-        raise ConfigInvalid(_key_of(e), e.autos[-1] if e.autos else str(e)) from None
+        # An `error=` given in the schema is in `errors`; the library's own
+        # wording is in `autos`.
+        said = [m for m in e.errors if m] or [m for m in e.autos if m] or [str(e)]
+        raise ConfigInvalid(_key_of(e), said[-1]) from None
 
     for number, block in checked['bands'].items():
         if block.get('band_delay_us') is None and 'delay' not in block:

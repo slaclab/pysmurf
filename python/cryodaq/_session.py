@@ -722,7 +722,9 @@ class Session:
             None when the server has no record, which is when the configuring
             operation has to be run.
         """
-        if not self.description.get('configured'):
+        # Read live, not from the connect-time description: a session opened on
+        # an unconfigured server may be the one that has since configured it.
+        if not self._optional_get('application.configured'):
             return None
         text = self._optional_get(RESOLVED_CONFIG)
         if not text:

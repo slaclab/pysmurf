@@ -142,6 +142,18 @@ def check_the_validator_sees_the_merged_values_and_its_answer_is_the_result():
     assert seen['scalar'] == 30, 'the validator did not see the merged values'
     assert config._plain(resolved.values) == {'replaced': True}
     assert resolved.hash == config.hash_of({'replaced': True}), 'the hash is of what came back'
+    # Provenance describes the result: what the validator added is the validator's,
+    # and what it dropped is gone.
+    assert resolved.provenance == {'replaced': (config.VALIDATED_LAYER, 0)}
+
+    def fill_in(values):
+        values['nested']['a']['b']['added'] = 1
+        return values
+
+    resolved = resolve(validate=fill_in)
+    assert resolved.provenance['nested.a.b.added'] == (config.VALIDATED_LAYER, 0)
+    assert resolved.provenance['nested.a.b.d'][1] > 0, 'a value a file set keeps its line'
+    assert set(resolved.provenance) == set(config.flatten(resolved.values))
 
 
 def check_the_result_survives_a_round_trip_through_plain_data():
@@ -384,6 +396,14 @@ def check_a_server_that_has_restarted_or_has_no_config_node_answers_none():
     path = old.record_config(resolved)
     assert path.is_file() and old.description['resolved_config_hash'] is None
     assert old.resolved_config() is None, 'a record on disk stood in for a server node'
+    # The session that configures the server was opened while it was not: the
+    # answer follows the server's flag now, not the description read at connect.
+    sess = system(configured=False, status_dir=d)
+    sess.record_config(resolved)
+    assert sess.description['configured'] is False
+    assert sess.resolved_config() is None, 'configured must be read from the server'
+    sess.set('application.configured', True)
+    assert sess.resolved_config() is not None, 'the flag rose on the server and was not seen'
 
 
 # --------------------------------------------------------------------------

@@ -76,7 +76,12 @@ Usage
 
    S.config.values['wiring']['R_sh']
    S.config.provenance['bands.4.att_uc']     # ('/path/to/slot4.yaml', 3)
+   S.config.get('bands.4.att_uc')            # the same value by dotted path
    S.config.hash                             # the same for any layering with the same values
+
+Every value has provenance. One a band took from ``band_default`` is credited
+to the line that set the default; one the schema filled in, such as a band's
+firmware ``data_out_mux``, is ``('<validated>', 0)``.
 
 Reattaching without a file
 --------------------------

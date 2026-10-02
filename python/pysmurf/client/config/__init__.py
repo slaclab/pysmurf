@@ -68,7 +68,25 @@ def load(path: Union[str, Path]) -> _config.Resolved:
     if path.suffix in LEGACY_SUFFIXES:
         # The converter warns once, naming the file and what it dropped.
         return load_mapping(legacy.convert(path), name=str(path.resolve()))
-    return _config.load(path, default=DEFAULT, validate=schema.validate)
+    return _attribute(_config.load(path, default=DEFAULT, validate=schema.validate))
+
+
+def _attribute(resolved: _config.Resolved) -> _config.Resolved:
+    """Credit a per-band value the validator copied from ``band_default`` to the line that set it.
+
+    The core attributes whatever the validator filled in to ``VALIDATED_LAYER``;
+    for pysmurf most of that is ``band_default`` applied under each band, and
+    the file and line that set the default is the better answer.
+    """
+    provenance = dict(resolved.provenance)
+    for key, where in resolved.provenance.items():
+        if where[0] != _config.VALIDATED_LAYER or not key.startswith('bands.'):
+            continue
+        _, _, leaf = key.split('.', 2)
+        default = provenance.get(f'band_default.{leaf}')
+        if default is not None:
+            provenance[key] = default
+    return _config.Resolved(resolved.values, provenance, resolved.hash, resolved.layers)
 
 
 def load_mapping(values: Dict[str, Any], *, name: str = 'in-memory') -> _config.Resolved:
@@ -97,7 +115,7 @@ def load_mapping(values: Dict[str, Any], *, name: str = 'in-memory') -> _config.
     provenance = {k: ((name, 0) if v[0] == temp else v)
                   for k, v in resolved.provenance.items()}
     layers = tuple(name if layer == temp else layer for layer in resolved.layers)
-    return _config.Resolved(resolved.values, provenance, resolved.hash, layers)
+    return _attribute(_config.Resolved(resolved.values, provenance, resolved.hash, layers))
 
 
 def adopt(resolved: _config.Resolved) -> _config.Resolved:

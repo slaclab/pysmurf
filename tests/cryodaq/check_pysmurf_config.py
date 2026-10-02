@@ -34,6 +34,7 @@
 import argparse
 import copy
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -46,6 +47,7 @@ REPO = HERE.parents[1]
 sys.path.insert(0, str(REPO / 'python'))
 
 from cryodaq import ConfigError  # noqa: E402
+from cryodaq.config import VALIDATED_LAYER, flatten  # noqa: E402
 from pysmurf.client.config import DEFAULT, legacy, load, load_mapping, schema  # noqa: E402
 
 # The legacy loader and property mixin, at the last revision that had them.
@@ -237,6 +239,8 @@ def check_a_minimal_configuration_resolves_with_defaults_filled():
     assert resolved.values['amplifier']['hemt1']['drain_dac_num'] == 31
     assert resolved.values['paths']['tune'] == '/data/smurf_data/tune'
     assert list(resolved.values['bands']) == [4] and isinstance(list(resolved.values['bands'])[0], int)
+    assert resolved.get('bands.4.att_uc') == 12, 'a dotted path must reach an int-keyed band'
+    assert resolved.get('bands.5.att_uc', 'none') == 'none'
     assert resolved.provenance['wiring.R_sh'][0] == 'in-memory'
     assert resolved.provenance['wiring.pA_per_phi0'][0] == str(DEFAULT)
 
@@ -269,6 +273,10 @@ def check_the_schema_refuses_bad_content_naming_the_key():
     v = minimal()
     v['wiring']['bias_group_to_pair'] = {0: [32, 2]}
     refused(v, 'amplifier.dac_num_50k', 'bias group 0')
+    for pair in ([1], [1, 2, 3]):
+        v = minimal()
+        v['wiring']['bias_group_to_pair'] = {0: pair}
+        refused(v, 'wiring.bias_group_to_pair.0', 'two DACs')
 
 
 def check_a_delay_block_is_accepted_and_wins_over_band_delay_us():
@@ -298,6 +306,13 @@ def check_a_layered_site_file_resolves_over_the_default():
     assert resolved.values['bands'][5]['lms_gain'] == 7, 'from band_default'
     assert resolved.provenance['bands.5.att_uc'][0].endswith('slot.yaml')
     assert resolved.provenance['wiring.R_sh'][0].endswith('site.yaml')
+    # Every leaf has provenance: a value copied from band_default is credited to
+    # the line that set the default, and one the schema filled in says so.
+    assert set(resolved.provenance) == set(flatten(resolved.values))
+    assert resolved.provenance['bands.5.lms_gain'] == resolved.provenance['band_default.lms_gain']
+    assert resolved.provenance['bands.5.lms_gain'][0].endswith('site.yaml')
+    assert resolved.provenance['bands.5.data_out_mux'] == (VALIDATED_LAYER, 0), \
+        'the firmware default for data_out_mux came from the validator'
     # A layering fault is cryodaq's to refuse, unchanged by the schema.
     (d / 'loop.yaml').write_text('inherit: loop.yaml\n')
     try:
@@ -454,6 +469,38 @@ def check_a_converted_file_written_as_yaml_resolves_to_the_same_hash():
         via_cfg = load(cfg)
     via_yaml = load(d / 'site.yaml')
     assert via_cfg.hash == via_yaml.hash, 'the written YAML resolves differently from the .cfg'
+
+
+# The legacy loader exposed the raw .cfg as `S.config.get(section)` /
+# `S.config[section]` with these section names; `S.config` is a Resolved now, with
+# `values`, `provenance`, `hash`, `layers` and a dotted `get`. A reader of the old
+# shape passes every other gate -- the request-equivalence proof drives methods,
+# not scripts -- and fails at the user's prompt, as smurf_cmd.py did.
+_LEGACY_SECTIONS = ('init', 'tune_band', 'amplifier', 'attenuator', 'pic_to_bias_group',
+                    'bias_group_to_pair', 'constant', 'timing', 'flux_ramp', 'smurf_to_mce',
+                    'bad_mask', 'epics_root', 'default_data_dir', 'tune_dir', 'status_dir',
+                    'smurf_cmd_dir', 'all_bias_groups', 'high_low_current_ratio',
+                    'bias_line_resistance', 'high_current_mode_bool', 'chip_to_freq')
+_LEGACY_READ = re.compile(r"\.config(?:\.get\(|\[)\s*['\"](" + '|'.join(_LEGACY_SECTIONS) + r")['\"]")
+_RESOLVED_ATTRS = ('values', 'provenance', 'hash', 'layers', 'get', 'to_dict')
+_CONFIG_ATTR = re.compile(r"\bself\.config\.([A-Za-z_]+)")
+# Legacy config module and the converter (which names the old keys on purpose).
+_EXEMPT = ('client/config/legacy.py',)
+
+
+def check_no_code_reads_the_legacy_config_shape():
+    hits = []
+    for path in sorted((REPO / 'python' / 'pysmurf').rglob('*.py')):
+        rel = path.relative_to(REPO / 'python' / 'pysmurf').as_posix()
+        if rel in _EXEMPT:
+            continue
+        for number, line in enumerate(path.read_text().splitlines(), 1):
+            if _LEGACY_READ.search(line):
+                hits.append(f"{rel}:{number}: {line.strip()}")
+            for m in _CONFIG_ATTR.finditer(line):
+                if m.group(1) not in _RESOLVED_ATTRS:
+                    hits.append(f"{rel}:{number}: self.config.{m.group(1)} is not a Resolved attribute")
+    assert not hits, 'readers of the legacy config shape:\n  ' + '\n  '.join(hits)
 
 
 # --------------------------------------------------------------------------
