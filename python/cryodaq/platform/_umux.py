@@ -35,8 +35,7 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-__all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'WITNESS_CONFIGURED', 'SCOPES',
-           'BUILD_STAMP', 'SERVER_ADDED_ROOT_NODES']
+__all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES', 'BUILD_STAMP', 'SERVER_ADDED_ROOT_NODES']
 
 # --------------------------------------------------------------------------
 # register paths, as templates over the indexed scopes
@@ -741,21 +740,13 @@ LEGACY = {
 # on. Patterns, expanded over the indices the tree turns out to have. A platform adds
 # the witnesses of the hardware only it has -- the data links' lock state and the
 # attenuator settings are a carrier's, and are in that platform's own map.
-#
-# The first group is what the configuring operation leaves and nothing else moves
-# until it runs again, so a recorded description is checked against these on reattach.
-# The rest -- the band delay here, a carrier's attenuators -- are set by configuration
-# and then re-measured or re-tuned in normal use, so they are recorded but a change in
-# one is not a reason to refuse the record.
-WITNESS_CONFIGURED = (
+WITNESS = (
     'application.jesd_status',
     'timing.rx_link_up',
     'flux_ramp.ramp_max_cnt',
     'flux_ramp.enable_trigger',
     'flux_ramp.start_mode',
     'stream.enable',
-    'band[*].dsp.enable',
-)
-WITNESS = WITNESS_CONFIGURED + (
     'band[*].delay_us',
+    'band[*].dsp.enable',
 )

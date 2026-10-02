@@ -23,18 +23,17 @@
 #    that cannot be read, a chain that loops, a layer that is not a mapping.
 #    Nothing here knows a key name, a register or a unit.
 #
-#    The sidecar is a JSON record of a Resolved plus what the system looked like
-#    when it was applied: firmware identity and a few witness registers. It is
-#    written atomically -- to a temporary file in the same directory, synced,
-#    then renamed over the old one -- so a reader finds the previous record or
-#    the new one and never half of either. A dated copy is kept beside it. The
-#    sidecar is a cache of what the server knows, for the case where the server
-#    has forgotten it: deleting it and running the configuring operation again
-#    is always a valid recovery.
+#    The configuration record is a JSON file holding a Resolved plus what the
+#    system looked like when it was applied: firmware identity and the witness
+#    registers. It is written atomically -- to a temporary file in the same
+#    directory, synced, then renamed over the old one -- so a reader finds the
+#    previous record or the new one and never half of either, and a dated copy
+#    is kept beside it. The configuring operation writes it; nothing reads it
+#    back into a session yet. It is the on-disk record that persisting values
+#    an operation measures will build on, and it is a record, not a source of
+#    truth: the server carries what it was given, and deleting the file costs
+#    nothing but history.
 #
-#    YAML is read through PyYAML, imported where a file is read and nowhere
-#    else, so the package imports without it and a program that never reads a
-#    configuration file never needs it.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -60,7 +59,7 @@ import yaml
 from cryodaq._errors import ConfigError
 
 __all__ = ['Resolved', 'load', 'merge', 'flatten', 'INHERIT_KEY', 'DEFAULT_LAYER',
-           'write_sidecar', 'read_sidecar', 'sidecar_path', 'SIDECAR_DIR']
+           'write_record', 'read_record', 'record_path', 'RECORD_DIR']
 
 # The key a layer names its parents with. Consumed by the resolution; it is not
 # a value and does not appear in the result.
@@ -70,8 +69,8 @@ INHERIT_KEY = 'inherit'
 # than a file. A default read from a file is named by its path like any other.
 DEFAULT_LAYER = '<default>'
 
-# Where sidecars live under a status directory, and the dated-copy format.
-SIDECAR_DIR = 'resolved'
+# Where configuration records live under a status directory, and the dated-copy format.
+RECORD_DIR = 'resolved'
 _HISTORY_STAMP = '%Y%m%dT%H%M%SZ'
 _SLUG = re.compile(r'[^A-Za-z0-9]+')
 
@@ -315,24 +314,24 @@ def load(path: Union[str, Path], *, default: Optional[Layer] = None,
 
 
 # --------------------------------------------------------------------------
-# the sidecar
+# the configuration record
 # --------------------------------------------------------------------------
 
-def sidecar_path(status_dir: Union[str, Path], endpoint: str) -> Path:
-    """Where the sidecar for ``endpoint`` lives under ``status_dir``.
+def record_path(status_dir: Union[str, Path], endpoint: str) -> Path:
+    """Where the configuration record for ``endpoint`` lives under ``status_dir``.
 
     One file per endpoint: ``<status_dir>/resolved/<endpoint-slug>.json``, the
     slug being the endpoint with every run of non-alphanumerics made ``_``.
     """
     slug = _SLUG.sub('_', endpoint).strip('_') or 'unnamed'
-    return Path(status_dir) / SIDECAR_DIR / f"{slug}.json"
+    return Path(status_dir) / RECORD_DIR / f"{slug}.json"
 
 
-def write_sidecar(resolved: Resolved, path: Union[str, Path], *,
-                  endpoint: str = '', firmware: Optional[Mapping[str, Any]] = None,
-                  witness: Optional[Mapping[str, Any]] = None,
-                  extra: Optional[Mapping[str, Any]] = None,
-                  history: bool = True) -> Path:
+def write_record(resolved: Resolved, path: Union[str, Path], *,
+                 endpoint: str = '', firmware: Optional[Mapping[str, Any]] = None,
+                 witness: Optional[Mapping[str, Any]] = None,
+                 extra: Optional[Mapping[str, Any]] = None,
+                 history: bool = True) -> Path:
     """Record ``resolved`` and how the system looked when it was applied.
 
     Written to a temporary file in the same directory, synced to disk, then
@@ -344,7 +343,7 @@ def write_sidecar(resolved: Resolved, path: Union[str, Path], *,
     resolved : Resolved
         What was applied.
     path : str or Path
-        Usually ``sidecar_path(...)``. Its directory is created.
+        Usually ``record_path(...)``. Its directory is created.
     endpoint, firmware, witness, extra : optional
         What to record about the system: its endpoint, the firmware identity
         fields of the session's description, the witness registers read after
@@ -391,13 +390,13 @@ def _replace_atomically(path: Path, text: str) -> None:
         raise
 
 
-def read_sidecar(path: Union[str, Path]) -> Dict[str, Any]:
-    """The record ``write_sidecar`` wrote at ``path``.
+def read_record(path: Union[str, Path]) -> Dict[str, Any]:
+    """The record ``write_record`` wrote at ``path``.
 
     Raises
     ------
     ConfigError
-        If the file is missing, is not JSON, or is not a sidecar record.
+        If the file is missing, is not JSON, or is not a configuration record.
     """
     path = Path(path)
     try:
@@ -407,5 +406,5 @@ def read_sidecar(path: Union[str, Path]) -> Dict[str, Any]:
     except ValueError as e:
         raise ConfigError(str(path), reason=f"not valid JSON: {e}") from e
     if not isinstance(data, dict) or 'resolved' not in data:
-        raise ConfigError(str(path), reason='not a sidecar record: no "resolved" entry')
+        raise ConfigError(str(path), reason='not a configuration record: no "resolved" entry')
     return data

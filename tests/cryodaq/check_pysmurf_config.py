@@ -360,7 +360,7 @@ def _delay_writes_new(resolved, band):
 
 
 def check_a_record_read_back_through_json_gives_the_same_properties():
-    # What the crate found: a Resolved published to the server or the sidecar
+    # What the crate found: a Resolved recorded on the server or on disk
     # travels as JSON, which has no integer keys, so every per-band and per-group
     # table came back keyed by string and five properties disagreed with the
     # file-driven instance's. adopt() re-validates and the properties must agree.
@@ -375,7 +375,7 @@ def check_a_record_read_back_through_json_gives_the_same_properties():
     m['wiring']['bias_group_to_pair'] = {0: [1, 2], 2: [3, 4], 10: [5, 6], 11: [7, 8]}
     m['wiring']['all_bias_groups'] = [0, 2, 10, 11]
     original = load_mapping(m)
-    # The sidecar and the server record are both written with sort_keys=True.
+    # The file and the server record are both written with sort_keys=True.
     travelled = Resolved.from_dict(json.loads(json.dumps(original.to_dict(), sort_keys=True)))
     assert list(travelled.values['bands']) == ['4'], 'JSON did not stringify the band key; the case is moot'
     assert list(travelled.values['wiring']['pic_to_bias_group']) == ['0', '10', '11', '2'], \

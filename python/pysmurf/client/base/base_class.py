@@ -176,12 +176,10 @@ class SmurfBase:
         return self._session._client
 
     def _session_paths(self):
-        """Where the session keeps its sidecar: the configuration's status directory.
+        """Where the session writes its configuration record: the configuration's status directory.
 
-        A client started without a configuration file has to look where the
-        configuring client wrote, so with no file the packaged default's
-        ``paths.status`` is used -- the same place a file that does not
-        override it resolves to.
+        With no file, the packaged default's ``paths.status`` is used -- the
+        same place a file that does not override it resolves to.
         """
         import dataclasses
         status = getattr(self, 'status_dir', None)

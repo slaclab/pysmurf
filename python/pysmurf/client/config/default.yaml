@@ -15,7 +15,7 @@ paths:
   data: /data/smurf_data              # root of the data tree, dated sessions under it
   smurf_cmd: /data/smurf_data/smurf_cmd
   tune: /data/smurf_data/tune
-  status: /data/smurf_data/status     # the published-configuration sidecars live here too
+  status: /data/smurf_data/status     # the configuration records live here too
 
 wiring:
   R_sh: null                          # shunt resistance, ohms (required)

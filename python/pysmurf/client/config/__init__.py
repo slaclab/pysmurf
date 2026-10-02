@@ -92,7 +92,7 @@ def load_mapping(values: Dict[str, Any], *, name: str = 'in-memory') -> _config.
 
 
 def adopt(resolved: _config.Resolved) -> _config.Resolved:
-    """A resolution read back from the server or a sidecar, in the shape ``load`` gives.
+    """A resolution read back from the server, in the shape ``load`` gives.
 
     A record travels as JSON, which has no integer keys: the bands come back as
     ``{'4': ...}`` where ``load`` gave ``{4: ...}``, and so do the wiring tables.

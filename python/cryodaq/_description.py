@@ -6,13 +6,14 @@
 # Created    : 2026-09-30
 #-----------------------------------------------------------------------------
 # Description:
-#    The device a server carries its published configuration in: the resolved
+#    The device a server carries its recorded configuration in: the resolved
 #    values as JSON, their hash, and when they were written. A client that
-#    connects later reads them back through `Session.resolved()` rather than
-#    needing the file the first client was given.
+#    connects later reads them back through `Session.resolved_config()` rather
+#    than needing the file the first client was given.
 #
 #    Server-side code: a root attaches one (`root.add(Description())`) and the
-#    operation that applies a configuration fills it through `Session.publish`.
+#    operation that applies a configuration fills it through
+#    `Session.record_config`.
 #    The variables are excluded from the server's saved configuration and state
 #    -- they describe those, and a snapshot that carried its own description
 #    would be re-applied over the next one.
@@ -43,7 +44,7 @@ class Description(pyrogue.Device):
 
     Three string variables, all writable by a client: ``ResolvedConfig`` (the
     resolved values and their provenance as JSON), ``Hash`` (of the values) and
-    ``WrittenAt`` (UTC). Empty until something publishes.
+    ``WrittenAt`` (UTC). Empty until the configuring operation writes them.
     """
 
     def __init__(self, **kwargs):

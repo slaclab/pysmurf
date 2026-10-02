@@ -246,7 +246,7 @@ way round, the two numberings running in opposite directions.
 
 ### check_config_resolves.py
 
-This script checks `cryodaq.config` and the session's publish/reattach path, with synthetic fixtures
+This script checks `cryodaq.config` and the session's record/reattach path, with synthetic fixtures
 under `fixtures/config/` — three layers whose keys mean nothing, a flat file written to equal their
 resolution, and the expected result as JSON — so what is proven is the machinery and not any
 application's schema. The checks: the layers resolve to the committed result; the flat equivalent
@@ -254,24 +254,21 @@ gives the same values and the same hash; every leaf names the layer and the line
 nothing else has provenance; a default mapping sits under everything; the application's `validate`
 sees the merged values and its answer is the result; and each fault the layering can have — a loop
 in `inherit:`, an unreadable or unparsable layer, one that is not a mapping, an `inherit` that is not
-a path or list of paths — is refused naming the file and, where there is one, the key. The sidecar
-checks: a write is atomic (a rename that fails leaves the old record and no temporary behind), a
-record round-trips with its dated copy, a corrupt one is refused naming the file. Then, over a
-stand-in tree with the firmware, application, description and witness registers, a real `Session`
-publishes and reads back: the server is preferred while it remembers, the sidecar is used after a
-restart or on a server with no description node, and a sidecar that disagrees with the system on a
-firmware field or a configured witness raises `DescriptionMismatch` naming the field and both values.
-Only the *configured* witnesses are recorded and compared — the ones the configuring operation alone
-changes — since a band delay or an attenuator is re-tuned in normal use and a record that refused
-every reattach after a tune would be a record nobody kept.
+a path or list of paths — is refused naming the file and, where there is one, the key. The
+configuration-record checks: a write is atomic (a rename that fails leaves the old record and no
+temporary behind), a record round-trips with its dated copy, a corrupt one is refused naming the
+file. Then, over a stand-in tree with the firmware, application, description and witness registers,
+a real `Session` records and reads back: `record_config` writes the server's description nodes and
+the file, `resolved_config` answers from the server alone, and a server that has restarted — or has
+no description node — answers `None` whatever the file on disk says, since a restarted server is one
+to configure again, not one to trust a cache about.
 
 The selftest points each check at a fixture set with one thing wrong — a wrong expected result, a flat
 file that differs, a marker that lies about its layer, a leaf without provenance, a line off by one,
-a shallow merge, a write that leaves half a file, a reattach that skips the witness compare, a
-sidecar that records the tuning witnesses — and requires the complaint to name that thing.
+a shallow merge, a write that leaves half a file, a reattach that falls back to the file on disk — and
+requires the complaint to name that thing.
 
-Needs PyYAML, which `cryodaq.config` imports where it reads a file; the CI job installs it for this
-step alone.
+Needs PyYAML, which the CI job installs as the client's one dependency before the first check.
 
 ### validate_client_emulated.py
 
@@ -306,8 +303,8 @@ read-only refused, and the value read back to show the refusal was the only thin
 value changed on the tree underneath the session seen by the next read, which is what every bounded
 wait rests on; a command; a process under a bounded wait; the whole tree still reachable through
 `session.root`; a wrong name and a wrong kind each refused with an exception that says which; a
-configuration published to the server's own `Description` device and read back from it in preference
-to the sidecar, which is where the description names are shown to reach real nodes; a
+configuration recorded to the server's own `Description` device and read back from it with the file
+on disk gone, which is where the description names are shown to reach real nodes; a
 session a program never closed still letting the interpreter exit, which is checked in a child process
 because what it asserts is an exit). The
 per-band ones work on a band

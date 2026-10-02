@@ -393,13 +393,13 @@ def check_the_description_says_what_the_server_is():
     assert description['configured'], 'the server was configured before this session opened'
 
 
-def check_a_published_configuration_is_read_back_from_the_server():
-    """publish() writes the description nodes the real server attaches; resolved() reads them.
+def check_a_recorded_configuration_is_read_back_from_the_server():
+    """record_config() writes the description nodes the real server attaches; resolved_config() reads them.
 
     The tree here is the server's own root, so the Description device is the
     one a live server has, not a stand-in; this is where the semantic names
-    for it are shown to reach real nodes, and where a session is shown to
-    prefer the server's record to the sidecar it also wrote.
+    for it are shown to reach real nodes, and where the answer is shown to come
+    from the server and not from the record on disk it also wrote.
     """
     import tempfile
     from cryodaq import config
@@ -410,15 +410,15 @@ def check_a_published_configuration_is_read_back_from_the_server():
     assert saved_hash is None, f"a fresh emulated server already carries {saved_hash}"
     SESSION.paths = cryodaq.Paths(status, status, status, status, status)
     try:
-        path = SESSION.publish(resolved, extra={'source': 't1'})
+        path = SESSION.record_config(resolved, extra={'source': 't1'})
         assert path.is_file(), path
         assert SESSION.get('description.hash') == resolved.hash
         assert SESSION.description['resolved_config_hash'] == resolved.hash
-        again = SESSION.resolved()
+        again = SESSION.resolved_config()
         assert again is not None and again.hash == resolved.hash and again.values == resolved.values
-        # The server is preferred: with the sidecar gone the answer is unchanged.
+        # The server is what answers: with the file gone the answer is unchanged.
         path.unlink()
-        assert SESSION.resolved().hash == resolved.hash, 'the record did not come from the server'
+        assert SESSION.resolved_config().hash == resolved.hash, 'the record did not come from the server'
     finally:
         SESSION.paths = saved_paths
         for name in ('description.resolved_config', 'description.hash', 'description.written_at'):

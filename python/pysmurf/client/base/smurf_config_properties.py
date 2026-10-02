@@ -193,7 +193,7 @@ class SmurfConfigPropertiesMixin:
 
     @property
     def status_dir(self):
-        """Where status dumps and the published-configuration sidecars go, ``paths.status``."""
+        """Where status dumps and the configuration records go, ``paths.status``."""
         return self._status_dir
 
     @status_dir.setter

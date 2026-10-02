@@ -7,12 +7,11 @@
 #-----------------------------------------------------------------------------
 # Description:
 #    The exceptions cryodaq raises. A failed lookup raises; nothing returns None
-#    or a sentinel to mean "could not". There are five, one per thing cryodaq
-#    itself can be wrong about: the connection, the name, a configuration that
-#    cannot be resolved from its layers, and a recorded description that does
-#    not match the hardware it claims to describe -- and nothing else. A
-#    register that refuses a write, or a process that fails, reports through
-#    rogue and is not re-wrapped here.
+#    or a sentinel to mean "could not". There are four, one per thing cryodaq
+#    itself can be wrong about: the connection, the name, and a configuration
+#    that cannot be resolved from its layers -- and nothing else. A register
+#    that refuses a write, or a process that fails, reports through rogue and
+#    is not re-wrapped here.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -23,10 +22,9 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-from typing import Any, Optional
+from typing import Optional
 
-__all__ = ['CryodaqError', 'ConnectError', 'UnresolvedName', 'ConfigError',
-           'DescriptionMismatch']
+__all__ = ['CryodaqError', 'ConnectError', 'UnresolvedName', 'ConfigError']
 
 
 class CryodaqError(Exception):
@@ -84,27 +82,3 @@ class ConfigError(CryodaqError):
         where = f"{file}:{key}" if key else file
         why = f": {reason}" if reason else ''
         super().__init__(f"cannot resolve configuration at {where}{why}")
-
-
-class DescriptionMismatch(CryodaqError):
-    """A recorded description disagrees with the system it claims to describe.
-
-    Raised when a description read back from a file is checked against the
-    live registers and one of them says something else. Both values are named,
-    because the operator's next question is which one to believe.
-
-    Parameters
-    ----------
-    field : str
-        The field that disagrees -- a semantic name or a description key.
-    expected : object
-        What the record says.
-    actual : object
-        What the system says now.
-    """
-
-    def __init__(self, field: str, expected: Any, actual: Any):
-        self.field = field
-        self.expected = expected
-        self.actual = actual
-        super().__init__(f"{field}: the record says {expected!r}, the system says {actual!r}")

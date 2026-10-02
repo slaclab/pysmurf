@@ -50,16 +50,15 @@ recorded beside the system it configured. A file names what it builds on with
 key's provenance and a hash of the values, so two layerings that agree on every
 value agree on the hash.
 
-``Session.publish`` writes a resolution to the server's ``Description`` device
-and to a sidecar file; ``Session.resolved`` reads it back -- from the server
-while it remembers, from the sidecar after a restart, checked against the
-witness registers the configuration set. A sidecar that disagrees with the
-system raises :class:`~cryodaq.DescriptionMismatch` naming the field and both
-values; deleting it and configuring again is always a valid recovery.
+``Session.record_config`` writes a resolution to the server's ``Description``
+device and to a record on disk; ``Session.resolved_config`` reads it back from
+the server. A server that has restarted carries nothing and is configured
+again -- the file is a record of what the system was given, with the firmware
+identity and witness registers of the moment, not a fallback.
 
 .. automodule:: cryodaq.config
-    :members: load, Resolved, merge, flatten, sidecar_path, write_sidecar,
-              read_sidecar
+    :members: load, Resolved, merge, flatten, record_path, write_record,
+              read_record
     :undoc-members:
 
 Errors

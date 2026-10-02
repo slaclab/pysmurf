@@ -30,7 +30,7 @@
 
 from cryodaq.platform import _umux
 
-__all__ = ['NAME', 'TAGS', 'REGISTERS', 'LEGACY', 'WITNESS', 'WITNESS_CONFIGURED', 'SCOPES']
+__all__ = ['NAME', 'TAGS', 'REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES']
 
 NAME = 'umux-atca'
 
@@ -149,9 +149,7 @@ SCOPES.update({
 
 # Worth recording how a carrier was left: whether each bay's data links had locked, and
 # what its attenuators were set to. Both are this platform's hardware, so both are here
-# rather than in the shared list. Neither is checked on reattach: the links are read
-# back as they are, and the attenuators are re-tuned in normal use.
-WITNESS_CONFIGURED = _umux.WITNESS_CONFIGURED
+# rather than in the shared list.
 WITNESS = _umux.WITNESS + (
     'bay[*].jesd.rx_data_valid',
     'bay[*].jesd.tx_data_valid',

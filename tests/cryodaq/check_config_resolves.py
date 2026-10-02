@@ -9,8 +9,8 @@
 # Checks of cryodaq.config: that a configuration split over layers resolves to
 # the same values as the equivalent single file, that every key can be traced to
 # the layer and line that set it, that the faults the layering itself can have
-# are refused by name, and that the sidecar records and re-validates a resolution
-# the way its readers rely on.
+# are refused by name, and that the on-disk configuration record is written whole
+# and re-validates the resolution it holds.
 #
 # The fixtures under fixtures/config/ are synthetic: three layers whose keys
 # mean nothing, a flat file written to equal their resolution, and the expected
@@ -18,12 +18,10 @@
 # proven here is the machinery, and an application's own schema is proven by
 # the application's own check.
 #
-# The sidecar checks use a stand-in session that has just what the session's
-# reattach path reads -- a description, a way to read a name, a status path --
-# so the choice between the server's record, the sidecar and refusal is driven
-# through every branch without a server.
-#
-# Needs PyYAML, which cryodaq.config imports where it reads a file.
+# The record checks use a stand-in session that has just what the session's
+# record and reattach paths touch -- a description, a way to read and write a
+# name, a status path -- so both are driven without a server, including the
+# server that has restarted and the one that has no description node at all.
 #-----------------------------------------------------------------------------
 # This file is part of the pysmurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -49,7 +47,7 @@ sys.path.insert(0, str(REPO / 'python'))
 
 import cryodaq  # noqa: E402
 from cryodaq import config  # noqa: E402
-from cryodaq._errors import ConfigError, DescriptionMismatch  # noqa: E402
+from cryodaq._errors import ConfigError  # noqa: E402
 
 # The layers, lowest first, and the flat equivalent.
 LAYERS = ('default.yaml', 'site.yaml', 'slot.yaml')
@@ -230,19 +228,19 @@ def check_a_validator_refusal_passes_through_unchanged():
 
 
 # --------------------------------------------------------------------------
-# the sidecar
+# the configuration record
 # --------------------------------------------------------------------------
 
-def check_a_sidecar_round_trips_and_keeps_a_dated_copy():
+def check_a_record_round_trips_and_keeps_a_dated_copy():
     resolved = resolve()
-    d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_sidecar_'))
-    path = config.sidecar_path(d, 'some-host:9012')
-    assert path == d / config.SIDECAR_DIR / 'some_host_9012.json', path
-    written = config.write_sidecar(resolved, path, endpoint='some-host:9012',
-                                   firmware={'version': '2.5.1'}, witness={'w': 1},
-                                   extra={'note': 'x'})
+    d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_record_'))
+    path = config.record_path(d, 'some-host:9012')
+    assert path == d / config.RECORD_DIR / 'some_host_9012.json', path
+    written = config.write_record(resolved, path, endpoint='some-host:9012',
+                                  firmware={'version': '2.5.1'}, witness={'w': 1},
+                                  extra={'note': 'x'})
     assert written == path and path.is_file()
-    record = config.read_sidecar(path)
+    record = config.read_record(path)
     again = cryodaq.Resolved.from_dict(record['resolved'])
     assert again.hash == resolved.hash and config._plain(again.values) == config._plain(resolved.values)
     assert record['witness'] == {'w': 1} and record['firmware'] == {'version': '2.5.1'}
@@ -253,11 +251,11 @@ def check_a_sidecar_round_trips_and_keeps_a_dated_copy():
     assert copies[0].startswith('some_host_9012.') and copies[0].endswith('.json'), copies
 
 
-def check_a_sidecar_write_is_atomic():
+def check_a_record_write_is_atomic():
     resolved = resolve()
-    d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_sidecar_'))
-    path = config.sidecar_path(d, 'h:1')
-    config.write_sidecar(resolved, path, history=False)
+    d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_record_'))
+    path = config.record_path(d, 'h:1')
+    config.write_record(resolved, path, history=False)
     before = path.read_bytes()
 
     real_replace = os.replace
@@ -268,8 +266,8 @@ def check_a_sidecar_write_is_atomic():
     os.replace = failing_replace
     try:
         try:
-            config.write_sidecar(cryodaq.Resolved({'changed': 1}, {}, config.hash_of({'changed': 1}), ()),
-                                 path, history=False)
+            config.write_record(cryodaq.Resolved({'changed': 1}, {}, config.hash_of({'changed': 1}), ()),
+                                path, history=False)
         except OSError:
             pass
         else:
@@ -281,13 +279,13 @@ def check_a_sidecar_write_is_atomic():
     assert not leftovers, f"a failed write left {leftovers}"
 
 
-def check_a_corrupt_sidecar_is_refused_naming_the_file():
-    d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_sidecar_'))
+def check_a_corrupt_record_is_refused_naming_the_file():
+    d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_record_'))
     (d / 'x.json').write_text('{not json')
-    refused(lambda: config.read_sidecar(d / 'x.json'), 'x.json', 'JSON')
+    refused(lambda: config.read_record(d / 'x.json'), 'x.json', 'JSON')
     (d / 'y.json').write_text('{"nothing": 1}')
-    refused(lambda: config.read_sidecar(d / 'y.json'), 'y.json', 'resolved')
-    refused(lambda: config.read_sidecar(d / 'absent.json'), 'absent.json')
+    refused(lambda: config.read_record(d / 'y.json'), 'y.json', 'resolved')
+    refused(lambda: config.read_record(d / 'absent.json'), 'absent.json')
     # A record whose hash does not match its own values is refused too.
     record = resolve().to_dict()
     record['values']['scalar'] = 31
@@ -295,7 +293,7 @@ def check_a_corrupt_sidecar_is_refused_naming_the_file():
 
 
 # --------------------------------------------------------------------------
-# publish and reattach, over a stand-in tree
+# record and reattach, over a stand-in tree
 # --------------------------------------------------------------------------
 
 class _Node:
@@ -351,77 +349,41 @@ def system(*, configured, with_description=True, status_dir):
                                                 plot=status_dir, status=status_dir))
 
 
-def check_publish_writes_the_server_and_the_sidecar_and_resolved_prefers_the_server():
+def check_record_config_writes_the_server_and_the_file_and_resolved_config_reads_the_server():
     d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_reattach_'))
     resolved = resolve()
     sess = system(configured=True, status_dir=d)
-    assert sess.resolved() is None, 'nothing published yet'
+    assert sess.resolved_config() is None, 'nothing recorded yet'
     assert sess.description['resolved_config_hash'] is None
-    path = sess.publish(resolved, extra={'note': 1})
-    assert path == config.sidecar_path(d, 'stand-in:9012') and path.is_file()
+    path = sess.record_config(resolved, extra={'note': 1})
+    assert path == config.record_path(d, 'stand-in:9012') and path.is_file()
     assert sess.get('description.hash') == resolved.hash
     assert sess.description['resolved_config_hash'] == resolved.hash
-    record = config.read_sidecar(path)
-    assert record['witness']['stream.enable'] == 1 and 'band[0].dsp.enable' in record['witness']
-    assert 'band[0].delay_us' not in record['witness'], 'a tuning witness is not compared'
+    record = config.read_record(path)
+    assert record['witness']['stream.enable'] == 1 and record['witness']['band[0].delay_us'] == 2.5
     assert record['firmware']['firmware_version'] == 0x2050000 and record['extra'] == {'note': 1}
-    # The server answers while it remembers, even if the sidecar has gone.
+    # The server is what answers; the file is a record of what it was given.
     path.unlink()
-    again = sess.resolved()
-    assert again is not None and again.hash == resolved.hash
-
-
-def check_resolved_falls_back_to_the_sidecar_after_a_restart():
-    d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_reattach_'))
-    resolved = resolve()
-    system(configured=True, status_dir=d).publish(resolved)
-    # A restarted server: description empty, configured false.
-    restarted = system(configured=False, status_dir=d)
-    again = restarted.resolved()
+    again = sess.resolved_config()
     assert again is not None and again.hash == resolved.hash
     assert config._plain(again.values) == config._plain(resolved.values)
-    # A server without the description node at all still records to the sidecar.
-    old = system(configured=True, with_description=False, status_dir=d)
-    old.publish(resolved)
-    assert old.description['resolved_config_hash'] is None
-    assert old.resolved().hash == resolved.hash, 'read back from the sidecar'
 
 
-def check_a_sidecar_that_disagrees_with_the_system_is_refused_naming_the_field():
+def check_a_server_that_has_restarted_or_has_no_description_answers_none():
     d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_reattach_'))
     resolved = resolve()
-    system(configured=True, status_dir=d).publish(resolved)
-    path = config.sidecar_path(d, 'stand-in:9012')
-
-    def corrupt(section, field, value):
-        record = config.read_sidecar(path)
-        record[section][field] = value
-        path.write_text(json.dumps(record))
-
-    def refused_by(field, expected, actual):
-        try:
-            system(configured=False, status_dir=d).resolved()
-        except DescriptionMismatch as e:
-            assert e.field == field and e.expected == expected and e.actual == actual, \
-                f"{e.field} {e.expected!r} {e.actual!r}"
-            assert field in str(e) and repr(expected) in str(e) and repr(actual) in str(e), str(e)
-        else:
-            raise AssertionError(f"a sidecar wrong at {field} was adopted")
-
-    corrupt('witness', 'stream.enable', 0)
-    refused_by('stream.enable', 0, 1)
-    corrupt('witness', 'stream.enable', 1)
-    corrupt('firmware', 'firmware_version', 1)
-    refused_by('firmware_version', 1, 0x2050000)
-    corrupt('firmware', 'firmware_version', 0x2050000)
-    # A witness the record has and this tree lacks disagrees too: None is an answer.
-    corrupt('witness', 'band[7].dsp.enable', 1)
-    refused_by('band[7].dsp.enable', 1, None)
-    # Restored, it is adopted again.
-    record = config.read_sidecar(path)
-    del record['witness']['band[7].dsp.enable']
-    path.write_text(json.dumps(record))
-    assert system(configured=False, status_dir=d).resolved().hash == resolved.hash
+    system(configured=True, status_dir=d).record_config(resolved)
+    assert config.record_path(d, 'stand-in:9012').is_file()
+    # A restarted server: description empty, configured false. The file on disk
+    # is not an answer; the system has to be configured again.
+    restarted = system(configured=False, status_dir=d)
+    assert restarted.resolved_config() is None, 'a record on disk was adopted after a restart'
+    # A server with no description node records to disk, and still has nothing
+    # to read back -- the warning says so.
+    old = system(configured=True, with_description=False, status_dir=d)
+    path = old.record_config(resolved)
+    assert path.is_file() and old.description['resolved_config_hash'] is None
+    assert old.resolved_config() is None, 'a record on disk stood in for a server node'
 
 
 # --------------------------------------------------------------------------
@@ -549,7 +511,7 @@ def selftest():
         config._replace_atomically = non_atomic
         try:
             expect_failure('a write that leaves a partial file is caught',
-                           check_a_sidecar_write_is_atomic, 'changed the record')
+                           check_a_record_write_is_atomic, 'changed the record')
         finally:
             config._replace_atomically = real_replace
 
@@ -562,30 +524,22 @@ def selftest():
             config.merge = real_merge
 
         from cryodaq import _session
-        real_resolved = _session.Session.resolved
+        real_resolved = _session.Session.resolved_config
 
-        def trusting(self):
-            # Adopts the sidecar without looking at the system.
-            path = self.sidecar_path()
-            if path.is_file():
-                return cryodaq.Resolved.from_dict(config.read_sidecar(path)['resolved'])
-            return real_resolved(self)
-        _session.Session.resolved = trusting
+        def from_disk(self):
+            # Falls back to the file when the server has nothing, as a cache would.
+            answer = real_resolved(self)
+            path = self.config_record_path()
+            if answer is None and path.is_file():
+                return cryodaq.Resolved.from_dict(config.read_record(path)['resolved'])
+            return answer
+        _session.Session.resolved_config = from_disk
         try:
-            expect_failure('a reattach that does not check the witnesses is caught',
-                           check_a_sidecar_that_disagrees_with_the_system_is_refused_naming_the_field,
+            expect_failure('a reattach that falls back to the record on disk is caught',
+                           check_a_server_that_has_restarted_or_has_no_description_answers_none,
                            'was adopted')
         finally:
-            _session.Session.resolved = real_resolved
-
-        real_witness = _session.Session.witness
-        _session.Session.witness = lambda self, configured_only=False: real_witness(self)
-        try:
-            expect_failure('a sidecar that records tuning witnesses is caught',
-                           check_publish_writes_the_server_and_the_sidecar_and_resolved_prefers_the_server,
-                           'not compared')
-        finally:
-            _session.Session.witness = real_witness
+            _session.Session.resolved_config = real_resolved
     finally:
         FIXTURES = saved
 

@@ -43,7 +43,7 @@
 import functools
 import re
 from dataclasses import dataclass
-from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple)
+from typing import (Any, Callable, Dict, List, Mapping, Sequence, Tuple)
 
 from cryodaq._errors import ConnectError, UnresolvedName
 from cryodaq.platform import _atca, _rfsoc, _umux
@@ -167,9 +167,6 @@ class PlatformMap:
         not distinguish them, since a name resolves the same way from either.
     witness : tuple of str
         Name patterns worth reading back to record how a system was left.
-    witness_configured : tuple of str
-        The subset of ``witness`` that only the configuring operation changes,
-        so a recorded description can be checked against them.
     scopes : mapping
         Scope name to ``(path templates that prove an index, parent scopes)``.
     """
@@ -179,7 +176,6 @@ class PlatformMap:
     registers: Mapping[str, Tuple[str, str]]
     witness: Tuple[str, ...]
     scopes: Mapping[str, Tuple[Tuple[str, ...], Tuple[str, ...]]]
-    witness_configured: Tuple[str, ...] = ()
 
     def __contains__(self, pattern: str) -> bool:
         return pattern in self.registers
@@ -229,7 +225,6 @@ def _from_module(module: Any) -> PlatformMap:
     return PlatformMap(name=module.NAME, tags=tuple(module.TAGS),
                        registers={**module.REGISTERS, **module.LEGACY},
                        witness=tuple(module.WITNESS),
-                       witness_configured=tuple(module.WITNESS_CONFIGURED),
                        scopes=dict(module.SCOPES))
 
 
@@ -400,21 +395,9 @@ def expand(pmap: PlatformMap, has: Callable[[str], bool], pattern: str) -> List[
     return out
 
 
-def witness_names(pmap: PlatformMap, has: Callable[[str], bool],
-                  patterns: Optional[Sequence[str]] = None) -> Tuple[str, ...]:
-    """The map's witness patterns, expanded over the indices this tree has.
-
-    Parameters
-    ----------
-    pmap : PlatformMap
-    has : callable
-        ``has(path) -> bool``.
-    patterns : sequence of str, optional
-        Which patterns to expand; all of ``pmap.witness`` by default. Pass
-        ``pmap.witness_configured`` for the ones a recorded description is
-        checked against.
-    """
+def witness_names(pmap: PlatformMap, has: Callable[[str], bool]) -> Tuple[str, ...]:
+    """The map's witness patterns, expanded over the indices this tree has."""
     names: List[str] = []
-    for pattern in (pmap.witness if patterns is None else patterns):
+    for pattern in pmap.witness:
         names.extend(expand(pmap, has, pattern))
     return tuple(names)

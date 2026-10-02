@@ -55,9 +55,9 @@ class SmurfControl(SmurfCommandMixin,
        Configuration file: YAML over the packaged default, or a legacy
        JSON ``.cfg`` (converted with a deprecation warning). Online, it may
        be omitted for a system that has already been configured: the
-       configuration is then read back from the server, or from the sidecar
-       the configuring client wrote, checked against the system. A system
-       that has neither is refused with a request to run ``setup()``.
+       configuration is then read back from the server. A system the server
+       does not hold as configured -- never set up, or restarted since -- is
+       refused with a request to run ``setup()``.
     data_dir : str, optional, default None
        Path to the data directory.
     name : str, optional, default None
@@ -89,8 +89,6 @@ class SmurfControl(SmurfCommandMixin,
     ------
     RuntimeError
        If not `offline`, `cfg_file` is None and the system is not configured.
-    cryodaq.DescriptionMismatch
-       If the sidecar found for the system disagrees with its registers.
 
     See Also
     --------
@@ -673,14 +671,13 @@ class SmurfControl(SmurfCommandMixin,
 
             self.log('Done with setup.', self.LOG_USER)
 
-            # Publish what this system was just configured with, so a
-            # client that connects later -- with no file -- can read it
-            # back, and so a restarted server still has a record.
-            sidecar = self._session.publish(
+            # Record what this system was just configured with: on the server,
+            # so a client that connects later -- with no file -- can read it
+            # back, and on disk, so what it was given stays on record.
+            record = self._session.record_config(
                 self.config, extra={'pysmurf_version': self.get_pysmurf_version(),
                                     'config_file': self._cfg_file})
-            self.log(f'Published the resolved configuration; sidecar {sidecar}',
-                     self.LOG_INFO)
+            self.log(f'Recorded the resolved configuration; {record}', self.LOG_INFO)
         else:
             self.log('Setup failed!', self.LOG_ERROR)
 
@@ -774,12 +771,11 @@ class SmurfControl(SmurfCommandMixin,
     def _reattach(self):
         """Adopt the configuration a running system was given, when there is no file.
 
-        The server is asked first; a restarted server has forgotten, and then
-        the sidecar the configuring client wrote is read and checked against
-        the system's registers. Nothing is guessed: a system nothing remembers
-        configuring is refused.
+        The server carries it while it stays up. A restarted server has
+        forgotten, and nothing is guessed from a record on disk: a system the
+        server does not hold as configured is refused.
         """
-        resolved = self._session.resolved()
+        resolved = self._session.resolved_config()
         if resolved is not None:
             resolved = smurf_config.adopt(resolved)
         if resolved is None:
@@ -787,6 +783,6 @@ class SmurfControl(SmurfCommandMixin,
                 f"{self._session.endpoint} is not configured and no cfg_file was "
                 f"given; run SmurfControl(cfg_file=...).setup() first")
         self.copy_config_to_properties(resolved)
-        self.log(f'Reattached to the published configuration {resolved.hash[:12]} '
+        self.log(f'Reattached to the recorded configuration {resolved.hash[:12]} '
                  f'({" <- ".join(os.path.basename(p) for p in resolved.layers)})',
                  self.LOG_USER)

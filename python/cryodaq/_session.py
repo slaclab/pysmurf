@@ -22,10 +22,10 @@
 #    There is no configuration file at connect: the server is authoritative
 #    about its own state. Connecting reads what it says it is, and the registers
 #    that record how it was left, and reports them; it changes nothing. The
-#    configuration an operation applied is published back to the server and to
-#    a sidecar file by `publish()`, and a later session reads it with
-#    `resolved()` -- from the server while it remembers, from the sidecar when
-#    it has restarted, checked against the registers the configuration set.
+#    configuration an operation applied is written to the server, and to a
+#    record on disk, by `record_config()`, and a later session reads it back
+#    from the server with `resolved_config()`. A server that has restarted
+#    has none and is configured again; the file is a record, not a fallback.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -48,7 +48,7 @@ from pathlib import Path
 from typing import (Any, Dict, Iterable, Iterator, List, Mapping, Optional, Tuple, Union)
 
 from cryodaq import config, platform
-from cryodaq._errors import ConnectError, DescriptionMismatch, UnresolvedName
+from cryodaq._errors import ConnectError, UnresolvedName
 
 __all__ = ['Session', 'connect', 'Paths', 'ValidationReport', 'NullPublisher',
            'endpoint_of', 'LOG_USER', 'LOG_INFO', 'LOG_ERROR']
@@ -91,8 +91,9 @@ PROCESS_START = 'Start'
 PROCESS_STOP = 'Stop'
 PROCESS_RUNNING = 'Running'
 
-# The names a published configuration is written to and read back from, and the
-# description fields a sidecar is checked against before it is believed.
+# The names a recorded configuration is written to and read back from, and the
+# description fields kept with the on-disk record so a reader knows what system
+# it was written for.
 RESOLVED_CONFIG = 'description.resolved_config'
 RESOLVED_HASH = 'description.hash'
 RESOLVED_WRITTEN_AT = 'description.written_at'
@@ -597,15 +598,8 @@ class Session:
                 resolved.append(name)
         return ValidationReport(tuple(resolved), tuple(unresolved))
 
-    def witness(self, *, configured_only: bool = False) -> Dict[str, Any]:
+    def witness(self) -> Dict[str, Any]:
         """Read the registers that record how this system was left.
-
-        Parameters
-        ----------
-        configured_only : bool
-            Read only the witnesses the configuring operation alone changes --
-            the set a recorded description is checked against -- rather than
-            the whole list.
 
         Returns
         -------
@@ -616,8 +610,7 @@ class Session:
         """
         values: Dict[str, Any] = {}
         missing: List[str] = []
-        patterns = self.pmap.witness_configured if configured_only else None
-        for name in platform.witness_names(self.pmap, self._has, patterns):
+        for name in platform.witness_names(self.pmap, self._has):
             try:
                 values[name] = self.get(name)
             except UnresolvedName:
@@ -657,23 +650,23 @@ class Session:
         }
 
     # ------------------------------------------------------------------
-    # the published configuration
+    # the recorded configuration
     # ------------------------------------------------------------------
 
-    def sidecar_path(self) -> Path:
-        """Where this session's sidecar is: under ``paths.status``, named for the endpoint."""
-        return config.sidecar_path(self.paths.status, self.endpoint)
+    def config_record_path(self) -> Path:
+        """Where this session's configuration record is: under ``paths.status``, named for the endpoint."""
+        return config.record_path(self.paths.status, self.endpoint)
 
-    def publish(self, resolved: config.Resolved, *,
-                extra: Optional[Mapping[str, Any]] = None) -> Path:
+    def record_config(self, resolved: config.Resolved, *,
+                      extra: Optional[Mapping[str, Any]] = None) -> Path:
         """Record ``resolved`` as the configuration this system now has.
 
-        Written to the server's description nodes, when its tree has them, and
-        to the sidecar always -- with the firmware identity and the configured
-        witness registers read back now, so a later ``resolved()`` can tell
-        whether the record still describes the system in front of it. Called by
-        the operation that applied the configuration, after it succeeded, and
-        by nothing else.
+        Written to the server's description nodes, when its tree has them --
+        that is where :meth:`resolved_config` reads it back from -- and to the
+        on-disk record always, with the firmware identity and the witness
+        registers read back now, so the file says what system it was written
+        for. Called by the operation that applied the configuration, after it
+        succeeded, and by nothing else.
 
         Parameters
         ----------
@@ -686,7 +679,7 @@ class Session:
         Returns
         -------
         Path
-            The sidecar written.
+            The record written.
         """
         record = resolved.to_dict()
         written_at = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
@@ -696,63 +689,36 @@ class Session:
             self.set(RESOLVED_WRITTEN_AT, written_at)
         except UnresolvedName:
             self.log.warning("%s: this server has no description node; the "
-                             "configuration is recorded in the sidecar only", self.endpoint)
+                             "configuration is recorded on disk only", self.endpoint)
         else:
             self.description['resolved_config_hash'] = resolved.hash
         firmware = {k: self.description.get(k) for k in FIRMWARE_FIELDS}
-        path = config.write_sidecar(resolved, self.sidecar_path(), endpoint=self.endpoint,
-                                    firmware=firmware,
-                                    witness=self.witness(configured_only=True),
-                                    extra=extra)
-        self.log.log(LOG_INFO, "published configuration %s to %s", resolved.hash[:12], path)
+        path = config.write_record(resolved, self.config_record_path(), endpoint=self.endpoint,
+                                   firmware=firmware, witness=self.witness(), extra=extra)
+        self.log.log(LOG_INFO, "recorded configuration %s to %s", resolved.hash[:12], path)
         return path
 
-    def resolved(self) -> Optional[config.Resolved]:
-        """The configuration this system was last given, if anything remembers it.
+    def resolved_config(self) -> Optional[config.Resolved]:
+        """The configuration this server was last given, as it carries it.
 
-        The server is asked first: while it stays up it carries what was
-        published to it. When it has restarted -- its description empty and
-        ``configured`` false -- the sidecar is read instead, and believed only
-        if the firmware it names and every configured witness register it
-        recorded still read the same on this system.
+        A server that has restarted carries nothing: its description is empty
+        and ``configured`` is false, and the answer is None -- it has to be
+        configured again, whatever a record on disk says it once had.
 
         Returns
         -------
         Resolved or None
-            None when neither the server nor a sidecar has a record, which is
-            when the configuring operation has to be run.
-
-        Raises
-        ------
-        DescriptionMismatch
-            If the sidecar disagrees with the system on a firmware field or a
-            witness register, naming it and both values. A record that does not
-            describe this system is not adopted; delete it and configure again.
-        ConfigError
-            If the sidecar is unreadable or corrupt.
+            None when the server has no record, which is when the configuring
+            operation has to be run.
         """
-        if self.description.get('configured'):
-            text = self._optional_get(RESOLVED_CONFIG)
-            if text:
-                resolved = config.Resolved.from_dict(json.loads(text))
-                self.log.log(LOG_INFO, "%s: configuration %s read from the server",
-                             self.endpoint, resolved.hash[:12])
-                return resolved
-        path = self.sidecar_path()
-        if not path.is_file():
+        if not self.description.get('configured'):
             return None
-        record = config.read_sidecar(path)
-        for field in FIRMWARE_FIELDS:
-            expected, actual = record.get('firmware', {}).get(field), self.description.get(field)
-            if expected != actual:
-                raise DescriptionMismatch(field, expected, actual)
-        for name, expected in record.get('witness', {}).items():
-            actual = self._optional_get(name)
-            if actual != expected:
-                raise DescriptionMismatch(name, expected, actual)
-        resolved = config.Resolved.from_dict(record['resolved'])
-        self.log.log(LOG_INFO, "%s: configuration %s reattached from %s (written %s)",
-                     self.endpoint, resolved.hash[:12], path, record.get('written_at'))
+        text = self._optional_get(RESOLVED_CONFIG)
+        if not text:
+            return None
+        resolved = config.Resolved.from_dict(json.loads(text))
+        self.log.log(LOG_INFO, "%s: configuration %s read from the server",
+                     self.endpoint, resolved.hash[:12])
         return resolved
 
     # ------------------------------------------------------------------

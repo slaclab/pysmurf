@@ -44,8 +44,7 @@
 #-----------------------------------------------------------------------------
 
 from cryodaq import config, platform
-from cryodaq._errors import (ConfigError, ConnectError, CryodaqError,
-                             DescriptionMismatch, UnresolvedName)
+from cryodaq._errors import ConfigError, ConnectError, CryodaqError, UnresolvedName
 from cryodaq._session import (LOG_ERROR, LOG_INFO, LOG_USER, NullPublisher,
                               Paths, Session, ValidationReport, connect,
                               endpoint_of)
@@ -62,7 +61,6 @@ __all__ = [
     'platform', 'PlatformMap', 'VALUE', 'COMMAND', 'PROCESS',
     # errors
     'CryodaqError', 'ConnectError', 'UnresolvedName', 'ConfigError',
-    'DescriptionMismatch',
     # logging levels
     'LOG_ERROR', 'LOG_INFO', 'LOG_USER',
 ]
