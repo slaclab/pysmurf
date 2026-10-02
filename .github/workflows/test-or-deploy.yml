@@ -249,10 +249,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+      # The cryodaq client's own dependencies, and nothing of the server's: the
+      # checks below import the package where rogue is absent, which is part of
+      # what they prove.
+      - name: Install the client's dependencies
+        run: python3 -m pip install --quiet pyyaml
+
       # Check that the cryodaq client keeps to its layer boundaries. Reads
-      # source with 'ast', and imports the package to use the part of it that is
-      # meant to work with nothing installed -- so it needs neither rogue nor a
-      # container, and here, where rogue is absent, it proves that too.
+      # source with 'ast', and imports the package to use the part of it that
+      # works without rogue -- so it needs neither rogue nor a container, and
+      # here, where rogue is absent, it proves that too.
       - name: Check the cryodaq layer boundaries
         run: python3 tests/cryodaq/check_boundaries.py
 
@@ -285,13 +291,10 @@ jobs:
         run: python3 tests/cryodaq/check_client_glue.py
 
       # A configuration split over layers resolves to what the equivalent single
-      # file does, every key names the layer that set it, and a recorded
-      # description is refused when it no longer matches the system. Reading the
-      # YAML fixtures needs PyYAML -- the one package this job installs, and the
-      # one cryodaq.config defers importing until a file is read.
-      - name: Check configuration resolution and the published description
+      # file does, every key names the layer that set it, and the record of what
+      # was applied is written whole or not at all.
+      - name: Check configuration resolution and the configuration record
         run: |
-          python3 -m pip install --quiet pyyaml
           python3 tests/cryodaq/check_config_resolves.py
           python3 tests/cryodaq/check_config_resolves.py --selftest
 

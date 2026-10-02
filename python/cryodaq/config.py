@@ -55,6 +55,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union)
 
+import yaml
+
 from cryodaq._errors import ConfigError
 
 __all__ = ['Resolved', 'load', 'merge', 'flatten', 'INHERIT_KEY', 'DEFAULT_LAYER',
@@ -163,10 +165,6 @@ def _read_yaml(path: Path) -> Tuple[Any, Dict[str, int]]:
     are then constructed by the safe loader as usual. No other library.
     """
     try:
-        import yaml
-    except ImportError as e:                                    # pragma: no cover
-        raise ConfigError(str(path), reason='reading YAML needs the PyYAML package') from e
-    try:
         text = path.read_text(encoding='utf-8')
     except OSError as e:
         raise ConfigError(str(path), reason=f"cannot read: {e.strerror or e}") from e
@@ -186,7 +184,6 @@ def _read_yaml(path: Path) -> Tuple[Any, Dict[str, int]]:
 
 def _key_lines(node: Any, prefix: str, lines: Dict[str, int]) -> None:
     """Record the line every key under ``node`` starts on, by dotted path."""
-    import yaml
     for key_node, value_node in node.value:
         dotted = f"{prefix}{key_node.value}"
         lines[dotted] = key_node.start_mark.line + 1

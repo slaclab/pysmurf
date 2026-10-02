@@ -32,6 +32,8 @@ import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 
+import yaml
+
 __all__ = ['convert', 'read_json_with_comments', 'to_yaml', 'DROPPED_KEYS']
 
 # Keys the old files carry that nothing has read for years. Named so a site
@@ -175,7 +177,6 @@ def convert(path: Union[str, Path], *, warn: bool = True) -> Dict[str, Any]:
 
 def to_yaml(mapping: Dict[str, Any]) -> str:
     """``mapping`` as YAML text, keys in the order given, floats in a form YAML reads as floats."""
-    import yaml
     return yaml.safe_dump(mapping, sort_keys=False, default_flow_style=False)
 
 

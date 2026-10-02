@@ -25,7 +25,10 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
+import re
 from typing import Any, Dict
+
+from schema import And, Optional, Or, Schema, SchemaError, Use
 
 __all__ = ['validate', 'ConfigInvalid', 'DATA_OUT_MUX_DEFAULT', 'BAND_KEYS',
            'TUNING_KEYS']
@@ -64,9 +67,7 @@ def _in_range(lo: int, hi: int):
 
 
 def _schema():
-    """The declarative schema, built on first use so importing this costs nothing."""
-    from schema import And, Optional, Or, Schema, Use
-
+    """The declarative schema, built on first use."""
     positive = And(Use(float), lambda f: f > 0)
     unit = And(Use(float), lambda f: 0 <= f <= 1)
     amp_block = {
@@ -174,8 +175,6 @@ def validate(values: Dict[str, Any]) -> Dict[str, Any]:
         unknown key, a value out of range, a band with neither ``band_delay_us``
         nor ``delay``, a DAC in two bias groups.
     """
-    from schema import SchemaError
-
     values = dict(values)
     # Anything the schema does not know is a typo or a key that no longer exists.
     known = _schema().schema
@@ -251,7 +250,6 @@ def _refuse_shared_dacs(values: Dict[str, Any]) -> None:
 
 def _key_of(error: Any) -> str:
     """The dotted key a schema error is about, as far as the library says."""
-    import re
     keys = []
     for line in error.autos:
         if line is None:
