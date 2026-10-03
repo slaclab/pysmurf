@@ -84,6 +84,13 @@ STARTUP_SCRIPT = f'{APPLICATION}.StartupScript'
 JESD_STATUS = f'{APPLICATION}.JesdStatus'
 CHECK_JESD = f'{APPLICATION}.CheckJesd'
 
+# Where the server carries the application configuration it was last given, recorded
+# by the operation that applied it: the resolved values as JSON, their hash, and when.
+APPLICATION_CONFIG = f'{ROOT}.ApplicationConfig'
+RESOLVED_CONFIG = f'{APPLICATION_CONFIG}.Resolved'
+RESOLVED_HASH = f'{APPLICATION_CONFIG}.Hash'
+RESOLVED_WRITTEN_AT = f'{APPLICATION_CONFIG}.WrittenAt'
+
 # The data processor: the channel map, the downsampler, the low-pass filter and the
 # file writer, in the order a sample passes through them.
 PROCESSOR = f'{ROOT}.SmurfProcessor'
@@ -159,8 +166,8 @@ STREAMING_IS_OPEN = f'{STREAMING_INTERFACE}.IsOpen'
 # are numbered, so theirs keeps its index placeholder.
 SERVER_ADDED_ROOT_NODES = tuple(
     p.split('.')[1]
-    for p in (READY, SET_DEFAULTS, APPLICATION, PROCESSOR, STREAM_DATA_SOURCE,
-              CAPTURE, STREAM_WRITER, STREAMING_INTERFACE))
+    for p in (READY, SET_DEFAULTS, APPLICATION, APPLICATION_CONFIG, PROCESSOR,
+              STREAM_DATA_SOURCE, CAPTURE, STREAM_WRITER, STREAMING_INTERFACE))
 
 # --------------------------------------------------------------------------
 # the FPGA
@@ -508,6 +515,9 @@ REGISTERS = {
     'save_config.running': (SAVE_CONFIG_RUNNING, _V),
     'save_config.message': (SAVE_CONFIG_MESSAGE, _V),
     'application.check_jesd': (CHECK_JESD, _C),
+    'application_config.resolved': (RESOLVED_CONFIG, _V),
+    'application_config.hash': (RESOLVED_HASH, _V),
+    'application_config.written_at': (RESOLVED_WRITTEN_AT, _V),
     'carrier.fpga.temperature': (FPGA_TEMPERATURE, _V),
     'carrier.fpga.vcc_int': (FPGA_VCC_INT, _V),
     'carrier.fpga.vcc_aux': (FPGA_VCC_AUX, _V),

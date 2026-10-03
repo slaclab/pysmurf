@@ -1,0 +1,149 @@
+# The default pysmurf client configuration. Every key the schema knows is here
+# with the value a site gets when its own file does not set one; a site file
+# names this layer implicitly -- it sits under everything -- and overrides what
+# it needs to. Mappings merge key by key; a list or a scalar replaces the whole
+# value. See docs/user/configuration.rst.
+#
+# Keys under `bands` are per band. `band_default` is applied to every band
+# listed under `bands` before the band's own block, so a site sets what all
+# its bands share once. A band's block must set (or inherit) att_uc, att_dc,
+# amplitude_scale, feedback_gain, feedback_limit_khz, trigger_reset_delay,
+# lms_gain and every tuning parameter; there is no default for those because
+# they describe the hardware and the resonators on it.
+
+paths:
+  data: /data/smurf_data              # root of the data tree, dated sessions under it
+  smurf_cmd: /data/smurf_data/smurf_cmd
+  tune: /data/smurf_data/tune
+  status: /data/smurf_data/status     # the configuration records live here too
+
+wiring:
+  R_sh: null                          # shunt resistance, ohms (required)
+  bias_line_resistance: null          # ohms (required)
+  high_low_current_ratio: null        # (required)
+  high_current_mode: 0
+  pA_per_phi0: 9.0e+6
+  pic_to_bias_group: {}               # PIC channel -> bias group (required)
+  bias_group_to_pair: {}              # bias group -> [DAC+, DAC-] (required)
+  all_bias_groups: []                 # the bias groups this system drives (required)
+  bad_mask: []                        # [[lo_MHz, hi_MHz], ...] frequency ranges never to tune
+
+# RF attenuator number -> band it sits on. Board wiring, kept here until the
+# platform layer carries it.
+attenuator: {att1: null, att2: null, att3: null, att4: null}
+
+# Cryostat-card amplifier biasing. The block is read as a mapping by the
+# amplifier commands; the keys are theirs.
+amplifier:
+  hemt_Vg: null                       # (required)
+  LNA_Vg: null                        # (required)
+  bit_to_V_hemt: null                 # (required)
+  bit_to_V_50k: null                  # (required)
+  dac_num_50k: null                   # (required)
+  hemt_Id_offset: null                # (required)
+  50k_Id_offset: null                 # (required)
+  hemt_gate_min_voltage: null         # (required)
+  hemt_gate_max_voltage: null         # (required)
+  hemt_Vd_series_resistor: 200.0
+  50K_amp_Vd_series_resistor: 10.0
+  hemt: {drain_opamp_gain: 1, drain_pic_address: 3, power_bitmask: 1}
+  50k: {drain_opamp_gain: 1, drain_pic_address: 4, power_bitmask: 2}
+  hemt1:
+    drain_conversion_b: 1.74185
+    drain_conversion_m: -0.259491
+    drain_dac_num: 31
+    drain_offset: 0
+    drain_opamp_gain: 3.874
+    drain_pic_address: 3
+    drain_resistor: 50.0
+    drain_volt_default: 0.5
+    drain_volt_min: 0
+    drain_volt_max: 2
+    gate_bit_to_volt: 3.86936e-6
+    gate_volt_default: 0.265
+    gate_volt_min: 0
+    gate_volt_max: 2.03
+    power_bitmask: 1
+  hemt2:
+    drain_conversion_b: 1.74185
+    drain_conversion_m: -0.259491
+    drain_dac_num: 29
+    drain_offset: 0
+    drain_opamp_gain: 3.874
+    drain_pic_address: 10
+    drain_resistor: 50.0
+    drain_volt_default: 0.5
+    drain_volt_min: 0
+    drain_volt_max: 2
+    gate_bit_to_volt: 3.86936e-6
+    gate_dac_num: 27
+    gate_volt_default: 0.265
+    gate_volt_min: 0
+    gate_volt_max: 2.03
+    power_bitmask: 4
+  50k1:
+    drain_conversion_b: 5.59815
+    drain_conversion_m: -0.224968
+    drain_dac_num: 32
+    drain_offset: 0
+    drain_opamp_gain: 9.929
+    drain_pic_address: 4
+    drain_resistor: 12.0
+    drain_volt_default: 5.0
+    drain_volt_min: 3.5
+    drain_volt_max: 5.5
+    gate_bit_to_volt: 3.86936e-6
+    gate_dac_num: 30
+    gate_volt_default: 0.26
+    gate_volt_min: 0
+    gate_volt_max: 2.03
+    power_bitmask: 2
+  50k2:
+    drain_conversion_b: 5.59815
+    drain_conversion_m: -0.224968
+    drain_dac_num: 28
+    drain_offset: 0
+    drain_opamp_gain: 9.929
+    drain_pic_address: 11
+    drain_resistor: 12.0
+    drain_volt_default: 5.0
+    drain_volt_min: 3.5
+    drain_volt_max: 5.5
+    gate_bit_to_volt: 3.86936e-6
+    gate_dac_num: 26
+    gate_volt_default: 0.26
+    gate_volt_min: 0
+    gate_volt_max: 2.03
+    power_bitmask: 8
+
+flux_ramp:
+  num_flux_ramp_counter_bits: null    # 20 or 32 (required)
+
+timing:
+  timing_reference: null              # ext_ref, backplane or fiber (required)
+
+fs: null                              # sample rate, Hz (required)
+dsp_enable: 1
+ultrascale_temperature_limit_degC: null
+
+tune:
+  default_tune: null                  # a tune file to load at start, or null
+  fraction_full_scale: null           # (required)
+  reset_rate_khz: null                # (required)
+
+# Applied to every band under `bands` before the band's own block.
+band_default:
+  iq_swap_in: 0
+  iq_swap_out: 0
+  feedback_enable: 1
+  feedback_polarity: 1
+  # data_out_mux defaults per band are the firmware's and are filled in by
+  # the schema (bands 0/4 -> [2, 3], 1/5 -> [0, 1], 2/6 -> [6, 7], 3/7 -> [8, 9]).
+  band_delay_us: null                 # total band delay, microseconds; or set `delay`
+  # delay: {ref_phase: 6, ref_phase_fine: 0, lms: 24}
+  #   sets the three firmware delay registers directly, in their own ticks,
+  #   and wins over band_delay_us when present.
+
+# One block per band, keyed by band number. Empty here: the bands are the
+# site's to declare.
+bands: {}

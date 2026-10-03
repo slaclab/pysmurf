@@ -1,0 +1,7 @@
+{
+  "depth": {"everywhere": "slot", "to_site": "site", "to_slot": "slot", "untouched": "default"},
+  "extra_at_site": true,
+  "marker": {"set_by": "default", "set_by_site": "site", "set_by_slot": "slot"},
+  "nested": {"a": {"b": {"c": 1, "d": 20, "e": 300}, "list": [9]}, "keep": true},
+  "scalar": 30
+}

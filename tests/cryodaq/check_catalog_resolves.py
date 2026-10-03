@@ -49,7 +49,6 @@
 
 import argparse
 import ast
-import gzip
 import os
 import pathlib
 import re
@@ -149,17 +148,14 @@ def load_dump(stem):
 
     A bare stem names a committed fixture; a path with a separator is read as given, so a
     dump built from a released firmware ZIP can be checked without committing 9 MB of it.
-    Plain text and gzip are both accepted, since the fixtures are compressed and a fresh
-    dump is not.
     """
-    if os.sep in str(stem) or str(stem).endswith(('.txt', '.gz')):
+    if os.sep in str(stem) or str(stem).endswith('.txt'):
         path = pathlib.Path(stem)
     else:
-        path = FIXTURES / f'{stem}.varlist.txt.gz'
+        path = FIXTURES / f'{stem}.varlist.txt'
     if not path.exists():
         raise FileNotFoundError(f'no dump at {path}')
-    opener = gzip.open if path.suffix == '.gz' else open
-    with opener(path, 'rt', encoding='utf-8', errors='replace') as fh:
+    with open(path, 'rt', encoding='utf-8', errors='replace') as fh:
         paths = {line.split('\t', 1)[0].strip() for line in fh if line.strip()}
     paths.discard('Path')                       # the header row
     if not paths:
@@ -175,9 +171,9 @@ def load_nodes(stem):
     that describes the firmware -- a second statement of it would be a second thing to
     keep in step, and the check below exists because those drift.
     """
-    path = FIXTURES / f'{stem}.varlist.txt.gz'
+    path = FIXTURES / f'{stem}.varlist.txt'
     nodes = {}
-    with gzip.open(path, 'rt', encoding='utf-8') as fh:
+    with open(path, 'rt', encoding='utf-8') as fh:
         for line in fh:
             parts = line.split('\t')
             if len(parts) > 2 and parts[0] != 'Path':
@@ -786,8 +782,7 @@ def selftest():
                 turns on the mode is judged on it -- a dump without the column trips
                 load_nodes() first and the case never reaches the check it is for.
                 """
-                with gzip.open(tree / f'{stem}.varlist.txt.gz', 'wt',
-                               encoding='utf-8') as fh:
+                with open(tree / f'{stem}.varlist.txt', 'wt', encoding='utf-8') as fh:
                     fh.write('Path\tTypeStr\tMode\n')
                     for p in paths:
                         fh.write(f'{p}\tUInt32\t{"RO" if ro(p) else "RW"}\n')

@@ -13,11 +13,6 @@ logger
 .. automodule:: pysmurf.client.base.logger
     :members:
 
-smurf_config
-------------
-.. automodule:: pysmurf.client.base.smurf_config
-    :members:
-
 smurf_control
 -------------
 .. automodule:: pysmurf.client.base.smurf_control

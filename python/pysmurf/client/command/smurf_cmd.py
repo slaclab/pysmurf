@@ -108,7 +108,6 @@ def stop_acq(S):
     S : SmurfControl
         The SmurfControl object used to issue commands
     """
-    np.array(S.config.get('init').get('bands'))
     S.log('Stopping streaming data')
     S.set_stream_enable(False)
 
@@ -361,7 +360,7 @@ if __name__ == "__main__":
 
     if args.check_lock:
         S.log('Running track and check')
-        for band in S.config.get('init')['bands']:
+        for band in S.bands:
             S.check_lock(band) # this might be too slow
 
     ### TES bias related commands ###

@@ -147,6 +147,35 @@ def check_the_private_names_sodetlib_reaches_are_still_there():
         f'sodetlib change, and this entry removed: ' + ', '.join(missing))
 
 
+def check_the_configuration_properties_sodetlib_reads_are_properties():
+    """The configuration values sodetlib reads as attributes are properties of the mixin.
+
+    ``S.R_sh``, ``S.bands``, ``S.bias_group_to_pair`` and the rest are not
+    methods, so the public-name check above does not see them; they are frozen
+    here as the property names they are, and the shapes sodetlib indexes
+    (``S.bias_group_to_pair.T``, ``S._pic_to_bias_group[:, 1]``) are recorded
+    beside them so a change of shape is a decision too.
+    """
+    data = contract()
+    frozen = data.get('properties', [])
+    assert len(frozen) >= 10, f"only {len(frozen)} properties frozen; too few to mean much"
+    path = CLIENT / 'base' / 'smurf_config_properties.py'
+    tree = ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
+    cls = next(n for n in tree.body
+               if isinstance(n, ast.ClassDef) and n.name == 'SmurfConfigPropertiesMixin')
+
+    def is_property(node):
+        return isinstance(node, ast.FunctionDef) and any(
+            isinstance(d, ast.Name) and d.id == 'property' for d in node.decorator_list)
+    properties = {n.name for n in cls.body if is_property(n)}
+    missing = sorted(name for name in frozen if name not in properties)
+    assert not missing, (
+        f'{len(missing)} configuration propert(ies) sodetlib reads are gone or are no '
+        f'longer properties: ' + ', '.join(missing))
+    for name in data.get('property_shapes', {}):
+        assert name in frozen, f"{name} has a recorded shape but is not a frozen property"
+
+
 def check_the_contract_names_nothing_the_client_never_had():
     """A frozen name the client has never offered would make this check vacuous.
 
@@ -226,6 +255,13 @@ def selftest():
             write(bad)
             expect_failure('a frozen private name the client lacks is caught',
                            check_the_private_names_sodetlib_reaches_are_still_there)
+
+            # A configuration property the mixin does not define must fail.
+            bad = json.loads(json.dumps(real))
+            bad['properties'] = bad['properties'] + ['never_a_property']
+            write(bad)
+            expect_failure('a frozen configuration property the mixin lacks is caught',
+                           check_the_configuration_properties_sodetlib_reads_are_properties)
 
             # A contract with almost nothing in it must fail rather than pass easily.
             bad = json.loads(json.dumps(real))

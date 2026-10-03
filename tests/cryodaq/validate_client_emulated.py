@@ -386,11 +386,45 @@ def check_the_platform_is_identified_from_the_firmware():
 def check_the_description_says_what_the_server_is():
     """Connecting recorded where the tree came from and what it says about itself."""
     description = SESSION.description
-    for field in ('endpoint', 'platform', 'read_at', 'root', 'configured',
+    for field in ('endpoint', 'platform', 'read_at', 'root',
                   'firmware_version', 'firmware_build_stamp'):
         assert field in description, field
     assert description['firmware_version'] is not None, 'the firmware did not identify itself'
-    assert description['configured'], 'the server was configured before this session opened'
+    # Identity only: what the server is doing is not cached on the session.
+    for live in ('configured', 'configuring', 'ready', 'jesd_status', 'resolved_config_hash'):
+        assert live not in description, f"{live} is state, not identity"
+    assert SESSION.configured, 'the server was configured before this session opened'
+
+
+def check_a_recorded_configuration_is_read_back_from_the_server():
+    """record_config() writes the ApplicationConfig nodes the real server attaches; resolved_config() reads them.
+
+    The tree here is the server's own root, so the ApplicationConfig device is the
+    one a live server has, not a stand-in; this is where the semantic names
+    for it are shown to reach real nodes, and where the answer is shown to come
+    from the server and not from the record on disk it also wrote.
+    """
+    import tempfile
+    from cryodaq import config
+    resolved = config.Resolved(values={'probe': {'value': 1}}, provenance={'probe.value': ('here', 1)},
+                               hash=config.hash_of({'probe': {'value': 1}}), layers=('here',))
+    status = tempfile.mkdtemp(prefix='cryodaq_t1_status_')
+    saved_paths, saved_hash = SESSION.paths, SESSION.get('application_config.hash')
+    assert not saved_hash, f"a fresh emulated server already carries {saved_hash}"
+    SESSION.paths = cryodaq.Paths(status, status, status, status, status)
+    try:
+        path = SESSION.record_config(resolved, extra={'source': 't1'})
+        assert path.is_file(), path
+        assert SESSION.get('application_config.hash') == resolved.hash
+        again = SESSION.resolved_config()
+        assert again is not None and again.hash == resolved.hash and again.values == resolved.values
+        # The server is what answers: with the file gone the answer is unchanged.
+        path.unlink()
+        assert SESSION.resolved_config().hash == resolved.hash, 'the record did not come from the server'
+    finally:
+        SESSION.paths = saved_paths
+        for name in ('application_config.resolved', 'application_config.hash', 'application_config.written_at'):
+            SESSION.set(name, '')
 
 
 def check_reading_and_writing_by_name():

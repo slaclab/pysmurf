@@ -1,0 +1,17 @@
+# The lowest layer: what an application ships. Every key has a value here.
+# Synthetic content -- the words mean nothing; the checks are about layering.
+marker:
+  set_by: default
+depth:
+  everywhere: default          # overridden by every layer above
+  to_site: default             # overridden by site only
+  to_slot: default             # overridden by slot only
+  untouched: default           # nobody overrides this
+nested:
+  a:
+    b:
+      c: 1
+      d: 2
+    list: [1, 2, 3]
+  keep: yes
+scalar: 10

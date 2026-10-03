@@ -90,7 +90,7 @@ class SmurfTuneMixin(SmurfBase):
                 tune_file = self.last_tune()
                 self.log(f'Last tune is : {tune_file}')
             elif tune_file is None:
-                tune_file = self._default_tune
+                tune_file = self.default_tune
                 self.log(f'Loading default tune file: {tune_file}')
             self.load_tune(tune_file)
 
@@ -319,7 +319,7 @@ class SmurfTuneMixin(SmurfBase):
         if from_old_tune:
             if old_tune is None:
                 self.log('Using default tuning file')
-                old_tune = self._default_tune
+                old_tune = self.default_tune
             self.load_tune(old_tune,band=band)
 
             resonances = np.copy(self.freq_resp[band]['resonances']).item()
@@ -2365,7 +2365,7 @@ class SmurfTuneMixin(SmurfBase):
             plt.ioff()
 
         if reset_rate_khz is None:
-            reset_rate_khz = self._reset_rate_khz
+            reset_rate_khz = self.reset_rate_khz
             self.log('reset_rate_khz is None. ',
                      f'Using default: {reset_rate_khz}')
         n_channels = self.get_number_channels(band)
@@ -2631,7 +2631,7 @@ class SmurfTuneMixin(SmurfBase):
         tuple).
         """
         if reset_rate_khz is None:
-            reset_rate_khz = self._reset_rate_khz
+            reset_rate_khz = self.reset_rate_khz
         if lms_gain is None:
             lms_gain = int(9 - np.ceil(np.log2(100/reset_rate_khz)))
             if lms_gain > 7:
@@ -2641,14 +2641,14 @@ class SmurfTuneMixin(SmurfBase):
             self.log("Unless you are an expert, you probably want feedback_gain.")
             self.log("See tracking_setup docstring.")
         if feedback_gain is None:
-            feedback_gain = self._feedback_gain[band]
+            feedback_gain = self.feedback_gain[band]
 
         ##
         ## Load unprovided optional args from cfg
         if feedback_start_frac is None:
-            feedback_start_frac = self._feedback_start_frac[band]
+            feedback_start_frac = self.feedback_start_frac[band]
         if feedback_end_frac is None:
-            feedback_end_frac = self._feedback_end_frac[band]
+            feedback_end_frac = self.feedback_end_frac[band]
         ## End loading unprovided optional args from cfg
         ##
 
@@ -2713,8 +2713,8 @@ class SmurfTuneMixin(SmurfBase):
                 lms_freq_hz = reset_rate_khz * n_phi0 * 1.0E3
             else:
                 # Load from config
-                lms_freq_hz = self._lms_freq_hz[band]
-            self._lms_freq_hz[band] = lms_freq_hz
+                lms_freq_hz = self.lms_freq_hz[band]
+            self.lms_freq_hz[band] = lms_freq_hz
             if write_log:
                 self.log('Using lms_freq_estimator : ' +
                     f'{lms_freq_hz:.0f} Hz')
@@ -2964,9 +2964,9 @@ class SmurfTuneMixin(SmurfBase):
             Whether to setup the flux ramp at the end.
         """
         if reset_rate_khz is None:
-            reset_rate_khz = self._reset_rate_khz
+            reset_rate_khz = self.reset_rate_khz
         if lms_gain is None:
-            lms_gain = self._lms_gain[band]
+            lms_gain = self.lms_gain[band]
 
         if relock:
             self.relock(band)
@@ -3005,7 +3005,7 @@ class SmurfTuneMixin(SmurfBase):
         """
         """
         if reset_rate_khz is None:
-            reset_rate_khz = self._reset_rate_khz
+            reset_rate_khz = self.reset_rate_khz
 
         ret = {}
 
@@ -3247,11 +3247,11 @@ class SmurfTuneMixin(SmurfBase):
         trialRTMClock = rtmClock
 
         fullScaleRate = fraction_full_scale * resetRate
-        desFastSlowStepSize = (fullScaleRate * 2**self._num_flux_ramp_counter_bits) / rtmClock
+        desFastSlowStepSize = (fullScaleRate * 2**self.num_flux_ramp_counter_bits) / rtmClock
         trialFastSlowStepSize = round(desFastSlowStepSize)
         FastSlowStepSize = trialFastSlowStepSize
 
-        trialFullScaleRate = trialFastSlowStepSize * trialRTMClock / (2**self._num_flux_ramp_counter_bits)
+        trialFullScaleRate = trialFastSlowStepSize * trialRTMClock / (2**self.num_flux_ramp_counter_bits)
 
         trialResetRate = (dspClockFrequencyMHz * 1e6) / (rampMaxCnt + 1)
         trialFractionFullScale = trialFullScaleRate / trialResetRate
@@ -3286,7 +3286,7 @@ class SmurfTuneMixin(SmurfBase):
                 self.LOG_USER)
             return
 
-        FastSlowRstValue = np.floor((2**self._num_flux_ramp_counter_bits) *
+        FastSlowRstValue = np.floor((2**self.num_flux_ramp_counter_bits) *
             (1 - fractionFullScale)/2)
 
         PulseWidth = 64
@@ -3321,7 +3321,7 @@ class SmurfTuneMixin(SmurfBase):
         fraction_full_scale : float
             The fraction of the flux ramp amplitude.
         """
-        return 1-2*(self.get_fast_slow_rst_value()/2**self._num_flux_ramp_counter_bits)
+        return 1-2*(self.get_fast_slow_rst_value()/2**self.num_flux_ramp_counter_bits)
 
     @set_action()
     def check_lock(self, band, f_min=.015, f_max=.2, df_max=.03,
@@ -3963,7 +3963,7 @@ class SmurfTuneMixin(SmurfBase):
                 f'No tone_power given. Using value in config file: {tone_power}')
 
         if delta_freq is None:
-            delta_freq = self._delta_freq[band]
+            delta_freq = self.delta_freq[band]
 
         if resonance is not None:
             input_res = resonance
@@ -4902,7 +4902,7 @@ class SmurfTuneMixin(SmurfBase):
             # getter returns radians
             band_outputs[band]['eta_phase'] = list(
                 np.rad2deg(self.get_eta_phase_array(band)))
-        self.config.update_subkey('outputs', 'band_outputs', band_outputs)
+        self.add_output('band_outputs', band_outputs)
 
         # dump to file
         if output_file is None:
@@ -4914,7 +4914,7 @@ class SmurfTuneMixin(SmurfBase):
         self.write_output(output_file)
 
         if return_screen:
-            return self.config.config
+            return {'config': self.config.to_dict(), 'outputs': self._outputs}
 
     @set_action()
     def fake_resonance_dict(self, freqs, save_sweeps=False):

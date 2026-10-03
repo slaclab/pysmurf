@@ -7702,20 +7702,20 @@ class SmurfCommandMixin(SmurfBase):
 
         if amp == 'hemt' or amp =='hemt1':
             if amp == 'hemt':
-                bit_to_volt = self.config.config['amplifier']['bit_to_V_hemt']
+                bit_to_volt = self.amplifier['bit_to_V_hemt']
             else:
-                bit_to_volt = self.config.config['amplifier']['hemt1']['gate_bit_to_volt']
+                bit_to_volt = self.amplifier['hemt1']['gate_bit_to_volt']
 
             bits = self._get_by_name('rtm.amp_gate_dac.data_array')
 
         elif amp == '50k':
-            dac_num = self.config.config['amplifier']['dac_num_50k']
-            bit_to_volt = self.config.config['amplifier']['bit_to_V_50k']
+            dac_num = self.amplifier['dac_num_50k']
+            bit_to_volt = self.amplifier['bit_to_V_50k']
             bits = self.get_rtm_slow_dac_data(dac_num)
 
         else:
-            dac_num = self.config.config['amplifier'][amp]['gate_dac_num']
-            bit_to_volt = self.config.config['amplifier'][amp]['gate_bit_to_volt']
+            dac_num = self.amplifier[amp]['gate_dac_num']
+            bit_to_volt = self.amplifier[amp]['gate_bit_to_volt']
             bits = self.get_rtm_slow_dac_data(dac_num)
 
         volts = bit_to_volt * bits
@@ -7745,9 +7745,9 @@ class SmurfCommandMixin(SmurfBase):
 
         if amp == 'hemt' or amp == 'hemt1':
             if amp == 'hemt':
-                bit_to_volt = self.config.config['amplifier']['bit_to_V_hemt']
+                bit_to_volt = self.amplifier['bit_to_V_hemt']
             else:
-                bit_to_volt = self.config.config['amplifier']['hemt1']['gate_bit_to_volt']
+                bit_to_volt = self.amplifier['hemt1']['gate_bit_to_volt']
 
             bits = voltage / bit_to_volt
             nbits = self._rtm_slow_dac_nbits
@@ -7764,20 +7764,20 @@ class SmurfCommandMixin(SmurfBase):
             self._set_by_name('rtm.amp_gate_dac.data_array', bits, **kwargs)
 
         elif amp == '50k':
-            dac_num = self.config.config['amplifier']['dac_num_50k']
-            bit_to_volt = self.config.config['amplifier']['bit_to_V_50k']
+            dac_num = self.amplifier['dac_num_50k']
+            bit_to_volt = self.amplifier['bit_to_V_50k']
             bits = voltage / bit_to_volt
             self.set_rtm_slow_dac_data(dac_num, bits, **kwargs)
 
         else:
-            min = self.config.get('amplifier')[amp]['gate_volt_min']
-            max = self.config.get('amplifier')[amp]['gate_volt_max']
+            min = self.amplifier[amp]['gate_volt_min']
+            max = self.amplifier[amp]['gate_volt_max']
 
             if not override:
                 assert voltage >= min and voltage <= max, f'Voltage {voltage} for amp {amp} out of bounds, {min}, {max}'
 
-            dac_num = self.config.get('amplifier')[amp]['gate_dac_num']
-            bit_to_volt = self.config.get('amplifier')[amp]['gate_bit_to_volt']
+            dac_num = self.amplifier[amp]['gate_dac_num']
+            bit_to_volt = self.amplifier[amp]['gate_bit_to_volt']
             bits = voltage / bit_to_volt
             self.log(f'Setting {amp} gate to {bits} via DAC {dac_num}, given {voltage} Volts')
             self.set_rtm_slow_dac_data(dac_num, bits, **kwargs)
@@ -7797,9 +7797,9 @@ class SmurfCommandMixin(SmurfBase):
             self.log(f'get_amp_drain_voltage: The power supply for amp {amp} is off, therefore returning 0.0.')
             return 0.0
 
-        dac_num = self.config.get('amplifier')[amp]['drain_dac_num']
-        m = self.config.get('amplifier')[amp]['drain_conversion_m']
-        b = self.config.get('amplifier')[amp]['drain_conversion_b']
+        dac_num = self.amplifier[amp]['drain_dac_num']
+        m = self.amplifier[amp]['drain_conversion_m']
+        b = self.amplifier[amp]['drain_conversion_b']
         dac_volt = self.get_rtm_slow_dac_volt(dac_num)
         out_volt = m * dac_volt + b
 
@@ -7830,7 +7830,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         self.C.assert_amps_match_this_cryocard(list(amp))
 
-        power_bitmask = self.config.get('amplifier')[amp]['power_bitmask']
+        power_bitmask = self.amplifier[amp]['power_bitmask']
         power = self.C.read_ps_en()
         power_masked = power & power_bitmask
 
@@ -7857,7 +7857,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         self.C.assert_amps_match_this_cryocard(list(amp))
 
-        power_bitmask = self.config.get('amplifier')[amp]['power_bitmask']
+        power_bitmask = self.amplifier[amp]['power_bitmask']
         power = self.C.read_ps_en()
 
         power_masked = power & ~power_bitmask
@@ -7895,7 +7895,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         self.C.assert_amps_match_this_cryocard(list(amp))
 
-        dac_num = self.config.config['amplifier'][amp]['drain_dac_num']
+        dac_num = self.amplifier[amp]['drain_dac_num']
 
         if volt == 0 or volt == 0.0:
             if self.get_amp_drain_enable(amp):
@@ -7911,8 +7911,8 @@ class SmurfCommandMixin(SmurfBase):
                     self.log(f'set_amp_drain_voltage: {amp}: drain is disabled but control DAC{dac_num} is nonzero.  Setting to zero.')
                     self.set_rtm_slow_dac_volt(dac_num, 0.0)
         else:
-            min = self.config.get('amplifier')[amp]['drain_volt_min']
-            max = self.config.get('amplifier')[amp]['drain_volt_max']
+            min = self.amplifier[amp]['drain_volt_min']
+            max = self.amplifier[amp]['drain_volt_max']
 
             if not override:
                 assert volt >= min and volt <= max, f'Voltage {volt} for amp {amp} out of bounds, {min}, {max}'
@@ -7934,8 +7934,8 @@ class SmurfCommandMixin(SmurfBase):
                 self.set_rtm_slow_dac_volt(dac_num, 9.999)
                 self.set_amp_drain_enable(amp, True)
 
-            m = self.config.get('amplifier')[amp]['drain_conversion_m']
-            b = self.config.get('amplifier')[amp]['drain_conversion_b']
+            m = self.amplifier[amp]['drain_conversion_m']
+            b = self.amplifier[amp]['drain_conversion_b']
             dac_volt = (volt - b)/m
             self.set_rtm_slow_dac_volt(dac_num, dac_volt)
 
@@ -7967,20 +7967,20 @@ class SmurfCommandMixin(SmurfBase):
         """
         self.C.assert_amps_match_this_cryocard(list(amp))
 
-        address = self.config.get('amplifier')[amp]['drain_pic_address']
-        drain_opamp_gain = self.config.get('amplifier')[amp]['drain_opamp_gain']
+        address = self.amplifier[amp]['drain_pic_address']
+        drain_opamp_gain = self.amplifier[amp]['drain_opamp_gain']
 
         if amp == 'hemt':
-            drain_resistor = self.config.config['amplifier']['hemt_Vd_series_resistor']
-            drain_offset = self.config.config['amplifier']['hemt_Id_offset']
+            drain_resistor = self.amplifier['hemt_Vd_series_resistor']
+            drain_offset = self.amplifier['hemt_Id_offset']
 
         elif amp == '50k':
-            drain_resistor = self.config.config['amplifier']['50K_amp_Vd_series_resistor']
-            drain_offset = self.config.config['amplifier']['50k_Id_offset']
+            drain_resistor = self.amplifier['50K_amp_Vd_series_resistor']
+            drain_offset = self.amplifier['50k_Id_offset']
 
         else:
-            drain_resistor = self.config.get('amplifier')[amp]['drain_resistor']
-            drain_offset = self.config.get('amplifier')[amp]['drain_offset']
+            drain_resistor = self.amplifier[amp]['drain_resistor']
+            drain_offset = self.amplifier[amp]['drain_offset']
 
         volt = self.C.get_volt(address)
         amp = 2 * (volt / drain_opamp_gain) / drain_resistor
@@ -8050,10 +8050,10 @@ class SmurfCommandMixin(SmurfBase):
         self._set_by_name('rtm.amp_gate_dac.enable_array', 0x2)
 
         if major == 1 or major == 10:
-            volt = self.config.get('amplifier')['LNA_Vg']
+            volt = self.amplifier['LNA_Vg']
             self.set_amp_gate_voltage('50k', volt)
 
-            volt = self.config.get('amplifier')['hemt_Vg']
+            volt = self.amplifier['hemt_Vg']
             self.set_amp_gate_voltage('hemt', volt)
 
         if major == 4:
@@ -8061,7 +8061,7 @@ class SmurfCommandMixin(SmurfBase):
 
                 # Set the gates to their defaults.
 
-                gate_volt_default = self.config.config['amplifier'][amp]['gate_volt_default']
+                gate_volt_default = self.amplifier[amp]['gate_volt_default']
                 self.set_amp_gate_voltage(amp, gate_volt_default)
 
     def get_amplifier_biases(self):

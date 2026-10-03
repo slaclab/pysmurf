@@ -1,0 +1,534 @@
+#!/usr/bin/env python3
+#-----------------------------------------------------------------------------
+# Title      : pysmurf Configuration Schema Checks
+#-----------------------------------------------------------------------------
+# File       : check_pysmurf_config.py
+# Created    : 2026-09-30
+#-----------------------------------------------------------------------------
+# Description:
+# Checks of pysmurf's client configuration content -- the schema, the shipped
+# default and the legacy converter -- as opposed to the layering machinery,
+# which check_config_resolves.py covers with a synthetic schema.
+#
+# The schema's refusals are checked one by one, each required to name the key
+# at fault. Then every legacy .cfg in cfg_files/ is converted, resolved over the
+# shipped default and turned into the client's configuration properties, and
+# those are compared value for value with what the legacy loader and property
+# mixin produced from the same file. The legacy code is read out of git history
+# at the revision before it was replaced, so this comparison keeps working after
+# the files are gone; it is the proof that no site's setup() sees a different
+# value on the day the format changes.
+#
+# Needs PyYAML, schema and numpy: the property shapes are numpy arrays, and
+# that is part of what is compared.
+#-----------------------------------------------------------------------------
+# This file is part of the pysmurf software platform. It is subject to
+# the license terms in the LICENSE.txt file found in the top-level directory
+# of this distribution and at:
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part of the pysmurf software platform, including this file, may be
+# copied, modified, propagated, or distributed except according to the terms
+# contained in the LICENSE.txt file.
+#-----------------------------------------------------------------------------
+"""Check pysmurf's configuration schema, default and legacy converter."""
+import argparse
+import copy
+import pathlib
+import re
+import subprocess
+import sys
+import tempfile
+import warnings
+
+import numpy as np
+
+HERE = pathlib.Path(__file__).resolve().parent
+REPO = HERE.parents[1]
+sys.path.insert(0, str(REPO / 'python'))
+
+from cryodaq import ConfigError  # noqa: E402
+from cryodaq.config import VALIDATED_LAYER, flatten  # noqa: E402
+from pysmurf.client.config import DEFAULT, legacy, load, load_mapping, schema  # noqa: E402
+
+# The legacy loader and property mixin, at the last revision that had them.
+LEGACY_REVISION = '2ef76397'
+LEGACY_FILES = ('python/pysmurf/client/base/smurf_config.py',
+                'python/pysmurf/client/base/smurf_config_properties.py')
+
+# Every legacy configuration file; the startup scripts share the suffix and are
+# not JSON. Fourteen of them the legacy validator itself refuses -- a required
+# key missing, left behind when the schema grew under them -- so those are
+# checked to be refused by the new schema too, and the round trip runs over
+# the rest.
+CFG_FILES = sorted(p for p in (REPO / 'cfg_files').rglob('*.cfg')
+                   if 'smurf_startup' not in p.name)
+EXPECTED_CFG_COUNT = 49
+EXPECTED_UNLOADABLE = 14
+
+# The properties the legacy mixin exposed that live code reads: what a site's
+# setup(), tuning and analysis see. The eleven amplifier ones had no reader and
+# are gone; the three deprecated delay ones are compared through `delay`.
+COMPARED = (
+    'smurf_cmd_dir', 'tune_dir', 'status_dir', 'default_data_dir', 'pA_per_phi0',
+    'timing_reference', 'default_tune', 'fs', 'R_sh', 'dsp_enable',
+    'ultrascale_temperature_limit_degC', 'bands', 'num_flux_ramp_counter_bits',
+    'reset_rate_khz', 'fraction_full_scale', 'bias_line_resistance',
+    'high_low_current_ratio', 'high_current_mode_bool', 'all_groups', 'n_bias_groups',
+    'attenuator', 'pic_to_bias_group', 'bias_group_to_pair', 'bad_mask',
+    'gradient_descent_gain', 'gradient_descent_averages', 'gradient_descent_converge_hz',
+    'gradient_descent_step_hz', 'gradient_descent_momentum', 'gradient_descent_beta',
+    'feedback_start_frac', 'feedback_end_frac', 'eta_scan_del_f', 'eta_scan_averages',
+    'delta_freq', 'lms_freq_hz', 'data_out_mux', 'amplitude_scale', 'iq_swap_in',
+    'iq_swap_out', 'ref_phase_delay', 'ref_phase_delay_fine', 'band_delay_us', 'att_uc',
+    'att_dc', 'trigger_reset_delay', 'lms_gain', 'lms_delay', 'feedback_enable',
+    'feedback_gain', 'feedback_limit_khz', 'feedback_polarity',
+)
+
+
+# --------------------------------------------------------------------------
+# the legacy side
+# --------------------------------------------------------------------------
+
+def legacy_modules():
+    """The old loader and mixin, executed out of git history into namespaces."""
+    out = {}
+    for rel in LEGACY_FILES:
+        source = subprocess.run(['git', 'show', f"{LEGACY_REVISION}:{rel}"], cwd=REPO,
+                                check=True, capture_output=True, text=True).stdout
+        namespace = {'__name__': f"legacy_{pathlib.Path(rel).stem}"}
+        exec(compile(source, rel, 'exec'), namespace)                    # noqa: S102
+        out[pathlib.Path(rel).stem] = namespace
+    return out
+
+
+_LEGACY = None
+
+
+def legacy_properties(cfg_path):
+    """What the old code made of a .cfg: {property: value} for every compared name."""
+    global _LEGACY
+    if _LEGACY is None:
+        _LEGACY = legacy_modules()
+    SmurfConfig = _LEGACY['smurf_config']['SmurfConfig']
+    Mixin = _LEGACY['smurf_config_properties']['SmurfConfigPropertiesMixin']
+    # The old validator insists the data directories exist and are writable;
+    # a fixture-shaped tree is enough for it, and the values compared are the
+    # strings it was given.
+    config = SmurfConfig(str(cfg_path), validate=False)
+    config.config = _with_existing_dirs(config.config)
+    config.config = SmurfConfig.validate_config(config.config)
+    holder = Mixin()
+    holder.copy_config_to_properties(config)
+    return {name: getattr(holder, name) for name in COMPARED}, config.config
+
+
+_DIRS = None
+
+
+def _with_existing_dirs(raw):
+    """The legacy validator's directory checks, satisfied without touching /data."""
+    global _DIRS
+    if _DIRS is None:
+        _DIRS = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_legacy_dirs_'))
+    raw = dict(raw)
+    for key in ('default_data_dir', 'smurf_cmd_dir', 'tune_dir', 'status_dir'):
+        d = _DIRS / key
+        d.mkdir(exist_ok=True)
+        raw[key] = str(d)
+    if raw.get('tune_band', {}).get('default_tune'):
+        f = _DIRS / 'tune.npy'
+        f.touch()
+        raw['tune_band'] = dict(raw['tune_band'], default_tune=str(f))
+    return raw
+
+
+# --------------------------------------------------------------------------
+# the new side
+# --------------------------------------------------------------------------
+
+def new_properties(cfg_path, legacy_raw):
+    """What the new code makes of the same file, as the same property names."""
+    from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin
+    converted = legacy.convert(cfg_path, warn=False)
+    # The directory strings the legacy side was given, so paths compare equal.
+    converted['paths'] = {'data': legacy_raw['default_data_dir'],
+                          'smurf_cmd': legacy_raw['smurf_cmd_dir'],
+                          'tune': legacy_raw['tune_dir'], 'status': legacy_raw['status_dir']}
+    if legacy_raw['tune_band'].get('default_tune'):
+        converted.setdefault('tune', {})['default_tune'] = legacy_raw['tune_band']['default_tune']
+    resolved = load_mapping(converted, name=str(cfg_path))
+    holder = SmurfConfigPropertiesMixin()
+    holder.copy_config_to_properties(resolved)
+    return {name: getattr(holder, name) for name in COMPARED}, resolved
+
+
+def same(a, b):
+    if isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
+        return np.array_equal(np.asarray(a), np.asarray(b))
+    if isinstance(a, dict) and isinstance(b, dict):
+        return a.keys() == b.keys() and all(same(a[k], b[k]) for k in a)
+    if isinstance(a, float) or isinstance(b, float):
+        return a == b or (a is not None and b is not None and abs(float(a) - float(b)) < 1e-12)
+    return a == b
+
+
+# --------------------------------------------------------------------------
+# checks: the schema
+# --------------------------------------------------------------------------
+
+def minimal():
+    """The smallest mapping the schema accepts: one band, every required key set."""
+    return {
+        'wiring': {'R_sh': 4e-4, 'bias_line_resistance': 1e4, 'high_low_current_ratio': 6.0,
+                   'pic_to_bias_group': {0: 0}, 'bias_group_to_pair': {0: [1, 2]},
+                   'all_bias_groups': [0]},
+        'attenuator': {'att1': 0, 'att2': 1, 'att3': 2, 'att4': 3},
+        'amplifier': {'hemt_Vg': -0.6, 'LNA_Vg': -0.7, 'bit_to_V_hemt': 1e-5,
+                      'bit_to_V_50k': 1e-5, 'dac_num_50k': 32, 'hemt_Id_offset': 0.0,
+                      '50k_Id_offset': 0.0, 'hemt_gate_min_voltage': -1.0,
+                      'hemt_gate_max_voltage': 0.0},
+        'flux_ramp': {'num_flux_ramp_counter_bits': 20},
+        'timing': {'timing_reference': 'ext_ref'},
+        'fs': 4000.0,
+        'tune': {'fraction_full_scale': 0.5, 'reset_rate_khz': 4.0},
+        'bands': {4: {'feedback_gain': 256, 'feedback_limit_khz': 225.0, 'att_uc': 12,
+                      'att_dc': 0, 'amplitude_scale': 11, 'trigger_reset_delay': 60,
+                      'lms_gain': 7, 'band_delay_us': 2.4, 'lms_freq_hz': 20000.0,
+                      'delta_freq': 0.01, 'feedback_start_frac': 0.02,
+                      'feedback_end_frac': 0.94, 'gradient_descent_gain': 0.05,
+                      'gradient_descent_averages': 2, 'gradient_descent_converge_hz': 0.02,
+                      'gradient_descent_momentum': 1, 'gradient_descent_step_hz': 0.005,
+                      'gradient_descent_beta': 0.4, 'eta_scan_averages': 2,
+                      'eta_scan_del_f': 40000}},
+    }
+
+
+def refused(values, key, saying=''):
+    try:
+        load_mapping(values)
+    except schema.ConfigInvalid as e:
+        assert e.key == key, f"refused at {e.key!r}, expected {key!r}: {e}"
+        assert saying in str(e), f"{e} does not say {saying!r}"
+        return e
+    raise AssertionError(f"accepted a configuration wrong at {key}")
+
+
+def check_the_default_alone_is_a_complete_template_that_needs_a_site():
+    # Every key is present, and a resolution of the default alone is refused
+    # for a required value rather than for shape: the template is complete.
+    from cryodaq import config
+    bare = config.load(DEFAULT)
+    assert 'bands' in bare.values and bare.values['bands'] == {}
+    for key in ('paths', 'wiring', 'attenuator', 'amplifier', 'flux_ramp', 'timing',
+                'fs', 'dsp_enable', 'tune', 'band_default'):
+        assert key in bare.values, f"default.yaml lacks {key}"
+    try:
+        schema.validate(dict(bare.values))
+    except schema.ConfigInvalid as e:
+        assert 'required' in str(e), str(e)
+    else:
+        raise AssertionError('the default alone was accepted; a site must set its wiring')
+
+
+def check_a_minimal_configuration_resolves_with_defaults_filled():
+    resolved = load_mapping(minimal())
+    band = resolved.values['bands'][4]
+    assert band['iq_swap_in'] == 0 and band['feedback_enable'] == 1, 'band_default not applied'
+    assert band['data_out_mux'] == [2, 3], 'the firmware data_out_mux for band 4'
+    assert resolved.values['wiring']['pA_per_phi0'] == 9e6
+    assert resolved.values['amplifier']['hemt1']['drain_dac_num'] == 31
+    assert resolved.values['paths']['tune'] == '/data/smurf_data/tune'
+    assert list(resolved.values['bands']) == [4] and isinstance(list(resolved.values['bands'])[0], int)
+    assert resolved.get('bands.4.att_uc') == 12, 'a dotted path must reach an int-keyed band'
+    assert resolved.get('bands.5.att_uc', 'none') == 'none'
+    assert resolved.provenance['wiring.R_sh'][0] == 'in-memory'
+    assert resolved.provenance['wiring.pA_per_phi0'][0] == str(DEFAULT)
+
+
+def check_the_schema_refuses_bad_content_naming_the_key():
+    v = minimal()
+    v['not_a_key'] = 1
+    refused(v, 'not_a_key', 'not a pysmurf configuration key')
+    v = minimal()
+    v['bands'][4]['no_such'] = 1
+    refused(v, 'bands.4.no_such', 'not a per-band key')
+    v = minimal()
+    del v['wiring']['R_sh']
+    refused(v, 'wiring.R_sh', 'required')
+    v = minimal()
+    v['bands'][4]['att_uc'] = 40
+    refused(v, 'bands.4.att_uc')
+    v = minimal()
+    v['timing']['timing_reference'] = 'moon'
+    refused(v, 'timing.timing_reference')
+    v = minimal()
+    v['bands'][9] = v['bands'].pop(4)
+    refused(v, 'bands.9', '0-7')
+    v = minimal()
+    v['bands'][4]['band_delay_us'] = None
+    refused(v, 'bands.4', 'band_delay_us or a delay block')
+    v = minimal()
+    v['wiring']['bias_group_to_pair'] = {0: [1, 2], 1: [2, 3]}
+    refused(v, 'wiring.bias_group_to_pair', '[2]')
+    v = minimal()
+    v['wiring']['bias_group_to_pair'] = {0: [32, 2]}
+    refused(v, 'amplifier.dac_num_50k', 'bias group 0')
+    for pair in ([1], [1, 2, 3]):
+        v = minimal()
+        v['wiring']['bias_group_to_pair'] = {0: pair}
+        refused(v, 'wiring.bias_group_to_pair.0', 'two DACs')
+
+
+def check_a_delay_block_is_accepted_and_wins_over_band_delay_us():
+    v = minimal()
+    v['bands'][4]['delay'] = {'ref_phase': 6, 'lms': 24}
+    band = load_mapping(v).values['bands'][4]
+    assert band['delay'] == {'ref_phase': 6, 'ref_phase_fine': 0, 'lms': 24}
+    assert band['band_delay_us'] == 2.4, 'both are kept; setup() prefers delay'
+    v = minimal()
+    v['bands'][4]['band_delay_us'] = None
+    v['bands'][4]['delay'] = {'ref_phase': 6}
+    band = load_mapping(v).values['bands'][4]
+    assert band['delay']['lms'] is None, 'lms defaults to none, meaning "same as ref_phase"'
+
+
+def check_a_layered_site_file_resolves_over_the_default():
+    d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_pysmurf_cfg_'))
+    site = copy.deepcopy(minimal())
+    band = site['bands'].pop(4)
+    site['band_default'] = {k: v for k, v in band.items() if k not in ('att_uc', 'att_dc')}
+    (d / 'site.yaml').write_text(legacy.to_yaml(site))
+    (d / 'slot.yaml').write_text('inherit: site.yaml\nbands:\n  4: {att_uc: 12, att_dc: 0}\n'
+                                 '  5: {att_uc: 14, att_dc: 2}\n')
+    resolved = load(d / 'slot.yaml')
+    assert sorted(resolved.values['bands']) == [4, 5]
+    assert resolved.values['bands'][5]['att_uc'] == 14
+    assert resolved.values['bands'][5]['lms_gain'] == 7, 'from band_default'
+    assert resolved.provenance['bands.5.att_uc'][0].endswith('slot.yaml')
+    assert resolved.provenance['wiring.R_sh'][0].endswith('site.yaml')
+    # Every leaf has provenance: a value copied from band_default is credited to
+    # the line that set the default, and one the schema filled in says so.
+    assert set(resolved.provenance) == set(flatten(resolved.values))
+    assert resolved.provenance['bands.5.lms_gain'] == resolved.provenance['band_default.lms_gain']
+    assert resolved.provenance['bands.5.lms_gain'][0].endswith('site.yaml')
+    assert resolved.provenance['bands.5.data_out_mux'] == (VALIDATED_LAYER, 0), \
+        'the firmware default for data_out_mux came from the validator'
+    # A layering fault is cryodaq's to refuse, unchanged by the schema.
+    (d / 'loop.yaml').write_text('inherit: loop.yaml\n')
+    try:
+        load(d / 'loop.yaml')
+    except ConfigError as e:
+        assert 'loops' in str(e)
+    else:
+        raise AssertionError('a loop was accepted')
+
+
+# --------------------------------------------------------------------------
+# checks: the legacy files
+# --------------------------------------------------------------------------
+
+def check_every_legacy_file_converts_to_what_the_old_code_read():
+    assert len(CFG_FILES) == EXPECTED_CFG_COUNT, \
+        f"{len(CFG_FILES)} legacy files, expected {EXPECTED_CFG_COUNT}"
+    failures = []
+    unloadable = []
+    for cfg in CFG_FILES:
+        try:
+            old, raw = legacy_properties(cfg)
+        except Exception as e:                                   # noqa: BLE001
+            # The legacy loader refuses it; the new one must too, naming a key.
+            unloadable.append(cfg.name)
+            try:
+                load_mapping(legacy.convert(cfg, warn=False))
+            except schema.ConfigInvalid as new_e:
+                assert new_e.key, f"{cfg.name}: refused without a key"
+            else:
+                raise AssertionError(f"{cfg.name}: the legacy loader refuses this file "
+                                     f"({str(e)[:60]!r}) and the new one accepts it")
+            continue
+        new, resolved = new_properties(cfg, raw)
+        for name in COMPARED:
+            if not same(old[name], new[name]):
+                failures.append(f"{cfg.relative_to(REPO)}: {name}: old {old[name]!r} new {new[name]!r}")
+        # Every band block resolves to the same delay decision setup() takes.
+        for band in old['bands']:
+            assert _delay_writes_old(old, band) == _delay_writes_new(resolved, band), \
+                f"{cfg.name} band {band}: delay writes differ"
+    assert not failures, f"{len(failures)} value(s) differ:\n  " + '\n  '.join(failures[:20])
+    assert len(unloadable) == EXPECTED_UNLOADABLE, \
+        f"{len(unloadable)} files the legacy loader refuses, expected {EXPECTED_UNLOADABLE}: {unloadable}"
+
+
+def _delay_writes_old(old, band):
+    """The registers setup() wrote from the legacy properties, as (name, value) pairs."""
+    if old['ref_phase_delay'][band]:
+        lms = old['lms_delay'][band]
+        return (('ref_phase_delay', old['ref_phase_delay'][band]),
+                ('ref_phase_delay_fine', old['ref_phase_delay_fine'][band]),
+                ('lms_delay', int(old['ref_phase_delay'][band]) if lms is None else lms))
+    return (('band_delay_us', old['band_delay_us'][band]),)
+
+
+def _delay_writes_new(resolved, band):
+    from pysmurf.client.base.smurf_config_properties import delay_writes
+    return delay_writes(resolved.values['bands'][band])
+
+
+def check_a_record_read_back_through_json_gives_the_same_properties():
+    # What the crate found: a Resolved recorded on the server or on disk
+    # travels as JSON, which has no integer keys, so every per-band and per-group
+    # table came back keyed by string and five properties disagreed with the
+    # file-driven instance's. adopt() re-validates and the properties must agree.
+    import json
+    from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin
+    from pysmurf.client.config import adopt
+    from cryodaq import Resolved
+    m = minimal()
+    # Keys past 9, so that a string sort ('10' < '2') would reorder the rows: the
+    # second thing the crate found, after the key type.
+    m['wiring']['pic_to_bias_group'] = {0: 0, 2: 1, 10: 2, 11: 3}
+    m['wiring']['bias_group_to_pair'] = {0: [1, 2], 2: [3, 4], 10: [5, 6], 11: [7, 8]}
+    m['wiring']['all_bias_groups'] = [0, 2, 10, 11]
+    original = load_mapping(m)
+    # The file and the server record are both written with sort_keys=True.
+    travelled = Resolved.from_dict(json.loads(json.dumps(original.to_dict(), sort_keys=True)))
+    assert list(travelled.values['bands']) == ['4'], 'JSON did not stringify the band key; the case is moot'
+    assert list(travelled.values['wiring']['pic_to_bias_group']) == ['0', '10', '11', '2'], \
+        'the record did not come back string-sorted; the case is moot'
+    adopted = adopt(travelled)
+    assert adopted.hash == original.hash
+    a, b = SmurfConfigPropertiesMixin(), SmurfConfigPropertiesMixin()
+    a.copy_config_to_properties(original)
+    b.copy_config_to_properties(adopted)
+    differ = [n for n in COMPARED if hasattr(a, n) and not same(getattr(a, n), getattr(b, n))]
+    assert not differ, f"properties differ after a JSON round trip: {differ}"
+    assert list(adopted.values['bands']) == [4] and isinstance(list(adopted.values['bands'])[0], int)
+
+
+def check_a_write_into_a_per_band_property_persists():
+    # Callers write into these dictionaries -- tracking_setup stores the LMS
+    # frequency it measured, sodetlib the tone power it chose -- and read the
+    # value back later. A property rebuilt on each access takes the write on a
+    # temporary and loses it; review found exactly that at smurf_tune.py's
+    # `self.lms_freq_hz[band] = lms_freq_hz`. Every per-band property must hand
+    # out the same dictionary each time.
+    from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin
+    holder = SmurfConfigPropertiesMixin()
+    holder.copy_config_to_properties(load_mapping(minimal()))
+    # The per-band properties are found, not listed: whatever answers with a
+    # dict keyed by band is one, so a new one is covered without an edit here.
+    def is_per_band(n):
+        return (not n.startswith('_') and isinstance(getattr(type(holder), n, None), property) and
+                isinstance(getattr(holder, n), dict) and 4 in getattr(holder, n))
+    per_band = [n for n in dir(holder) if is_per_band(n)]
+    assert len(per_band) >= 25, f"only {len(per_band)} per-band properties found: {per_band}"
+    lost = []
+    for name in per_band:
+        table = getattr(holder, name)
+        assert isinstance(table, dict) and 4 in table, f"{name} is not a per-band dict: {table!r}"
+        table[4] = 'written'
+        if getattr(holder, name)[4] != 'written' or getattr(holder, name) is not table:
+            lost.append(name)
+    assert not lost, f"a write into these per-band properties is lost: {lost}"
+    # And the one sodetlib reads back after tracking_setup, by name, the way it is written.
+    holder.lms_freq_hz[4] = 12345.0
+    assert holder.lms_freq_hz[4] == 12345.0
+    assert holder._amplitude_scale is holder.amplitude_scale, 'the private field is the same dict'
+
+
+def check_the_converter_drops_only_what_nothing_read():
+    seen = set()
+    for cfg in CFG_FILES:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            converted = legacy.convert(cfg)
+        assert len(caught) == 1, f"{cfg.name}: {len(caught)} warnings, expected one"
+        text = str(caught[0].message)
+        assert 'deprecated' in text and cfg.name in text, text
+        if 'Dropped, nothing reads them: ' in text:
+            seen.update(text.split('Dropped, nothing reads them: ', 1)[1].rstrip('.').split(', '))
+        for key in ('epics_root', 'chip_to_freq', 'smurf_to_mce'):
+            assert key not in converted, f"{cfg.name} kept {key}"
+    allowed = set(legacy.DROPPED_KEYS)
+    unexpected = {k for k in seen if k not in allowed and not k.startswith('init.band_')}
+    assert not unexpected, f"the converter dropped keys not on its list: {sorted(unexpected)}"
+
+
+def check_the_converter_reads_a_hash_inside_a_string():
+    d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_cfg_'))
+    (d / 'x.cfg').write_text('{\n  # a comment\n  "a": "with # inside",  # trailing\n  "b": 1\n}\n')
+    assert legacy.read_json_with_comments(d / 'x.cfg') == {'a': 'with # inside', 'b': 1}
+
+
+def check_a_converted_file_written_as_yaml_resolves_to_the_same_hash():
+    cfg = CFG_FILES[0]
+    d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_cfg_'))
+    (d / 'site.yaml').write_text(legacy.to_yaml(legacy.convert(cfg, warn=False)))
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        via_cfg = load(cfg)
+    via_yaml = load(d / 'site.yaml')
+    assert via_cfg.hash == via_yaml.hash, 'the written YAML resolves differently from the .cfg'
+
+
+# The legacy loader exposed the raw .cfg as `S.config.get(section)` /
+# `S.config[section]` with these section names; `S.config` is a Resolved now, with
+# `values`, `provenance`, `hash`, `layers` and a dotted `get`. A reader of the old
+# shape passes every other gate -- the request-equivalence proof drives methods,
+# not scripts -- and fails at the user's prompt, as smurf_cmd.py did.
+_LEGACY_SECTIONS = ('init', 'tune_band', 'amplifier', 'attenuator', 'pic_to_bias_group',
+                    'bias_group_to_pair', 'constant', 'timing', 'flux_ramp', 'smurf_to_mce',
+                    'bad_mask', 'epics_root', 'default_data_dir', 'tune_dir', 'status_dir',
+                    'smurf_cmd_dir', 'all_bias_groups', 'high_low_current_ratio',
+                    'bias_line_resistance', 'high_current_mode_bool', 'chip_to_freq')
+_LEGACY_READ = re.compile(r"\.config(?:\.get\(|\[)\s*['\"](" + '|'.join(_LEGACY_SECTIONS) + r")['\"]")
+_RESOLVED_ATTRS = ('values', 'provenance', 'hash', 'layers', 'get', 'to_dict')
+_CONFIG_ATTR = re.compile(r"\bself\.config\.([A-Za-z_]+)")
+# Legacy config module and the converter (which names the old keys on purpose).
+_EXEMPT = ('client/config/legacy.py',)
+
+
+def check_no_code_reads_the_legacy_config_shape():
+    hits = []
+    for path in sorted((REPO / 'python' / 'pysmurf').rglob('*.py')):
+        rel = path.relative_to(REPO / 'python' / 'pysmurf').as_posix()
+        if rel in _EXEMPT:
+            continue
+        for number, line in enumerate(path.read_text().splitlines(), 1):
+            if _LEGACY_READ.search(line):
+                hits.append(f"{rel}:{number}: {line.strip()}")
+            for m in _CONFIG_ATTR.finditer(line):
+                if m.group(1) not in _RESOLVED_ATTRS:
+                    hits.append(f"{rel}:{number}: self.config.{m.group(1)} is not a Resolved attribute")
+    assert not hits, 'readers of the legacy config shape:\n  ' + '\n  '.join(hits)
+
+
+# --------------------------------------------------------------------------
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.parse_args()
+    checks = sorted((name[len('check_'):], fn)
+                    for name, fn in globals().items() if name.startswith('check_'))
+    failed = []
+    print(f"Checking the pysmurf configuration schema ({len(checks)} checks, "
+          f"{len(CFG_FILES)} legacy files)")
+    for label, fn in checks:
+        try:
+            fn()
+        except Exception as e:                                  # noqa: BLE001
+            failed.append(label)
+            print(f"  FAIL  {label}")
+            print(f"          {type(e).__name__}: {str(e)[:600]}")
+        else:
+            print(f"  ok    {label}")
+    print("")
+    if failed:
+        print(f"FAILED ({len(failed)}): {', '.join(failed)}")
+        return 1
+    print("All checks passed.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

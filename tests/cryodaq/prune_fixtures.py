@@ -33,8 +33,8 @@
 # Rerun after any change to the platform maps that reaches a new device, or the
 # fixtures will lack the rows the new names need and check_catalog_resolves.py will
 # report them absent. --check writes nothing and fails if the committed fixtures are not
-# what the input produces, so it can stand in a test job; the gzip stream is written
-# with a fixed timestamp so that identical input gives identical bytes.
+# what the input produces, so it can stand in a test job. The fixtures are plain text,
+# so a regeneration shows as a reviewable diff.
 #-----------------------------------------------------------------------------
 # This file is part of the pysmurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -47,8 +47,6 @@
 
 import argparse
 import collections
-import gzip
-import io
 import os
 import pathlib
 import re
@@ -141,18 +139,6 @@ def resolves(paths, template):
     return any(pattern.match(p) for p in paths)
 
 
-def deterministic_gzip(text):
-    """The text gzipped so that the same text gives the same bytes on every run.
-
-    ``gzip.open`` stamps the header with the current time (and a filename), which
-    would make identical fixtures differ and defeat a byte comparison.
-    """
-    buf = io.BytesIO()
-    with gzip.GzipFile(fileobj=buf, mode='wb', mtime=0) as fh:
-        fh.write(text.encode('utf-8'))
-    return buf.getvalue()
-
-
 def without_build_stamp(data):
     """A provenance file with its ``Built at pysmurf ...`` line removed."""
     return b'\n'.join(line for line in data.split(b'\n')
@@ -239,7 +225,7 @@ def main():
     if summary['rfsoc']['front_end_bays']:
         sys.exit('the bayless fixture kept front-end bays')
 
-    fixtures = {f'{stem}.varlist.txt.gz': deterministic_gzip('\n'.join(facts['kept']) + '\n')
+    fixtures = {f'{stem}.varlist.txt': ('\n'.join(facts['kept']) + '\n').encode('utf-8')
                 for stem, facts in summary.items()}
 
     note = [
@@ -264,7 +250,7 @@ def main():
         '',
     ]
     for stem, facts in summary.items():
-        note += [f'{stem}.varlist.txt.gz',
+        note += [f'{stem}.varlist.txt',
                  f'  built from      {facts["origin"]}',
                  f'  built by        {BUILT_BY[stem]}',
                  f'  rows            {facts["rows"]} of {facts["rows_before"]}',

@@ -19,9 +19,13 @@
 #    rogue can do with one is still available. The whole tree is reachable
 #    through `session.root` for work no semantic name covers.
 #
-#    There is no configuration file: the server is authoritative about its own
-#    state. Connecting reads what it says it is, and the registers that record
-#    how it was left, and reports them; it changes nothing.
+#    There is no configuration file at connect: the server is authoritative
+#    about its own state. Connecting reads what it says it is, and the registers
+#    that record how it was left, and reports them; it changes nothing. The
+#    configuration an operation applied is written to the server, and to a
+#    record on disk, by `record_config()`, and a later session reads it back
+#    from the server with `resolved_config()`. A server that has restarted
+#    has none and is configured again; the file is a record, not a fallback.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -32,6 +36,7 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
+import json
 import logging
 import math
 import os
@@ -40,9 +45,9 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import (Any, Dict, Iterable, Iterator, List, Optional, Tuple, Union)
+from typing import (Any, Dict, Iterable, Iterator, List, Mapping, Optional, Tuple, Union)
 
-from cryodaq import platform
+from cryodaq import config, platform
 from cryodaq._errors import ConnectError, UnresolvedName
 
 __all__ = ['Session', 'connect', 'Paths', 'ValidationReport', 'NullPublisher',
@@ -85,6 +90,15 @@ WARN_INTERVAL_S = 5.0
 PROCESS_START = 'Start'
 PROCESS_STOP = 'Stop'
 PROCESS_RUNNING = 'Running'
+
+# The names a recorded configuration is written to and read back from, and the
+# description fields kept with the on-disk record so a reader knows what system
+# it was written for.
+RESOLVED_CONFIG = 'application_config.resolved'
+RESOLVED_HASH = 'application_config.hash'
+RESOLVED_WRITTEN_AT = 'application_config.written_at'
+FIRMWARE_FIELDS = ('platform', 'firmware_version', 'firmware_build_stamp',
+                   'firmware_git_hash')
 
 # Stopping a client at exit has to happen before the interpreter joins threads
 # that are not daemons -- the link monitor is one -- and that join comes *before*
@@ -283,7 +297,7 @@ class Session:
         self.description = self._read_description()
         self.log.log(LOG_INFO, "session on %s: %s platform, bands %s, %s",
                      endpoint, pmap.name, list(self.indices('band')),
-                     'configured' if self.description.get('configured') else 'not configured')
+                     'configured' if self.configured else 'not configured')
 
     # ------------------------------------------------------------------
     # the tree
@@ -510,7 +524,18 @@ class Session:
             time.sleep(min(poll, left))
 
     def stop(self, name: str) -> None:
-        """Ask the process a name reaches to stop. It may take a moment to notice."""
+        """Ask the process a name reaches to stop. It may take a moment to notice.
+
+        Parameters
+        ----------
+        name : str
+            A process name, e.g. ``band[4].ops.find_freq``.
+
+        Raises
+        ------
+        UnresolvedName
+            If the name is not a process in this tree.
+        """
         path, kind = self.pmap.entry(name)
         if kind != platform.PROCESS:
             raise UnresolvedName(name, pattern=path, reason=f"a {kind}; not a process")
@@ -615,24 +640,102 @@ class Session:
             self.log.debug("description: %s", e)
             return None
 
+    @property
+    def configured(self) -> bool:
+        """Whether the server says its application is configured, read now."""
+        return bool(self._optional_get('application.configured'))
+
     def _read_description(self) -> Dict[str, Any]:
-        """What the server says it is, read once at connect."""
+        """What the server *is*, read once at connect.
+
+        Identity only -- endpoint, platform, root, firmware, how the server was
+        started -- none of which changes while a session is open. What the
+        server is *doing* (``application.configured``, ``application.jesd_status``,
+        ``application_config.hash``, ...) is read when asked, through
+        :meth:`get`, so it is never a stale copy.
+        """
         return {
             'endpoint': self.endpoint,
             'platform': self.pmap.name,
             'read_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
             'root': self.root.name,
-            'ready': self._optional_get('server.ready'),
-            'configured': self._optional_get('application.configured'),
-            'configuring': self._optional_get('application.configuring'),
             'enabled_bays': self._optional_get('application.enabled_bays'),
             'startup_arguments': self._optional_get('application.startup_arguments'),
             'application_version': self._optional_get('application.version'),
-            'jesd_status': self._optional_get('application.jesd_status'),
             'firmware_version': self._optional_get('firmware.version'),
             'firmware_build_stamp': self._optional_get('firmware.build_stamp'),
             'firmware_git_hash': self._optional_get('firmware.git_hash'),
         }
+
+    # ------------------------------------------------------------------
+    # the recorded configuration
+    # ------------------------------------------------------------------
+
+    def config_record_path(self) -> Path:
+        """Where this session's configuration record is: under ``paths.status``, named for the endpoint."""
+        return config.record_path(self.paths.status, self.endpoint)
+
+    def record_config(self, resolved: config.Resolved, *,
+                      extra: Optional[Mapping[str, Any]] = None) -> Path:
+        """Record ``resolved`` as the configuration this system now has.
+
+        Written to the server's ``ApplicationConfig`` nodes, when its tree has them --
+        that is where :meth:`resolved_config` reads it back from -- and to the
+        on-disk record always, with the firmware identity and the witness
+        registers read back now, so the file says what system it was written
+        for. Called by the operation that applied the configuration, after it
+        succeeded, and by nothing else.
+
+        Parameters
+        ----------
+        resolved : Resolved
+            What was applied.
+        extra : mapping, optional
+            Anything the application wants kept with the record -- its version,
+            the file it started from.
+
+        Returns
+        -------
+        Path
+            The record written.
+        """
+        record = resolved.to_dict()
+        written_at = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+        try:
+            self.set(RESOLVED_CONFIG, json.dumps(record, sort_keys=True))
+            self.set(RESOLVED_HASH, resolved.hash)
+            self.set(RESOLVED_WRITTEN_AT, written_at)
+        except UnresolvedName:
+            self.log.warning("%s: this server has no ApplicationConfig node; the "
+                             "configuration is recorded on disk only", self.endpoint)
+        firmware = {k: self.description.get(k) for k in FIRMWARE_FIELDS}
+        path = config.write_record(resolved, self.config_record_path(), endpoint=self.endpoint,
+                                   firmware=firmware, witness=self.witness(), extra=extra)
+        self.log.log(LOG_INFO, "recorded configuration %s to %s", resolved.hash[:12], path)
+        return path
+
+    def resolved_config(self) -> Optional[config.Resolved]:
+        """The configuration this server was last given, as it carries it.
+
+        A server that has restarted carries nothing: its ``ApplicationConfig``
+        is empty and ``configured`` is false, and the answer is None -- it has to be
+        configured again, whatever a record on disk says it once had.
+
+        Returns
+        -------
+        Resolved or None
+            None when the server has no record, which is when the configuring
+            operation has to be run.
+        """
+        if not self.configured:
+            return None
+        text = self._optional_get(RESOLVED_CONFIG)
+        if not text:
+            return None
+        resolved = config.Resolved.from_dict(json.loads(text))
+        self.log.log(LOG_INFO, "%s: configuration %s read from the server",
+                     self.endpoint, resolved.hash[:12])
+        return resolved
 
     # ------------------------------------------------------------------
 
@@ -656,7 +759,7 @@ class Session:
         self.close()
 
     def __repr__(self) -> str:
-        state = 'configured' if self.description.get('configured') else 'unconfigured'
+        state = 'configured' if self.configured else 'unconfigured'
         return f"<Session {self.endpoint} {self.pmap.name} {state}>"
 
 

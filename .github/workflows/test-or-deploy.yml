@@ -249,10 +249,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+      # The cryodaq client's own dependencies, and nothing of the server's: the
+      # checks below import the package where rogue is absent, which is part of
+      # what they prove.
+      - name: Install the client's dependencies
+        run: python3 -m pip install --quiet pyyaml
+
       # Check that the cryodaq client keeps to its layer boundaries. Reads
-      # source with 'ast', and imports the package to use the part of it that is
-      # meant to work with nothing installed -- so it needs neither rogue nor a
-      # container, and here, where rogue is absent, it proves that too.
+      # source with 'ast', and imports the package to use the part of it that
+      # works without rogue -- so it needs neither rogue nor a container, and
+      # here, where rogue is absent, it proves that too.
       - name: Check the cryodaq layer boundaries
         run: python3 tests/cryodaq/check_boundaries.py
 
@@ -283,6 +289,14 @@ jobs:
       # needs neither rogue nor the client's plotting stack.
       - name: Check the client glue over the session
         run: python3 tests/cryodaq/check_client_glue.py
+
+      # A configuration split over layers resolves to what the equivalent single
+      # file does, every key names the layer that set it, and the record of what
+      # was applied is written whole or not at all.
+      - name: Check configuration resolution and the configuration record
+        run: |
+          python3 tests/cryodaq/check_config_resolves.py
+          python3 tests/cryodaq/check_config_resolves.py --selftest
 
       # Setup Docker build environment
       - name: Set up docker build enviroment
@@ -331,6 +345,18 @@ jobs:
         run: |
           docker container exec client \
             /bin/bash -c "python3 -c 'import cryodaq; cryodaq.connect'"
+
+      # - pysmurf's own schema, default and legacy converter: every shipped .cfg
+      #   resolves to the values the loader it replaced produced, run out of git
+      #   history (the image clones the branch, history included); a record that
+      #   has been through JSON gives the same properties; a write into a per-band
+      #   property persists. Imports the client, so it runs where the client's
+      #   dependencies are installed.
+      - name: Check the pysmurf configuration schema against the shipped files
+        run: |
+          docker container exec client \
+            /bin/bash -c "cd /usr/local/src/pysmurf && MPLBACKEND=Agg \
+            python3 tests/cryodaq/check_pysmurf_config.py"
 
       # - Import the client and check it reaches registers through a cryodaq
       #   session rather than building paths. An install that left the cryodaq
