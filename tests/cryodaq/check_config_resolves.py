@@ -366,11 +366,10 @@ def check_record_config_writes_the_server_and_the_file_and_resolved_config_reads
     resolved = resolve()
     sess = system(configured=True, status_dir=d)
     assert sess.resolved_config() is None, 'nothing recorded yet'
-    assert sess.description['resolved_config_hash'] is None
+    assert not sess.get('application_config.hash')
     path = sess.record_config(resolved, extra={'note': 1})
     assert path == config.record_path(d, 'stand-in:9012') and path.is_file()
     assert sess.get('application_config.hash') == resolved.hash
-    assert sess.description['resolved_config_hash'] == resolved.hash
     record = config.read_record(path)
     assert record['witness']['stream.enable'] == 1 and record['witness']['band[0].delay_us'] == 2.5
     assert record['firmware']['firmware_version'] == 0x2050000 and record['extra'] == {'note': 1}
@@ -379,6 +378,23 @@ def check_record_config_writes_the_server_and_the_file_and_resolved_config_reads
     again = sess.resolved_config()
     assert again is not None and again.hash == resolved.hash
     assert config._plain(again.values) == config._plain(resolved.values)
+
+
+def check_the_record_takes_paths_and_numpy_scalars_and_refuses_the_rest_by_key():
+    import numpy as np
+    d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_record_'))
+    resolved = resolve()
+    path = config.write_record(resolved, d / 'r.json', history=False,
+                               extra={'config_file': pathlib.Path('/a/b.yaml'),
+                                      'count': np.int64(3), 'gain': np.float32(0.5)})
+    extra = config.read_record(path)['extra']
+    assert extra == {'config_file': '/a/b.yaml', 'count': 3, 'gain': 0.5}, extra
+    # What JSON cannot hold is refused before any hardware-adjacent caller
+    # finds out from json.dumps, and the refusal names the key.
+    e = refused(lambda: config.write_record(resolved, d / 'r.json', extra={'when': {'at': object()}}),
+                'extra.when.at', 'not JSON-serialisable', 'object')
+    assert isinstance(e, ConfigError)
+    refused(lambda: config.hash_of({'a': [1, object()]}), 'a[1]', 'object')
 
 
 def check_a_server_that_has_restarted_or_has_no_config_node_answers_none():
@@ -394,16 +410,16 @@ def check_a_server_that_has_restarted_or_has_no_config_node_answers_none():
     # to read back -- the warning says so.
     old = system(configured=True, with_node=False, status_dir=d)
     path = old.record_config(resolved)
-    assert path.is_file() and old.description['resolved_config_hash'] is None
+    assert path.is_file()
     assert old.resolved_config() is None, 'a record on disk stood in for a server node'
     # The session that configures the server was opened while it was not: the
-    # answer follows the server's flag now, not the description read at connect.
+    # answer follows the server's flag now. The description is identity only.
     sess = system(configured=False, status_dir=d)
     sess.record_config(resolved)
-    assert sess.description['configured'] is False
+    assert 'configured' not in sess.description and not sess.configured
     assert sess.resolved_config() is None, 'configured must be read from the server'
     sess.set('application.configured', True)
-    assert sess.resolved_config() is not None, 'the flag rose on the server and was not seen'
+    assert sess.configured and sess.resolved_config() is not None, 'the flag rose on the server and was not seen'
 
 
 # --------------------------------------------------------------------------
@@ -560,6 +576,22 @@ def selftest():
                            'was adopted')
         finally:
             _session.Session.resolved_config = real_resolved
+
+        real_plain = config._plain
+
+        def permissive(value, key=''):
+            # Lets anything through to json.dumps, which refuses it nameless.
+            try:
+                return real_plain(value, key)
+            except ConfigError:
+                return str(value)
+        config._plain = permissive
+        try:
+            expect_failure('a record writer that does not refuse by key is caught',
+                           check_the_record_takes_paths_and_numpy_scalars_and_refuses_the_rest_by_key,
+                           'accepted what should have been refused')
+        finally:
+            config._plain = real_plain
     finally:
         FIXTURES = saved
 

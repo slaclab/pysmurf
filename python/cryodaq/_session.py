@@ -297,7 +297,7 @@ class Session:
         self.description = self._read_description()
         self.log.log(LOG_INFO, "session on %s: %s platform, bands %s, %s",
                      endpoint, pmap.name, list(self.indices('band')),
-                     'configured' if self.description.get('configured') else 'not configured')
+                     'configured' if self.configured else 'not configured')
 
     # ------------------------------------------------------------------
     # the tree
@@ -640,24 +640,31 @@ class Session:
             self.log.debug("description: %s", e)
             return None
 
+    @property
+    def configured(self) -> bool:
+        """Whether the server says its application is configured, read now."""
+        return bool(self._optional_get('application.configured'))
+
     def _read_description(self) -> Dict[str, Any]:
-        """What the server says it is, read once at connect."""
+        """What the server *is*, read once at connect.
+
+        Identity only -- endpoint, platform, root, firmware, how the server was
+        started -- none of which changes while a session is open. What the
+        server is *doing* (``application.configured``, ``application.jesd_status``,
+        ``application_config.hash``, ...) is read when asked, through
+        :meth:`get`, so it is never a stale copy.
+        """
         return {
             'endpoint': self.endpoint,
             'platform': self.pmap.name,
             'read_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
             'root': self.root.name,
-            'ready': self._optional_get('server.ready'),
-            'configured': self._optional_get('application.configured'),
-            'configuring': self._optional_get('application.configuring'),
             'enabled_bays': self._optional_get('application.enabled_bays'),
             'startup_arguments': self._optional_get('application.startup_arguments'),
             'application_version': self._optional_get('application.version'),
-            'jesd_status': self._optional_get('application.jesd_status'),
             'firmware_version': self._optional_get('firmware.version'),
             'firmware_build_stamp': self._optional_get('firmware.build_stamp'),
             'firmware_git_hash': self._optional_get('firmware.git_hash'),
-            'resolved_config_hash': self._optional_get(RESOLVED_HASH) or None,
         }
 
     # ------------------------------------------------------------------
@@ -701,8 +708,6 @@ class Session:
         except UnresolvedName:
             self.log.warning("%s: this server has no ApplicationConfig node; the "
                              "configuration is recorded on disk only", self.endpoint)
-        else:
-            self.description['resolved_config_hash'] = resolved.hash
         firmware = {k: self.description.get(k) for k in FIRMWARE_FIELDS}
         path = config.write_record(resolved, self.config_record_path(), endpoint=self.endpoint,
                                    firmware=firmware, witness=self.witness(), extra=extra)
@@ -722,9 +727,7 @@ class Session:
             None when the server has no record, which is when the configuring
             operation has to be run.
         """
-        # Read live, not from the connect-time description: a session opened on
-        # an unconfigured server may be the one that has since configured it.
-        if not self._optional_get('application.configured'):
+        if not self.configured:
             return None
         text = self._optional_get(RESOLVED_CONFIG)
         if not text:
@@ -756,7 +759,7 @@ class Session:
         self.close()
 
     def __repr__(self) -> str:
-        state = 'configured' if self.description.get('configured') else 'unconfigured'
+        state = 'configured' if self.configured else 'unconfigured'
         return f"<Session {self.endpoint} {self.pmap.name} {state}>"
 
 

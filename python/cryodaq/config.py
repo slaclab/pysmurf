@@ -181,13 +181,26 @@ def hash_of(values: Mapping[str, Any]) -> str:
     return hashlib.sha256(canonical.encode('utf-8')).hexdigest()
 
 
-def _plain(value: Any) -> Any:
-    """Copy mappings and sequences into dicts and lists, so JSON takes them."""
+def _plain(value: Any, key: str = '') -> Any:
+    """Copy ``value`` into what JSON takes, or refuse it by key.
+
+    Mappings become dicts with string keys, sequences lists, a path its string,
+    a NumPy scalar the Python scalar it holds. Anything else that JSON cannot
+    write is refused here, naming the dotted key, rather than deep inside
+    ``json.dumps`` naming nothing.
+    """
     if isinstance(value, Mapping):
-        return {str(k): _plain(v) for k, v in value.items()}
+        return {str(k): _plain(v, f"{key}.{k}" if key else str(k)) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
-        return [_plain(v) for v in value]
-    return value
+        return [_plain(v, f"{key}[{i}]") for i, v in enumerate(value)]
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    if isinstance(value, os.PathLike):
+        return os.fspath(value)
+    if hasattr(value, 'item') and hasattr(value, 'dtype'):       # a NumPy scalar
+        return _plain(value.item(), key)
+    raise ConfigError('<record>', key=key or None,
+                      reason=f"not JSON-serialisable: {type(value).__name__}")
 
 
 # --------------------------------------------------------------------------
@@ -430,9 +443,9 @@ def write_record(resolved: Resolved, path: Union[str, Path], *,
         'resolved': resolved.to_dict(),
         'written_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', now),
         'endpoint': endpoint,
-        'firmware': _plain(firmware or {}),
-        'witness': _plain(witness or {}),
-        'extra': _plain(extra or {}),
+        'firmware': _plain(firmware or {}, 'firmware'),
+        'witness': _plain(witness or {}, 'witness'),
+        'extra': _plain(extra or {}, 'extra'),
     }
     text = json.dumps(record, indent=2, sort_keys=True) + '\n'
     path.parent.mkdir(parents=True, exist_ok=True)
