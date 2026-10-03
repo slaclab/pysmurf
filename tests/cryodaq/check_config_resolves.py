@@ -380,13 +380,24 @@ def check_record_config_writes_the_server_and_the_file_and_resolved_config_reads
     assert config._plain(again.values) == config._plain(resolved.values)
 
 
+class _Scalar:
+    """What a NumPy scalar looks like to the record writer: ``.item()`` and ``.dtype``."""
+
+    dtype = 'stand-in'
+
+    def __init__(self, value):
+        self._value = value
+
+    def item(self):
+        return self._value
+
+
 def check_the_record_takes_paths_and_numpy_scalars_and_refuses_the_rest_by_key():
-    import numpy as np
     d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_record_'))
     resolved = resolve()
     path = config.write_record(resolved, d / 'r.json', history=False,
                                extra={'config_file': pathlib.Path('/a/b.yaml'),
-                                      'count': np.int64(3), 'gain': np.float32(0.5)})
+                                      'count': _Scalar(3), 'gain': _Scalar(0.5)})
     extra = config.read_record(path)['extra']
     assert extra == {'config_file': '/a/b.yaml', 'count': 3, 'gain': 0.5}, extra
     # What JSON cannot hold is refused before any hardware-adjacent caller
