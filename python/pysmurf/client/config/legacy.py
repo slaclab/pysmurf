@@ -151,8 +151,12 @@ def convert(path: Union[str, Path], *, warn: bool = True) -> Dict[str, Any]:
                 delay[_DELAY_KEYS[old_key]] = value
             else:
                 dropped.append(f"init.{key}.{old_key}")
-        if delay:
+        # The old setup() wrote the triple only when refPhaseDelay was set and
+        # nonzero, and bandDelayUs otherwise; a triple it never wrote is dropped.
+        if delay.get('ref_phase'):
             band['delay'] = delay
+        else:
+            dropped.extend(f"init.{key}.{old}" for old, new in _DELAY_KEYS.items() if new in delay)
 
     tune_band = old.get('tune_band', {})
     for key in ('fraction_full_scale', 'reset_rate_khz', 'default_tune'):

@@ -404,6 +404,11 @@ class SmurfControl(SmurfCommandMixin,
         success=True
         self.log('Setting up...', (self.LOG_USER))
 
+        # From here the hardware is being changed, so whatever the server
+        # recorded before no longer describes it; the new record is written at
+        # the end, on success, and a setup that fails part-way leaves none.
+        self._session.clear_config()
+
         # If active, disable hardware logging while doing setup.
         if self._hardware_logging_thread is not None:
             self.log('Hardware logging is enabled.  Pausing for setup.',
@@ -783,6 +788,9 @@ class SmurfControl(SmurfCommandMixin,
                 f"{self._session.endpoint} is not configured and no cfg_file was "
                 f"given; run SmurfControl(cfg_file=...).setup() first")
         self.copy_config_to_properties(resolved)
+        # The session was opened before there was a configuration, on the
+        # default's directories; the adopted one says where they are.
+        self._session.paths = self._session_paths()
         self.log(f'Reattached to the recorded configuration {resolved.hash[:12]} '
                  f'({" <- ".join(os.path.basename(p) for p in resolved.layers)})',
                  self.LOG_USER)

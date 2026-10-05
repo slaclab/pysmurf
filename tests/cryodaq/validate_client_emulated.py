@@ -421,6 +421,11 @@ def check_a_recorded_configuration_is_read_back_from_the_server():
         # The server is what answers: with the file gone the answer is unchanged.
         path.unlink()
         assert SESSION.resolved_config().hash == resolved.hash, 'the record did not come from the server'
+        # And the configuring operation empties it first, so a setup that fails
+        # part-way leaves nothing to reattach to while `configured` stays true.
+        SESSION.clear_config()
+        assert SESSION.configured and SESSION.resolved_config() is None, 'cleared, yet still offered'
+        assert SESSION.get('application_config.hash') == ''
     finally:
         SESSION.paths = saved_paths
         for name in ('application_config.resolved', 'application_config.hash', 'application_config.written_at'):

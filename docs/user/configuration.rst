@@ -96,7 +96,11 @@ started later with no file reads it back from there:
 The server carries it while it stays up. A server that has restarted has
 forgotten, and is not configured: the client raises ``RuntimeError`` asking
 for ``setup()`` with a file. Nothing is guessed from disk, and nothing writes
-back into the files you gave.
+back into the files you gave. The record is written when ``setup()``
+succeeds and cleared when it starts, so a ``setup(force_configure=True)``
+that fails part-way leaves nothing to reattach to -- the hardware is no
+longer in the recorded configuration, and a new client is refused the same
+way until a ``setup()`` completes.
 
 ``setup()`` also writes the resolution to a record under ``paths.status``
 (``resolved/<host>_<port>.json``, with a dated copy), together with the
@@ -120,22 +124,22 @@ paths
 ``data``
     Root of the data tree, ``/data/smurf_data`` by default. Each client
     session makes a dated directory under it for its outputs and plots.
-    Legacy ``smurf_to_mce:default_data_dir``.
+    Legacy top-level ``default_data_dir``.
 ``smurf_cmd``
     Where ``smurf_cmd.py`` (the command-line interface) writes instead of a
-    dated session directory. Legacy ``smurf_to_mce:smurf_cmd_dir``.
+    dated session directory. Legacy top-level ``smurf_cmd_dir``.
 ``tune``
-    Where tune files are written and looked for. Legacy
-    ``smurf_to_mce:tune_dir``.
+    Where tune files are written and looked for. Legacy top-level
+    ``tune_dir``.
 ``status``
-    Where status dumps and the configuration records go. Legacy
-    ``smurf_to_mce:status_dir``.
+    Where status dumps and the configuration records go. Legacy top-level
+    ``status_dir``.
 
 wiring
 ^^^^^^
 
 The TES bias chain and the readout wiring, assumed the same for every
-channel. Legacy ``constant:`` section, except where noted.
+channel. Legacy: top-level keys of the same name, except where noted.
 
 ``R_sh`` (ohms, *required*)
     Resistance of the TES shunt resistors. Read by the IV analysis
@@ -158,23 +162,24 @@ channel. Legacy ``constant:`` section, except where noted.
 ``pA_per_phi0`` (pA per Φ₀)
     Conversion from demodulated SQUID phase to TES current, the same for every
     channel; 9×10⁶ by default. Read by the IV and noise analyses and
-    ``bias_bump``.
+    ``bias_bump``. Legacy ``constant:pA_per_phi0``.
 ``pic_to_bias_group`` (``{pic_channel: bias_group}``, *required*)
-    Which TES bias group each cryostat-card PIC channel drives. Legacy: a list
-    of ``[pic, group]`` pairs; exposed to analysis code as the ``(n, 2)`` array
-    ``S.pic_to_bias_group``.
+    Which TES bias group each cryostat-card PIC channel drives, the same
+    mapping as the legacy file's; exposed to analysis code as the ``(n, 2)``
+    array ``S.pic_to_bias_group``.
 ``bias_group_to_pair`` (``{bias_group: [dac_plus, dac_minus]}``, *required*)
-    The bipolar RTM DAC pair behind each TES bias group. Legacy: a list of
-    ``[group, dac+, dac-]`` triples; exposed as the ``(n, 3)`` array
-    ``S.bias_group_to_pair`` with the group first. ``S.n_bias_groups`` is
+    The bipolar RTM DAC pair behind each TES bias group, the same mapping as
+    the legacy file's; exposed as the ``(n, 3)`` array ``S.bias_group_to_pair``
+    with the group first. ``S.n_bias_groups`` is
     the number of groups here.
 ``all_bias_groups`` (list of int, *required*)
     The bias groups this system drives, each in ``[0, 16)``; what
-    ``run_iv`` and ``overbias_tes_all`` iterate over. Legacy ``all_groups``.
+    ``run_iv`` and ``overbias_tes_all`` iterate over, as ``S.all_groups``.
 ``bad_mask`` (``[[lo_MHz, hi_MHz], ...]``)
     RF frequency intervals in which resonator candidates are ignored by
     ``relock`` -- which ``setup_notches`` and ``track_and_check`` call --
     and so by most tuning. Exposed as the ``(n, 2)`` array ``S.bad_mask``.
+    Legacy: a mapping whose labels nothing read; the intervals are the value.
 
 attenuator
 ^^^^^^^^^^
@@ -231,8 +236,8 @@ flux_ramp, timing, fs, dsp_enable, ultrascale_temperature_limit_degC
     Width of the firmware's flux ramp counter, which sets how a ramp rate is
     turned into a DAC step size in ``flux_ramp_setup``.
 ``timing.timing_reference`` (``ext_ref``, ``backplane`` or ``fiber``, *required*)
-    The timing source ``setup()`` selects with ``set_timing_mode``. Legacy
-    ``smurf_to_mce:timing_reference``.
+    The timing source ``setup()`` selects with ``set_timing_mode``; the
+    ``timing`` section is the legacy one unchanged.
 ``fs`` (Hz, *required*)
     The sample rate the noise analysis assumes when it is not told one.
 ``dsp_enable`` (0 or 1)
@@ -240,14 +245,14 @@ flux_ramp, timing, fs, dsp_enable, ultrascale_temperature_limit_degC
     feedback and streaming -- on each band it configures.
 ``ultrascale_temperature_limit_degC`` (°C, or ``null``)
     If set, ``setup()`` arms the FPGA over-temperature shutdown at this
-    limit. Legacy ``smurf_to_mce:ultrascale_temperature_limit_degC``.
+    limit. Legacy top-level ``ultrascale_temperature_limit_degC``.
 
 tune
 ^^^^
 
 ``default_tune`` (path, or ``null``)
     A tune file to load when the client starts. Legacy
-    ``smurf_to_mce:default_tune``.
+    ``tune_band:default_tune``.
 ``fraction_full_scale`` (0–1, *required*)
     The flux ramp amplitude as a fraction of the DAC's full scale, used by
     ``tracking_setup`` and ``flux_ramp_setup`` when not given one.
@@ -274,7 +279,7 @@ for some, writes into. Legacy: ``init:band_#`` for the firmware settings and
     Whether the tone-tracking loop applies frequency corrections to the
     band's channels, and the sign of the correction (which depends on the eta
     calibration's convention and the wiring).
-``feedback_gain`` (int16, *required*)
+``feedback_gain`` (0–65535, *required*)
     Integral gain of the tracking loop: scales the frequency error before it
     accumulates into each tone's frequency correction. Distinct from
     ``lms_gain``.

@@ -33,6 +33,7 @@
 """Check pysmurf's configuration schema, default and legacy converter."""
 import argparse
 import copy
+import json
 import pathlib
 import re
 import subprocess
@@ -405,6 +406,41 @@ def check_a_record_read_back_through_json_gives_the_same_properties():
     assert list(adopted.values['bands']) == [4] and isinstance(list(adopted.values['bands'])[0], int)
 
 
+def check_a_reattached_client_records_under_the_adopted_status_directory():
+    # A no-file client opens its session before it has a configuration, so the
+    # session's paths are the packaged default's; the configuration it adopts
+    # from the server may put `paths.status` elsewhere, and the record its own
+    # later setup() writes has to go there. Driven on a stand-in session: the
+    # resolution is what matters, not the transport.
+    import cryodaq
+    from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin
+    from pysmurf.client.base.smurf_control import SmurfControl
+    site = minimal()
+    site['paths'] = {'status': '/elsewhere/status'}
+    adopted = load_mapping(site)
+    default_status = load_mapping(minimal()).values['paths']['status']
+    assert default_status != '/elsewhere/status', 'the case needs the site to move the directory'
+
+    class _Session:
+        endpoint = 'stand-in:9012'
+
+        def __init__(self):
+            self.paths = cryodaq.Paths.under('/data')
+
+        def resolved_config(self):
+            return adopted
+
+    S = SmurfControl.__new__(SmurfControl)
+    S._session = _Session()
+    S.log = lambda *a, **k: None
+    SmurfConfigPropertiesMixin.__init__(S)               # the None tables, no connection
+    assert str(S._session_paths().status) == default_status, 'before: the default'
+    S._reattach()
+    assert S.status_dir == '/elsewhere/status'
+    assert str(S._session.paths.status) == '/elsewhere/status', \
+        f"the session still records under {S._session.paths.status}"
+
+
 def check_a_write_into_a_per_band_property_persists():
     # Callers write into these dictionaries -- tracking_setup stores the LMS
     # frequency it measured, sodetlib the tone power it chose -- and read the
@@ -452,6 +488,28 @@ def check_the_converter_drops_only_what_nothing_read():
     allowed = set(legacy.DROPPED_KEYS)
     unexpected = {k for k in seen if k not in allowed and not k.startswith('init.band_')}
     assert not unexpected, f"the converter dropped keys not on its list: {sorted(unexpected)}"
+
+
+def check_the_converter_keeps_the_old_delay_decision_for_a_zero_ref_phase_delay():
+    """No shipped file sets ``refPhaseDelay: 0``; a site's might, and the old setup() took it as "use bandDelayUs"."""
+    from pysmurf.client.base.smurf_config_properties import delay_writes
+    base = legacy.read_json_with_comments(CFG_FILES[0])
+    d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_cfg_'))
+    block = base['init']['band_0']
+    block.update(refPhaseDelay=0, refPhaseDelayFine=0, lmsDelay=0, bandDelayUs=8.8)
+    (d / 'zero.cfg').write_text(json.dumps(base))
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always')
+        converted = legacy.convert(d / 'zero.cfg')
+    assert 'delay' not in converted['bands'][0], 'a triple the old setup() never wrote was kept'
+    assert converted['bands'][0]['band_delay_us'] == 8.8
+    assert 'init.band_0.refPhaseDelay' in str(caught[0].message), 'the drop was not named'
+    assert delay_writes(load_mapping(converted).values['bands'][0]) == (('band_delay_us', 8.8),)
+    # Nonzero stays the direct triple, as the shipped files are checked for above.
+    block.update(refPhaseDelay=6)
+    (d / 'six.cfg').write_text(json.dumps(base))
+    converted = legacy.convert(d / 'six.cfg', warn=False)
+    assert converted['bands'][0]['delay'] == {'ref_phase': 6, 'ref_phase_fine': 0, 'lms': 0}
 
 
 def check_the_converter_reads_a_hash_inside_a_string():

@@ -684,7 +684,8 @@ class Session:
         on-disk record always, with the firmware identity and the witness
         registers read back now, so the file says what system it was written
         for. Called by the operation that applied the configuration, after it
-        succeeded, and by nothing else.
+        succeeded, and by nothing else; :meth:`clear_config` is its counterpart
+        for when that operation starts.
 
         Parameters
         ----------
@@ -713,6 +714,22 @@ class Session:
                                    firmware=firmware, witness=self.witness(), extra=extra)
         self.log.log(LOG_INFO, "recorded configuration %s to %s", resolved.hash[:12], path)
         return path
+
+    def clear_config(self) -> None:
+        """Empty the server's ``ApplicationConfig`` nodes.
+
+        Called by the configuring operation when it starts, so that while it
+        runs -- and after it, if it fails part-way -- the server carries no
+        record and :meth:`resolved_config` answers None rather than the
+        configuration the hardware no longer has. A server without the nodes
+        has nothing to clear. The record on disk is left alone: it says what
+        the system was given last, which is still true.
+        """
+        try:
+            for name in (RESOLVED_CONFIG, RESOLVED_HASH, RESOLVED_WRITTEN_AT):
+                self.set(name, '')
+        except UnresolvedName:
+            pass
 
     def resolved_config(self) -> Optional[config.Resolved]:
         """The configuration this server was last given, as it carries it.

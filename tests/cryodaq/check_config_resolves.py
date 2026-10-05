@@ -433,6 +433,28 @@ def check_a_server_that_has_restarted_or_has_no_config_node_answers_none():
     assert sess.configured and sess.resolved_config() is not None, 'the flag rose on the server and was not seen'
 
 
+def check_clearing_the_record_leaves_a_configured_server_answering_none():
+    """The configuring operation clears the record first; a failure part-way leaves none to reattach to."""
+    d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_reattach_'))
+    resolved = resolve()
+    sess = system(configured=True, status_dir=d)
+    path = sess.record_config(resolved)
+    assert sess.resolved_config() is not None
+    # The server's setDefaults keeps `configured` true across a reconfiguration
+    # whose later client-side writes fail, so the flag alone cannot say "stale".
+    sess.clear_config()
+    assert sess.configured and sess.resolved_config() is None, \
+        'the previous configuration was still offered after clearing'
+    for name in ('application_config.resolved', 'application_config.hash', 'application_config.written_at'):
+        assert sess.get(name) == '', name
+    assert path.is_file(), 'the record on disk is a record of what was given, and stays'
+    # Recording again is what success does, and then the answer is back.
+    sess.record_config(resolved)
+    assert sess.resolved_config().hash == resolved.hash
+    # A server without the nodes has nothing to clear and does not complain.
+    system(configured=True, with_node=False, status_dir=d).clear_config()
+
+
 # --------------------------------------------------------------------------
 
 def main():
@@ -603,6 +625,19 @@ def selftest():
                            'accepted what should have been refused')
         finally:
             config._plain = real_plain
+
+        real_clear = _session.Session.clear_config
+
+        def hash_only(self):
+            # Clears the hash and leaves the resolved text, which is what is read back.
+            self.set('application_config.hash', '')
+        _session.Session.clear_config = hash_only
+        try:
+            expect_failure('a clear that leaves the record readable is caught',
+                           check_clearing_the_record_leaves_a_configured_server_answering_none,
+                           'still offered')
+        finally:
+            _session.Session.clear_config = real_clear
     finally:
         FIXTURES = saved
 
