@@ -141,6 +141,10 @@ def convert(path: Union[str, Path], *, warn: bool = True) -> Dict[str, Any]:
     for key, block in init.items():
         m = _BAND_BLOCK.match(key)
         if not m:
+            # `bands` the old validator rebuilt from the band_# blocks present,
+            # as the new schema does from the keys under `bands`.
+            if key != 'dspEnable':
+                dropped.append(f"init.{key}")
             continue
         band = bands.setdefault(int(m.group(1)), {})
         delay = {}

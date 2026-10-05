@@ -151,7 +151,7 @@ def _schema():
             '50k': {Optional('gate_dac_num'): Use(int), str: object},
             'hemt1': amp_block, 'hemt2': amp_block, '50k1': amp_block, '50k2': amp_block,
         },
-        'flux_ramp': {'num_flux_ramp_counter_bits': lambda n: n in (20, 32)},
+        'flux_ramp': {'num_flux_ramp_counter_bits': lambda n: isinstance(n, int) and n in (20, 32)},
         'timing': {'timing_reference': lambda s: s in ('ext_ref', 'backplane', 'fiber')},
         'fs': positive,
         'dsp_enable': _bool_int,
@@ -192,9 +192,9 @@ def validate(values: Dict[str, Any]) -> Dict[str, Any]:
         if key not in known:
             raise ConfigInvalid(key, 'not a pysmurf configuration key')
 
-    default = values.get('band_default') or {}
+    default = _mapping_or_missing(values, 'band_default')
     bands = {}
-    for key, block in (values.get('bands') or {}).items():
+    for key, block in _mapping_or_missing(values, 'bands').items():
         # A band is an integer 0-7, as YAML's `4:` or JSON's "4"; not 4.5, not
         # True, and not the same band twice under two spellings.
         number = int(key) if (isinstance(key, int) and not isinstance(key, bool)) or \
@@ -203,6 +203,8 @@ def validate(values: Dict[str, Any]) -> Dict[str, Any]:
             raise ConfigInvalid(f"bands.{key}", 'a band is numbered 0-7')
         if number in bands:
             raise ConfigInvalid(f"bands.{key}", f"band {number} is given twice")
+        if block is not None and not isinstance(block, dict):
+            raise ConfigInvalid(f"bands.{key}", 'a band is a mapping of per-band keys')
         merged = {**default, **(block or {})}
         merged.setdefault('data_out_mux', DATA_OUT_MUX_DEFAULT.get(number))
         merged.setdefault('band_delay_us', None)
@@ -231,6 +233,16 @@ def validate(values: Dict[str, Any]) -> Dict[str, Any]:
 # Keys that may stay null: they mean "none" rather than "unset".
 _MAY_BE_NULL = ('tune.default_tune', 'ultrascale_temperature_limit_degC',
                 'band_delay_us', 'delay.lms')
+
+
+def _mapping_or_missing(values: Dict[str, Any], key: str) -> Dict[str, Any]:
+    """The mapping at ``key``, ``{}`` if absent or null; anything else is refused, not emptied."""
+    value = values.get(key)
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ConfigInvalid(key, f"a mapping, not {type(value).__name__}")
+    return value
 
 
 def _refuse_nulls(values: Dict[str, Any], prefix: str = '') -> None:

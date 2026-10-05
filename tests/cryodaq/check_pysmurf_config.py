@@ -293,6 +293,17 @@ def check_the_schema_refuses_bad_content_naming_the_key():
     v = minimal()
     v['wiring']['pic_to_bias_group'] = {0: 0, '0': 1}
     refused(v, 'wiring.pic_to_bias_group')
+    # A falsey value of the wrong type is refused, not read as "nothing here".
+    for key, bad in (('bands', []), ('bands', 0), ('band_default', []), ('band_default', '')):
+        v = minimal()
+        v[key] = bad
+        refused(v, key, 'a mapping')
+    v = minimal()
+    v['bands'][4] = []
+    refused(v, 'bands.4', 'a mapping')
+    v = minimal()
+    v['flux_ramp']['num_flux_ramp_counter_bits'] = 20.0
+    refused(v, 'flux_ramp.num_flux_ramp_counter_bits')
 
 
 def check_a_delay_block_is_accepted_and_wins_over_band_delay_us():
@@ -500,9 +511,11 @@ def check_the_converter_drops_only_what_nothing_read():
             seen.update(text.split('Dropped, nothing reads them: ', 1)[1].rstrip('.').split(', '))
         for key in ('epics_root', 'chip_to_freq', 'smurf_to_mce'):
             assert key not in converted, f"{cfg.name} kept {key}"
-    allowed = set(legacy.DROPPED_KEYS)
+    allowed = set(legacy.DROPPED_KEYS) | {'init.bands'}
     unexpected = {k for k in seen if k not in allowed and not k.startswith('init.band_')}
     assert not unexpected, f"the converter dropped keys not on its list: {sorted(unexpected)}"
+    # The files that carry init.bands are told so; the old validator rebuilt it anyway.
+    assert 'init.bands' in seen, 'init.bands was dropped without being named'
 
 
 def check_the_converter_keeps_the_old_delay_decision_for_a_zero_ref_phase_delay():

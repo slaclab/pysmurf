@@ -324,10 +324,15 @@ def check_a_corrupt_record_is_refused_naming_the_file():
     (d / 'y.json').write_text('{"nothing": 1}')
     refused(lambda: config.read_record(d / 'y.json'), 'y.json', 'resolved')
     refused(lambda: config.read_record(d / 'absent.json'), 'absent.json')
-    # A record whose hash does not match its own values is refused too.
-    record = resolve().to_dict()
-    record['values']['scalar'] = 31
-    refused(lambda: cryodaq.Resolved.from_dict(record), 'hash')
+    # A record whose resolution's hash does not match its values is refused by
+    # read_record itself, naming the file -- not left for each caller to notice.
+    tampered = resolve().to_dict()
+    tampered['values']['scalar'] = 31
+    refused(lambda: cryodaq.Resolved.from_dict(tampered), 'hash')
+    (d / 'z.json').write_text(json.dumps({'resolved': tampered}))
+    refused(lambda: config.read_record(d / 'z.json'), 'z.json', 'hash')
+    (d / 'w.json').write_text(json.dumps({'resolved': 'not a mapping'}))
+    refused(lambda: config.read_record(d / 'w.json'), 'w.json', 'not a resolution')
 
 
 # --------------------------------------------------------------------------
@@ -724,6 +729,24 @@ def selftest():
                            'before the disk refused')
         finally:
             _session.Session.record_config = real_record
+
+        real_read = config.read_record
+
+        def shallow(path):
+            # Checks the file is JSON with a 'resolved' entry and nothing more.
+            try:
+                data = json.loads(pathlib.Path(path).read_text())
+            except (OSError, ValueError) as e:
+                raise ConfigError(str(path), reason=f"not JSON: {e}")
+            if 'resolved' not in data:
+                raise ConfigError(str(path), reason='no "resolved" entry')
+            return data
+        config.read_record = shallow
+        try:
+            expect_failure('a record reader that does not check the resolution is caught',
+                           check_a_corrupt_record_is_refused_naming_the_file, 'accepted')
+        finally:
+            config.read_record = real_read
 
         real_record_path = config.record_path
 

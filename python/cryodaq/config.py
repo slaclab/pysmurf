@@ -504,7 +504,8 @@ def read_record(path: Union[str, Path]) -> Dict[str, Any]:
     Raises
     ------
     ConfigError
-        If the file is missing, is not JSON, or is not a configuration record.
+        If the file is missing, is not JSON, is not a configuration record, or
+        holds a resolution whose hash is not that of its values.
     """
     path = Path(path)
     try:
@@ -515,4 +516,10 @@ def read_record(path: Union[str, Path]) -> Dict[str, Any]:
         raise ConfigError(str(path), reason=f"not valid JSON: {e}") from e
     if not isinstance(data, dict) or 'resolved' not in data:
         raise ConfigError(str(path), reason='not a configuration record: no "resolved" entry')
+    # The resolution it holds has to be one: values whose hash is the recorded hash.
+    try:
+        Resolved.from_dict(data['resolved'])
+    except (ConfigError, KeyError, TypeError, AttributeError) as e:
+        raise ConfigError(str(path), key='resolved',
+                          reason=f"not a resolution: {getattr(e, 'reason', None) or e}") from e
     return data
