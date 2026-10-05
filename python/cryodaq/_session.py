@@ -679,11 +679,12 @@ class Session:
                       extra: Optional[Mapping[str, Any]] = None) -> Path:
         """Record ``resolved`` as the configuration this system now has.
 
-        Written to the server's ``ApplicationConfig`` nodes, when its tree has them --
-        that is where :meth:`resolved_config` reads it back from -- and to the
-        on-disk record always, with the firmware identity and the witness
-        registers read back now, so the file says what system it was written
-        for. Called by the operation that applied the configuration, after it
+        Written to the on-disk record first, with the firmware identity and the
+        witness registers read back now so the file says what system it was
+        written for, and then to the server's ``ApplicationConfig`` nodes, when
+        its tree has them -- that is where :meth:`resolved_config` reads it back
+        from, so a failure anywhere before leaves the server with no record.
+        Called by the operation that applied the configuration, after it
         succeeded, and by nothing else; :meth:`clear_config` is its counterpart
         for when that operation starts.
 
@@ -700,18 +701,22 @@ class Session:
         Path
             The record written.
         """
-        record = resolved.to_dict()
+        # Everything that can fail -- the witness reads, the record's content,
+        # the disk -- happens before the server is touched, and ``Resolved`` is
+        # the last write: it is what resolved_config() reads, so until it lands
+        # a server cleared by clear_config() still answers None.
+        text = json.dumps(resolved.to_dict(), sort_keys=True)
         written_at = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
-        try:
-            self.set(RESOLVED_CONFIG, json.dumps(record, sort_keys=True))
-            self.set(RESOLVED_HASH, resolved.hash)
-            self.set(RESOLVED_WRITTEN_AT, written_at)
-        except UnresolvedName:
-            self.log.warning("%s: this server has no ApplicationConfig node; the "
-                             "configuration is recorded on disk only", self.endpoint)
         firmware = {k: self.description.get(k) for k in FIRMWARE_FIELDS}
         path = config.write_record(resolved, self.config_record_path(), endpoint=self.endpoint,
                                    firmware=firmware, witness=self.witness(), extra=extra)
+        try:
+            self.set(RESOLVED_HASH, resolved.hash)
+            self.set(RESOLVED_WRITTEN_AT, written_at)
+            self.set(RESOLVED_CONFIG, text)
+        except UnresolvedName:
+            self.log.warning("%s: this server has no ApplicationConfig node; the "
+                             "configuration is recorded on disk only", self.endpoint)
         self.log.log(LOG_INFO, "recorded configuration %s to %s", resolved.hash[:12], path)
         return path
 

@@ -195,12 +195,14 @@ def validate(values: Dict[str, Any]) -> Dict[str, Any]:
     default = values.get('band_default') or {}
     bands = {}
     for key, block in (values.get('bands') or {}).items():
-        try:
-            number = int(key)
-        except (TypeError, ValueError):
-            number = -1
+        # A band is an integer 0-7, as YAML's `4:` or JSON's "4"; not 4.5, not
+        # True, and not the same band twice under two spellings.
+        number = int(key) if (isinstance(key, int) and not isinstance(key, bool)) or \
+            (isinstance(key, str) and key.isdigit()) else -1
         if not 0 <= number <= 7:
             raise ConfigInvalid(f"bands.{key}", 'a band is numbered 0-7')
+        if number in bands:
+            raise ConfigInvalid(f"bands.{key}", f"band {number} is given twice")
         merged = {**default, **(block or {})}
         merged.setdefault('data_out_mux', DATA_OUT_MUX_DEFAULT.get(number))
         merged.setdefault('band_delay_us', None)

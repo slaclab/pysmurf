@@ -434,6 +434,52 @@ def check_the_record_takes_paths_and_numpy_scalars_and_refuses_the_rest_by_key()
     refused(lambda: config.hash_of({'a': [1, object()]}), 'a[1]', 'object')
 
 
+def check_a_record_that_fails_before_the_server_leaves_the_server_empty():
+    """The server's Resolved is the last write: a witness read or a disk write that fails leaves None."""
+    d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_reattach_'))
+    resolved = resolve()
+    sess = system(configured=True, status_dir=d)
+    # The disk refuses (a status directory that is a file).
+    (d / config.RECORD_DIR).write_text('in the way')
+    try:
+        sess.record_config(resolved)
+    except OSError:
+        pass
+    else:
+        raise AssertionError('the record was written over a file')
+    assert sess.resolved_config() is None, 'the server was given the record before the disk refused'
+    assert sess.get('application_config.hash') == '', 'the hash was written before the disk refused'
+    (d / config.RECORD_DIR).unlink()
+    # The content refuses (extra that is not JSON).
+    try:
+        sess.record_config(resolved, extra={'bad': object()})
+    except ConfigError:
+        pass
+    else:
+        raise AssertionError('non-JSON extra was accepted')
+    assert sess.resolved_config() is None and not config.record_path(d, 'stand-in:9012').exists()
+    # And when nothing fails, every write lands.
+    sess.record_config(resolved)
+    assert sess.resolved_config().hash == resolved.hash and sess.get('application_config.written_at')
+
+
+def check_two_keys_json_would_merge_are_refused_not_dropped():
+    try:
+        config.hash_of({'bands': {1: 'a', '1': 'b'}})
+    except ConfigError as e:
+        assert e.key == 'bands.1' and 'same key in JSON' in str(e), e
+    else:
+        raise AssertionError("{1: 'a', '1': 'b'} hashed as one key; a value was dropped")
+    resolved = cryodaq.Resolved(values={'m': {2: 'x', '2': 'y'}}, provenance={}, hash='', layers=())
+    try:
+        resolved.to_dict()
+    except ConfigError as e:
+        assert e.key == 'm.2', e
+    else:
+        raise AssertionError('to_dict dropped a value')
+    assert config._plain({'m': {2: 'x', 3: 'y'}}) == {'m': {'2': 'x', '3': 'y'}}, 'distinct keys are fine'
+
+
 def check_a_server_that_has_restarted_or_has_no_config_node_answers_none():
     d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_reattach_'))
     resolved = resolve()
@@ -664,6 +710,20 @@ def selftest():
                            'still offered')
         finally:
             _session.Session.clear_config = real_clear
+
+        real_record = _session.Session.record_config
+
+        def server_first(self, resolved, *, extra=None):
+            # Publishes to the server, then does the fallible work.
+            self.set('application_config.resolved', json.dumps(resolved.to_dict(), sort_keys=True))
+            return real_record(self, resolved, extra=extra)
+        _session.Session.record_config = server_first
+        try:
+            expect_failure('a record that reaches the server before the disk is caught',
+                           check_a_record_that_fails_before_the_server_leaves_the_server_empty,
+                           'before the disk refused')
+        finally:
+            _session.Session.record_config = real_record
 
         real_record_path = config.record_path
 

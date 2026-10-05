@@ -278,6 +278,21 @@ def check_the_schema_refuses_bad_content_naming_the_key():
         v = minimal()
         v['wiring']['bias_group_to_pair'] = {0: pair}
         refused(v, 'wiring.bias_group_to_pair.0', 'two DACs')
+    # A band is an integer 0-7 however spelled; 4.5 is not band 4, True is not
+    # band 1, and the same band under two spellings is not two bands.
+    for key in (4.5, True, '4.0', 'four', -1, None):
+        v = minimal()
+        v['bands'][key] = v['bands'].pop(4)
+        refused(v, f"bands.{key}", '0-7')
+    v = minimal()
+    v['bands']['4'] = dict(v['bands'][4], att_uc=1)
+    refused(v, 'bands.4', 'twice')
+    v = minimal()
+    v['bands']['4'] = v['bands'].pop(4)
+    assert load_mapping(v).values['bands'][4]['att_uc'] == 12, 'a digit string names its band'
+    v = minimal()
+    v['wiring']['pic_to_bias_group'] = {0: 0, '0': 1}
+    refused(v, 'wiring.pic_to_bias_group')
 
 
 def check_a_delay_block_is_accepted_and_wins_over_band_delay_us():

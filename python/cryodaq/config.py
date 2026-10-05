@@ -188,11 +188,19 @@ def _plain(value: Any, key: str = '') -> Any:
 
     Mappings become dicts with string keys, sequences lists, a path its string,
     a NumPy scalar the Python scalar it holds. Anything else that JSON cannot
-    write is refused here, naming the dotted key, rather than deep inside
-    ``json.dumps`` naming nothing.
+    write -- and two keys JSON would merge, ``1`` and ``'1'`` -- is refused
+    here, naming the dotted key, rather than deep inside ``json.dumps`` naming
+    nothing or dropping a value.
     """
     if isinstance(value, Mapping):
-        return {str(k): _plain(v, f"{key}.{k}" if key else str(k)) for k, v in value.items()}
+        out = {}
+        for k, v in value.items():
+            if str(k) in out:
+                # 1 and '1' are one JSON key; keeping either would drop the other.
+                raise ConfigError('<record>', key=f"{key}.{k}" if key else str(k),
+                                  reason=f"keys {k!r} and {str(k)!r} are the same key in JSON")
+            out[str(k)] = _plain(v, f"{key}.{k}" if key else str(k))
+        return out
     if isinstance(value, (list, tuple)):
         return [_plain(v, f"{key}[{i}]") for i, v in enumerate(value)]
     if value is None or isinstance(value, (bool, int, float, str)):
