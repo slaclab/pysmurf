@@ -280,10 +280,20 @@ def check_the_schema_refuses_bad_content_naming_the_key():
         refused(v, 'wiring.bias_group_to_pair.0', 'two DACs')
     # A band is an integer 0-7 however spelled; 4.5 is not band 4, True is not
     # band 1, and the same band under two spellings is not two bands.
-    for key in (4.5, True, '4.0', 'four', -1, None):
+    for key in (True, 'four', -1, None):
         v = minimal()
         v['bands'][key] = v['bands'].pop(4)
         refused(v, f"bands.{key}", '0-7')
+    # A key with a dot in it never reaches the schema: the loader refuses it.
+    for key in (4.5, '4.0'):
+        v = minimal()
+        v['bands'][key] = v['bands'].pop(4)
+        try:
+            load_mapping(v)
+        except ConfigError as e:
+            assert e.key == f"bands.{key}" and "'.'" in str(e), e
+        else:
+            raise AssertionError(f"bands.{key} was accepted")
     v = minimal()
     v['bands']['4'] = dict(v['bands'][4], att_uc=1)
     refused(v, 'bands.4', 'twice')

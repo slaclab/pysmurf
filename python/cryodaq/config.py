@@ -228,6 +228,8 @@ def _read_yaml(path: Path) -> Tuple[Any, Dict[str, int]]:
         text = path.read_text(encoding='utf-8')
     except OSError as e:
         raise ConfigError(str(path), reason=f"cannot read: {e.strerror or e}") from e
+    except UnicodeDecodeError as e:
+        raise ConfigError(str(path), reason=f"not UTF-8 text: byte {e.start}") from e
     try:
         root = yaml.compose(text, Loader=yaml.SafeLoader)
         data = yaml.safe_load(text)
@@ -254,6 +256,7 @@ def _key_lines(node: Any, prefix: str, lines: Dict[str, int]) -> None:
 def _load_layer(layer: Layer, base: Optional[Path]) -> Tuple[str, Dict[str, Any], Dict[str, int]]:
     """A layer's name, its mapping and its key lines."""
     if isinstance(layer, Mapping):
+        _refuse_dotted_keys(DEFAULT_LAYER, layer)
         return DEFAULT_LAYER, dict(layer), {}
     path = Path(layer)
     if base is not None and not path.is_absolute():
@@ -265,7 +268,22 @@ def _load_layer(layer: Layer, base: Optional[Path]) -> Tuple[str, Dict[str, Any]
     if not isinstance(data, Mapping):
         raise ConfigError(str(path), reason=f"a configuration layer is a mapping, not "
                           f"{type(data).__name__}")
+    _refuse_dotted_keys(str(path), data)
     return str(path), dict(data), lines
+
+
+def _refuse_dotted_keys(name: str, values: Mapping[str, Any], prefix: str = '') -> None:
+    """A key with a ``.`` in it is refused: the dot is how a leaf is addressed.
+
+    Provenance, ``Resolved.get`` and the record all name a leaf by its dotted
+    path, so ``a.b: 1`` beside ``a: {b: 2}`` would be two leaves with one name.
+    """
+    for key, value in values.items():
+        if '.' in str(key):
+            raise ConfigError(name, key=f"{prefix}{key}",
+                              reason="a key may not contain '.'; nest it instead")
+        if isinstance(value, Mapping):
+            _refuse_dotted_keys(name, value, f"{prefix}{key}.")
 
 
 # --------------------------------------------------------------------------

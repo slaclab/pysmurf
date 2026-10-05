@@ -64,7 +64,9 @@ names one path or a list of paths, relative to the file that says it.
 
 ``band_default`` is applied to every band listed under ``bands`` before the
 band's own block, so the two files above resolve to two fully specified bands.
-A key nobody sets and the default leaves ``null`` is refused, naming it.
+A key nobody sets and the default leaves ``null`` is refused, naming it. A key
+may not contain a ``.``: the dot is how a value is addressed (``bands.4.att_uc``
+below), so ``a.b: 1`` is refused -- nest it as ``a: {b: 1}``.
 
 Usage
 -----
@@ -102,12 +104,19 @@ that fails part-way leaves nothing to reattach to -- the hardware is no
 longer in the recorded configuration, and a new client is refused the same
 way until a ``setup()`` completes.
 
+What is recorded is the configuration the client was given, as the file
+resolved: the same thing a client constructed from that file holds before it
+calls ``setup()``. A value changed on the instance afterwards -- ``S.feedback_gain[4]
+= 512`` before ``setup()``, or a tuning that writes ``S.lms_freq_hz[band]`` --
+is applied to the hardware but is not configuration and is not in the record.
+Values an operation measures will be kept separately.
+
 ``setup()`` also writes the resolution to a record under ``paths.status``
 (``resolved/<host>_<port>.json``, one file per endpoint, with a dated copy),
 together with the firmware identity and the witness registers as they read
 at that moment. It is a record of what the system was given and when -- the
 answer to "what was slot 4 running yesterday" -- and nothing reads it back
-into a client. The values an operation measures will be kept the same way.
+into a client.
 
 Reference
 ---------

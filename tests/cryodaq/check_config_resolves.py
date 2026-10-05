@@ -209,6 +209,29 @@ def check_a_layer_that_is_not_yaml_is_refused_with_its_line():
     assert 'line' in str(e), str(e)
 
 
+def check_a_layer_that_is_not_utf8_is_refused_naming_it():
+    d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_config_'))
+    (d / 'latin.yaml').write_bytes(b'name: caf\xe9\n')
+    refused(lambda: config.load(d / 'latin.yaml'), 'latin.yaml', 'UTF-8')
+
+
+def check_a_key_with_a_dot_is_refused_in_any_layer():
+    # The dot is how a leaf is addressed -- provenance, get(), the record -- so
+    # `a.b: 1` beside `a: {b: 2}` would be two leaves under one name.
+    d = with_files({'dotted.yaml': 'a:\n  b: 1\n  c.d: 2\n'})
+    e = refused(lambda: config.load(d / 'dotted.yaml'), 'dotted.yaml', "'.'", 'nest')
+    assert e.key == 'a.c.d', e.key
+    d = with_files({'top.yaml': 'inherit: lower.yaml\nx: 1\n', 'lower.yaml': 'has.dot: 1\n'})
+    e = refused(lambda: config.load(d / 'top.yaml'), 'lower.yaml', "'.'")
+    assert e.key == 'has.dot', e.key
+    # The default mapping is a layer too.
+    e = refused(lambda: resolve(default={'m': {'n.o': 1}}), config.DEFAULT_LAYER, "'.'")
+    assert e.key == 'm.n.o', e.key
+    # And a key the parser yields as a non-string with a dot in its text.
+    d = with_files({'num.yaml': '4.5: {x: 1}\n'})
+    refused(lambda: config.load(d / 'num.yaml'), 'num.yaml', "'.'")
+
+
 def check_a_layer_that_is_not_a_mapping_is_refused():
     d = with_files({'list.yaml': '- 1\n- 2\n', 'text.yaml': 'just words\n'})
     refused(lambda: config.load(d / 'list.yaml'), 'list.yaml', 'mapping', 'list')
@@ -729,6 +752,14 @@ def selftest():
                            'before the disk refused')
         finally:
             _session.Session.record_config = real_record
+
+        real_refuse = config._refuse_dotted_keys
+        config._refuse_dotted_keys = lambda *a, **k: None
+        try:
+            expect_failure('a loader that lets a dotted key through is caught',
+                           check_a_key_with_a_dot_is_refused_in_any_layer, 'accepted')
+        finally:
+            config._refuse_dotted_keys = real_refuse
 
         real_read = config.read_record
 

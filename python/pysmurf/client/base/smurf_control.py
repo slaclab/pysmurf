@@ -676,9 +676,11 @@ class SmurfControl(SmurfCommandMixin,
 
             self.log('Done with setup.', self.LOG_USER)
 
-            # Record what this system was just configured with: on the server,
-            # so a client that connects later -- with no file -- can read it
-            # back, and on disk, so what it was given stays on record.
+            # Record the configuration this client was given: on the server,
+            # so a client that connects later -- with no file -- starts from
+            # the same resolution, and on disk, so it stays on record. It is
+            # the file's resolution, not the per-band dictionaries setup()
+            # read: a value changed on the instance is not configuration.
             record = self._session.record_config(
                 self.config, extra={'pysmurf_version': self.get_pysmurf_version(),
                                     'config_file': self._cfg_file})
