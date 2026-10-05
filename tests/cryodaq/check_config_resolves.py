@@ -36,6 +36,7 @@ import argparse
 import json
 import os
 import pathlib
+import re
 import sys
 import tempfile
 
@@ -247,7 +248,7 @@ def check_a_record_round_trips_and_keeps_a_dated_copy():
     resolved = resolve()
     d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_record_'))
     path = config.record_path(d, 'some-host:9012')
-    assert path == d / config.RECORD_DIR / 'some_host_9012.json', path
+    assert path == d / config.RECORD_DIR / 'some-host_9012.json', path
     written = config.write_record(resolved, path, endpoint='some-host:9012',
                                   firmware={'version': '2.5.1'}, witness={'w': 1},
                                   extra={'note': 'x'})
@@ -260,7 +261,32 @@ def check_a_record_round_trips_and_keeps_a_dated_copy():
     assert record['written_at'].endswith('Z')
     copies = sorted(p.name for p in path.parent.iterdir())
     assert len(copies) == 2 and copies[1] == path.name, copies
-    assert copies[0].startswith('some_host_9012.') and copies[0].endswith('.json'), copies
+    assert copies[0].startswith('some-host_9012.') and copies[0].endswith('.json'), copies
+
+
+def check_two_endpoints_never_share_a_record_file():
+    """The slug is one-to-one: a status directory two systems share holds two records."""
+    d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_record_'))
+    assert config.record_path(d, 'localhost:9012').name == 'localhost_9012.json', 'the usual name changed'
+    endpoints = ('crate-a:9012', 'crate.a:9012', 'crate_a:9012', 'crate a:9012', 'crate%a:9012',
+                 'crate:a:9012', 'crate-a_9012', 'crate-a:9012:', 'crätе:9012')
+    names = [config.record_path(d, e).name for e in endpoints]
+    assert len(set(names)) == len(names), f"two endpoints name one file: {sorted(zip(names, endpoints))}"
+    for e, n in zip(endpoints, names):
+        assert n.endswith('.json') and '/' not in n and n == n.strip('.'), (e, n)
+        # Every slug reads back to its endpoint: '_' is ':', %XX is a UTF-8 byte.
+        back = re.sub(r'(?:%[0-9A-F]{2})+|_',
+                      lambda m: ':' if m.group() == '_' else bytes.fromhex(m.group().replace('%', '')).decode(),
+                      n[:-5])
+        assert back == e, f"{e!r} -> {n} -> {back!r}"
+    # Prefix-distinct too: a dated copy of one is never read as the other's.
+    assert not any(a != b and b.startswith(a[:-5] + '.') for a in names for b in names), names
+    try:
+        config.record_path(d, '')
+    except ConfigError as e:
+        assert 'empty endpoint' in str(e), e
+    else:
+        raise AssertionError('an empty endpoint was given a record file')
 
 
 def check_a_record_write_is_atomic():
@@ -638,6 +664,18 @@ def selftest():
                            'still offered')
         finally:
             _session.Session.clear_config = real_clear
+
+        real_record_path = config.record_path
+
+        def lossy(status_dir, endpoint):
+            # Every run of non-alphanumerics made '_': crate-a and crate.a share a file.
+            return pathlib.Path(status_dir) / config.RECORD_DIR / (re.sub(r'[^A-Za-z0-9]+', '_', endpoint) + '.json')
+        config.record_path = lossy
+        try:
+            expect_failure('a record name two endpoints share is caught',
+                           check_two_endpoints_never_share_a_record_file, 'name one file')
+        finally:
+            config.record_path = real_record_path
     finally:
         FIXTURES = saved
 

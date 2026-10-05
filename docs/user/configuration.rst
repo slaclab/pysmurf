@@ -103,11 +103,11 @@ longer in the recorded configuration, and a new client is refused the same
 way until a ``setup()`` completes.
 
 ``setup()`` also writes the resolution to a record under ``paths.status``
-(``resolved/<host>_<port>.json``, with a dated copy), together with the
-firmware identity and the witness registers as they read at that moment. It
-is a record of what the system was given and when -- the answer to "what was
-slot 4 running yesterday" -- and nothing reads it back into a client. The
-values an operation measures will be kept the same way.
+(``resolved/<host>_<port>.json``, one file per endpoint, with a dated copy),
+together with the firmware identity and the witness registers as they read
+at that moment. It is a record of what the system was given and when -- the
+answer to "what was slot 4 running yesterday" -- and nothing reads it back
+into a client. The values an operation measures will be kept the same way.
 
 Reference
 ---------

@@ -76,7 +76,9 @@ VALIDATED_LAYER = '<validated>'
 # Where configuration records live under a status directory, and the dated-copy format.
 RECORD_DIR = 'resolved'
 _HISTORY_STAMP = '%Y%m%dT%H%M%SZ'
-_SLUG = re.compile(r'[^A-Za-z0-9]+')
+# A hostname's own characters stay; ':' becomes '_'; anything else is %XX. The
+# three alphabets are disjoint, so two endpoints never share a file name.
+_SLUG_KEEP = re.compile(r'[A-Za-z0-9.-]')
 
 Layer = Union[str, Path, Mapping[str, Any]]
 Validator = Callable[[Dict[str, Any]], Dict[str, Any]]
@@ -388,7 +390,9 @@ def record_path(status_dir: Union[str, Path], endpoint: str) -> Path:
     """Where the configuration record for an endpoint lives under a status directory.
 
     One file per endpoint: ``<status_dir>/resolved/<endpoint-slug>.json``, the
-    slug being the endpoint with every run of non-alphanumerics made ``_``.
+    slug being the endpoint with ``:`` made ``_`` -- ``localhost:9012`` is
+    ``localhost_9012.json`` -- and any character a hostname cannot hold
+    percent-encoded, so no two endpoints name the same file.
 
     Parameters
     ----------
@@ -396,8 +400,16 @@ def record_path(status_dir: Union[str, Path], endpoint: str) -> Path:
         The status directory; ``RECORD_DIR`` is created under it when written.
     endpoint : str
         The server, as ``host:port``.
+
+    Raises
+    ------
+    ConfigError
+        If ``endpoint`` is empty: there is no file for it.
     """
-    slug = _SLUG.sub('_', endpoint).strip('_') or 'unnamed'
+    if not endpoint:
+        raise ConfigError('<record>', reason='an empty endpoint has no record file')
+    slug = ''.join(c if _SLUG_KEEP.match(c) else '_' if c == ':' else
+                   ''.join(f"%{b:02X}" for b in c.encode()) for c in endpoint)
     return Path(status_dir) / RECORD_DIR / f"{slug}.json"
 
 
