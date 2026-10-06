@@ -434,8 +434,10 @@ def _delay_writes_old(old, band):
 
 
 def _delay_writes_new(resolved, band):
-    from pysmurf.client.base.smurf_config_properties import delay_writes
-    return delay_writes(resolved.values['bands'][band])
+    from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin
+    holder = SmurfConfigPropertiesMixin()
+    holder.copy_config_to_properties(resolved)
+    return holder.delay_writes(band)
 
 
 def check_a_record_read_back_through_json_gives_the_same_properties():
@@ -593,6 +595,28 @@ def check_a_write_into_a_per_band_property_persists():
     assert holder._amplitude_scale is holder.amplitude_scale, 'the private field is the same dict'
 
 
+def check_setup_writes_the_live_delay_a_caller_set():
+    # The old setup() read the delay from the mutable properties, as it reads
+    # every other per-band value; `S.band_delay_us[0] = 8.8` before setup()
+    # wrote 8.8. The delay writes are decided from the same tables, so a value
+    # changed on the instance is what reaches the firmware -- and switching
+    # representation works the way it did: a nonzero ref_phase_delay selects the
+    # triple, zero selects band_delay_us.
+    from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin
+    holder = SmurfConfigPropertiesMixin()
+    holder.copy_config_to_properties(load_mapping(minimal()))
+    before = holder.delay_writes(4)
+    assert before[0][0] == 'band_delay_us', before
+    holder.band_delay_us[4] = 8.8
+    assert holder.delay_writes(4) == (('band_delay_us', 8.8),), 'the live edit was not written'
+    holder.ref_phase_delay[4] = 6
+    holder.ref_phase_delay_fine[4] = 1
+    assert holder.delay_writes(4) == (('ref_phase_delay', 6), ('ref_phase_delay_fine', 1), ('lms_delay', 6)), \
+        'a ref_phase_delay set on the instance did not select the triple'
+    holder.lms_delay[4] = 24
+    assert holder.delay_writes(4)[2] == ('lms_delay', 24)
+
+
 def check_the_converter_drops_only_what_nothing_read():
     seen = set()
     for cfg in CFG_FILES:
@@ -615,7 +639,6 @@ def check_the_converter_drops_only_what_nothing_read():
 
 def check_the_converter_keeps_the_old_delay_decision_for_a_zero_ref_phase_delay():
     """No shipped file sets ``refPhaseDelay: 0``; a site's might, and the old setup() took it as "use bandDelayUs"."""
-    from pysmurf.client.base.smurf_config_properties import delay_writes
     base = legacy.read_json_with_comments(CFG_FILES[0])
     d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_cfg_'))
     block = base['init']['band_0']
@@ -627,7 +650,7 @@ def check_the_converter_keeps_the_old_delay_decision_for_a_zero_ref_phase_delay(
     assert 'delay' not in converted['bands'][0], 'a triple the old setup() never wrote was kept'
     assert converted['bands'][0]['band_delay_us'] == 8.8
     assert 'init.band_0.refPhaseDelay' in str(caught[0].message), 'the drop was not named'
-    assert delay_writes(load_mapping(converted).values['bands'][0]) == (('band_delay_us', 8.8),)
+    assert _delay_writes_new(load_mapping(converted), 0) == (('band_delay_us', 8.8),)
     # Nonzero stays the direct triple, as the shipped files are checked for above.
     block.update(refPhaseDelay=6)
     (d / 'six.cfg').write_text(json.dumps(base))

@@ -10,7 +10,7 @@
 #    is recorded beside the system it configured.
 #
 #    A configuration is a YAML mapping. A file may name the files it builds on
-#    with an `inherit:` key -- one path or a list, relative to the file -- and
+#    with an `inherit:` key -- one path, relative to the file -- and
 #    the application may supply a default layer under everything. Resolving
 #    applies the layers in order, default first, deep-merging mappings and
 #    replacing everything else, and remembers for every key which file and
@@ -52,7 +52,7 @@ import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union)
+from typing import (Any, Callable, Dict, List, Mapping, Optional, Tuple, Union)
 
 import yaml
 
@@ -337,24 +337,22 @@ def flatten(values: Mapping[str, Any], prefix: str = '') -> Dict[str, Any]:
 
 def _chain(layer: Layer, base: Optional[Path], seen: List[str],
            name: str = DEFAULT_LAYER) -> List[Tuple[str, Dict[str, Any], Dict[str, int]]]:
-    """The layers ``layer`` stands on, then itself; lowest first. Refuses a loop."""
+    """The layers ``layer`` stands on, then itself; lowest first. Refuses a loop.
+
+    A layer inherits one parent, so the chain is a path: no layer can be
+    reached twice, and so none can be applied twice over another's overrides.
+    """
     name, data, lines = _load_layer(layer, base, name)
     if name in seen:
         loop = ' -> '.join(seen + [name])
         raise ConfigError(name, key=INHERIT_KEY, reason=f"inheritance loops: {loop}")
-    parents = data.pop(INHERIT_KEY, None)
-    if parents is None:
-        parents_list: Sequence[Any] = ()
-    elif isinstance(parents, str):
-        parents_list = (parents,)
-    elif isinstance(parents, list) and all(isinstance(p, str) for p in parents):
-        parents_list = parents
-    else:
+    parent = data.pop(INHERIT_KEY, None)
+    if parent is not None and not isinstance(parent, str):
         raise ConfigError(name, key=INHERIT_KEY,
-                          reason=f"names a path or a list of paths, not {type(parents).__name__}")
+                          reason=f"names one path, not {type(parent).__name__}")
     here = Path(name).parent if Path(name).is_absolute() else base
     out: List[Tuple[str, Dict[str, Any], Dict[str, int]]] = []
-    for parent in parents_list:
+    if parent is not None:
         out.extend(_chain(parent, here, seen + [name]))
     out.append((name, data, lines))
     return out
@@ -367,14 +365,14 @@ def load(path: Layer, *, default: Optional[Layer] = None,
     Parameters
     ----------
     path : str, Path or mapping
-        The top layer. Its ``inherit:`` key names the layers below it, one path
-        or a list, relative to the file; each of those may inherit in turn. A
+        The top layer. Its ``inherit:`` key names the layer below it, one
+        path relative to the file, which may inherit in turn. A
         mapping is a layer already read -- a converted file, one built in code.
     name : str, optional
         What provenance and errors call a mapping given as ``path``; a file is
         called by its path. Required for a mapping. An absolute path here --
         the converted file's own -- is also where the mapping's ``inherit``
-        paths are relative to; any other name, the working directory.
+        path is relative to; any other name, the working directory.
     default : str, Path or mapping, optional
         A layer under everything: the application's shipped defaults, as a
         file or as a mapping.
@@ -392,7 +390,7 @@ def load(path: Layer, *, default: Optional[Layer] = None,
     ------
     ConfigError
         For a layer that cannot be read or is not a mapping, an ``inherit`` that
-        is not a path or a list of paths, or a chain that loops. Each names the
+        is not one path, or a chain that loops. Each names the
         file, and the key where there is one.
     """
     if isinstance(path, Mapping) and not name:

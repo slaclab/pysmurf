@@ -258,10 +258,16 @@ def check_a_layer_that_is_not_a_mapping_is_refused():
     assert config.load(d2 / 'top.yaml').values == {'x': 1}
 
 
-def check_an_inherit_that_is_not_a_path_or_list_of_paths_is_refused():
-    d = with_files({'m.yaml': 'inherit: {a: 1}\n', 'n.yaml': 'inherit: [1, 2]\n'})
-    for name in ('m.yaml', 'n.yaml'):
-        e = refused(lambda: config.load(d / name), name, config.INHERIT_KEY)
+def check_an_inherit_that_is_not_one_path_is_refused():
+    # One parent per layer, so the chain is a path. A list of parents is the
+    # case that cannot be allowed: two parents sharing an ancestor would apply
+    # it twice, the second time over the first parent's overrides -- measured,
+    # before this was refused, as b's x lost to d's under inherit: [b, c].
+    d = with_files({'m.yaml': 'inherit: {a: 1}\n', 'n.yaml': 'inherit: [1, 2]\n',
+                    'd.yaml': 'x: 1\ny: 1\n', 'b.yaml': 'inherit: d.yaml\nx: 2\n',
+                    'c.yaml': 'inherit: d.yaml\ny: 3\n', 'a.yaml': 'inherit: [b.yaml, c.yaml]\n'})
+    for name, kind in (('m.yaml', 'dict'), ('n.yaml', 'list'), ('a.yaml', 'list')):
+        e = refused(lambda: config.load(d / name), name, config.INHERIT_KEY, 'one path', kind)
         assert e.key == config.INHERIT_KEY
 
 

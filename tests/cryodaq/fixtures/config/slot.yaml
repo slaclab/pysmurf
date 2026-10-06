@@ -1,6 +1,5 @@
 # The top layer: one system. Inherits the site, which inherits the default.
-inherit:
-  - site.yaml
+inherit: site.yaml
 marker:
   set_by_slot: slot
 depth:

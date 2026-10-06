@@ -16,7 +16,7 @@
 """Defines the mixin class :class:`SmurfConfigPropertiesMixin`."""
 import numpy as np
 
-__all__ = ['SmurfConfigPropertiesMixin', 'delay_writes', 'PER_BAND_KEYS']
+__all__ = ['SmurfConfigPropertiesMixin', 'PER_BAND_KEYS']
 
 # The per-band keys exposed as {band: value} dictionaries.
 PER_BAND_KEYS = ('amplitude_scale', 'att_uc', 'att_dc', 'iq_swap_in', 'iq_swap_out',
@@ -27,34 +27,6 @@ PER_BAND_KEYS = ('amplitude_scale', 'att_uc', 'att_dc', 'iq_swap_in', 'iq_swap_o
                  'gradient_descent_converge_hz', 'gradient_descent_step_hz',
                  'gradient_descent_momentum', 'gradient_descent_beta', 'eta_scan_averages',
                  'eta_scan_del_f')
-
-
-def delay_writes(band):
-    """The band-delay registers ``setup()`` writes for one band's configuration.
-
-    A band names its delay one of two ways: ``delay`` gives the three firmware
-    registers directly and wins when present -- ``lms`` left unset means the
-    same value as ``ref_phase``, as the firmware's own linked variable does --
-    and otherwise ``band_delay_us`` gives the total and the firmware derives
-    the three.
-
-    Parameters
-    ----------
-    band : dict
-        One block of ``config.values['bands']``.
-
-    Returns
-    -------
-    tuple of (str, value)
-        Setter names without their ``set_`` prefix, in the order they are called.
-    """
-    delay = band.get('delay')
-    if delay:
-        lms = delay.get('lms')
-        return (('ref_phase_delay', delay['ref_phase']),
-                ('ref_phase_delay_fine', delay.get('ref_phase_fine', 0)),
-                ('lms_delay', int(delay['ref_phase']) if lms is None else lms))
-    return (('band_delay_us', band['band_delay_us']),)
 
 
 class SmurfConfigPropertiesMixin:
@@ -167,6 +139,35 @@ class SmurfConfigPropertiesMixin:
         if self.config is None:
             return None
         return self._per_band_tables[key]
+
+    def delay_writes(self, band):
+        """The band-delay registers ``setup()`` writes for one band, from the live properties.
+
+        A band names its delay one of two ways: ``delay`` gives the three
+        firmware registers directly and wins when present -- ``lms`` left unset
+        means the same value as ``ref_phase``, as the firmware's own linked
+        variable does -- and otherwise ``band_delay_us`` gives the total and
+        the firmware derives the three. Read from the per-band tables, so a
+        value changed on the instance is what is written, as for every other
+        per-band register; ``ref_phase_delay`` is 0 where the configuration
+        gave ``band_delay_us``, which is how the two are told apart.
+
+        Parameters
+        ----------
+        band : int
+
+        Returns
+        -------
+        tuple of (str, value)
+            Setter names without their ``set_`` prefix, in the order they are called.
+        """
+        ref_phase = self.ref_phase_delay[band]
+        if ref_phase:
+            lms = self.lms_delay[band]
+            return (('ref_phase_delay', ref_phase),
+                    ('ref_phase_delay_fine', self.ref_phase_delay_fine[band]),
+                    ('lms_delay', int(ref_phase) if lms is None else lms))
+        return (('band_delay_us', self.band_delay_us[band]),)
 
     # ------------------------------------------------------------------
     # paths and scalars

@@ -23,7 +23,7 @@ import time
 import numpy as np
 
 from pysmurf.client import config as smurf_config
-from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin, delay_writes
+from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin
 from pysmurf.client.command.smurf_atca_monitor import SmurfAtcaMonitorMixin
 from pysmurf.client.command.smurf_command import SmurfCommandMixin
 from pysmurf.client.debug.smurf_iv import SmurfIVMixin
@@ -520,12 +520,13 @@ class SmurfControl(SmurfCommandMixin,
 
                 # The band delay, either as the three firmware registers
                 # the configuration names directly or as a total the
-                # firmware derives them from; delay_writes decides which.
-                # The lmsDelay register matches the system latency for LMS
-                # feedback -- actuator (DSP -> DAC -> RF) plus sensor (RF ->
-                # ADC -> demod) -- and in production firmware equals
+                # firmware derives them from; delay_writes decides which
+                # from the live per-band properties, like every other write
+                # here. The lmsDelay register matches the system latency for
+                # LMS feedback -- actuator (DSP -> DAC -> RF) plus sensor (RF
+                # -> ADC -> demod) -- and in production firmware equals
                 # refPhaseDelay unless the configuration says otherwise.
-                for register, value in delay_writes(self.config.values['bands'][band]):
+                for register, value in self.delay_writes(band):
                     getattr(self, f'set_{register}')(band, value,
                                                      write_log=write_log, **kwargs)
 

@@ -22,9 +22,10 @@ Layers
 ------
 
 Resolution applies layers lowest first: the packaged ``default.yaml``, then
-each file the top file inherits (in order), then the top file. Mappings merge
-key by key; a scalar or a list replaces the whole value below it. ``inherit``
-names one path or a list of paths, relative to the file that says it. A legacy
+the file the top file inherits (and whatever that inherits, downwards), then
+the top file. Mappings merge key by key; a scalar or a list replaces the whole
+value below it. ``inherit`` names one path, relative to the file that says it:
+a chain, not a set of parents, so no layer can be applied twice. A legacy
 ``.cfg`` is converted in memory and resolved as the top layer under its own
 path, so provenance and any refusal name the ``.cfg`` file, and an ``inherit``
 in it (the old format had none) would resolve beside it.
