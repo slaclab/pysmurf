@@ -53,7 +53,11 @@ def main(argv=None):
         for w in caught:
             print(f"note: {w.message}", file=sys.stderr)
         if args.output:
-            args.output.write_text(text)
+            try:
+                args.output.write_text(text)
+            except OSError as e:
+                print(f"error: {args.output}: {e}", file=sys.stderr)
+                return 1
             print(f"wrote {args.output}", file=sys.stderr)
         else:
             sys.stdout.write(text)

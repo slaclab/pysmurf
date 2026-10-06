@@ -533,6 +533,8 @@ def check_a_refused_reattach_closes_the_session_it_opened():
     class _Session:
         endpoint = 'stand-in:9012'
 
+        configured = False
+
         def __init__(self, answer):
             self.paths = cryodaq.Paths.under('/data')
             self.answer, self.closed = answer, 0
@@ -564,6 +566,21 @@ def check_a_refused_reattach_closes_the_session_it_opened():
             raise AssertionError(f"{label}: adopted")
         assert S._session.closed == 1, f"{label}: close() called {S._session.closed} times"
         assert S.config is None, f"{label}: a refusal left a configuration behind"
+
+    # A configured server whose image has no record node also answers None;
+    # the refusal must not call it unconfigured.
+    S = SmurfControl.__new__(SmurfControl)
+    S._session = _Session(None)
+    S._session.configured = True
+    S.log = lambda *a, **k: None
+    SmurfConfigPropertiesMixin.__init__(S)
+    try:
+        S._reattach()
+    except RuntimeError as e:
+        assert 'not configured' not in str(e) and 'no configuration record' in str(e), str(e)
+    else:
+        raise AssertionError('adopted with no record')
+    assert S._session.closed == 1
 
     # And the happy path does not close what it is about to use.
     S = SmurfControl.__new__(SmurfControl)
