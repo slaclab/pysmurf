@@ -119,8 +119,11 @@ def _schema():
         # Either the total delay in microseconds, or the three firmware
         # registers directly. `delay` wins when both are given.
         'band_delay_us': Or(None, And(number, lambda f: 0 <= f < 30)),
+        # A triple with ref_phase 0 was never written -- setup() has always read
+        # a zero as "use band_delay_us" -- so a block that gives one is refused
+        # rather than silently ignored.
         Optional('delay'): {
-            'ref_phase': _in_range(0, 2**5),
+            'ref_phase': _in_range(1, 2**5),
             Optional('ref_phase_fine', default=0): _in_range(0, 2**8),
             Optional('lms', default=None): Or(None, _in_range(0, 2**6)),
         },
@@ -138,7 +141,10 @@ def _schema():
         'eta_scan_del_f': And(_is_int, lambda n: n > 0),
     }
     return Schema({
-        'paths': {'data': str, 'smurf_cmd': str, 'tune': str, 'status': str},
+        # A directory is named, not checked: whether it exists is decided where
+        # it is used. An empty name is no directory at all.
+        'paths': {'data': And(str, len), 'smurf_cmd': And(str, len), 'tune': And(str, len),
+                  'status': And(str, len)},
         'wiring': {
             'R_sh': positive,
             'bias_line_resistance': positive,

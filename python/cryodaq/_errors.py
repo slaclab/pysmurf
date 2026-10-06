@@ -58,12 +58,13 @@ class UnresolvedName(CryodaqError):
 
 
 class ConfigError(CryodaqError):
-    """A configuration could not be resolved from its layers.
+    """A configuration could not be resolved from its layers, or a record of one read or written.
 
     Raised for what is wrong with the layering itself -- a file that cannot be
     read or parsed, an inheritance chain that loops, a layer that is not a
-    mapping. What the values *mean* is the application's to judge, and its
-    validator raises its own errors.
+    mapping -- and for a configuration record that is corrupt or holds a value
+    that cannot be written as JSON. What the values *mean* is the application's
+    to judge, and its validator raises its own errors.
 
     Parameters
     ----------

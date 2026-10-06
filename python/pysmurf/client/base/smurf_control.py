@@ -401,7 +401,6 @@ class SmurfControl(SmurfCommandMixin,
                 self.log('\033[91mIf you really want to configure again, run setup with force_configure=True.\033[00m', self.LOG_ERROR) # color red
                 return False
 
-        success=True
         self.log('Setting up...', (self.LOG_USER))
 
         # From here the hardware is being changed, so whatever the server
@@ -409,11 +408,24 @@ class SmurfControl(SmurfCommandMixin,
         # the end, on success, and a setup that fails part-way leaves none.
         self._session.clear_config()
 
-        # If active, disable hardware logging while doing setup.
+        # If active, disable hardware logging while doing setup. Whatever
+        # happens in between -- a register write that times out, the record
+        # at the end failing to write -- the thread is resumed on the way out,
+        # or a failed setup would leave the hardware unlogged for good.
         if self._hardware_logging_thread is not None:
             self.log('Hardware logging is enabled.  Pausing for setup.',
                      (self.LOG_USER))
             self.pause_hardware_logging()
+        try:
+            return self._setup_hardware(write_log, payload_size, **kwargs)
+        finally:
+            if self._hardware_logging_thread is not None:
+                self.log('Resuming hardware logging.', self.LOG_USER)
+                self.resume_hardware_logging()
+
+    def _setup_hardware(self, write_log, payload_size, **kwargs):
+        """The body of ``setup()``: every hardware write, then the record. True on success."""
+        success = True
 
         # Thermal OT protection - should this be moved after
         # setDefaults?
@@ -689,12 +701,6 @@ class SmurfControl(SmurfCommandMixin,
         else:
             self.log('Setup failed!', self.LOG_ERROR)
 
-        # If active, re-enable hardware logging after setup.
-        if self._hardware_logging_thread is not None:
-            self.log('Resuming hardware logging.', self.LOG_USER)
-            self.resume_hardware_logging()
-
-        # Assume if we made it here that configuration was successful.
         return success
 
     def make_dir(self, directory):

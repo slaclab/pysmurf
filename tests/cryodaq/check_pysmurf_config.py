@@ -268,6 +268,16 @@ def check_the_schema_refuses_bad_content_naming_the_key():
     v = minimal()
     v['bands'][4]['band_delay_us'] = None
     refused(v, 'bands.4', 'band_delay_us or a delay block')
+    # A zero ref_phase is a triple setup() never wrote: the block is refused
+    # rather than accepted and then passed over for band_delay_us.
+    v = minimal()
+    v['bands'][4]['delay'] = {'ref_phase': 0, 'ref_phase_fine': 0, 'lms': 0}
+    refused(v, 'bands.4.delay.ref_phase')
+    # The directories are names, not checked -- but an empty name is none.
+    for key in ('data', 'smurf_cmd', 'tune', 'status'):
+        v = minimal()
+        v.setdefault('paths', {})[key] = ''
+        refused(v, f'paths.{key}')
     v = minimal()
     v['wiring']['bias_group_to_pair'] = {0: [1, 2], 1: [2, 3]}
     refused(v, 'wiring.bias_group_to_pair', '[2]')
@@ -562,6 +572,42 @@ def check_a_refused_reattach_closes_the_session_it_opened():
     SmurfConfigPropertiesMixin.__init__(S)
     S._reattach()
     assert S._session.closed == 0 and S.config is not None, 'a successful reattach closed its session'
+
+
+def check_setup_resumes_hardware_logging_whatever_happens():
+    # setup() pauses the hardware-logging thread for the duration. Anything
+    # raising in between -- including the record written at the end -- must
+    # still resume it, or a failed setup leaves the hardware unlogged for good.
+    from pysmurf.client.base.smurf_control import SmurfControl
+
+    class Boom(Exception):
+        pass
+
+    S = SmurfControl.__new__(SmurfControl)
+    calls = []
+    S.log = lambda *a, **k: None
+    S._hardware_logging_thread = object()
+    S.pause_hardware_logging = lambda: calls.append('pause')
+    S.resume_hardware_logging = lambda: calls.append('resume')
+    S.get_system_configured = lambda: False
+    S._session = type('_S', (), {'clear_config': lambda self: calls.append('clear')})()
+
+    def body(write_log, payload_size, **kw):
+        calls.append('body')
+        raise Boom()
+    S._setup_hardware = body
+    try:
+        S.setup()
+    except Boom:
+        pass
+    else:
+        raise AssertionError('the failure was swallowed')
+    assert calls == ['clear', 'pause', 'body', 'resume'], calls
+    # And a body that returns hands its verdict through, still resuming.
+    del calls[:]
+    S._setup_hardware = lambda write_log, payload_size, **kw: False
+    assert S.setup() is False
+    assert calls == ['clear', 'pause', 'resume'], calls
 
 
 def check_a_write_into_a_per_band_property_persists():

@@ -68,6 +68,8 @@ in it (the old format had none) would resolve beside it.
 
 ``band_default`` is applied to every band listed under ``bands`` before the
 band's own block, so the two files above resolve to two fully specified bands.
+It is applied key by key: a band's ``delay`` block replaces the default's
+whole, not field by field, since a delay triple is one fact about one band.
 A key nobody sets and the default leaves ``null`` is refused, naming it. A key
 may not contain a ``.``: the dot is how a value is addressed (``bands.4.att_uc``
 below), so ``a.b: 1`` is refused -- nest it as ``a: {b: 1}``.
@@ -325,8 +327,9 @@ for some, writes into. Legacy: ``init:band_#`` for the firmware settings and
     Half-width of the window around a resonance that ``eta_estimator``
     and ``find_peak`` fit in.
 ``feedback_start_frac``, ``feedback_end_frac`` (fraction of the ramp)
-    The part of each flux ramp cycle, in ``[0, 1)`` and ``(0, 1]``, within
-    which the tracking feedback is applied.
+    The part of each flux ramp cycle, each in ``[0, 1]``, within which the
+    tracking feedback is applied; ``tracking_setup`` judges the pair when it
+    runs.
 ``gradient_descent_gain``, ``_averages``, ``_converge_hz``, ``_step_hz``, ``_momentum``, ``_beta``
     The serial gradient descent's learning rate, measurements averaged per
     gradient sample, convergence threshold (Hz), probe offset (Hz),
@@ -351,8 +354,9 @@ processing-clock ticks -- 2.4 MHz ticks on current firmware, so 6 is 2.5 µs;
 ``ref_phase_fine`` (``refPhaseDelayFine``) adds a lag to the DAC output in
 307.2 MHz ticks and so *subtracts* from the total; ``lms`` (``lmsDelay``)
 aligns the feedback with the flux ramp phase and is typically equal to
-``ref_phase``. ``lms`` left out means the same value as ``ref_phase``.
-Converted legacy files carry their ``refPhaseDelay``/``refPhaseDelayFine``/
+``ref_phase``. ``lms`` left out means the same value as ``ref_phase``;
+``ref_phase`` itself is at least 1 -- a zero triple was never written, a
+band with no delay gives ``band_delay_us``. Converted legacy files carry their ``refPhaseDelay``/``refPhaseDelayFine``/
 ``lmsDelay`` as a ``delay`` block, so what ``setup()`` writes does not
 change. Both include the digital delay, so they vary with firmware version.
 

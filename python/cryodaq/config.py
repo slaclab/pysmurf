@@ -245,7 +245,11 @@ def _read_yaml(path: Path) -> Tuple[Any, Dict[str, int]]:
 
 
 def _key_lines(node: Any, prefix: str, lines: Dict[str, int]) -> None:
-    """Record the line every key under ``node`` starts on, by dotted path."""
+    """Record the line every key under ``node`` starts on, by dotted path.
+
+    A key that arrives through a YAML merge key (``<<: *anchor``) has no node
+    of its own here; its line is reported as 0.
+    """
     for key_node, value_node in node.value:
         dotted = f"{prefix}{key_node.value}"
         lines[dotted] = key_node.start_mark.line + 1
