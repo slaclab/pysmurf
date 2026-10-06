@@ -504,6 +504,42 @@ def check_a_reattached_client_records_under_the_adopted_status_directory():
         f"the session still records under {S._session.paths.status}"
 
 
+def check_a_refused_reattach_closes_the_session_it_opened():
+    # The constructor opens the session before it knows whether the server is
+    # configured. When it is not, no instance is returned, so nothing could
+    # close that session later: the refusal has to, or the client stays in the
+    # process's open-client table until exit.
+    import cryodaq
+    from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin
+    from pysmurf.client.base.smurf_control import SmurfControl
+
+    class _Session:
+        endpoint = 'stand-in:9012'
+        closed = 0
+
+        def __init__(self):
+            self.paths = cryodaq.Paths.under('/data')
+
+        def resolved_config(self):
+            return None
+
+        def close(self):
+            self.closed += 1
+
+    S = SmurfControl.__new__(SmurfControl)
+    S._session = _Session()
+    S.log = lambda *a, **k: None
+    SmurfConfigPropertiesMixin.__init__(S)
+    try:
+        S._reattach()
+    except RuntimeError as e:
+        assert 'not configured' in str(e) and 'setup()' in str(e), str(e)
+    else:
+        raise AssertionError('an unconfigured server was adopted')
+    assert S._session.closed == 1, f"close() called {S._session.closed} times"
+    assert S.config is None, 'a refusal left a configuration behind'
+
+
 def check_a_write_into_a_per_band_property_persists():
     # Callers write into these dictionaries -- tracking_setup stores the LMS
     # frequency it measured, sodetlib the tone power it chose -- and read the

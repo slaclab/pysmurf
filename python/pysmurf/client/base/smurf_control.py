@@ -780,12 +780,14 @@ class SmurfControl(SmurfCommandMixin,
 
         The server carries it while it stays up. A restarted server has
         forgotten, and nothing is guessed from a record on disk: a system the
-        server does not hold as configured is refused.
+        server does not hold as configured is refused, and the session closed
+        with it -- no instance comes back that could close it later.
         """
         resolved = self._session.resolved_config()
         if resolved is not None:
             resolved = smurf_config.adopt(resolved)
         if resolved is None:
+            self._session.close()
             raise RuntimeError(
                 f"{self._session.endpoint} is not configured and no cfg_file was "
                 f"given; run SmurfControl(cfg_file=...).setup() first")
