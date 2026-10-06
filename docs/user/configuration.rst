@@ -24,7 +24,10 @@ Layers
 Resolution applies layers lowest first: the packaged ``default.yaml``, then
 each file the top file inherits (in order), then the top file. Mappings merge
 key by key; a scalar or a list replaces the whole value below it. ``inherit``
-names one path or a list of paths, relative to the file that says it.
+names one path or a list of paths, relative to the file that says it. A legacy
+``.cfg`` is converted in memory and resolved as the top layer under its own
+path, so provenance and any refusal name the ``.cfg`` file, and an ``inherit``
+in it (the old format had none) would resolve beside it.
 
 .. code-block:: yaml
 
@@ -231,7 +234,8 @@ legacy ones unchanged.
 ``hemt``, ``50k``
     Per-amplifier addressing for the two-amplifier cryostat card: the drain
     op-amp gain, the PIC address of the drain monitor, the power-enable
-    bitmask, and optionally the gate DAC number.
+    bitmask, and optionally the gate DAC number. Carried as the legacy mapping,
+    unchecked beyond ``gate_dac_num``, as the old loader carried it.
 ``hemt1``, ``hemt2``, ``50k1``, ``50k2``
     The same for the four-amplifier card, each with the drain DAC number and
     its volts-to-DAC conversion (``drain_conversion_m``/``_b``), the drain

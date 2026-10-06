@@ -25,6 +25,7 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
+import math
 import re
 from typing import Any, Dict
 
@@ -66,26 +67,41 @@ class ConfigInvalid(ValueError):
         super().__init__(f"{key}: {reason}")
 
 
+def _is_int(n: Any) -> bool:
+    # YAML's `true` is a bool, which Python counts as an int; a register value is not a flag.
+    return isinstance(n, int) and not isinstance(n, bool)
+
+
 def _bool_int(n: Any) -> bool:
-    return isinstance(n, int) and n in (0, 1)
+    return _is_int(n) and n in (0, 1)
 
 
 def _in_range(lo: int, hi: int):
-    return lambda n: isinstance(n, int) and lo <= n < hi
+    return lambda n: _is_int(n) and lo <= n < hi
+
+
+def _number(n: Any) -> float:
+    """A finite number as float; a bool, a string or nan/inf is not one."""
+    if isinstance(n, bool) or not isinstance(n, (int, float)):
+        raise SchemaError(None, 'a number')
+    if not math.isfinite(n):
+        raise SchemaError(None, 'a finite number')
+    return float(n)
 
 
 def _schema():
     """The declarative schema, built on first use."""
-    positive = And(Use(float), lambda f: f > 0)
-    unit = And(Use(float), lambda f: 0 <= f <= 1)
+    number = Use(_number)
+    positive = And(number, lambda f: f > 0)
+    unit = And(number, lambda f: 0 <= f <= 1)
     amp_block = {
-        'drain_conversion_b': Use(float), 'drain_conversion_m': Use(float),
-        'drain_dac_num': Use(int), 'drain_offset': Use(float), 'drain_opamp_gain': Use(float),
-        'drain_pic_address': Use(int), 'drain_resistor': Use(float),
-        'drain_volt_default': Use(float), 'drain_volt_min': Use(float),
-        'drain_volt_max': Use(float), 'gate_bit_to_volt': Use(float),
-        Optional('gate_dac_num'): Use(int), 'gate_volt_default': Use(float),
-        'gate_volt_min': Use(float), 'gate_volt_max': Use(float), 'power_bitmask': Use(int),
+        'drain_conversion_b': number, 'drain_conversion_m': number,
+        'drain_dac_num': _in_range(1, 33), 'drain_offset': number, 'drain_opamp_gain': number,
+        'drain_pic_address': _is_int, 'drain_resistor': number,
+        'drain_volt_default': number, 'drain_volt_min': number,
+        'drain_volt_max': number, 'gate_bit_to_volt': number,
+        Optional('gate_dac_num'): _in_range(1, 33), 'gate_volt_default': number,
+        'gate_volt_min': number, 'gate_volt_max': number, 'power_bitmask': _is_int,
     }
     band = {
         'iq_swap_in': _bool_int,
@@ -97,13 +113,12 @@ def _schema():
         'att_uc': _in_range(0, 2**5),
         'att_dc': _in_range(0, 2**5),
         'amplitude_scale': _in_range(0, 2**4),
-        'data_out_mux': And([Use(int)], lambda l: len(l) == 2 and l[0] != l[1] and
-                            all(0 <= x <= 9 for x in l)),
+        'data_out_mux': And([_in_range(0, 10)], lambda l: len(l) == 2 and l[0] != l[1]),
         'trigger_reset_delay': _in_range(0, 2**7),
         'lms_gain': _in_range(0, 2**3),
         # Either the total delay in microseconds, or the three firmware
         # registers directly. `delay` wins when both are given.
-        'band_delay_us': Or(None, And(Use(float), lambda f: 0 <= f < 30)),
+        'band_delay_us': Or(None, And(number, lambda f: 0 <= f < 30)),
         Optional('delay'): {
             'ref_phase': _in_range(0, 2**5),
             Optional('ref_phase_fine', default=0): _in_range(0, 2**8),
@@ -114,52 +129,55 @@ def _schema():
         'feedback_start_frac': unit,
         'feedback_end_frac': unit,
         'gradient_descent_gain': positive,
-        'gradient_descent_averages': And(Use(int), lambda n: n > 0),
+        'gradient_descent_averages': And(_is_int, lambda n: n > 0),
         'gradient_descent_converge_hz': positive,
-        'gradient_descent_momentum': And(Use(int), lambda n: n >= 0),
+        'gradient_descent_momentum': And(_is_int, lambda n: n >= 0),
         'gradient_descent_step_hz': positive,
         'gradient_descent_beta': unit,
-        'eta_scan_averages': And(Use(int), lambda n: n > 0),
-        'eta_scan_del_f': And(Use(int), lambda n: n > 0),
+        'eta_scan_averages': And(_is_int, lambda n: n > 0),
+        'eta_scan_del_f': And(_is_int, lambda n: n > 0),
     }
     return Schema({
         'paths': {'data': str, 'smurf_cmd': str, 'tune': str, 'status': str},
         'wiring': {
             'R_sh': positive,
             'bias_line_resistance': positive,
-            'high_low_current_ratio': And(Use(float), lambda f: f >= 1),
+            'high_low_current_ratio': And(number, lambda f: f >= 1),
             'high_current_mode': _bool_int,
-            'pA_per_phi0': Use(float),
-            'pic_to_bias_group': {Use(int): int},
+            'pA_per_phi0': number,
+            # Sixteen bias groups, sixteen PIC channels, thirty-two RTM DACs.
+            'pic_to_bias_group': {_in_range(0, 16): _in_range(0, 16)},
             # A list schema checks each element, not the count: say two.
-            'bias_group_to_pair': {Use(int): And([int], lambda l: len(l) == 2,
-                                                 error='a bias group names two DACs, [plus, minus]')},
-            'all_bias_groups': [_in_range(0, 16)],
-            'bad_mask': [And([Use(float)], lambda l: len(l) == 2 and l[0] < l[1] and
+            'bias_group_to_pair': {_in_range(0, 16):
+                                   And([_in_range(1, 33)], lambda l: len(l) == 2,
+                                       error='a bias group names two DACs, [plus, minus]')},
+            'all_bias_groups': And([_in_range(0, 16)], lambda l: len(set(l)) == len(l),
+                                   error='a bias group is listed twice'),
+            'bad_mask': [And([number], lambda l: len(l) == 2 and l[0] < l[1] and
                              all(4000 <= x <= 8000 for x in l))],
         },
         'attenuator': {'att1': _in_range(0, 4), 'att2': _in_range(0, 4),
                        'att3': _in_range(0, 4), 'att4': _in_range(0, 4)},
         'amplifier': {
-            'hemt_Vg': Use(float), 'LNA_Vg': Use(float),
+            'hemt_Vg': number, 'LNA_Vg': number,
             'bit_to_V_hemt': positive, 'bit_to_V_50k': positive,
             'dac_num_50k': _in_range(1, 33),
-            'hemt_Id_offset': Use(float), '50k_Id_offset': Use(float),
-            'hemt_gate_min_voltage': Use(float), 'hemt_gate_max_voltage': Use(float),
+            'hemt_Id_offset': number, '50k_Id_offset': number,
+            'hemt_gate_min_voltage': number, 'hemt_gate_max_voltage': number,
             'hemt_Vd_series_resistor': positive, '50K_amp_Vd_series_resistor': positive,
-            'hemt': {Optional('gate_dac_num'): Use(int), str: object},
-            '50k': {Optional('gate_dac_num'): Use(int), str: object},
+            'hemt': {Optional('gate_dac_num'): _in_range(1, 33), str: object},
+            '50k': {Optional('gate_dac_num'): _in_range(1, 33), str: object},
             'hemt1': amp_block, 'hemt2': amp_block, '50k1': amp_block, '50k2': amp_block,
         },
         'flux_ramp': {'num_flux_ramp_counter_bits': lambda n: isinstance(n, int) and n in (20, 32)},
         'timing': {'timing_reference': lambda s: s in ('ext_ref', 'backplane', 'fiber')},
         'fs': positive,
         'dsp_enable': _bool_int,
-        'ultrascale_temperature_limit_degC': Or(None, And(Use(float), lambda f: 0 <= f <= 99)),
-        'tune': {'default_tune': Or(None, str), 'fraction_full_scale': And(Use(float), lambda f: 0 < f <= 1),
-                 'reset_rate_khz': And(Use(float), lambda f: 0 <= f <= 100)},
+        'ultrascale_temperature_limit_degC': Or(None, And(number, lambda f: 0 <= f <= 99)),
+        'tune': {'default_tune': Or(None, And(str, len)), 'fraction_full_scale': And(number, lambda f: 0 < f <= 1),
+                 'reset_rate_khz': And(number, lambda f: 0 <= f <= 100)},
         'band_default': dict,
-        'bands': {And(Use(int), _in_range(0, 8)): band},
+        'bands': {_in_range(0, 8): band},
     })
 
 
@@ -192,19 +210,18 @@ def validate(values: Dict[str, Any]) -> Dict[str, Any]:
         if key not in known:
             raise ConfigInvalid(key, 'not a pysmurf configuration key')
 
+    # The tables keyed by a number -- bands, PIC channels, bias groups -- take
+    # the key as YAML's `4:` or JSON's "4", and nothing else.
+    if isinstance(values.get('wiring'), dict):
+        for table, what, hi in (('pic_to_bias_group', 'a PIC channel', 16),
+                                ('bias_group_to_pair', 'a bias group', 16)):
+            if isinstance(values['wiring'].get(table), dict):
+                values['wiring'][table] = _numbered(values['wiring'][table], f"wiring.{table}", what, hi)
     default = _mapping_or_missing(values, 'band_default')
     bands = {}
-    for key, block in _mapping_or_missing(values, 'bands').items():
-        # A band is an integer 0-7, as YAML's `4:` or JSON's "4"; not 4.5, not
-        # True, and not the same band twice under two spellings.
-        number = int(key) if (isinstance(key, int) and not isinstance(key, bool)) or \
-            (isinstance(key, str) and key.isdigit()) else -1
-        if not 0 <= number <= 7:
-            raise ConfigInvalid(f"bands.{key}", 'a band is numbered 0-7')
-        if number in bands:
-            raise ConfigInvalid(f"bands.{key}", f"band {number} is given twice")
+    for number, block in _numbered(_mapping_or_missing(values, 'bands'), 'bands', 'a band', 8).items():
         if block is not None and not isinstance(block, dict):
-            raise ConfigInvalid(f"bands.{key}", 'a band is a mapping of per-band keys')
+            raise ConfigInvalid(f"bands.{number}", 'a band is a mapping of per-band keys')
         merged = {**default, **(block or {})}
         merged.setdefault('data_out_mux', DATA_OUT_MUX_DEFAULT.get(number))
         merged.setdefault('band_delay_us', None)
@@ -233,6 +250,25 @@ def validate(values: Dict[str, Any]) -> Dict[str, Any]:
 # Keys that may stay null: they mean "none" rather than "unset".
 _MAY_BE_NULL = ('tune.default_tune', 'ultrascale_temperature_limit_degC',
                 'band_delay_us', 'delay.lms')
+
+
+def _numbered(table: Dict[Any, Any], where: str, what: str, hi: int) -> Dict[int, Any]:
+    """``table`` with its keys as ``int`` in ``[0, hi)``.
+
+    A key is an integer or a digit string; ``4.5``, ``True`` and ``'four'`` are
+    refused, and so is the same number under two spellings, rather than one
+    entry silently replacing the other.
+    """
+    out: Dict[int, Any] = {}
+    for key, value in table.items():
+        number = int(key) if (isinstance(key, int) and not isinstance(key, bool)) or \
+            (isinstance(key, str) and key.isdigit()) else -1
+        if not 0 <= number < hi:
+            raise ConfigInvalid(f"{where}.{key}", f"{what} is numbered 0-{hi - 1}")
+        if number in out:
+            raise ConfigInvalid(f"{where}.{key}", f"{what.split()[-1]} {number} is given twice")
+        out[number] = value
+    return out
 
 
 def _mapping_or_missing(values: Dict[str, Any], key: str) -> Dict[str, Any]:

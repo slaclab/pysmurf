@@ -253,11 +253,12 @@ def _key_lines(node: Any, prefix: str, lines: Dict[str, int]) -> None:
             _key_lines(value_node, f"{dotted}.", lines)
 
 
-def _load_layer(layer: Layer, base: Optional[Path]) -> Tuple[str, Dict[str, Any], Dict[str, int]]:
-    """A layer's name, its mapping and its key lines."""
+def _load_layer(layer: Layer, base: Optional[Path],
+                name: str = DEFAULT_LAYER) -> Tuple[str, Dict[str, Any], Dict[str, int]]:
+    """A layer's name, its mapping and its key lines; a mapping is named ``name`` and has no lines."""
     if isinstance(layer, Mapping):
-        _refuse_dotted_keys(DEFAULT_LAYER, layer)
-        return DEFAULT_LAYER, dict(layer), {}
+        _refuse_dotted_keys(name, layer)
+        return name, dict(layer), {}
     path = Path(layer)
     if base is not None and not path.is_absolute():
         path = (base / path)
@@ -334,9 +335,10 @@ def flatten(values: Mapping[str, Any], prefix: str = '') -> Dict[str, Any]:
     return out
 
 
-def _chain(layer: Layer, base: Optional[Path], seen: List[str]) -> List[Tuple[str, Dict[str, Any], Dict[str, int]]]:
+def _chain(layer: Layer, base: Optional[Path], seen: List[str],
+           name: str = DEFAULT_LAYER) -> List[Tuple[str, Dict[str, Any], Dict[str, int]]]:
     """The layers ``layer`` stands on, then itself; lowest first. Refuses a loop."""
-    name, data, lines = _load_layer(layer, base)
+    name, data, lines = _load_layer(layer, base, name)
     if name in seen:
         loop = ' -> '.join(seen + [name])
         raise ConfigError(name, key=INHERIT_KEY, reason=f"inheritance loops: {loop}")
@@ -350,7 +352,7 @@ def _chain(layer: Layer, base: Optional[Path], seen: List[str]) -> List[Tuple[st
     else:
         raise ConfigError(name, key=INHERIT_KEY,
                           reason=f"names a path or a list of paths, not {type(parents).__name__}")
-    here = Path(name).parent if name != DEFAULT_LAYER else base
+    here = Path(name).parent if Path(name).is_absolute() else base
     out: List[Tuple[str, Dict[str, Any], Dict[str, int]]] = []
     for parent in parents_list:
         out.extend(_chain(parent, here, seen + [name]))
@@ -358,15 +360,21 @@ def _chain(layer: Layer, base: Optional[Path], seen: List[str]) -> List[Tuple[st
     return out
 
 
-def load(path: Union[str, Path], *, default: Optional[Layer] = None,
-         validate: Optional[Validator] = None) -> Resolved:
+def load(path: Layer, *, default: Optional[Layer] = None,
+         validate: Optional[Validator] = None, name: Optional[str] = None) -> Resolved:
     """Resolve the configuration file at ``path`` over what it inherits.
 
     Parameters
     ----------
-    path : str or Path
+    path : str, Path or mapping
         The top layer. Its ``inherit:`` key names the layers below it, one path
-        or a list, relative to the file; each of those may inherit in turn.
+        or a list, relative to the file; each of those may inherit in turn. A
+        mapping is a layer already read -- a converted file, one built in code.
+    name : str, optional
+        What provenance and errors call a mapping given as ``path``; a file is
+        called by its path. Required for a mapping. An absolute path here --
+        the converted file's own -- is also where the mapping's ``inherit``
+        paths are relative to; any other name, the working directory.
     default : str, Path or mapping, optional
         A layer under everything: the application's shipped defaults, as a
         file or as a mapping.
@@ -387,10 +395,12 @@ def load(path: Union[str, Path], *, default: Optional[Layer] = None,
         is not a path or a list of paths, or a chain that loops. Each names the
         file, and the key where there is one.
     """
+    if isinstance(path, Mapping) and not name:
+        raise ConfigError('<mapping>', reason='a mapping given as the top layer needs a name')
     chain: List[Tuple[str, Dict[str, Any], Dict[str, int]]] = []
     if default is not None:
         chain.extend(_chain(default, None, []))
-    chain.extend(_chain(path, Path.cwd(), []))
+    chain.extend(_chain(path, Path.cwd(), [], name or DEFAULT_LAYER))
 
     values: Dict[str, Any] = {}
     provenance: Dict[str, Tuple[str, int]] = {}
@@ -537,7 +547,7 @@ def read_record(path: Union[str, Path]) -> Dict[str, Any]:
     # The resolution it holds has to be one: values whose hash is the recorded hash.
     try:
         Resolved.from_dict(data['resolved'])
-    except (ConfigError, KeyError, TypeError, AttributeError) as e:
+    except (ConfigError, LookupError, TypeError, ValueError, AttributeError) as e:
         raise ConfigError(str(path), key='resolved',
                           reason=f"not a resolution: {getattr(e, 'reason', None) or e}") from e
     return data

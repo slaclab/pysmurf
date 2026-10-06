@@ -26,7 +26,9 @@ import sys
 import warnings
 from pathlib import Path
 
+from cryodaq import ConfigError
 from pysmurf.client.config import legacy, load
+from pysmurf.client.config.schema import ConfigInvalid
 
 
 def main(argv=None):
@@ -41,9 +43,13 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     if args.command == 'convert':
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter('always')
-            text = legacy.to_yaml(legacy.convert(args.cfg))
+        try:
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter('always')
+                text = legacy.to_yaml(legacy.convert(args.cfg))
+        except (OSError, ValueError) as e:
+            print(f"error: {args.cfg}: {e}", file=sys.stderr)
+            return 1
         for w in caught:
             print(f"note: {w.message}", file=sys.stderr)
         if args.output:
@@ -53,7 +59,15 @@ def main(argv=None):
             sys.stdout.write(text)
         return 0
 
-    resolved = load(args.path)
+    try:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            resolved = load(args.path)
+    except (ConfigError, ConfigInvalid, OSError, ValueError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    for w in caught:
+        print(f"note: {w.message}", file=sys.stderr)
     print(f"# hash {resolved.hash}")
     print(f"# layers: {' <- '.join(resolved.layers)}")
     if args.provenance:

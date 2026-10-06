@@ -302,7 +302,34 @@ def check_the_schema_refuses_bad_content_naming_the_key():
     assert load_mapping(v).values['bands'][4]['att_uc'] == 12, 'a digit string names its band'
     v = minimal()
     v['wiring']['pic_to_bias_group'] = {0: 0, '0': 1}
-    refused(v, 'wiring.pic_to_bias_group')
+    refused(v, 'wiring.pic_to_bias_group.0', 'twice')
+    v = minimal()
+    v['wiring']['bias_group_to_pair'] = {True: [1, 2]}
+    refused(v, 'wiring.bias_group_to_pair.True', '0-15')
+    v = minimal()
+    v['wiring']['pic_to_bias_group'] = {16: 0}
+    refused(v, 'wiring.pic_to_bias_group.16', '0-15')
+    v = minimal()
+    v['wiring']['bias_group_to_pair'] = {0: [1, 33]}
+    refused(v, 'wiring.bias_group_to_pair.0', 'two DACs')
+    v = minimal()
+    v['wiring']['all_bias_groups'] = [0, 0]
+    refused(v, 'wiring.all_bias_groups', 'twice')
+    # A number is a number: not a bool, not a string, not nan or inf.
+    for bad, saying in ((True, 'a number'), ('4000', 'a number'), (float('inf'), 'finite'),
+                        (float('nan'), 'finite')):
+        v = minimal()
+        v['fs'] = bad
+        refused(v, 'fs', saying)
+    v = minimal()
+    v['attenuator']['att1'] = True
+    refused(v, 'attenuator.att1')
+    v = minimal()
+    v['bands'][4]['eta_scan_averages'] = 2.0
+    refused(v, 'bands.4.eta_scan_averages')
+    v = minimal()
+    v['tune']['default_tune'] = ''
+    refused(v, 'tune.default_tune')
     # A falsey value of the wrong type is refused, not read as "nothing here".
     for key, bad in (('bands', []), ('bands', 0), ('band_default', []), ('band_default', '')):
         v = minimal()
@@ -521,7 +548,7 @@ def check_the_converter_drops_only_what_nothing_read():
             seen.update(text.split('Dropped, nothing reads them: ', 1)[1].rstrip('.').split(', '))
         for key in ('epics_root', 'chip_to_freq', 'smurf_to_mce'):
             assert key not in converted, f"{cfg.name} kept {key}"
-    allowed = set(legacy.DROPPED_KEYS) | {'init.bands'}
+    allowed = set(legacy.DROPPED_KEYS)
     unexpected = {k for k in seen if k not in allowed and not k.startswith('init.band_')}
     assert not unexpected, f"the converter dropped keys not on its list: {sorted(unexpected)}"
     # The files that carry init.bands are told so; the old validator rebuilt it anyway.

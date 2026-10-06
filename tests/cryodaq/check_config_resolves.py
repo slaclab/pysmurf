@@ -209,6 +209,23 @@ def check_a_layer_that_is_not_yaml_is_refused_with_its_line():
     assert 'line' in str(e), str(e)
 
 
+def check_a_mapping_is_a_top_layer_under_the_name_it_is_given():
+    """A converted or in-code mapping resolves like a file and is named by the caller, not a temp path."""
+    top = {'inherit': 'site.yaml', 'scalar': 99}
+    name = str(FIXTURES / 'experiment.cfg')                       # does not exist; names the layer
+    resolved = config.load(top, default=FIXTURES / 'default.yaml', name=name)
+    assert resolved.values['scalar'] == 99 and resolved.layers[-1] == name
+    assert resolved.provenance['scalar'] == (name, 0), 'a mapping has no lines'
+    assert resolved.values['depth']['to_site'] == 'site', 'inherit resolves beside the named file'
+    # Named without a path, inherit is relative to the working directory.
+    refused(lambda: config.load(top, name='converted'), 'site.yaml', 'cannot read')
+    # A refusal in the mapping names it too.
+    e = refused(lambda: config.load({'a.b': 1}, name='/from/x.cfg'), '/from/x.cfg', "'.'")
+    assert e.key == 'a.b'
+    # And it has to have a name: provenance that said <default> would lie.
+    refused(lambda: config.load({'x': 1}), 'needs a name')
+
+
 def check_a_layer_that_is_not_utf8_is_refused_naming_it():
     d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_config_'))
     (d / 'latin.yaml').write_bytes(b'name: caf\xe9\n')
@@ -356,6 +373,11 @@ def check_a_corrupt_record_is_refused_naming_the_file():
     refused(lambda: config.read_record(d / 'z.json'), 'z.json', 'hash')
     (d / 'w.json').write_text(json.dumps({'resolved': 'not a mapping'}))
     refused(lambda: config.read_record(d / 'w.json'), 'w.json', 'not a resolution')
+    # Malformed provenance -- a line that is not a number, an entry too short.
+    good = resolve().to_dict()
+    for bad in ({'a': ['f', 'x']}, {'a': ['f']}, {'a': 'f'}, 'f'):
+        (d / 'v.json').write_text(json.dumps({'resolved': dict(good, provenance=bad)}))
+        refused(lambda: config.read_record(d / 'v.json'), 'v.json', 'not a resolution')
 
 
 # --------------------------------------------------------------------------

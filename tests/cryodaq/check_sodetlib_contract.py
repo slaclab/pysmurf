@@ -172,8 +172,27 @@ def check_the_configuration_properties_sodetlib_reads_are_properties():
     assert not missing, (
         f'{len(missing)} configuration propert(ies) sodetlib reads are gone or are no '
         f'longer properties: ' + ', '.join(missing))
+    # The shapes themselves are not checked here: this runs where numpy and the
+    # client's dependencies are not installed. They are checked where they can be
+    # built -- check_pysmurf_config.py compares every table against what the
+    # legacy mixin made of the same 49 files, and asserts a per-band dictionary
+    # is the same object on every access -- so each shaped name must be in that
+    # comparison, or the shape would be frozen here and verified nowhere.
+    compared = _compared_properties()
     for name in data.get('property_shapes', {}):
         assert name in frozen, f"{name} has a recorded shape but is not a frozen property"
+        assert name in compared, f"{name} has a recorded shape that check_pysmurf_config.py does not compare"
+
+
+def _compared_properties():
+    """The property names check_pysmurf_config.py compares against the legacy mixin, read from its source."""
+    path = REPO / 'tests' / 'cryodaq' / 'check_pysmurf_config.py'
+    tree = ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id == 'COMPARED' for t in node.targets):
+            return {elt.value for elt in node.value.elts}
+    raise AssertionError('check_pysmurf_config.py no longer has a COMPARED tuple')
 
 
 def check_the_contract_names_nothing_the_client_never_had():

@@ -36,10 +36,11 @@ import yaml
 
 __all__ = ['convert', 'read_json_with_comments', 'to_yaml', 'DROPPED_KEYS']
 
-# Keys the old files carry that nothing has read for years. Named so a site
-# learns its file had them, and so the round-trip check can assert they are gone.
+# Keys the shipped files carry that nothing has read for years; the ones the
+# round-trip check expects to see named. Any other unread key is named too.
 DROPPED_KEYS = ('epics_root', 'chip_to_freq', 'smurf_to_mce', 'band_to_chip',
-                'channel_assignment', 'flux_ramp.select_ramp',
+                'channel_assignment', 'flux_ramp.select_ramp', 'flux_ramp.ramp_start_mode',
+                'constant.pa_per_phi0', 'init.bands',
                 'tune_band.n_samples', 'tune_band.grad_cut', 'tune_band.amp_cut',
                 'tune_band.freq_max', 'tune_band.freq_min', 'tune_band.eta_scan_amplitude')
 
@@ -67,6 +68,12 @@ _TUNING_RENAMES = {
     'eta_scan_averages': 'eta_scan_averages', 'eta_scan_del_f': 'eta_scan_del_f',
 }
 _BAND_BLOCK = re.compile(r'^band_([0-7])$')
+# The top-level keys the converter reads; every other one is reported dropped.
+_TAKEN = frozenset((
+    'default_data_dir', 'smurf_cmd_dir', 'tune_dir', 'status_dir', 'R_sh', 'bias_line_resistance',
+    'high_low_current_ratio', 'pic_to_bias_group', 'bias_group_to_pair', 'all_bias_groups',
+    'high_current_mode_bool', 'constant', 'bad_mask', 'attenuator', 'amplifier', 'timing', 'fs',
+    'ultrascale_temperature_limit_degC', 'flux_ramp', 'init', 'tune_band'))
 # A `#` starts a comment unless it is inside a double-quoted string.
 _COMMENT = re.compile(r'("(?:[^"\\]|\\.)*")|#.*')
 
@@ -125,6 +132,7 @@ def convert(path: Union[str, Path], *, warn: bool = True) -> Dict[str, Any]:
     take(old, 'high_current_mode_bool', 'wiring', 'high_current_mode')
     if 'constant' in old:
         take(old['constant'], 'pA_per_phi0', 'wiring', 'pA_per_phi0')
+        dropped.extend(f"constant.{k}" for k in old['constant'] if k != 'pA_per_phi0')
     if 'bad_mask' in old:
         # The old mapping's keys were labels nothing read; the ranges are the value.
         new.setdefault('wiring', {})['bad_mask'] = list(old['bad_mask'].values())
@@ -132,8 +140,7 @@ def convert(path: Union[str, Path], *, warn: bool = True) -> Dict[str, Any]:
         take(old, key, key)
     if 'flux_ramp' in old:
         take(old['flux_ramp'], 'num_flux_ramp_counter_bits', 'flux_ramp', 'num_flux_ramp_counter_bits')
-        if 'select_ramp' in old['flux_ramp']:
-            dropped.append('flux_ramp.select_ramp')
+        dropped.extend(f"flux_ramp.{k}" for k in old['flux_ramp'] if k != 'num_flux_ramp_counter_bits')
 
     init = old.get('init', {})
     take(init, 'dspEnable', 'dsp_enable')
@@ -170,15 +177,16 @@ def convert(path: Union[str, Path], *, warn: bool = True) -> Dict[str, Any]:
             continue
         if old_key in _TUNING_RENAMES and isinstance(table, dict):
             for band_key, value in table.items():
-                bands.setdefault(int(band_key), {})[_TUNING_RENAMES[old_key]] = value
+                # The band is left as the file spelled it; the schema judges it.
+                bands.setdefault(_band_number(band_key), {})[_TUNING_RENAMES[old_key]] = value
         else:
             dropped.append(f"tune_band.{old_key}")
     if bands:
         new['bands'] = dict(sorted(bands.items()))
 
-    for key in old:
-        if key in DROPPED_KEYS:
-            dropped.append(key)
+    # Whatever was not taken above is named, listed or not: a key this converter
+    # does not know is still a key the site wrote.
+    dropped.extend(k for k in old if k not in _TAKEN)
     if warn:
         gone = (f" Dropped, nothing reads them: {', '.join(sorted(set(dropped)))}"
                 if dropped else '')
@@ -186,6 +194,11 @@ def convert(path: Union[str, Path], *, warn: bool = True) -> Dict[str, Any]:
                       f"`python -m pysmurf.client.config convert {path}`.{gone}",
                       DeprecationWarning, stacklevel=2)
     return new
+
+
+def _band_number(key: Any) -> Any:
+    """A digit-string band key as ``int``, so ``band_4`` and ``tune_band:...:"4"`` meet; anything else as is."""
+    return int(key) if isinstance(key, str) and key.isdigit() else key
 
 
 def to_yaml(mapping: Dict[str, Any]) -> str:

@@ -98,24 +98,10 @@ def load_mapping(values: Dict[str, Any], *, name: str = 'in-memory') -> _config.
         A mapping in the schema's shape -- a converted legacy file, or one
         built in code.
     name : str
-        What the provenance calls this layer in place of a file path.
+        What the provenance and any refusal call this layer in place of a file
+        path; the legacy file's own path, for a converted one.
     """
-    import tempfile
-    # The loader reads files, so a mapping goes through one; its provenance
-    # then names `name` rather than the temporary path.
-    with tempfile.NamedTemporaryFile('w', suffix='.yaml', delete=False) as f:
-        f.write(legacy.to_yaml(values))
-    try:
-        resolved = _config.load(f.name, default=DEFAULT, validate=schema.validate)
-    finally:
-        Path(f.name).unlink(missing_ok=True)
-    # Lines in the temporary file mean nothing to a reader; a converted layer
-    # is named without one.
-    temp = str(Path(f.name).resolve())
-    provenance = {k: ((name, 0) if v[0] == temp else v)
-                  for k, v in resolved.provenance.items()}
-    layers = tuple(name if layer == temp else layer for layer in resolved.layers)
-    return _attribute(_config.Resolved(resolved.values, provenance, resolved.hash, layers))
+    return _attribute(_config.load(values, default=DEFAULT, validate=schema.validate, name=name))
 
 
 def adopt(resolved: _config.Resolved) -> _config.Resolved:
