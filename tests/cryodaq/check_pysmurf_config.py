@@ -506,38 +506,60 @@ def check_a_reattached_client_records_under_the_adopted_status_directory():
 
 def check_a_refused_reattach_closes_the_session_it_opened():
     # The constructor opens the session before it knows whether the server is
-    # configured. When it is not, no instance is returned, so nothing could
-    # close that session later: the refusal has to, or the client stays in the
-    # process's open-client table until exit.
+    # configured. When the reattach fails -- no record, a record the server
+    # cannot hand back, or one that does not re-validate -- no instance is
+    # returned, so nothing could close that session later: the refusal has to,
+    # or the client stays in the process's open-client table until exit.
+    import json
     import cryodaq
     from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin
     from pysmurf.client.base.smurf_control import SmurfControl
 
+    good = load_mapping(minimal())
+    tampered = cryodaq.Resolved(dict(good.values), good.provenance, 'not-the-hash', good.layers)
+
     class _Session:
         endpoint = 'stand-in:9012'
-        closed = 0
 
-        def __init__(self):
+        def __init__(self, answer):
             self.paths = cryodaq.Paths.under('/data')
+            self.answer, self.closed = answer, 0
 
         def resolved_config(self):
-            return None
+            if isinstance(self.answer, Exception):
+                raise self.answer
+            return self.answer
 
         def close(self):
             self.closed += 1
 
+    cases = (
+        ('no record', None, RuntimeError, 'not configured'),
+        ('a record the server cannot hand back', json.JSONDecodeError('truncated', '{', 1),
+         ValueError, 'truncated'),
+        ('a record that does not re-validate', tampered, cryodaq.ConfigError, 'changed the hash'),
+    )
+    for label, answer, kind, said in cases:
+        S = SmurfControl.__new__(SmurfControl)
+        S._session = _Session(answer)
+        S.log = lambda *a, **k: None
+        SmurfConfigPropertiesMixin.__init__(S)
+        try:
+            S._reattach()
+        except kind as e:
+            assert said in str(e), f"{label}: {e}"
+        else:
+            raise AssertionError(f"{label}: adopted")
+        assert S._session.closed == 1, f"{label}: close() called {S._session.closed} times"
+        assert S.config is None, f"{label}: a refusal left a configuration behind"
+
+    # And the happy path does not close what it is about to use.
     S = SmurfControl.__new__(SmurfControl)
-    S._session = _Session()
+    S._session = _Session(good)
     S.log = lambda *a, **k: None
     SmurfConfigPropertiesMixin.__init__(S)
-    try:
-        S._reattach()
-    except RuntimeError as e:
-        assert 'not configured' in str(e) and 'setup()' in str(e), str(e)
-    else:
-        raise AssertionError('an unconfigured server was adopted')
-    assert S._session.closed == 1, f"close() called {S._session.closed} times"
-    assert S.config is None, 'a refusal left a configuration behind'
+    S._reattach()
+    assert S._session.closed == 0 and S.config is not None, 'a successful reattach closed its session'
 
 
 def check_a_write_into_a_per_band_property_persists():
