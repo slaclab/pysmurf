@@ -254,7 +254,7 @@ gives the same values and the same hash; every leaf names the layer and the line
 nothing else has provenance; a default mapping sits under everything; the application's `validate`
 sees the merged values and its answer is the result; and each fault the layering can have — a loop
 in `inherit:`, an unreadable or unparsable layer, one that is not a mapping, an `inherit` that is not
-a path or list of paths — is refused naming the file and, where there is one, the key. The
+one path (a list of parents included) — is refused naming the file and, where there is one, the key. The
 configuration-record checks: a write is atomic (a rename that fails leaves the old record and no
 temporary behind), a record round-trips with its dated copy, a corrupt one is refused naming the
 file. Then, over a stand-in tree with the firmware, application, description and witness registers,

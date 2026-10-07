@@ -794,10 +794,13 @@ class SmurfControl(SmurfCommandMixin,
         try:
             resolved = self._session.resolved_config()
             if resolved is None:
-                # None covers a server that is not configured and one whose
-                # image predates the node the record is kept in; say which.
-                why = ('is configured but holds no configuration record (its image '
-                       'predates one)' if self._session.configured else 'is not configured')
+                # None covers a server that is not configured and a configured
+                # one holding no record -- a setup() that failed after clearing
+                # it, or an image without the node it is kept in. Say which of
+                # the two states; the cause of the second is not known here.
+                why = ('is configured but holds no configuration record (a setup() '
+                       'that did not finish, or an image without one)'
+                       if self._session.configured else 'is not configured')
                 raise RuntimeError(
                     f"{self._session.endpoint} {why} and no cfg_file was given; "
                     f"run SmurfControl(cfg_file=...).setup() first")

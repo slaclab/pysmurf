@@ -102,8 +102,9 @@ started later with no file reads it back from there:
    S = pysmurf.client.SmurfControl()      # online, no cfg_file
 
 The server carries it while it stays up. A server that has restarted has
-forgotten, and is not configured; a server whose image predates the node the
-record is kept in holds none either. In both cases the client raises
+forgotten, and is not configured; a configured server may hold no record
+either -- a ``setup()`` that failed after clearing it, or an image without the
+node it is kept in. In both cases the client raises
 ``RuntimeError`` saying which, asking for ``setup()`` with a file. Nothing is
 guessed from disk, and nothing writes
 back into the files you gave. The record is written when ``setup()``
