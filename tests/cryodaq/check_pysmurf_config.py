@@ -387,6 +387,23 @@ def check_a_layered_site_file_resolves_over_the_default():
     assert resolved.provenance['bands.5.lms_gain'][0].endswith('site.yaml')
     assert resolved.provenance['bands.5.data_out_mux'] == (VALIDATED_LAYER, 0), \
         'the firmware default for data_out_mux came from the validator'
+    # A band's own delay block replaces the default's whole; what the schema
+    # fills in under it is the schema's, not the line of a default the band
+    # did not take -- a provenance that pointed at `ref_phase_fine: 9` for a 0
+    # would be a wrong answer to the one question provenance answers.
+    (d / 'site.yaml').write_text(legacy.to_yaml(
+        {**site, 'band_default': {**site['band_default'], 'band_delay_us': None,
+                                  'delay': {'ref_phase': 3, 'ref_phase_fine': 9, 'lms': 3}}}))
+    (d / 'own.yaml').write_text('inherit: site.yaml\nbands:\n  4: {att_uc: 12, att_dc: 0, delay: {ref_phase: 6}}\n'
+                                '  5: {att_uc: 14, att_dc: 2}\n')
+    resolved = load(d / 'own.yaml')
+    assert resolved.values['bands'][4]['delay'] == {'ref_phase': 6, 'ref_phase_fine': 0, 'lms': None}
+    assert resolved.provenance['bands.4.delay.ref_phase'][0].endswith('own.yaml')
+    assert resolved.provenance['bands.4.delay.ref_phase_fine'] == (VALIDATED_LAYER, 0), \
+        resolved.provenance['bands.4.delay.ref_phase_fine']
+    assert resolved.provenance['bands.4.delay.lms'] == (VALIDATED_LAYER, 0)
+    # Band 5 took the whole default block, and is credited to it.
+    assert resolved.provenance['bands.5.delay.ref_phase_fine'] == resolved.provenance['band_default.delay.ref_phase_fine']
     # A layering fault is cryodaq's to refuse, unchanged by the schema.
     (d / 'loop.yaml').write_text('inherit: loop.yaml\n')
     try:

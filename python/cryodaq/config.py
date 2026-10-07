@@ -157,6 +157,9 @@ class Resolved:
         ------
         ConfigError
             If ``data['hash']`` is present and is not the hash of ``data['values']``.
+
+        The hash covers the values, which are what is acted on; provenance and
+        layers are carried as recorded, not checked against them.
         """
         values = data['values']
         recorded = data.get('hash')
@@ -190,7 +193,9 @@ def _plain(value: Any, key: str = '') -> Any:
     a NumPy scalar the Python scalar it holds. Anything else that JSON cannot
     write -- and two keys JSON would merge, ``1`` and ``'1'`` -- is refused
     here, naming the dotted key, rather than deep inside ``json.dumps`` naming
-    nothing or dropping a value.
+    nothing or dropping a value. A non-finite float is passed through: Python
+    writes and reads it as ``NaN``/``Infinity``, and whether one belongs in a
+    configuration is the application's schema's to say.
     """
     if isinstance(value, Mapping):
         out = {}

@@ -76,13 +76,20 @@ def _attribute(resolved: _config.Resolved) -> _config.Resolved:
 
     The core attributes whatever the validator filled in to ``VALIDATED_LAYER``;
     for pysmurf most of that is ``band_default`` applied under each band, and
-    the file and line that set the default is the better answer.
+    the file and line that set the default is the better answer. Only when the
+    band gave no part of that key, though: ``band_default`` applies key by key,
+    so a band's own ``delay`` block replaces the default's whole, and what the
+    schema then fills in under it is the schema's, not the default's line.
     """
     provenance = dict(resolved.provenance)
     for key, where in resolved.provenance.items():
         if where[0] != _config.VALIDATED_LAYER or not key.startswith('bands.'):
             continue
-        _, _, leaf = key.split('.', 2)
+        _, band, leaf = key.split('.', 2)
+        top = leaf.split('.', 1)[0]
+        if any(k == f'bands.{band}.{top}' or k.startswith(f'bands.{band}.{top}.')
+               for k, w in resolved.provenance.items() if w[0] != _config.VALIDATED_LAYER):
+            continue
         default = provenance.get(f'band_default.{leaf}')
         if default is not None:
             provenance[key] = default

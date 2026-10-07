@@ -89,7 +89,8 @@ Usage
 
 Every value has provenance. One a band took from ``band_default`` is credited
 to the line that set the default; one the schema filled in, such as a band's
-firmware ``data_out_mux``, is ``('<validated>', 0)``.
+firmware ``data_out_mux`` or a ``delay`` field a band's own block left out, is
+``('<validated>', 0)``.
 
 Reattaching without a file
 --------------------------
