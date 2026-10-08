@@ -1,0 +1,22 @@
+# The same result as slot.yaml over site.yaml over default.yaml, written out
+# flat. Resolving it must give identical values and hash; only provenance may
+# differ, since every key was set here.
+marker:
+  set_by: default
+  set_by_site: site
+  set_by_slot: slot
+depth:
+  everywhere: slot
+  to_site: site
+  to_slot: slot
+  untouched: default
+nested:
+  a:
+    b:
+      c: 1
+      d: 20
+      e: 300
+    list: [9]
+  keep: yes
+scalar: 30
+extra_at_site: true

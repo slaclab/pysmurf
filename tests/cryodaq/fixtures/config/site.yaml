@@ -1,0 +1,13 @@
+# The middle layer: what a site changes for every system it runs.
+inherit: default.yaml
+marker:
+  set_by_site: site
+depth:
+  everywhere: site
+  to_site: site
+nested:
+  a:
+    b:
+      d: 20                    # c survives from default; d is replaced
+    list: [9]                  # a list is replaced whole, never appended
+extra_at_site: true

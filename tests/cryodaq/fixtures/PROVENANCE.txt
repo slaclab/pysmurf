@@ -15,20 +15,20 @@ Do not edit them by hand. Regenerate them with that script (its header says
 how); a hand edit is a fixture that answers a question the firmware would
 answer differently.
 
-Built at pysmurf 0227885a-dirty.
+Built at pysmurf 7a2c38af-dirty.
 
-atca.varlist.txt.gz
+atca.varlist.txt
   built from      cryo-det MicrowaveMuxBpEthGen2_v2.5.1-6-gfe6a0f50
   built by        pysmurf.core.roots.EmulationRoot over MemEmulate
-  rows            3684 of 63589
+  rows            3689 of 63594
   bands           [0, 1, 2, 3, 4, 5, 6, 7]
   front-end bays  [0, 1]
   daq mux bays    [0, 1]
 
-rfsoc.varlist.txt.gz
+rfsoc.varlist.txt
   built from      cryo-det MicrowaveMuxBpEthGen2_v2.5.1-6-gfe6a0f50 (RFSoC)
   built by        pysmurf.core.roots.EmulationRoot over MemEmulate, isRFSOC=True
-  rows            2170 of 59977
+  rows            2175 of 59982
   bands           [0, 1, 2, 3, 4, 5, 6, 7]
   front-end bays  none
   daq mux bays    [0, 1]

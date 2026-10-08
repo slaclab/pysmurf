@@ -24,6 +24,7 @@ import pyrogue.utilities
 import rogue.hardware.axi
 import rogue.protocols.srp
 
+import cryodaq._application_config
 import pysmurf
 import pysmurf.core.devices
 import pysmurf.core.operations
@@ -64,6 +65,10 @@ class Common(pyrogue.Root):
 
         # Add PySmurf Application Block
         self.add(pysmurf.core.devices.SmurfApplication())
+
+        # Where the configuration a client applies is published, so a later
+        # client can read it back without the file
+        self.add(cryodaq._application_config.ApplicationConfig())
 
         # Add FPGA
         self.add(self._fpga)

@@ -7,10 +7,11 @@
 #-----------------------------------------------------------------------------
 # Description:
 #    The exceptions cryodaq raises. A failed lookup raises; nothing returns None
-#    or a sentinel to mean "could not". There are three, because there are three
-#    things cryodaq itself can be wrong about: the connection, the name, and
-#    nothing else -- a register that refuses a write, or a process that fails,
-#    reports through rogue and is not re-wrapped here.
+#    or a sentinel to mean "could not". There are four, one per thing cryodaq
+#    itself can be wrong about: the connection, the name, and a configuration
+#    that cannot be resolved from its layers -- and nothing else. A register
+#    that refuses a write, or a process that fails, reports through rogue and
+#    is not re-wrapped here.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -23,7 +24,7 @@
 
 from typing import Optional
 
-__all__ = ['CryodaqError', 'ConnectError', 'UnresolvedName']
+__all__ = ['CryodaqError', 'ConnectError', 'UnresolvedName', 'ConfigError']
 
 
 class CryodaqError(Exception):
@@ -54,3 +55,31 @@ class UnresolvedName(CryodaqError):
         tried = f" (tried {pattern!r})" if pattern else ''
         why = f": {reason}" if reason else ''
         super().__init__(f"cannot resolve {name!r}{tried}{why}")
+
+
+class ConfigError(CryodaqError):
+    """A configuration could not be resolved from its layers, or a record of one read or written.
+
+    Raised for what is wrong with the layering itself -- a file that cannot be
+    read or parsed, an inheritance chain that loops, a layer that is not a
+    mapping -- and for a configuration record that is corrupt or holds a value
+    that cannot be written as JSON. What the values *mean* is the application's
+    to judge, and its validator raises its own errors.
+
+    Parameters
+    ----------
+    file : str
+        The layer the fault is in.
+    key : str, optional
+        The key, dotted, when the fault is at one.
+    reason : str
+        What is wrong, in a few words.
+    """
+
+    def __init__(self, file: str, key: Optional[str] = None, reason: str = ''):
+        self.file = file
+        self.key = key
+        self.reason = reason
+        where = f"{file}:{key}" if key else file
+        why = f": {reason}" if reason else ''
+        super().__init__(f"cannot resolve configuration at {where}{why}")

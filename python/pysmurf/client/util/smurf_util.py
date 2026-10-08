@@ -3119,7 +3119,7 @@ class SmurfUtilMixin(SmurfBase):
         """
         # drive high current through the TES to attempt to drive normal
         if bias_groups is None:
-            bias_groups = self._all_groups
+            bias_groups = self.all_groups
         else:
             # assert requires array
             bias_groups = np.atleast_1d(bias_groups)
@@ -3791,8 +3791,8 @@ class SmurfUtilMixin(SmurfBase):
                 plt.close(fig)
                 self.pub.register_file(plot_fn, 'bias_bump', plot=True)
 
-        resistance = np.abs(self._R_sh * (1-1/sib))
-        siq = (2*sib-1)/(self._R_sh*i_amp) * 1.0E6/1.0E12  # convert to uA/pW
+        resistance = np.abs(self.R_sh * (1-1/sib))
+        siq = (2*sib-1)/(self.R_sh*i_amp) * 1.0E6/1.0E12  # convert to uA/pW
 
         ret = {}
         for b in np.unique(bands):

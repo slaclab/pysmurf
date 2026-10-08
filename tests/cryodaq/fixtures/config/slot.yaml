@@ -1,0 +1,12 @@
+# The top layer: one system. Inherits the site, which inherits the default.
+inherit: site.yaml
+marker:
+  set_by_slot: slot
+depth:
+  everywhere: slot
+  to_slot: slot
+nested:
+  a:
+    b:
+      e: 300                   # a new key beside the inherited ones
+scalar: 30
