@@ -2,20 +2,17 @@
 #-----------------------------------------------------------------------------
 # Title      : Serial Eta Scan Process
 #-----------------------------------------------------------------------------
-# File       : _SerialEtaScan.py
-# Created    : 2019-10-09
+# File       : _serial_eta_scan.py
+# Created    : 2026-08-28
 #-----------------------------------------------------------------------------
 # Description:
-#    Moved verbatim from cryo-det, where it lived at
-#    firmware/python/CryoDet/DspCoreLib/CryoDetCmbHcd/_SerialEtaScan.py
-#    as of commit e3dc359c (main after PR #80). The move was taken from
-#    31b6fbfe (== tag MicrowaveMuxBpEthGen2_v2.5.1) and #80's changes applied
-#    on top as a separate commit, so the two can be reviewed apart.
+#    The serial eta scan: sweep each tone around its centre and record the
+#    in-phase and quadrature response, one channel at a time.
+#    It reads its parameters from the CryoChannels device that owns it and
+#    takes the channel count and frequency span of that device at construction,
+#    so nothing about one firmware's geometry is written here.
 #
-#    The class body below is byte-identical to that file. Only this header and
-#    the comment above __all__ differ. Do not "clean up" this module: the
-#    byte-for-byte match with cryo-det is what proves the move is behaviour-
-#    preserving. See docs/stage1_ops_out_of_cryo_det.md.
+#    Originally cryo-det's; the algorithm is as it was there.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -25,18 +22,20 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
+
 import time
 
 import numpy as np
 import pyrogue as pr
 
 # Restrict 'from ... import *' to the class, so the module imports above
-# do not leak into the pysmurf.core.operations package namespace
 __all__ = ['SerialEtaScan']
 
 class SerialEtaScan(pr.Process):
-    def __init__(self, **kwargs):
+    def __init__(self, n_channels, freq_span_mhz, **kwargs):
         pr.Process.__init__(self)
+        self._n_channels = n_channels
+        self._freq_span_mhz = freq_span_mhz
 
     def _process(self):
         self.parent.etaScanInProgress.set( 1 )
@@ -52,10 +51,10 @@ class SerialEtaScan(pr.Process):
             freq            = self.parent.centerFrequencyMHz.get()
             eta_max         = self.parent.etaScanMaxMag.get()
 
-            self.parent.feedbackEnable.set(np.zeros(512, dtype=np.uint))
-            self.parent.etaMag.set( np.ones(512) )
-            self.parent.etaPhase.set( np.zeros(512) )
-            self.parent.amplitudeScale.set( np.zeros(512, dtype=np.uint) )
+            self.parent.feedbackEnable.set(np.zeros(self._n_channels, dtype=np.uint))
+            self.parent.etaMag.set( np.ones(self._n_channels) )
+            self.parent.etaPhase.set( np.zeros(self._n_channels) )
+            self.parent.amplitudeScale.set( np.zeros(self._n_channels, dtype=np.uint) )
 
             channels = np.where( amplitudeScale != 0 )
 
@@ -124,5 +123,5 @@ class SerialEtaScan(pr.Process):
                     self.parent.CryoChannel[channel].feedbackEnable.set( 1 )
 
         self.Progress.set(1.0)
-        self.Message.setDisp(f"Done")
+        self.Message.setDisp("Done")
         self.parent.etaScanInProgress.set( 0 )
