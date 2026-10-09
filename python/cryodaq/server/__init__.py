@@ -119,7 +119,7 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
         As `ReadoutRoot`.
     top_level_options : mapping, optional
         Keyword arguments for the firmware's top-level class beyond ``memBase``
-        -- which bays to leave out, firmware-line flags.
+        and the platform's own -- which bays to leave out, firmware-line flags.
     on_start : callable, optional
         Called with the root once started, before ``Ready`` rises.
     top_level_class : class, optional
@@ -150,15 +150,13 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
     else:
         pmap = platform.by_name(platform_name)
 
-    options = dict(top_level_options or {})
+    # The platform's own options first, the deployment's over them.
+    options = {**pmap.top_level_options, **(top_level_options or {})}
     fpga = _build_top_level(top_level_class or top_level(pmap), transport.srp, options)
-    enabled_bays = [bay for bay, disabled in enumerate(
-        (options.get('disableBay0', False), options.get('disableBay1', False))) if not disabled]
 
     root = ReadoutRoot(fpga=fpga, transport=transport, pmap=pmap, providers=providers,
                        sinks=sinks, layers=layers, server_port=server_port, polling=polling,
-                       configure=configure, variable_groups=variable_groups,
-                       enabled_bays=enabled_bays, on_start=on_start)
+                       configure=configure, variable_groups=variable_groups, on_start=on_start)
     _log.info("composed a %s server on platform %s with %d provider(s) and %d sink(s)",
               transport.name, pmap.name, len(providers), len(sinks))
     return Composition(root=root, pmap=pmap)

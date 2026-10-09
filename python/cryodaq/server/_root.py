@@ -37,6 +37,7 @@ import pyrogue.interfaces.stream
 import pyrogue.utilities.fileio
 
 from cryodaq import platform
+from cryodaq._errors import UnresolvedName
 from cryodaq.server._application_config import ApplicationConfig
 from cryodaq.server._application_status import ApplicationStatus
 from cryodaq.server._firmware import ROOT_NAME
@@ -75,8 +76,6 @@ class ReadoutRoot(pyrogue.Root):
         Apply the layers once the root has started.
     variable_groups : mapping, optional
         ``path -> {'groups': [...], 'pollInterval': ...}``, applied at start.
-    enabled_bays : sequence of int
-        Which converter bays the firmware was built with.
     on_start : callable, optional
         Called with the root once it has started and before ``Ready`` rises;
         where an application attaches what needs a running tree.
@@ -86,8 +85,7 @@ class ReadoutRoot(pyrogue.Root):
                  providers: Sequence[Provider] = (), sinks: Sequence[Any] = (),
                  layers: Sequence[Any] = (), server_port: int = 0, polling: bool = True,
                  configure: bool = False, variable_groups: Optional[Mapping] = None,
-                 enabled_bays: Sequence[int] = (0, 1), on_start: Optional[Callable] = None,
-                 **kwargs):
+                 on_start: Optional[Callable] = None, **kwargs):
         pyrogue.Root.__init__(self, name=ROOT_NAME, initRead=True, pollEn=polling,
                               timeout=5.0, **kwargs)
         self.pmap = pmap
@@ -96,7 +94,6 @@ class ReadoutRoot(pyrogue.Root):
         self._layers = [str(layer) for layer in layers]
         self._configure = configure
         self._variable_groups = variable_groups
-        self._enabled_bays = list(enabled_bays)
         self._on_start = on_start
 
         self.zmqServer = pyrogue.interfaces.ZmqServer(root=self, addr='*', port=server_port)
@@ -111,6 +108,15 @@ class ReadoutRoot(pyrogue.Root):
         # client can read it back without the file.
         self.add(ApplicationConfig())
         self.add(self._fpga)
+
+        # Which converter bays this tree was built with: the firmware's answer,
+        # read off the tree, rather than the launcher's flags.
+        self._enabled_bays = list(platform.indices(pmap, lambda p: self.getNode(p) is not None, 'bay'))
+        # Which of them have serial links to check after a configuration: a
+        # platform whose converters share the FPGA's die has bays but no links,
+        # and offers no name for them.
+        self._linked_bays = [bay for bay in self._enabled_bays
+                             if self._node('bay[{bay}].jesd.rx.read', bay=bay) is not None]
 
         # Operations attach after the FPGA is in the tree and before start()
         # seals it; the platform map says where.
@@ -170,8 +176,11 @@ class ReadoutRoot(pyrogue.Root):
     # -- the tree by semantic name ------------------------------------------
 
     def _node(self, name: str, **indices: int) -> Any:
-        """The node a semantic name resolves to on this tree, or None if absent."""
-        return self.getNode(self.pmap.path(name.format(**indices)))
+        """The node a semantic name resolves to on this tree; None if the map or the tree lacks it."""
+        try:
+            return self.getNode(self.pmap.path(name.format(**indices)))
+        except UnresolvedName:
+            return None
 
     def _get(self, name: str, **indices: int) -> Any:
         return self._node(name, **indices).get()
@@ -270,7 +279,7 @@ class ReadoutRoot(pyrogue.Root):
         for k in range(max_retries):
             _log.info("check elastic buffers (try %d)", k)
             retry_load_config = False
-            for i in self._enabled_bays:
+            for i in self._linked_bays:
                 # Reading the individual registers does not work; read the device.
                 self._node('bay[{bay}].jesd.rx.read', bay=i)()
                 for j in range(10):

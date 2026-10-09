@@ -611,11 +611,11 @@ def check_the_platform_probe_opens_the_link_before_reading():
     A transport's register path may need starting before it answers -- the RSSI
     link does, and it opens when the tree holding it starts. The platform probe
     runs before that tree exists, so it has to start the link itself around its
-    one read and stop it again for the real tree to open. The first cut read over
-    a closed link and timed out on every Ethernet server; nothing here saw it,
-    because an emulated memory needs no link. So the transport here is an emulated
-    memory with a stamp planted in it and a stand-in link that records when it is
-    started and stopped, and the order is what is asserted.
+    one read and stop it again for the real tree to open. An emulated memory needs
+    no link, so nothing else here would notice a probe that read over a closed
+    one; the transport here is an emulated memory with a stamp planted in it and
+    a stand-in link that records when it is started and stopped, and the order is
+    what is asserted.
     """
     import pyrogue.interfaces.simulation
     events = []
@@ -786,17 +786,16 @@ def emulation_root(args, port):
     import pysmurf.core.server
     # The tree is what the SMuRF server composes over an emulated transport. An
     # emulated memory holds no build stamp, so the platform is named here; the
-    # stamp the checks expect is written in afterwards. isRFSOC is the package's
-    # own construction flag, and all it does is leave out the JESD lanes and
-    # signal generators -- so the RFSoC tree is this package without its bays,
-    # not the RFSoC firmware's tree. See the header.
+    # stamp the checks expect is written in afterwards. The RFSoC platform's own
+    # top-level option (isRFSOC) comes from its map, and all it does is leave out
+    # the JESD lanes and signal generators -- so the RFSoC tree is this package
+    # without its bays, not the RFSoC firmware's tree. See the header.
     from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
     comp = pysmurf.core.server.compose(
         transport=cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource()),
         platform_name=EXPECTED_PLATFORM[args.rfsoc], server_port=port, polling=False,
         top_level_class=FpgaTopLevel,
-        top_level_options=dict(disableBay0=False, disableBay1=False,
-                               isRFSOC=args.rfsoc, isPreSpectra=False))
+        top_level_options=dict(disableBay0=False, disableBay1=False, isPreSpectra=False))
     root = comp.root
     try:
         root.start()
