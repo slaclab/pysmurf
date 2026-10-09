@@ -72,11 +72,11 @@ APPLICATION_IMPORTS = ('pysmurf', 'smurf', 'sodetlib')
 # Top-level modules the map layer must never import: it holds no tree access.
 MAP_FORBIDDEN_IMPORTS = ('pyrogue', 'rogue')
 # Where the rest of the package may import them: inside a function, so the
-# package imports where rogue is not installed -- or in the one module that
-# exists only where a server runs, and is imported by a root rather than by
-# the package. Named by package-relative path: the exemption is for one module
-# where it is, not for the name wherever it turns up.
-SERVER_SIDE_MODULES = (pathlib.PurePath('_application_config.py'),)
+# package imports where rogue is not installed -- or in the one subpackage that
+# exists only where a server runs, which the package does not import and a
+# composition does. Named by package-relative directory: the exemption is for
+# that place, not for a file name wherever it turns up.
+SERVER_SIDE_PACKAGE = ('server',)
 # Identifiers that mark the application boundary.
 APPLICATION_NAMES = ('is_rfsoc', 'tes', 'bias_group', 'pA_per_phi0')
 APPLICATION_NAMES_RE = re.compile(r'\b(' + '|'.join(APPLICATION_NAMES) + r')\b')
@@ -197,7 +197,7 @@ def violations(package):
                        (level == 1 and name.startswith('platform.')))
             if private and not platform:
                 found.append(('imports', f"{rel}: reaches into {name}"))
-        if rel not in SERVER_SIDE_MODULES:
+        if rel.parts[:1] != SERVER_SIDE_PACKAGE:
             for name, lineno in module_level_imports(tree):
                 if name.split('.')[0] in MAP_FORBIDDEN_IMPORTS:
                     found.append(('rogue', f"{rel}:{lineno} imports {name} at module level"))
@@ -587,11 +587,16 @@ def check_rules_fire_on_a_bad_package():
         (pkg / 'platform').mkdir(parents=True)
         (pkg / '__init__.py').write_text('')
         (pkg / '_client.py').write_text(bad_client)
-        (pkg / SERVER_SIDE_MODULES[0]).write_text(server_side)
-        # The same file name one directory down is not the exempt module.
+        # A server-side module where it belongs is exempt from the rogue rule --
+        # and only from that one: the import direction still holds there.
+        (pkg / 'server').mkdir()
+        (pkg / 'server' / '__init__.py').write_text('')
+        (pkg / 'server' / '_root.py').write_text(server_side)
+        (pkg / 'server' / '_bad.py').write_text('import pysmurf\n')
+        # The same content one directory over is not exempt.
         (pkg / 'other').mkdir()
         (pkg / 'other' / '__init__.py').write_text('')
-        (pkg / 'other' / SERVER_SIDE_MODULES[0]).write_text(server_side)
+        (pkg / 'other' / '_root.py').write_text(server_side)
         (pkg / 'platform' / '__init__.py').write_text('')
         (pkg / 'platform' / '_x.py').write_text(bad_map)
         # A map shipped as data outside the platform package, which the source
@@ -632,16 +637,16 @@ def check_rules_fire_on_a_bad_package():
                    "identifier 'is_rfsoc'", "identifier 'bias_group'",
                    "mentions 'tes'", 'literal 512', 'literal 614.4', 'register path',
                    '_client.py:11 imports rogue at module level',
-                   '_x.py:2 imports pyrogue at module level'):
+                   '_x.py:2 imports pyrogue at module level',
+                   'other/_root.py:1 imports pyrogue at module level',
+                   'server/_bad.py: imports pysmurf'):
         assert needle in details, f"rule for {needle!r} did not fire:\n{details}"
     assert 'platform.parse' not in details, \
         f"the public map lookup was reported as a violation:\n{details}"
     assert 'pyrogue.interfaces' not in details, \
         f"an import deferred into a function was reported:\n{details}"
-    assert f"\n{SERVER_SIDE_MODULES[0]}:1" not in f"\n{details}", \
-        f"the server-side module's own import was reported:\n{details}"
-    assert f"other/{SERVER_SIDE_MODULES[0]}:1 imports pyrogue at module level" in details, \
-        f"a nested module borrowing the exempt name was passed over:\n{details}"
+    assert 'server/_root.py' not in details, \
+        f"the server-side package was reported for importing rogue:\n{details}"
 
 
 # --------------------------------------------------------------------------

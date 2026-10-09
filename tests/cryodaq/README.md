@@ -182,7 +182,7 @@ the firmware's own tree resolve against it.
 
 The two modes ask different questions and the difference matters. A dump built from a package has no
 **server-added subtrees** — `SmurfProcessor`, the two stream writers, `SmurfApplication`, the capture
-receivers, `setDefaults` and `Ready` are all attached by `pysmurf.core.roots.Common` at start-up, so a
+receivers, `setDefaults` and `Ready` are all attached by `cryodaq.server.ReadoutRoot` at start-up, so a
 package has never heard of them. `--package-dump` therefore excludes those names and requires every
 name under `AMCc.FpgaTopLevel` to resolve. Without that distinction the released-package run reports
 about 54 false absences and a real one would be lost among them. `SERVER_ADDED_SUBTREES` names them,
@@ -274,8 +274,8 @@ Needs PyYAML, which the CI job installs as the client's one dependency before th
 
 This script drives a `cryodaq` session against an emulated firmware tree.
 
-It builds an [EmulationRoot](../../python/pysmurf/core/roots/EmulationRoot.py) over a CryoDet
-package — a checkout with `--cryo-det`, or a pyrogue ZIP with `--zip` — serves it on a local port,
+It composes the server ([pysmurf.core.server](../../python/pysmurf/core/server.py)) over an
+emulated transport and a CryoDet package — a checkout with `--cryo-det`, or a pyrogue ZIP with `--zip` — serves it on a local port,
 and then connects to it with `cryodaq.connect` exactly as a client connects to a deployed server.
 There is one route in and it is the real one: no in-process shortcut, so what runs here is the code
 that talks to a crate.

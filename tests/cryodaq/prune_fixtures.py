@@ -68,8 +68,8 @@ FIXTURES = HERE / 'fixtures'
 # each dump it writes (a `.source` file naming the checkout's revision or the ZIP),
 # and it is copied through, so a fixture rebuilt from another checkout says so.
 BUILT_BY = {
-    'atca': 'pysmurf.core.roots.EmulationRoot over MemEmulate',
-    'rfsoc': 'pysmurf.core.roots.EmulationRoot over MemEmulate, isRFSOC=True',
+    'atca': 'pysmurf.core.server.compose over an emulated transport',
+    'rfsoc': 'pysmurf.core.server.compose over an emulated transport, isRFSOC=True',
 }
 
 # How many per-channel entries to keep. Two rather than one so that a check which
@@ -261,7 +261,7 @@ def main():
     note += [
         'Note what a dump of a firmware *package* does not contain: the subtrees a',
         'running server adds -- SmurfProcessor, the stream writers, SmurfApplication,',
-        'the capture receivers, setDefaults, Ready. These fixtures are EmulationRoot',
+        'the capture receivers, setDefaults, Ready. These fixtures are the composed server',
         'dumps, so they do carry them; a dump built straight from a released ZIP does',
         'not, which is why check_catalog_resolves.py has a --package-dump mode that',
         'excludes those names. Absence from a dump is not evidence about the firmware',

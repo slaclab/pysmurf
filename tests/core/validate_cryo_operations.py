@@ -6,7 +6,7 @@
 # Created    : 2026-08-28
 #-----------------------------------------------------------------------------
 # Description:
-# Script to validate pysmurf.core.operations' attachment of the cryo channel
+# Script to validate cryodaq.server's attachment of the cryo channel
 # operations to a CryoChannels device.
 #
 # Needs no hardware and no CryoDet package: it builds throwaway pyrogue devices
@@ -30,8 +30,9 @@ import sys
 
 import pyrogue as pr
 
-import pysmurf.core.operations as ops
-from pysmurf.core.operations import _CryoOperations
+from cryodaq import platform
+from cryodaq.server import _provider, _umux_ops as ops
+from cryodaq.server._umux_ops import UMUX_OPERATIONS
 
 # Matches cryo-det's CryoChannels: 512 channels over a +/-1.2 MHz span.
 N_CHANNELS = 512
@@ -104,6 +105,31 @@ def make_fpga(n_bands=8):
     return fpga
 
 
+def attach(ch):
+    """Attach the uMUX operations to one stand-in device."""
+    UMUX_OPERATIONS.attach(ch)
+
+
+def attach_all(fpga):
+    """Attach the way the composition does: through the map, over a root.
+
+    Returns the band indices attached, as the map names them.
+    """
+    root = pr.Root(name='AMCc', initRead=False, pollEn=False)
+    root.add(fpga)
+    attached = _provider.attach_providers(root, platform.by_name('umux-atca'), [UMUX_OPERATIONS])
+    return [int(n[len('band['):-len('].ops')]) for n in attached[UMUX_OPERATIONS.name]]
+
+
+def attach_checked(ch):
+    """Attach to one device through the provider mechanism, so a collision refuses."""
+    fpga = make_fpga(0)
+    band = pr.Device(name='Base[0]')
+    fpga.AppTop.AppCore.SysgenCryo.add(band)
+    band.add(ch)
+    attach_all(fpga)
+
+
 def add_firmware_operations(ch, skip=()):
     """Add the operation nodes the way a pre-strip CryoDet package would."""
     for name in ops.OPERATION_NODES:
@@ -125,15 +151,15 @@ def add_firmware_operations(ch, skip=()):
 # --------------------------------------------------------------------------
 
 def check_fresh_attach():
-    """A stripped device gets all 29 nodes, in cryo-det's original order."""
+    """A stripped device gets all 29 nodes, in their declared order."""
     ch = make_cryo_channels()
     before = set(ch.nodes)
-    ops.attach_cryo_operations(ch)
+    attach(ch)
     added = [n for n in ch.nodes if n not in before]
     assert added == list(ops.OPERATION_NODES), f"added: {added}"
     assert len(added) == 29, f"expected 29 nodes, got {len(added)}"
     for name in RETIRED_NODES:
-        assert name not in ch.nodes, f"{name} was retired by cryo-det #80"
+        assert name not in ch.nodes, f"{name} was retired"
 
 
 def check_old_package_is_refused():
@@ -148,9 +174,9 @@ def check_old_package_is_refused():
     add_firmware_operations(ch)
     before = list(ch.nodes)
     try:
-        ops.attach_cryo_operations(ch)
+        attach_checked(ch)
     except RuntimeError as e:
-        assert 'already defines' in str(e), f"must explain the problem: {e}"
+        assert 'already exist' in str(e), f"must explain the problem: {e}"
     else:
         raise AssertionError("a package that still has the operations must raise")
     assert list(ch.nodes) == before, "the tree was modified before the refusal"
@@ -168,7 +194,7 @@ def check_every_real_release_is_refused():
         add_firmware_operations(ch, skip=absent)
         before = list(ch.nodes)
         try:
-            ops.attach_cryo_operations(ch)
+            attach_checked(ch)
         except RuntimeError as e:
             # The message has to name what it found, so an operator can tell
             # which package is loaded without reading pysmurf's source.
@@ -196,7 +222,7 @@ def check_any_single_node_is_enough_to_refuse():
             ch.add(pr.LocalVariable(name=name, value=0))
         before = list(ch.nodes)
         try:
-            ops.attach_cryo_operations(ch)
+            attach_checked(ch)
         except RuntimeError as e:
             assert name in str(e), f"{name}: not named in the error: {e}"
         else:
@@ -214,7 +240,7 @@ def check_unrelated_nodes_do_not_block_the_attach():
     ch = make_cryo_channels()
     ch.add(pr.LocalVariable(name='setCenterFrequencyDelay', value=0))
     ch.add(pr.Device(name='GradientDescent'))   # dropped before the move
-    ops.attach_cryo_operations(ch)
+    attach_checked(ch)
     for name in ops.OPERATION_NODES:
         assert name in ch.nodes, f"{name} was not attached"
 
@@ -227,7 +253,7 @@ def check_command_arguments():
     into pr.LocalCommand.
     """
     ch = make_cryo_channels()
-    ops.attach_cryo_operations(ch)
+    attach(ch)
     for name in ops.OPERATION_COMMANDS:
         cmd = ch.nodes[name]
         want = (name == 'setAmplitudeScales')
@@ -237,7 +263,7 @@ def check_command_arguments():
 def check_descriptions_survive():
     """Every moved node keeps its description, which is tree documentation."""
     ch = make_cryo_channels()
-    ops.attach_cryo_operations(ch)
+    attach(ch)
     for name in ops.OPERATION_VARIABLES + ops.OPERATION_COMMANDS:
         assert ch.nodes[name].description, f"{name} lost its description"
 
@@ -245,7 +271,7 @@ def check_descriptions_survive():
 def check_find_freq_geometry():
     """SerialFindFreq must get its sweep geometry from the device."""
     ch = make_cryo_channels()
-    ops.attach_cryo_operations(ch)
+    attach(ch)
     proc = ch.nodes['SerialFindFreq']
     assert proc._n_channels == N_CHANNELS, proc._n_channels
     assert proc._freq_span_mhz == FREQ_SPAN_MHZ, proc._freq_span_mhz
@@ -253,7 +279,7 @@ def check_find_freq_geometry():
 
 def check_attach_all_bands():
     fpga = make_fpga(8)
-    bands = ops.attach_all_cryo_operations(fpga)
+    bands = attach_all(fpga)
     assert bands == list(range(8)), f"attached bands: {bands}"
     for i in bands:
         ch = fpga.AppTop.AppCore.SysgenCryo.Base[i].CryoChannels
@@ -263,8 +289,8 @@ def check_attach_all_bands():
 
 def check_attach_all_skips_missing_bands():
     """Not every platform builds all eight bands."""
-    assert ops.attach_all_cryo_operations(make_fpga(3)) == [0, 1, 2]
-    assert ops.attach_all_cryo_operations(pr.Device(name='FpgaTopLevel')) == []
+    assert attach_all(make_fpga(3)) == [0, 1, 2]
+    assert attach_all(pr.Device(name='FpgaTopLevel')) == []
 
 
 def check_attach_all_propagates_errors():
@@ -278,9 +304,9 @@ def check_attach_all_propagates_errors():
     ch = fpga.AppTop.AppCore.SysgenCryo.Base[1].CryoChannels
     add_firmware_operations(ch)
     try:
-        ops.attach_all_cryo_operations(fpga)
+        attach_all(fpga)
     except RuntimeError as e:
-        assert 'Base[1]' in str(e), f"must name the band: {e}"
+        assert 'band[1]' in str(e), f"must name the band: {e}"
     else:
         raise AssertionError("attach_all must not swallow the attach error")
 
@@ -293,15 +319,32 @@ def check_exists_matches_add():
     """
     for name in ops.OPERATION_NODES:
         ch = make_cryo_channels()
-        assert not _CryoOperations._exists(ch, name), f"{name} exists too early"
+        assert not _provider.exists(ch, name), f"{name} exists too early"
         ch.add(pr.LocalVariable(name=name, value=0))
-        assert _CryoOperations._exists(ch, name), f"{name} not seen after add"
+        assert _provider.exists(ch, name), f"{name} not seen after add"
         try:
             ch.add(pr.LocalVariable(name=name, value=0))
         except pr.NodeError:
             pass
         else:
             raise AssertionError(f"add() accepted a duplicate {name}")
+
+
+def check_the_provider_declares_exactly_what_the_map_names():
+    """The server adds exactly the nodes the client-side map names under band[*].ops.
+
+    The two are written in different places -- the provider's node tuple here,
+    the map's ops tables in cryodaq.platform -- and nothing else keeps them in
+    step. A node added and not named is unreachable by name; a name without a
+    node resolves to nothing on a live tree.
+    """
+    pmap = platform.by_name('umux-atca')
+    anchor = pmap.registers[UMUX_OPERATIONS.anchor][0]
+    named = {pmap.registers[n][0][len(anchor) + 1:]
+             for n in pmap.registers if n.startswith(UMUX_OPERATIONS.anchor + '.')}
+    declared = set(UMUX_OPERATIONS.nodes)
+    assert named == declared, (f"map names not provided: {sorted(named - declared)}; "
+                               f"provided not named: {sorted(declared - named)}")
 
 
 # --------------------------------------------------------------------------
@@ -312,7 +355,7 @@ def main():
                     if name.startswith('check_'))
     failed = []
 
-    print(f"Validating pysmurf.core.operations ({len(checks)} checks)")
+    print(f"Validating cryodaq.server operations ({len(checks)} checks)")
     for label, fn in checks:
         try:
             fn()
