@@ -3,7 +3,7 @@
 # Title      : New Serial Gradient Descent Process
 #-----------------------------------------------------------------------------
 # File       : _new_serial_gradient_descent.py
-# Created    : 2026-08-28
+# Created    : 2019-10-09
 #-----------------------------------------------------------------------------
 # Description:
 #    A second implementation of the serial gradient descent, selected by the
@@ -26,7 +26,7 @@
 import numpy as np
 import pyrogue as pr
 
-# Restrict 'from ... import *' to the class, so the module imports above
+# Restrict 'from ... import *' to the class.
 __all__ = ['NewSerialGradientDescent']
 
 # Trust region for the Barzilai-Borwein step, in units of the probe half-width

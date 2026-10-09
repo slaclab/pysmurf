@@ -53,4 +53,4 @@ esac
 echo "Starting the server over ${transport}..."
 cmd="python3 -m pysmurf.core.server --transport ${transport} ${args}"
 echo ${cmd}
-${cmd}
+exec ${cmd}

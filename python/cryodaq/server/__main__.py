@@ -21,6 +21,7 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import argparse
+import logging
 import sys
 
 import pyrogue
@@ -37,7 +38,8 @@ def main(argv=None) -> int:
     comp = cryodaq.server.compose(transport=_cli.transport_from(args),
                                   **_cli.composition_kwargs(args))
     with comp as root:
-        print(f"Server on {root.zmqServer.address}; platform {comp.pmap.name}. Ctrl-C to stop.")
+        logging.getLogger(__name__).info("server on %s; platform %s; Ctrl-C to stop",
+                                         root.zmqServer.address, comp.pmap.name)
         pyrogue.waitCntrlC()
     return 0
 

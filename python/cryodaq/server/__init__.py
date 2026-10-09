@@ -139,7 +139,7 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
     layers = resolve_layers(layers, firmware)
 
     if transport.probes_firmware:
-        pmap = probe_platform(transport.srp)
+        pmap = probe_platform(transport.srp, transport.register_nodes)
         if platform_name is not None and platform_name != pmap.name:
             raise ConnectError(f"the hardware reports platform {pmap.name!r}, "
                                f"not {platform_name!r}")

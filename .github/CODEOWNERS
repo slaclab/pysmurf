@@ -3,7 +3,6 @@
 /include/               @slacrherbst
 /python/pysmurf/core/   @slacrherbst
 /docker/                @slacrherbst
-/server_scripts/        @slacrherbst
 /tests/core             @slacrherbst
 /releaseGen.py          @slacrherbst
 /README.*.md            @slacrherbst

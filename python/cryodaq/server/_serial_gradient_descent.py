@@ -3,7 +3,7 @@
 # Title      : Serial Gradient Descent Process
 #-----------------------------------------------------------------------------
 # File       : _serial_gradient_descent.py
-# Created    : 2026-08-28
+# Created    : 2019-10-09
 #-----------------------------------------------------------------------------
 # Description:
 #    The serial gradient descent: for every channel with a tone, step its
@@ -26,7 +26,7 @@
 import numpy as np
 import pyrogue as pr
 
-# Restrict 'from ... import *' to the class, so the module imports above
+# Restrict 'from ... import *' to the class.
 __all__ = ['SerialGradientDescent']
 
 class SerialGradientDescent(pr.Process):

@@ -65,6 +65,10 @@ class Transport:
     nodes : list of pyrogue nodes
         Anything the link needs added to the tree so that it starts and stops
         with it -- the RSSI link, a receiver with its own thread.
+    register_nodes : list of pyrogue nodes
+        The subset of ``nodes`` the register path needs before it answers: the
+        RSSI link, which opens when the tree it is in starts. A probe that reads
+        a register before the real tree exists adds these to its own tree.
     probes_firmware : bool
         Whether reading a register before the tree exists reaches hardware. An
         emulated memory holds no build stamp, so the platform must be named.
@@ -75,6 +79,7 @@ class Transport:
     ddr_streams: List[Any]
     streaming_stream: Any
     nodes: List[Any] = field(default_factory=list)
+    register_nodes: List[Any] = field(default_factory=list)
     probes_firmware: bool = True
 
 
@@ -100,7 +105,7 @@ def eth(ip_addr: str, *, streaming_receiver: Any = None) -> Transport:
     if streaming_receiver is not None:
         pyrogue.streamConnect(streaming_receiver, fifo)
         nodes.append(streaming_receiver)
-    return Transport('eth', srp, ddr, fifo, nodes)
+    return Transport('eth', srp, ddr, fifo, nodes, register_nodes=[rssi])
 
 
 def pcie(*, lane: int = 0, dev_rssi: str = '/dev/datadev_0',

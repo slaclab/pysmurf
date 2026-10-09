@@ -58,6 +58,9 @@ AMCc.ApplicationConfig.WriteDevice	str	WO	None	0	['Hidden']	Force write of devic
 AMCc.ApplicationConfig.Resolved	str	RW	None	0	['NoConfig', 'NoState']	Resolved configuration, as JSON
 AMCc.ApplicationConfig.Hash	str	RW	None	0	['NoConfig', 'NoState']	SHA-256 of the resolved values
 AMCc.ApplicationConfig.WrittenAt	str	RW	None	0	['NoConfig', 'NoState']	When the configuration was recorded, UTC
+AMCc.FpgaTopLevel.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
+AMCc.FpgaTopLevel.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
+AMCc.FpgaTopLevel.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
@@ -629,6 +632,11 @@ AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngi
 AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.FramesSinceTrigger[1]	UInt16	RO	None	0	[]	
 AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Initialize	int	WO	None	0	[]	Initialize the buffer. Reset the write pointer to StartAddr. Clear the Done field.
 AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.SoftTriggerAll	int	WO	None	0	[]	Send a trigger to the buffer
+AMCc.FpgaTopLevel.AppTop.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
+AMCc.FpgaTopLevel.AppTop.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
+AMCc.FpgaTopLevel.AppTop.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
+AMCc.FpgaTopLevel.AppTop.BypassSysRefMinMax	bool	RW	{False: 'False', True: 'True'}	0	[]	Used to override the SysRefPeriodmin != SysRefPeriodmax error flag
+AMCc.FpgaTopLevel.AppTop.JesdHealthStatus	bool	RO	{False: 'False', True: 'True'}	0	[]	
 AMCc.FpgaTopLevel.AppTop.DaqMuxV2[0].enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
 AMCc.FpgaTopLevel.AppTop.DaqMuxV2[0].ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
 AMCc.FpgaTopLevel.AppTop.DaqMuxV2[0].WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
@@ -781,6 +789,8 @@ AMCc.FpgaTopLevel.AppTop.DacSigGen[1].Waveform[1]	int32(16384,)	RW	None	0	['Hidd
 AMCc.FpgaTopLevel.AppTop.DacSigGen[1].CsvFilePath	str	RW	None	0	[]	Used if command's argument is empty
 AMCc.FpgaTopLevel.AppTop.DacSigGen[1].SwTrigger	int	WO	None	0	[]	Trigger waveform from software (All channels. Triggered mode).
 AMCc.FpgaTopLevel.AppTop.DacSigGen[1].LoadCsvFile	str	WO	None	0	[]	Load the .CSV
+AMCc.FpgaTopLevel.AppTop.JesdHealth	str	WO	None	0	[]	AppTop JesdHealth() cmd
+AMCc.FpgaTopLevel.AppTop.Init	int	WO	None	0	[]	AppTop Init() cmd
 AMCc.FpgaTopLevel.AppTop.AppCore.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
 AMCc.FpgaTopLevel.AppTop.AppCore.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
 AMCc.FpgaTopLevel.AppTop.AppCore.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
@@ -2023,6 +2033,7 @@ AMCc.FpgaTopLevel.AppTop.AppCore.DebugTimingOverrideBay0Ch1	UInt1	RW	None	0	[]	U
 AMCc.FpgaTopLevel.AppTop.AppCore.DebugTimingOverrideBay1Ch0	UInt1	RW	None	0	[]	Used to override the DebugData[bay=1][ch=0] data path with the timing PPS counter bus
 AMCc.FpgaTopLevel.AppTop.AppCore.DebugTimingOverrideBay1Ch1	UInt1	RW	None	0	[]	Used to override the DebugData[bay=1][ch=1] data path with the timing PPS counter bus
 AMCc.FpgaTopLevel.AppTop.AppCore.readoutDelay	UInt12	RW	None	0	[]	Set the delay between startRamp pulse and when the readout FSM is triggered
+AMCc.FpgaTopLevel.SwDaqMuxTrig	int	WO	None	0	[]	Software Trigger for DAQ MUX
 AMCc.streamDataWriter.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable', 'Hidden']	Determines if device is enabled for hardware access
 AMCc.streamDataWriter.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
 AMCc.streamDataWriter.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion

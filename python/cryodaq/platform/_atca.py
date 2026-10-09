@@ -99,6 +99,10 @@ _JESD_TX_DATA_VALID = f'{_umux.JESD_BAY}.JesdTx.DataValid'
 _JESD_RX_ENABLE = f'{_umux.JESD_BAY}.JesdRx.Enable'
 _JESD_TX_ENABLE = f'{_umux.JESD_BAY}.JesdTx.Enable'
 _JESD_TX_DATA_OUT_MUX = f'{_umux.JESD_BAY}.JesdTx.dataOutMux[{{tx_lane}}]'
+# The receive elastic buffers, one latency reading per lane. What a configuration
+# procedure checks after loading the registers: the links came up aligned.
+_JESD_RX_READ = f'{_umux.JESD_BAY}.JesdRx.ReadDevice'
+_JESD_RX_ELASTIC_BUFFER_LATENCY = f'{_umux.JESD_BAY}.JesdRx.ElBuffLatency[{{rx_lane}}]'
 # One status counter per link in each direction, counting how often that link has
 # reported itself valid. Indexed by link, which is not the transmit lane above: the lanes
 # are what a link is made of.
@@ -128,6 +132,8 @@ REGISTERS.update({
     'bay[*].jesd.rx_enable': (_JESD_RX_ENABLE, _V),
     'bay[*].jesd.tx_enable': (_JESD_TX_ENABLE, _V),
     'bay[*].jesd.tx_lane[*].data_out_mux': (_JESD_TX_DATA_OUT_MUX, _V),
+    'bay[*].jesd.rx.read': (_JESD_RX_READ, _C),
+    'bay[*].jesd.rx_lane[*].elastic_buffer_latency': (_JESD_RX_ELASTIC_BUFFER_LATENCY, _V),
 })
 
 # The carrier's names only deprecated accessors reach; see the shared map's LEGACY.
@@ -150,6 +156,7 @@ SCOPES.update({
     'link': ((_JESD_RX_STATUS_VALID_COUNT, _JESD_TX_STATUS_VALID_COUNT), ('bay',)),
     'dac': ((_DAC,), ('bay',)),
     'tx_lane': ((_JESD_TX_DATA_OUT_MUX,), ('bay',)),
+    'rx_lane': ((_JESD_RX_ELASTIC_BUFFER_LATENCY,), ('bay',)),
 })
 
 # Worth recording how a carrier was left: whether each bay's data links had locked, and
