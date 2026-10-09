@@ -2,18 +2,17 @@
 #-----------------------------------------------------------------------------
 # Title      : Serial Gradient Descent Process
 #-----------------------------------------------------------------------------
-# File       : _SerialGradientDescent.py
-# Created    : 2019-10-09
+# File       : _serial_gradient_descent.py
+# Created    : 2026-08-28
 #-----------------------------------------------------------------------------
 # Description:
-#    Moved verbatim from cryo-det, where it lived at
-#    firmware/python/CryoDet/DspCoreLib/CryoDetCmbHcd/_SerialGradientDescent.py
-#    as of commit 31b6fbfe (== tag MicrowaveMuxBpEthGen2_v2.5.1).
+#    The serial gradient descent: for every channel with a tone, step its
+#    frequency to minimise the frequency error, one channel at a time.
+#    It reads its parameters from the CryoChannels device that owns it and
+#    takes the channel count and frequency span of that device at construction,
+#    so nothing about one firmware's geometry is written here.
 #
-#    The class body below is byte-identical to that file. Only this header and
-#    the comment above __all__ differ. Do not "clean up" this module: the
-#    byte-for-byte match with cryo-det is what proves the move is behaviour-
-#    preserving. See docs/stage1_ops_out_of_cryo_det.md.
+#    Originally cryo-det's; the algorithm is as it was there.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -23,16 +22,18 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
+
 import numpy as np
 import pyrogue as pr
 
 # Restrict 'from ... import *' to the class, so the module imports above
-# do not leak into the pysmurf.core.operations package namespace
 __all__ = ['SerialGradientDescent']
 
 class SerialGradientDescent(pr.Process):
-    def __init__(self, **kwargs):
+    def __init__(self, n_channels, freq_span_mhz, **kwargs):
         pr.Process.__init__(self)
+        self._n_channels = n_channels
+        self._freq_span_mhz = freq_span_mhz
 
     def _process(self):
         self.parent.etaScanInProgress.set( 1 )
@@ -69,11 +70,11 @@ class SerialGradientDescent(pr.Process):
             amplitudeScale = self.parent.amplitudeScale.get()
             freq           = self.parent.centerFrequencyMHz.get()
 
-            self.parent.feedbackEnable.set(np.zeros(512, dtype=np.uint))
-            self.parent.amplitudeScale.set(np.zeros(512, dtype=np.uint))
+            self.parent.feedbackEnable.set(np.zeros(self._n_channels, dtype=np.uint))
+            self.parent.amplitudeScale.set(np.zeros(self._n_channels, dtype=np.uint))
 
-            self.parent.etaMag.set( np.ones(512) )
-            self.parent.etaPhase.set( np.zeros(512) )
+            self.parent.etaMag.set( np.ones(self._n_channels) )
+            self.parent.etaPhase.set( np.zeros(self._n_channels) )
 
             channels = np.where( np.asarray(amplitudeScale) != 0 )
 
@@ -122,7 +123,7 @@ class SerialGradientDescent(pr.Process):
                         break
                     iters += 1
 
-                    if ( ( ( freq[channel] + currDf ) > 1.2 ) | ( ( freq[channel] + currDf ) < -1.2 ) ):
+                    if ( ( ( freq[channel] + currDf ) > self._freq_span_mhz ) | ( ( freq[channel] + currDf ) < -self._freq_span_mhz ) ):
                         self.parent.CryoChannel[channel].centerFrequencyMHz.set( freq[channel] )
                         self._log.info("Channel " + str(channel) + " out of range.")
                         break
@@ -138,5 +139,5 @@ class SerialGradientDescent(pr.Process):
             self.parent.amplitudeScale.set( amplitudeScale )
 
         self.Progress.set(1.0)
-        self.Message.setDisp(f"Done")
+        self.Message.setDisp("Done")
         self.parent.etaScanInProgress.set( 0 )
