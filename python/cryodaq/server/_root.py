@@ -139,7 +139,7 @@ class ReadoutRoot(pyrogue.Root):
         self.add(pyrogue.RunControl(
             name='streamRunControl',
             description='Run controller',
-            cmd=self._fpga.SwDaqMuxTrig,
+            cmd=self._node('daq.software_trigger'),
             rates={1: '1 Hz', 10: '10 Hz', 30: '30 Hz'}))
 
         # The configuration procedure: load the register layers and check the
@@ -167,26 +167,35 @@ class ReadoutRoot(pyrogue.Root):
             description="Server has finished initialisation",
             value=False))
 
+    # -- the tree by semantic name ------------------------------------------
+
+    def _node(self, name: str, **indices: int) -> Any:
+        """The node a semantic name resolves to on this tree, or None if absent."""
+        return self.getNode(self.pmap.path(name.format(**indices)))
+
+    def _get(self, name: str, **indices: int) -> Any:
+        return self._node(name, **indices).get()
+
     # -- lifecycle ---------------------------------------------------------
 
     def start(self):
+        """Start the tree, then what a readout server does once it is up."""
         pyrogue.Root.start(self)
         self._setup_groups()
 
         try:
-            stamp = self._fpga.AmcCarrierCore.AxiVersion
             _log.info("FPGA image: %s; version 0x%x; git 0x%x",
-                      stamp.BuildStamp.get(), stamp.FpgaVersion.get(), stamp.GitHash.get())
-        except AttributeError as e:
+                      self._get('firmware.build_stamp'), self._get('firmware.version'),
+                      self._get('firmware.git_hash'))
+        except Exception as e:
             _log.warning("could not read the FPGA image information: %s", e)
 
         self.status.EnabledBays.set(self._enabled_bays)
 
-        # The JESD health command exists on some firmware only; remember whether
-        # this tree has it so the status register can say 'Not found'. Found
-        # before any configuration runs, which reports through it.
-        found = self._fpga.AppTop.find(name='^JesdHealth$', typ=pyrogue.Command, recurse=False)
-        self._jesd_health_cmd = found[0] if found else None
+        # The firmware's own link check exists on some releases only; remember
+        # whether this tree has it so the status register can say 'Not found'.
+        # Looked up before any configuration runs, which reports through it.
+        self._jesd_health_cmd = self._node('jesd.health')
         if self._jesd_health_cmd is None:
             self.status.JesdStatus.set(3)
 
@@ -199,6 +208,7 @@ class ReadoutRoot(pyrogue.Root):
         self.Ready.set(True)
 
     def stop(self):
+        """Stop the tree and everything started with it."""
         _log.info("stopping the root")
         pyrogue.Root.stop(self)
 
@@ -240,7 +250,7 @@ class ReadoutRoot(pyrogue.Root):
                 else:
                     success = True
                     break
-            except Exception as e:                                   # noqa: BLE001
+            except Exception as e:
                 _log.error("setting defaults try %d failed with: %s", i, e)
 
         if success:
@@ -262,10 +272,10 @@ class ReadoutRoot(pyrogue.Root):
             retry_load_config = False
             for i in self._enabled_bays:
                 # Reading the individual registers does not work; read the device.
-                jesd_rx = self._fpga.AppTop.AppTopJesd[i].JesdRx
-                jesd_rx.ReadDevice()
+                self._node('bay[{bay}].jesd.rx.read', bay=i)()
                 for j in range(10):
-                    latency = jesd_rx.ElBuffLatency[j].value()
+                    latency = self._node('bay[{bay}].jesd.rx_lane[{lane}].elastic_buffer_latency',
+                                         bay=i, lane=j).value()
                     latency_ok = latency == 255 if j in (2, 3) else latency in (13, 14)
                     if latency_ok:
                         _log.debug("  OK - JesdRx[%d].ElBuffLatency[%d] = %d", i, j, latency)

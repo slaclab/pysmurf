@@ -62,6 +62,7 @@ import pyrogue as pr
 
 import cryodaq
 import cryodaq.server
+import cryodaq.server._firmware
 from cryodaq import platform
 
 # How long a tuning process gets before the bounded wait gives up. Nothing here
@@ -602,6 +603,51 @@ def check_names_and_kinds_are_refused_when_wrong():
 # destructors -- so one clean exit is no evidence; at this count a rate that high
 # escapes with probability under one in a thousand.
 EXIT_TRIALS = 40
+
+
+def check_the_platform_probe_opens_the_link_before_reading():
+    """The server reads the build stamp over a link it has opened, and closes it after.
+
+    A transport's register path may need starting before it answers -- the RSSI
+    link does, and it opens when the tree holding it starts. The platform probe
+    runs before that tree exists, so it has to start the link itself around its
+    one read and stop it again for the real tree to open. The first cut read over
+    a closed link and timed out on every Ethernet server; nothing here saw it,
+    because an emulated memory needs no link. So the transport here is an emulated
+    memory with a stamp planted in it and a stand-in link that records when it is
+    started and stopped, and the order is what is asserted.
+    """
+    import pyrogue.interfaces.simulation
+    events = []
+
+    class Link(pr.Device):
+        def __init__(self):
+            pr.Device.__init__(self, name='link')
+
+        def _start(self):
+            events.append('start')
+            pr.Device._start(self)
+
+        def _stop(self):
+            pr.Device._stop(self)
+            events.append('stop')
+
+    srp = pyrogue.interfaces.simulation.MemEmulate()
+    address = ROOT.getNode(platform.TAG_PATH).address
+    for offset, byte in enumerate(stamp_for(EXPECTED_IMAGE[RFSOC]).encode()):
+        srp._data[address + offset] = byte
+    original = platform.identify
+
+    def identify(tree):
+        events.append('read')
+        return original(tree)
+    platform.identify = identify
+    try:
+        pmap = cryodaq.server._firmware.probe_platform(srp, [Link()])
+    finally:
+        platform.identify = original
+    assert pmap.name == EXPECTED_PLATFORM[RFSOC], pmap.name
+    assert events == ['start', 'read', 'stop'], f"the probe did not bracket its read: {events}"
 
 
 def check_a_session_left_open_still_lets_the_interpreter_exit():

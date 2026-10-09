@@ -207,7 +207,7 @@ For example, to start the server using PCIe communication, on the carrier card l
 -S shm-smrf-sp01 -N 2 -c pcie <extra_args>
 ```
 
-At this point, `cmb_pcie.py` is called passing the arguments:
+At this point, `python3 -m pysmurf.core.server --transport pcie` is called passing the arguments:
 - `-a <ip_address>`,
 - if a zip file is located under `/tmp/fw` the the argument `-z /tmp/fw/file_name.zip` is passed, and
 - `extra_args` are passed verbatim.

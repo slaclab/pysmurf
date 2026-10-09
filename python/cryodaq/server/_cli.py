@@ -75,6 +75,7 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
 
 
 def configure_logging(args: argparse.Namespace) -> None:
+    """Root logger at the level the command line asked for."""
     logging.basicConfig(level=args.log_level,
                         format="[%(asctime)s] %(levelname)s:%(name)s: %(message)s")
 

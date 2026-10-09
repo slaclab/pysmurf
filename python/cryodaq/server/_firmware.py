@@ -104,13 +104,20 @@ def resolve_layers(layers, firmware: Optional[os.PathLike]) -> List[str]:
 
 
 class _Probe(pyrogue.Root):
-    """The version block alone, at the path the full tree gives it."""
+    """The version block alone, at the path the full tree gives it.
 
-    def __init__(self, srp):
+    The link the registers travel over opens when the tree holding it starts.
+    The link belongs to the real tree, which does not exist yet, and a node
+    cannot be in two trees, so the probe opens and closes it directly around
+    its one read; the real tree opens it again when it starts.
+    """
+
+    def __init__(self, srp, link_nodes=()):
         # The version block is the firmware package's, so it imports once the
         # package is on the path -- which is when a probe is built.
         import surf.axi
         pyrogue.Root.__init__(self, name=ROOT_NAME, initRead=True, pollEn=False, timeout=5.0)
+        self._link_nodes = list(link_nodes)
         # Empty devices down to the version block, so the stamp has the path the
         # map says it has.
         *segments, _ = platform.VERSION_BLOCK_PATH.split('.')[1:]
@@ -121,9 +128,33 @@ class _Probe(pyrogue.Root):
             parent = device
         parent.add(surf.axi.AxiVersion(offset=0, memBase=srp))
 
+    def start(self):
+        for node in self._link_nodes:
+            node._start()
+        try:
+            pyrogue.Root.start(self)
+        except Exception:
+            # The initial read failed -- no hardware answered -- and the
+            # context manager's exit will not run for a start that raised.
+            self.stop()
+            raise
 
-def probe_platform(srp: Any) -> platform.PlatformMap:
+    def stop(self):
+        pyrogue.Root.stop(self)
+        for node in self._link_nodes:
+            node._stop()
+
+
+def probe_platform(srp: Any, link_nodes: Any = ()) -> platform.PlatformMap:
     """Read the build stamp over ``srp`` and name the platform running it.
+
+    Parameters
+    ----------
+    srp : rogue memory master
+        The register path.
+    link_nodes : sequence of pyrogue nodes
+        What the register path needs started before it answers (a transport's
+        ``register_nodes``); the probe starts and stops them around the read.
 
     Returns
     -------
@@ -134,8 +165,13 @@ def probe_platform(srp: Any) -> platform.PlatformMap:
     ConnectError
         If the stamp is empty or names firmware no platform claims.
     """
-    with _Probe(srp) as probe:
-        pmap = platform.identify(probe)
+    try:
+        with _Probe(srp, link_nodes) as probe:
+            pmap = platform.identify(probe)
+    except ConnectError:
+        raise
+    except Exception as e:
+        raise ConnectError(f"could not read the firmware's build stamp: {e}") from e
     _log.info("firmware %s identified as platform %s", pmap.tags, pmap.name)
     return pmap
 

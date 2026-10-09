@@ -176,6 +176,7 @@ def pcie_card(args: argparse.Namespace):
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    """Start the SMuRF server from the command line and run until interrupted."""
     parser = add_arguments(argparse.ArgumentParser(
         prog='python -m pysmurf.core.server', description='Start the SMuRF server.'))
     args = parser.parse_args(argv)

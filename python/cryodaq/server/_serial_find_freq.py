@@ -3,7 +3,7 @@
 # Title      : Serial Find Freq Process
 #-----------------------------------------------------------------------------
 # File       : _serial_find_freq.py
-# Created    : 2026-08-28
+# Created    : 2019-10-09
 #-----------------------------------------------------------------------------
 # Description:
 #    Sweep the given frequencies across every channel of a band and record the
@@ -28,7 +28,7 @@ import time
 import numpy as np
 import pyrogue as pr
 
-# Restrict 'from ... import *' to the class, so the module imports above
+# Restrict 'from ... import *' to the class.
 __all__ = ['SerialFindFreq']
 
 class SerialFindFreq(pr.Process):
