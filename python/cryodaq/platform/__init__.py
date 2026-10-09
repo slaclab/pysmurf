@@ -42,7 +42,7 @@
 
 import functools
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import (Any, Callable, Dict, List, Mapping, Sequence, Tuple)
 
 from cryodaq._errors import ConnectError, UnresolvedName
@@ -182,6 +182,9 @@ class PlatformMap:
     top_level : str
         ``module:attribute`` of the class in the firmware package that builds
         this platform's register tree; what a server imports to build one.
+    top_level_options : mapping
+        Keyword arguments that class takes for this platform, decided by the
+        platform rather than by whoever starts the server.
     """
 
     name: str
@@ -190,6 +193,7 @@ class PlatformMap:
     witness: Tuple[str, ...]
     scopes: Mapping[str, Tuple[Tuple[str, ...], Tuple[str, ...]]]
     top_level: str = ''
+    top_level_options: Mapping[str, Any] = field(default_factory=dict)
 
     def __contains__(self, pattern: str) -> bool:
         return pattern in self.registers
@@ -245,7 +249,8 @@ def _from_module(module: Any) -> PlatformMap:
     return PlatformMap(name=module.NAME, tags=tuple(module.TAGS),
                        registers={**module.REGISTERS, **module.LEGACY},
                        witness=tuple(module.WITNESS),
-                       scopes=dict(module.SCOPES), top_level=module.TOP_LEVEL)
+                       scopes=dict(module.SCOPES), top_level=module.TOP_LEVEL,
+                       top_level_options=dict(module.TOP_LEVEL_OPTIONS))
 
 
 # Every supported platform. One module per platform, and a platform is a set of

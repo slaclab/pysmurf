@@ -30,7 +30,7 @@
 
 from cryodaq.platform import _umux
 
-__all__ = ['NAME', 'TAGS', 'TOP_LEVEL', 'REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES']
+__all__ = ['NAME', 'TAGS', 'TOP_LEVEL', 'TOP_LEVEL_OPTIONS', 'REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES']
 
 NAME = 'umux-atca'
 
@@ -52,6 +52,9 @@ TAGS = ('MicrowaveMuxBpEthGen2',)
 # tree, as `module:attribute`. A server composition imports it once the package
 # is on the path and the platform has been identified from the build stamp.
 TOP_LEVEL = 'CryoDet._MicrowaveMuxBpEthGen2:FpgaTopLevel'
+# Keyword arguments the top-level class takes for this platform beyond what a
+# deployment chooses (which bays to build, firmware-line flags): none.
+TOP_LEVEL_OPTIONS = {}
 
 # --------------------------------------------------------------------------
 # what only this platform has
