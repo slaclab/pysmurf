@@ -61,6 +61,7 @@ import sys
 import pyrogue as pr
 
 import cryodaq
+import cryodaq.server
 from cryodaq import platform
 
 # How long a tuning process gets before the bounded wait gives up. Nothing here
@@ -703,7 +704,7 @@ def write_build_stamp(root, stamp):
     node = root.getNode(platform.TAG_PATH)
     assert node is not None, f"the tree has no {platform.TAG_PATH}"
     for offset, byte in enumerate(stamp.encode()):
-        root._srp._data[node.address + offset] = byte
+        root._transport.srp._data[node.address + offset] = byte
     # The block was read once while the tree was built, and cached what it found
     # then: zeros. Without a forced re-read the stamp would never be seen.
     assert platform.tag_of(node.get(read=True)) == platform.tag_of(stamp), \
@@ -735,13 +736,22 @@ def emulation_root(args, port):
     thing this script exists to report, and reporting it must not hang.
     """
     add_library_paths(args)
-    from pysmurf.core.roots.EmulationRoot import EmulationRoot
-    # is_rfsoc is the package's own construction flag, and all it does is leave
-    # out the JESD lanes and signal generators -- so the tree is this package
-    # without its bays, not the RFSoC firmware's tree. See the header.
-    root = EmulationRoot(config_file='', polling_en=False, pv_dump_file='',
-                         disable_bay0=False, disable_bay1=False,
-                         is_rfsoc=args.rfsoc, is_prespectra=False, server_port=port)
+    import pysmurf.core.emulators
+    import pysmurf.core.server
+    # The tree is what the SMuRF server composes over an emulated transport. An
+    # emulated memory holds no build stamp, so the platform is named here; the
+    # stamp the checks expect is written in afterwards. isRFSOC is the package's
+    # own construction flag, and all it does is leave out the JESD lanes and
+    # signal generators -- so the RFSoC tree is this package without its bays,
+    # not the RFSoC firmware's tree. See the header.
+    from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+    comp = pysmurf.core.server.compose(
+        transport=cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource()),
+        platform_name=EXPECTED_PLATFORM[args.rfsoc], server_port=port, polling=False,
+        top_level_class=FpgaTopLevel,
+        top_level_options=dict(disableBay0=False, disableBay1=False,
+                               isRFSOC=args.rfsoc, isPreSpectra=False))
+    root = comp.root
     try:
         root.start()
     except Exception:

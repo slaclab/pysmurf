@@ -2,8 +2,8 @@ Path	TypeStr	Mode	Enum	PollInterval	Groups	Description
 AMCc.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
 AMCc.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
 AMCc.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
-AMCc.RogueVersion	str	RO	None	0	[]	Rogue Version String
-AMCc.RogueDirectory	str	RO	None	0	[]	Rogue Library Directory
+AMCc.RogueVersion	str	RO	None	0	['publish', 'stream']	Rogue Version String
+AMCc.RogueDirectory	str	RO	None	0	['publish', 'stream']	Rogue Library Directory
 AMCc.SystemLog	str	RO	None	0	['NoStream', 'NoSql', 'NoState', 'Hidden']	String containing newline separated system logic entries
 AMCc.SystemLogLast	str	RO	None	0	['NoStream', 'NoState', 'Hidden']	String containing last system log entry
 AMCc.ForceWrite	bool	RW	{False: 'False', True: 'True'}	0	['Hidden']	Configuration Flag To Always Write Non Stale Blocks For WriteAll, LoadConfig and setYaml
@@ -40,18 +40,18 @@ AMCc.SaveConfigProcess.DataType	int	RW	{0: 'Config', 1: 'Status'}	0	[]	Variable 
 AMCc.SaveConfigProcess.SaveMode	int	RW	{0: 'File', 1: 'String'}	0	[]	Output destination: File writes to ConfigFile; String stores the result in YamlString.
 AMCc.SaveConfigProcess.ConfigFile	str	RW	None	0	[]	Output file path. Used when SaveMode is File. Auto-named with a timestamp prefix if empty.
 AMCc.SaveConfigProcess.YamlString	str	RO	None	0	[]	Captured YAML output. Populated when SaveMode is String.
-AMCc.SmurfApplication.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
-AMCc.SmurfApplication.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
-AMCc.SmurfApplication.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
-AMCc.SmurfApplication.SmurfVersion	str	RO	None	0	[]	PySMuRF Version
-AMCc.SmurfApplication.SmurfDirectory	str	RO	None	0	[]	Path to the PySMuRF Python Files
-AMCc.SmurfApplication.StartupScript	str	RO	None	0	[]	PySMuRF Server Startup Script
-AMCc.SmurfApplication.StartupArguments	str	RO	None	0	[]	PySMuRF Server Startup Arguments
-AMCc.SmurfApplication.EnabledBays	list	RO	None	0	[]	List of bays that are enabled
-AMCc.SmurfApplication.ConfiguringInProgress	bool	RO	{False: 'False', True: 'True'}	0	[]	The system configuration sequence is in progress
-AMCc.SmurfApplication.SystemConfigured	bool	RO	{False: 'False', True: 'True'}	0	[]	The system was configured correctly
-AMCc.SmurfApplication.CheckJesd	int	WO	None	0	[]	Check JESD health status
-AMCc.SmurfApplication.JesdStatus	int	RO	{0: 'Unlocked', 1: 'Locked', 2: 'Checking', 3: 'Not found'}	0	[]	JESD health status (updates by calling the "CheckJesd" command)
+AMCc.SmurfApplication.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable', 'publish', 'stream']	Determines if device is enabled for hardware access
+AMCc.SmurfApplication.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden', 'publish', 'stream']	Force read of device without recursion
+AMCc.SmurfApplication.WriteDevice	str	WO	None	0	['Hidden', 'publish', 'stream']	Force write of device without recursion
+AMCc.SmurfApplication.EnabledBays	list	RO	None	0	['publish', 'stream']	List of bays that are enabled
+AMCc.SmurfApplication.ConfiguringInProgress	bool	RO	{False: 'False', True: 'True'}	0	['publish', 'stream']	The system configuration sequence is in progress
+AMCc.SmurfApplication.SystemConfigured	bool	RO	{False: 'False', True: 'True'}	0	['publish', 'stream']	The system was configured correctly
+AMCc.SmurfApplication.CheckJesd	int	WO	None	0	['publish', 'stream']	Check JESD health status
+AMCc.SmurfApplication.JesdStatus	int	RO	{0: 'Unlocked', 1: 'Locked', 2: 'Checking', 3: 'Not found'}	0	['publish', 'stream']	JESD health status (updates by calling the "CheckJesd" command)
+AMCc.SmurfApplication.SmurfVersion	str	RO	None	0	['publish', 'stream']	PySMuRF Version
+AMCc.SmurfApplication.SmurfDirectory	str	RO	None	0	['publish', 'stream']	Path to the PySMuRF Python Files
+AMCc.SmurfApplication.StartupScript	str	RO	None	0	['publish', 'stream']	PySMuRF Server Startup Script
+AMCc.SmurfApplication.StartupArguments	str	RO	None	0	['publish', 'stream']	PySMuRF Server Startup Arguments
 AMCc.ApplicationConfig.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
 AMCc.ApplicationConfig.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
 AMCc.ApplicationConfig.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
@@ -3565,74 +3565,74 @@ AMCc.streamingInterface.TotalSize	UInt64	RO	None	1	['Hidden']	Total bytes writte
 AMCc.streamingInterface.Bandwidth	Float64	RO	None	1	['Hidden']	Instantaneous write bandwidth in bytes per second.
 AMCc.streamingInterface.FrameCount	UInt32	RO	None	1	['Hidden']	Total frames received and written.
 AMCc.streamingInterface.AutoName	int	WO	None	0	['Hidden']	Auto create data file name using data and time.
-AMCc.SmurfProcessor.PreDataEmulator.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
-AMCc.SmurfProcessor.PreDataEmulator.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
-AMCc.SmurfProcessor.PreDataEmulator.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
-AMCc.SmurfProcessor.PreDataEmulator.Disable	bool	RW	{False: 'False', True: 'True'}	0	[]	Disable the processing block. Data will just pass thorough to the next slave.
-AMCc.SmurfProcessor.PreDataEmulator.Type	int	RW	{0: 'Zeros', 1: 'ChannelNumber', 2: 'Random', 3: 'Square', 4: 'Sawtooth', 5: 'Triangle', 6: 'Sine', 7: 'DropFrame'}	0	[]	Set type of signal.
-AMCc.SmurfProcessor.PreDataEmulator.Amplitude	UInt16	RW	None	1	[]	Signal peak amplitude.
-AMCc.SmurfProcessor.PreDataEmulator.Offset	Int16	RW	None	1	[]	Signal offset.
-AMCc.SmurfProcessor.PreDataEmulator.Period	UInt64	RW	None	0	[]	Signal period, in multiples of flux ramp periods. Can not be set to zero.
-AMCc.SmurfProcessor.FrameRxStats.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
-AMCc.SmurfProcessor.FrameRxStats.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
-AMCc.SmurfProcessor.FrameRxStats.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
-AMCc.SmurfProcessor.FrameRxStats.Disable	bool	RW	{False: 'False', True: 'True'}	0	[]	Disable the processing block. Data will just pass thorough to the next slave.
-AMCc.SmurfProcessor.FrameRxStats.FrameCnt	UInt64	RO	None	1	[]	Frame counter
-AMCc.SmurfProcessor.FrameRxStats.FrameSize	int	RO	None	1	[]	Last frame size (bytes)
-AMCc.SmurfProcessor.FrameRxStats.FrameLossCnt	int	RO	None	1	[]	Number of lost frames
-AMCc.SmurfProcessor.FrameRxStats.FrameOutOrderCnt	int	RO	None	1	[]	Number of time we have received out-of-order frames
-AMCc.SmurfProcessor.FrameRxStats.BadFrameCnt	int	RO	None	1	[]	Number of bad frames
-AMCc.SmurfProcessor.FrameRxStats.clearCnt	int	WO	None	0	[]	Clear all counters
-AMCc.SmurfProcessor.ChannelMapper.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
-AMCc.SmurfProcessor.ChannelMapper.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
-AMCc.SmurfProcessor.ChannelMapper.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
-AMCc.SmurfProcessor.ChannelMapper.NumChannels	int	RO	None	1	[]	Number enabled channels
-AMCc.SmurfProcessor.ChannelMapper.PayloadSize	int	RW	None	0	[]	Define a fixed payload size. If 0, the payload will hold the number of mapped channels
-AMCc.SmurfProcessor.ChannelMapper.Mask	list	RW	None	0	[]	Set the mapping mask
-AMCc.SmurfProcessor.Unwrapper.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
-AMCc.SmurfProcessor.Unwrapper.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
-AMCc.SmurfProcessor.Unwrapper.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
-AMCc.SmurfProcessor.Unwrapper.Disable	bool	RW	{False: 'False', True: 'True'}	0	[]	Disable the processing block. Data will just pass thorough to the next slave.
-AMCc.SmurfProcessor.Unwrapper.reset	int	WO	None	0	[]	Reset the unwrapper
-AMCc.SmurfProcessor.Filter.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
-AMCc.SmurfProcessor.Filter.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
-AMCc.SmurfProcessor.Filter.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
-AMCc.SmurfProcessor.Filter.Disable	bool	RW	{False: 'False', True: 'True'}	0	[]	Disable the processing block. Data will just pass thorough to the next slave.
-AMCc.SmurfProcessor.Filter.Order	int	RW	None	0	[]	Filter order
-AMCc.SmurfProcessor.Filter.Gain	float	RW	None	0	[]	Filter gain
-AMCc.SmurfProcessor.Filter.A	list	RW	None	0	[]	Filter a coefficients
-AMCc.SmurfProcessor.Filter.B	list	RW	None	0	[]	Filter b coefficients
-AMCc.SmurfProcessor.Filter.reset	int	WO	None	0	[]	Reset the unwrapper
-AMCc.SmurfProcessor.Downsampler.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
-AMCc.SmurfProcessor.Downsampler.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
-AMCc.SmurfProcessor.Downsampler.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
-AMCc.SmurfProcessor.Downsampler.Disable	bool	RW	{False: 'False', True: 'True'}	0	[]	Disable the processing block. Data will just pass thorough to the next slave.
-AMCc.SmurfProcessor.Downsampler.DownsamplerMode	int	RW	{0: 'Internal', 1: 'External'}	0	[]	Mode for the downsampler.
-AMCc.SmurfProcessor.Downsampler.InternalFactor	int	RW	None	0	[]	When on internal mode, of incoming frames to ignore.
-AMCc.SmurfProcessor.Downsampler.ExternalBitmask	int	RW	None	0	[]	Mask for the external timing bits, size 18. First 10 are fixed rates from 1 to 15 kHz, last 18 are custom rates. 0 means never trigger.
-AMCc.SmurfProcessor.Downsampler.outgoingCount	UInt64	RO	None	1	[]	Outgoing number of frames from the downsampler.
-AMCc.SmurfProcessor.PostDataEmulator.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
-AMCc.SmurfProcessor.PostDataEmulator.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
-AMCc.SmurfProcessor.PostDataEmulator.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
-AMCc.SmurfProcessor.PostDataEmulator.Disable	bool	RW	{False: 'False', True: 'True'}	0	[]	Disable the processing block. Data will just pass thorough to the next slave.
-AMCc.SmurfProcessor.PostDataEmulator.Type	int	RW	{0: 'Zeros', 1: 'ChannelNumber', 2: 'Random', 3: 'Square', 4: 'Sawtooth', 5: 'Triangle', 6: 'Sine', 7: 'DropFrame'}	0	[]	Set type of signal
-AMCc.SmurfProcessor.PostDataEmulator.Amplitude	UInt32	RW	None	1	[]	Signal peak amplitude.
-AMCc.SmurfProcessor.PostDataEmulator.Offset	Int32	RW	None	1	[]	Signal offset.
-AMCc.SmurfProcessor.PostDataEmulator.Period	UInt64	RW	None	0	[]	Signal period, in multiples of flux ramp periods. Can not be set to zero.
-AMCc.SmurfProcessor.FileWriter.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable', 'Hidden']	Determines if device is enabled for hardware access
-AMCc.SmurfProcessor.FileWriter.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
-AMCc.SmurfProcessor.FileWriter.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
-AMCc.SmurfProcessor.FileWriter.DataFile	str	RW	None	0	['Hidden']	Data file for storing frames for connected streams.This is the file opened when the Open command is executed.
-AMCc.SmurfProcessor.FileWriter.Open	int	WO	None	0	['Hidden']	Open data file. The new file name will be the contents of the DataFile variable.
-AMCc.SmurfProcessor.FileWriter.Close	int	WO	None	0	['Hidden']	Close data file.
-AMCc.SmurfProcessor.FileWriter.IsOpen	bool	RO	{False: 'False', True: 'True'}	0	['Hidden']	Status field which is True when the Data file is open.
-AMCc.SmurfProcessor.FileWriter.BufferSize	UInt32	RW	None	0	['Hidden']	File buffering size. Enables caching of data before call to file system.
-AMCc.SmurfProcessor.FileWriter.MaxFileSize	UInt64	RW	None	0	['Hidden']	Maximum size for an individual file. Setting to a non zero splits the run data into multiple files.
-AMCc.SmurfProcessor.FileWriter.CurrentSize	UInt64	RO	None	1	['Hidden']	Size of current data files in bytes.
-AMCc.SmurfProcessor.FileWriter.TotalSize	UInt64	RO	None	1	['Hidden']	Total bytes written.
-AMCc.SmurfProcessor.FileWriter.Bandwidth	Float64	RO	None	1	['Hidden']	Instantaneous write bandwidth in bytes per second.
-AMCc.SmurfProcessor.FileWriter.FrameCount	UInt32	RO	None	1	['Hidden']	Total frames received and written.
-AMCc.SmurfProcessor.FileWriter.AutoName	int	WO	None	0	['Hidden']	Auto create data file name using data and time.
+AMCc.SmurfProcessor.PreDataEmulator.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable', 'publish', 'stream']	Determines if device is enabled for hardware access
+AMCc.SmurfProcessor.PreDataEmulator.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden', 'publish', 'stream']	Force read of device without recursion
+AMCc.SmurfProcessor.PreDataEmulator.WriteDevice	str	WO	None	0	['Hidden', 'publish', 'stream']	Force write of device without recursion
+AMCc.SmurfProcessor.PreDataEmulator.Disable	bool	RW	{False: 'False', True: 'True'}	0	['publish', 'stream']	Disable the processing block. Data will just pass thorough to the next slave.
+AMCc.SmurfProcessor.PreDataEmulator.Type	int	RW	{0: 'Zeros', 1: 'ChannelNumber', 2: 'Random', 3: 'Square', 4: 'Sawtooth', 5: 'Triangle', 6: 'Sine', 7: 'DropFrame'}	0	['publish', 'stream']	Set type of signal.
+AMCc.SmurfProcessor.PreDataEmulator.Amplitude	UInt16	RW	None	1	['publish', 'stream']	Signal peak amplitude.
+AMCc.SmurfProcessor.PreDataEmulator.Offset	Int16	RW	None	1	['publish', 'stream']	Signal offset.
+AMCc.SmurfProcessor.PreDataEmulator.Period	UInt64	RW	None	0	['publish', 'stream']	Signal period, in multiples of flux ramp periods. Can not be set to zero.
+AMCc.SmurfProcessor.FrameRxStats.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable', 'publish', 'stream']	Determines if device is enabled for hardware access
+AMCc.SmurfProcessor.FrameRxStats.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden', 'publish', 'stream']	Force read of device without recursion
+AMCc.SmurfProcessor.FrameRxStats.WriteDevice	str	WO	None	0	['Hidden', 'publish', 'stream']	Force write of device without recursion
+AMCc.SmurfProcessor.FrameRxStats.Disable	bool	RW	{False: 'False', True: 'True'}	0	['publish', 'stream']	Disable the processing block. Data will just pass thorough to the next slave.
+AMCc.SmurfProcessor.FrameRxStats.FrameCnt	UInt64	RO	None	1	['publish', 'stream']	Frame counter
+AMCc.SmurfProcessor.FrameRxStats.FrameSize	int	RO	None	1	['publish', 'stream']	Last frame size (bytes)
+AMCc.SmurfProcessor.FrameRxStats.FrameLossCnt	int	RO	None	1	['publish', 'stream']	Number of lost frames
+AMCc.SmurfProcessor.FrameRxStats.FrameOutOrderCnt	int	RO	None	1	['publish', 'stream']	Number of time we have received out-of-order frames
+AMCc.SmurfProcessor.FrameRxStats.BadFrameCnt	int	RO	None	1	['publish', 'stream']	Number of bad frames
+AMCc.SmurfProcessor.FrameRxStats.clearCnt	int	WO	None	0	['publish', 'stream']	Clear all counters
+AMCc.SmurfProcessor.ChannelMapper.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable', 'publish', 'stream']	Determines if device is enabled for hardware access
+AMCc.SmurfProcessor.ChannelMapper.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden', 'publish', 'stream']	Force read of device without recursion
+AMCc.SmurfProcessor.ChannelMapper.WriteDevice	str	WO	None	0	['Hidden', 'publish', 'stream']	Force write of device without recursion
+AMCc.SmurfProcessor.ChannelMapper.NumChannels	int	RO	None	1	['publish', 'stream']	Number enabled channels
+AMCc.SmurfProcessor.ChannelMapper.PayloadSize	int	RW	None	0	['publish', 'stream']	Define a fixed payload size. If 0, the payload will hold the number of mapped channels
+AMCc.SmurfProcessor.ChannelMapper.Mask	list	RW	None	0	['publish', 'stream']	Set the mapping mask
+AMCc.SmurfProcessor.Unwrapper.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable', 'publish', 'stream']	Determines if device is enabled for hardware access
+AMCc.SmurfProcessor.Unwrapper.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden', 'publish', 'stream']	Force read of device without recursion
+AMCc.SmurfProcessor.Unwrapper.WriteDevice	str	WO	None	0	['Hidden', 'publish', 'stream']	Force write of device without recursion
+AMCc.SmurfProcessor.Unwrapper.Disable	bool	RW	{False: 'False', True: 'True'}	0	['publish', 'stream']	Disable the processing block. Data will just pass thorough to the next slave.
+AMCc.SmurfProcessor.Unwrapper.reset	int	WO	None	0	['publish', 'stream']	Reset the unwrapper
+AMCc.SmurfProcessor.Filter.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable', 'publish', 'stream']	Determines if device is enabled for hardware access
+AMCc.SmurfProcessor.Filter.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden', 'publish', 'stream']	Force read of device without recursion
+AMCc.SmurfProcessor.Filter.WriteDevice	str	WO	None	0	['Hidden', 'publish', 'stream']	Force write of device without recursion
+AMCc.SmurfProcessor.Filter.Disable	bool	RW	{False: 'False', True: 'True'}	0	['publish', 'stream']	Disable the processing block. Data will just pass thorough to the next slave.
+AMCc.SmurfProcessor.Filter.Order	int	RW	None	0	['publish', 'stream']	Filter order
+AMCc.SmurfProcessor.Filter.Gain	float	RW	None	0	['publish', 'stream']	Filter gain
+AMCc.SmurfProcessor.Filter.A	list	RW	None	0	['publish', 'stream']	Filter a coefficients
+AMCc.SmurfProcessor.Filter.B	list	RW	None	0	['publish', 'stream']	Filter b coefficients
+AMCc.SmurfProcessor.Filter.reset	int	WO	None	0	['publish', 'stream']	Reset the unwrapper
+AMCc.SmurfProcessor.Downsampler.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable', 'publish', 'stream']	Determines if device is enabled for hardware access
+AMCc.SmurfProcessor.Downsampler.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden', 'publish', 'stream']	Force read of device without recursion
+AMCc.SmurfProcessor.Downsampler.WriteDevice	str	WO	None	0	['Hidden', 'publish', 'stream']	Force write of device without recursion
+AMCc.SmurfProcessor.Downsampler.Disable	bool	RW	{False: 'False', True: 'True'}	0	['publish', 'stream']	Disable the processing block. Data will just pass thorough to the next slave.
+AMCc.SmurfProcessor.Downsampler.DownsamplerMode	int	RW	{0: 'Internal', 1: 'External'}	0	['publish', 'stream']	Mode for the downsampler.
+AMCc.SmurfProcessor.Downsampler.InternalFactor	int	RW	None	0	['publish', 'stream']	When on internal mode, of incoming frames to ignore.
+AMCc.SmurfProcessor.Downsampler.ExternalBitmask	int	RW	None	0	['publish', 'stream']	Mask for the external timing bits, size 18. First 10 are fixed rates from 1 to 15 kHz, last 18 are custom rates. 0 means never trigger.
+AMCc.SmurfProcessor.Downsampler.outgoingCount	UInt64	RO	None	1	['publish', 'stream']	Outgoing number of frames from the downsampler.
+AMCc.SmurfProcessor.PostDataEmulator.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable', 'publish', 'stream']	Determines if device is enabled for hardware access
+AMCc.SmurfProcessor.PostDataEmulator.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden', 'publish', 'stream']	Force read of device without recursion
+AMCc.SmurfProcessor.PostDataEmulator.WriteDevice	str	WO	None	0	['Hidden', 'publish', 'stream']	Force write of device without recursion
+AMCc.SmurfProcessor.PostDataEmulator.Disable	bool	RW	{False: 'False', True: 'True'}	0	['publish', 'stream']	Disable the processing block. Data will just pass thorough to the next slave.
+AMCc.SmurfProcessor.PostDataEmulator.Type	int	RW	{0: 'Zeros', 1: 'ChannelNumber', 2: 'Random', 3: 'Square', 4: 'Sawtooth', 5: 'Triangle', 6: 'Sine', 7: 'DropFrame'}	0	['publish', 'stream']	Set type of signal
+AMCc.SmurfProcessor.PostDataEmulator.Amplitude	UInt32	RW	None	1	['publish', 'stream']	Signal peak amplitude.
+AMCc.SmurfProcessor.PostDataEmulator.Offset	Int32	RW	None	1	['publish', 'stream']	Signal offset.
+AMCc.SmurfProcessor.PostDataEmulator.Period	UInt64	RW	None	0	['publish', 'stream']	Signal period, in multiples of flux ramp periods. Can not be set to zero.
+AMCc.SmurfProcessor.FileWriter.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable', 'Hidden', 'publish', 'stream']	Determines if device is enabled for hardware access
+AMCc.SmurfProcessor.FileWriter.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden', 'publish', 'stream']	Force read of device without recursion
+AMCc.SmurfProcessor.FileWriter.WriteDevice	str	WO	None	0	['Hidden', 'publish', 'stream']	Force write of device without recursion
+AMCc.SmurfProcessor.FileWriter.DataFile	str	RW	None	0	['Hidden', 'publish', 'stream']	Data file for storing frames for connected streams.This is the file opened when the Open command is executed.
+AMCc.SmurfProcessor.FileWriter.Open	int	WO	None	0	['Hidden', 'publish', 'stream']	Open data file. The new file name will be the contents of the DataFile variable.
+AMCc.SmurfProcessor.FileWriter.Close	int	WO	None	0	['Hidden', 'publish', 'stream']	Close data file.
+AMCc.SmurfProcessor.FileWriter.IsOpen	bool	RO	{False: 'False', True: 'True'}	0	['Hidden', 'publish', 'stream']	Status field which is True when the Data file is open.
+AMCc.SmurfProcessor.FileWriter.BufferSize	UInt32	RW	None	0	['Hidden', 'publish', 'stream']	File buffering size. Enables caching of data before call to file system.
+AMCc.SmurfProcessor.FileWriter.MaxFileSize	UInt64	RW	None	0	['Hidden', 'publish', 'stream']	Maximum size for an individual file. Setting to a non zero splits the run data into multiple files.
+AMCc.SmurfProcessor.FileWriter.CurrentSize	UInt64	RO	None	1	['Hidden', 'publish', 'stream']	Size of current data files in bytes.
+AMCc.SmurfProcessor.FileWriter.TotalSize	UInt64	RO	None	1	['Hidden', 'publish', 'stream']	Total bytes written.
+AMCc.SmurfProcessor.FileWriter.Bandwidth	Float64	RO	None	1	['Hidden', 'publish', 'stream']	Instantaneous write bandwidth in bytes per second.
+AMCc.SmurfProcessor.FileWriter.FrameCount	UInt32	RO	None	1	['Hidden', 'publish', 'stream']	Total frames received and written.
+AMCc.SmurfProcessor.FileWriter.AutoName	int	WO	None	0	['Hidden', 'publish', 'stream']	Auto create data file name using data and time.
 AMCc.setDefaults.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
 AMCc.setDefaults.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
 AMCc.setDefaults.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
@@ -3644,6 +3644,14 @@ AMCc.setDefaults.Message	str	RO	None	1.0	[]	Process status message. Prefixed wit
 AMCc.setDefaults.Step	int	RO	None	1.0	[]	Current number of completed steps. Prefer setStep() or incrementSteps().
 AMCc.setDefaults.TotalSteps	int	RO	None	1.0	[]	Total number of process steps. Prefer setTotalSteps().
 AMCc.setDefaults.UpdatePeriod	float	RW	None	0	['Hidden']	updateGroup leak period in seconds.
+AMCc.StreamDataSource.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
+AMCc.StreamDataSource.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
+AMCc.StreamDataSource.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
+AMCc.StreamDataSource.SourceEnable	bool	RW	{False: 'False', True: 'True'}	0	[]	Frame generation enable
+AMCc.StreamDataSource.Period	float	RW	None	0	[]	Frame generation period in S
+AMCc.StreamDataSource.CrateId	int	RW	None	0	[]	Frame generation crate ID
+AMCc.StreamDataSource.SlotNum	int	RW	None	0	[]	Frame generation slot #
+AMCc.Ready	bool	RW	{False: 'False', True: 'True'}	0	[]	Server has finished initialisation
 AMCc.Stream0.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
 AMCc.Stream0.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
 AMCc.Stream0.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
@@ -3680,11 +3688,3 @@ AMCc.Stream3.ErrorCount	int	RO	None	1	[]	Frame Error Counter
 AMCc.Stream3.ByteCount	int	RO	None	1	[]	Byte Rx Counter
 AMCc.Stream3.Updated	bool	RW	{False: 'False', True: 'True'}	0	[]	Data has been updated flag. Set in the TRUE in DataReceiver and reset to zero by application
 AMCc.Stream3.Data	int16(524288,)	RW	None	0	['NoState', 'NoStream', 'NoConfig', 'Hidden']	Data Frame Container
-AMCc.Ready	bool	RW	{False: 'False', True: 'True'}	0	[]	Server has finished initialisation
-AMCc.StreamDataSource.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
-AMCc.StreamDataSource.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
-AMCc.StreamDataSource.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
-AMCc.StreamDataSource.SourceEnable	bool	RW	{False: 'False', True: 'True'}	0	[]	Frame generation enable
-AMCc.StreamDataSource.Period	float	RW	None	0	[]	Frame generation period in S
-AMCc.StreamDataSource.CrateId	int	RW	None	0	[]	Frame generation crate ID
-AMCc.StreamDataSource.SlotNum	int	RW	None	0	[]	Frame generation slot #

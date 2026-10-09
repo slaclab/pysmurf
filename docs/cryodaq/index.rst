@@ -81,3 +81,28 @@ This is the firmware/software boundary: a register path lives here or nowhere.
     :members: identify, by_name, PlatformMap, MAPS, KINDS, indices, expand,
               tag_of, witness_names
     :undoc-members:
+
+server
+------
+
+The server side: how a readout server is composed, and what it carries. One
+call takes a transport, the firmware package and the register configuration
+layers, reads the build stamp off the hardware to learn the platform, builds the
+tree, attaches the operation providers and connects the data sinks. With no
+sinks it is a register server from a plain Python environment -- enough to bring
+a carrier up (``python -m cryodaq.server``); an application passes its providers
+and data processing to the same call.
+
+Operations reach the tree through a :class:`~cryodaq.server.Provider`: a name,
+the semantic name of the device each copy attaches to, the node names it adds,
+and the function that adds them. The composition expands the anchor through the
+platform map, so a provider never spells a register path, and checks every node
+against pyrogue's own collision rule before adding any.
+
+This is the one part of cryodaq that imports rogue at module level; the package
+does not import it.
+
+.. automodule:: cryodaq.server
+    :members: compose, Composition, Provider, attach_providers, Transport, eth,
+              pcie, emulation, ReadoutRoot, CORE_PROVIDERS
+    :undoc-members:
