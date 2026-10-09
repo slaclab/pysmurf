@@ -35,7 +35,8 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-__all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES', 'BUILD_STAMP', 'SERVER_ADDED_ROOT_NODES']
+__all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES', 'BUILD_STAMP', 'AXI_VERSION',
+           'APPLICATION', 'SERVER_ADDED_ROOT_NODES']
 
 # --------------------------------------------------------------------------
 # register paths, as templates over the indexed scopes
@@ -493,7 +494,7 @@ SCOPES = {
 # written, 'c' is called, 'p' is started and polled. Kept small on purpose: a
 # name is here because a core operation or the compatibility layer reaches it,
 # and everything else in the tree is still there under the session's root.
-_V, _C, _P = 'value', 'command', 'process'
+_V, _C, _P, _D = 'value', 'command', 'process', 'device'
 
 REGISTERS = {
     # the server and its application block
@@ -669,6 +670,9 @@ REGISTERS = {
     'band[*].channel[*].eta.phase_degree': (CHANNEL_ETA_PHASE_DEGREE, _V),
     'band[*].channel[*].feedback.enable': (CHANNEL_FEEDBACK_ENABLE, _V),
 }
+# The device the operations attach to, named so the server composition can hand
+# it to the provider that adds them; a client reaches the nodes under it.
+REGISTERS['band[*].ops'] = (OPS, _D)
 REGISTERS.update({f'band[*].ops.{name}': (path, _V)
                   for name, path in OPS_PARAMETERS.items()})
 REGISTERS.update({f'band[*].ops.{name}': (path, _P)
