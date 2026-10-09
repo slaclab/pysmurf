@@ -108,77 +108,82 @@ This hardware auto-detection feature can be disabled using the option `-E|--disa
 The option `-H|--hard-boot` can be used to request a hard boot. During this boot mode, the FPGA is rebooted by deactivating and activating the carrier board before starting the pyrogue server, and the default configuration file is loaded during the pyrogue server booting process.
 
 
-All other arguments are passed verbatim to the next startup script.
+All other arguments are passed verbatim to the server.
 
-Depending on the communication type, one the following startup scripts are called, which are located under the [server_scripts](server_scripts) folder:
-- if `eth` is used, then [cmb_eth.py](server_scripts/cmb_eth.py) is called,
-- if `pcie` is used, then [cmb_pcie.py](server_scripts/cmb_pcie.py) is called.
-
-The usage of each one of these subsequent startup scripts is described here:
-
-#### Startup script using ETH communication
-
-The startup script when using PCIe communication, [cmb_eth.py](server_scripts/cmb_eth.py), receives the following arguments:
+The server is `python -m pysmurf.core.server`, started with `--transport eth`, `pcie` or
+`emulation` according to the communication type. It composes the readout server
+(`cryodaq.server`) with pysmurf's data processing attached. The platform (ATCA carrier or
+RFSoC) is read from the firmware's build stamp, not given as a flag. Its options:
 
 ```
-Usage: cmb_eth.py
-        [-z|--zip file] [-a|--addr IP_address] [-g|--gui]
-        [-n|--nopoll] [-l|--pcie-rssi-lane index]
-        [-f|--stream-type data_type] [-b|--stream-size byte_size]
-        [-d|--defaults config_file] [-u|--dump-pvs file_name] [--disable-gc]
-        [--disable-bay0] [--disable-bay1] [-w|--windows-title title]
-        [--pcie-dev-rssi pice_device] [--pcie-dev-data pice_device] [-h|--help]
+usage: python -m pysmurf.core.server [-h] [--transport {eth,pcie,emulation}]
+                                     [--addr IP_ADDR]
+                                     [--pcie-rssi-lane {0,1,2,3,4,5}]
+                                     [--pcie-dev-rssi PCIE_DEV_RSSI]
+                                     [--pcie-dev-data PCIE_DEV_DATA]
+                                     [--firmware FIRMWARE] [--layer FILE]
+                                     [--platform {umux-atca,umux-rfsoc}]
+                                     [--configure] [--nopoll] [--disable-bay0]
+                                     [--disable-bay1] [--is-prespectra]
+                                     [--enable-em22xx]
+                                     [--server-port SERVER_PORT]
+                                     [--log-level {DEBUG,INFO,WARNING,ERROR}]
+                                     [--stream-pv-size STREAM_PV_SIZE]
+                                     [--stream-pv-type {Int16,Int32}]
+                                     [--no-pcie-card] [--gui]
+                                     [--windows-title WINDOWS_TITLE]
 
-    -h|--help                   : Show this message
-    -z|--zip file               : Pyrogue zip file to be included in the python path.
-    -a|--addr IP_address        : FPGA IP address. Required when the communication type is based on Ethernet.
-    -d|--defaults config_file   : Default configuration file. If the path is relative, it refers to the zip file (i.e: file.zip/config/config_file.yml).
-    -e|--epics prefix           : Start an EPICS server with PV name prefix "prefix"
-    -g|--gui                    : Start the server with a GUI.
-    -n|--nopoll                 : Disable all polling
-    -l|--pcie-rssi-lane index   : PCIe RSSI lane (only needed withPCIe). Supported values are 0 to 5
-    -b|--stream-size data_size  : Expose the stream data as EPICS PVs. Only the first "data_size" points will be exposed. Default is 2^19. (Must be used with -e)
-    -f|--stream-type data_type  : Stream data type (UInt16, Int16, UInt32 or Int32). Default is Int16. (Must be used with -e and -b)
-    -u|--dump-pvs file_name     : Dump the PV list to "file_name". (Must be used with -e)
-    --disable-bay0              : Disable the instantiation of the devices for Bay0
-    --disable-bay1              : Disable the instantiation of the devices for Bay1
-    --disable-gc                : Disable python's garbage collection(enabled by default)
-    -w|--windows-title title    : Set the GUI windows title. If not specified, the default windows title will be the name of this script.This value will be ignored when running in server mode.
-    --pcie-dev-rssi pice_device : Set the PCIe card device name used for RSSI (defaults to '/dev/datadev_0')
-    --pcie-dev-data pice_device : Set the PCIe card device name used for data (defaults to '/dev/datadev_1')
+Start the SMuRF server.
+
+options:
+  -h, --help            show this help message and exit
+
+readout server:
+  --transport {eth,pcie,emulation}, -t {eth,pcie,emulation}
+                        How the FPGA is reached.
+  --addr IP_ADDR, -a IP_ADDR
+                        FPGA IP address; required for eth.
+  --pcie-rssi-lane {0,1,2,3,4,5}, -l {0,1,2,3,4,5}
+                        PCIe RSSI lane, for pcie.
+  --pcie-dev-rssi PCIE_DEV_RSSI
+                        PCIe device node for registers.
+  --pcie-dev-data PCIE_DEV_DATA
+                        PCIe device node for data.
+  --firmware FIRMWARE, --zip FIRMWARE, -z FIRMWARE
+                        Firmware Python package: a release archive or a
+                        checkout.
+  --layer FILE, --defaults FILE, -d FILE
+                        A register configuration file, applied in order given;
+                        the population's defaults first, then overrides.
+  --platform {umux-atca,umux-rfsoc}
+                        The platform; required for emulation, otherwise read
+                        from the hardware and checked against this if given.
+  --configure, -c       Apply the register configuration at startup.
+  --nopoll, -n          Disable all polling.
+  --disable-bay0        Leave bay 0's devices out of the tree.
+  --disable-bay1        Leave bay 1's devices out of the tree.
+  --is-prespectra       Pre-SPECTRA firmware line.
+  --enable-em22xx       Enable the EM22xx power monitor.
+  --server-port SERVER_PORT
+                        ZMQ port; defaults to 9000 + 3 * (slot from the
+                        address or lane).
+  --log-level {DEBUG,INFO,WARNING,ERROR}
+
+SMuRF application:
+  --stream-pv-size STREAM_PV_SIZE
+                        Points buffered by each capture receiver; 0 disables
+                        them.
+  --stream-pv-type {Int16,Int32}
+  --no-pcie-card        Do not open the PCIe card's RSSI lanes around the
+                        server.
+  --gui, -g             Start a GUI beside the server.
+  --windows-title WINDOWS_TITLE, -w WINDOWS_TITLE
+                        GUI window title.
 ```
 
-#### Startup script using PCIe communication
-
-The startup script when using PCIe communication, [cmb_pcie.py](server_scripts/cmb_pcie.py), receives the following arguments:
-
-```
-Usage: cmb_pcie.py
-        [-z|--zip file] [-a|--addr IP_address] [-g|--gui]
-        [-n|--nopoll] [-l|--pcie-rssi-lane index]
-        [-f|--stream-type data_type] [-b|--stream-size byte_size]
-        [-d|--defaults config_file] [-u|--dump-pvs file_name] [--disable-gc]
-        [--disable-bay0] [--disable-bay1] [-w|--windows-title title]
-        [--pcie-dev-rssi pice_device] [--pcie-dev-data pice_device] [-h|--help]
-
-    -h|--help                   : Show this message
-    -z|--zip file               : Pyrogue zip file to be included in the python path.
-    -a|--addr IP_address        : FPGA IP address. Required when the communication type is based on Ethernet.
-    -d|--defaults config_file   : Default configuration file. If the path is relative, it refers to the zip file (i.e: file.zip/config/config_file.yml).
-    -e|--epics prefix           : Start an EPICS server with PV name prefix "prefix"
-    -g|--gui                    : Start the server with a GUI.
-    -n|--nopoll                 : Disable all polling
-    -l|--pcie-rssi-lane index   : PCIe RSSI lane (only needed withPCIe). Supported values are 0 to 5
-    -b|--stream-size data_size  : Expose the stream data as EPICS PVs. Only the first "data_size" points will be exposed. Default is 2^19. (Must be used with -e)
-    -f|--stream-type data_type  : Stream data type (UInt16, Int16, UInt32 or Int32). Default is Int16. (Must be used with -e and -b)
-    -u|--dump-pvs file_name     : Dump the PV list to "file_name". (Must be used with -e)
-    --disable-bay0              : Disable the instantiation of the devices for Bay0
-    --disable-bay1              : Disable the instantiation of the devices for Bay1
-    --disable-gc                : Disable python's garbage collection(enabled by default)
-    -w|--windows-title title    : Set the GUI windows title. If not specified, the default windows title will be the name of this script.This value will be ignored when running in server mode.
-    --pcie-dev-rssi pice_device : Set the PCIe card device name used for RSSI (defaults to '/dev/datadev_0')
-    --pcie-dev-data pice_device : Set the PCIe card device name used for data (defaults to '/dev/datadev_1')
-```
+A relative `--defaults`/`--layer` name refers to the configuration directory inside the
+firmware zip (`python/CryoDet/config/`). More than one may be given; they are applied in
+order by rogue's own configuration loader.
 
 With all that in mind, the command to run the container looks something like this:
 
@@ -202,7 +207,7 @@ For example, to start the server using PCIe communication, on the carrier card l
 -S shm-smrf-sp01 -N 2 -c pcie <extra_args>
 ```
 
-At this point, `cmb_pcie.py` is called passing the arguments:
+At this point, `python3 -m pysmurf.core.server --transport pcie` is called passing the arguments:
 - `-a <ip_address>`,
 - if a zip file is located under `/tmp/fw` the the argument `-z /tmp/fw/file_name.zip` is passed, and
 - `extra_args` are passed verbatim.

@@ -1,54 +1,23 @@
 #!/usr/bin/env python
 #-----------------------------------------------------------------------------
-# Title      : Cryo channel operations attachment
+# Title      : Cryodaq uMUX Operations Provider
 #-----------------------------------------------------------------------------
-# File       : _CryoOperations.py
+# File       : _umux_ops.py
 # Created    : 2026-08-28
 #-----------------------------------------------------------------------------
 # Description:
-#    Attaches the resonator-tuning operations to each band's CryoChannels
-#    device at server startup.
+#    The resonator-tuning operations of microwave-multiplexed readout, as the
+#    provider the server composition attaches to each band's CryoChannels
+#    device: 19 tuning-parameter variables, 4 background processes and 6
+#    commands that dispatch them. The node names are rogue paths clients reach,
+#    so they are declared once, in the order they are added, and that tuple is
+#    the collision surface the provider mechanism checks before adding any.
 #
-#    These 29 nodes -- 19 tuning-parameter LocalVariables, 4 pr.Process
-#    devices, and 6 dispatch commands -- used to be added by cryo-det's
-#    CryoChannels.__init__ (firmware/python/CryoDet/DspCoreLib/CryoDetCmbHcd/
-#    _CryoChannels.py). Because cryo-det ships as firmware, every algorithm
-#    tweak cost a firmware release cycle. Moving them here decouples the two.
+#    Every process takes the channel count and frequency span of the device it
+#    is added to, so the geometry stays the hardware map's.
 #
-#    The rogue paths are unchanged. Every node reappears at
-#        AMCc.FpgaTopLevel.AppTop.AppCore.SysgenCryo.Base[i].CryoChannels.<name>
-#    with the same name, type, mode and description, so SmurfControl and
-#    sodetlib keep working with no client-side change. The variable
-#    definitions and command bodies below are transcribed verbatim from
-#    cryo-det commit e3dc359c (main after PR #80, which removed the unused
-#    ParrallelEtaScan and fixed loadTuneFile's eta write order); the only
-#    edit is the mechanical rewrite of 'self' -> 'ch', since these are now
-#    functions taking the device rather than methods of it. The move itself
-#    was taken from 31b6fbfe (== tag MicrowaveMuxBpEthGen2_v2.5.1); #80 was
-#    applied on top as its own commit so the two can be reviewed apart.
-#
-#    scripts/stage1_source_identity.py checks that mechanically, and it must
-#    stay passing. See docs/stage1_ops_out_of_cryo_det.md.
-#
-#    Version coupling. pysmurf and the CryoDet package must be updated
-#    together. A package that still defines these nodes is one that predates
-#    the strip, and pysmurf's operations must not be layered on top of it: the
-#    two copies would collide, and any subset that did attach would let one
-#    package's algorithms run against the other's parameters. So attach()
-#    checks every name first and raises if any of them is already there.
-#
-#    That check is deliberately kept rather than left to pyrogue, which would
-#    also refuse the duplicate but only as a bare 'Name collision' on whichever
-#    node it reached first -- after some of the others had already been added.
-#    Checking up front keeps the attach atomic and lets the error say which
-#    package is at fault.
-#
-#    This covers the RFSoC build too, even though stage 1 does not touch the
-#    zcu208 repositories: their CryoDet._MicrowaveMuxZcu208.FpgaTopLevel
-#    subclasses CryoDet._MicrowaveMuxBpEthGen2.FpgaTopLevel from their
-#    firmware/submodules/cryo-det submodule, so their CryoChannels is this
-#    cryo-det's CryoChannels. Bumping that submodule pin is what keeps them in
-#    step.
+#    Originally cryo-det's; moved here so the algorithms no longer ship with the
+#    firmware.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -61,22 +30,22 @@
 import numpy as np
 import pyrogue as pr
 
-from ._NewSerialGradientDescent import NewSerialGradientDescent
-from ._SerialEtaScan import SerialEtaScan
-from ._SerialFindFreq import SerialFindFreq
-from ._SerialGradientDescent import SerialGradientDescent
+from cryodaq.server._new_serial_gradient_descent import NewSerialGradientDescent
+from cryodaq.server._provider import Provider
+from cryodaq.server._serial_eta_scan import SerialEtaScan
+from cryodaq.server._serial_find_freq import SerialFindFreq
+from cryodaq.server._serial_gradient_descent import SerialGradientDescent
 
 __all__ = [
     'OPERATION_COMMANDS',
     'OPERATION_NODES',
     'OPERATION_PROCESSES',
     'OPERATION_VARIABLES',
-    'attach_all_cryo_operations',
-    'attach_cryo_operations',
+    'UMUX_OPERATIONS',
 ]
 
-# The 29 node names this module owns, in the order cryo-det added them. These
-# are the collision surface, so a node added by _attach() and left out of these
+# The 29 node names this provider owns, in the order they are added. These are
+# the collision surface, so a node added by _attach() and left out of these
 # tuples would be invisible to the pre-attach check.
 OPERATION_VARIABLES = (
     'etaScanChannel',
@@ -121,101 +90,26 @@ OPERATION_COMMANDS = (
 OPERATION_NODES = OPERATION_VARIABLES + OPERATION_PROCESSES + OPERATION_COMMANDS
 
 
-def _exists(dev, name):
-    """Would adding a node called ``name`` to ``dev`` collide?
-
-    This is deliberately the exact predicate pyrogue's ``Device.add()`` uses
-    (``pyrogue/_Node.py``, the 'Name collision' check), so that "would this
-    collide?" and "did this collide?" can never disagree.
-    """
-    return name in dev.__dir__() or name in getattr(dev, '_anodes', {})
-
-
-def attach_cryo_operations(cryo_channels: pr.Device, *,
-                           label: str | None = None) -> None:
-    """Add the operations to one band's ``CryoChannels`` device.
-
-    Must be called after the device is in the tree but before ``Root.start()``:
-    ``add()`` refuses to touch a started tree.
-
-    Raises ``RuntimeError`` if the device already has any of ``OPERATION_NODES``,
-    which means the loaded CryoDet package predates the move and still defines
-    them itself. pysmurf and the CryoDet package are a matched pair; see the
-    module header.
-
-    ``label`` is how the device is named in log messages and errors. It has to
-    be passed in: a pyrogue node does not know where it lives until the root is
-    started, and ``Node.path`` is still just its own name at this point, so
-    every band would look identical. ``attach_all_cryo_operations`` passes the
-    band.
-    """
-    label = label or cryo_channels.name
-
-    present = [n for n in OPERATION_NODES if _exists(cryo_channels, n)]
-    if present:
-        raise RuntimeError(
-            f"{label} already defines {len(present)} of the "
-            f"{len(OPERATION_NODES)} cryo tuning operation nodes, so the "
-            f"loaded CryoDet package still provides its own copy of the "
-            f"tuning code and pysmurf must not add a second one.\n"
-            f"  already present ({len(present)}): {', '.join(present)}\n"
-            f"This pysmurf requires a CryoDet package from which the "
-            f"operations have been removed. Update the firmware ZIP (or the "
-            f"cryo-det checkout under /tmp/fw) to a version that no longer "
-            f"defines them -- for the RFSoC builds, bump the "
-            f"firmware/submodules/cryo-det submodule pin.")
-
-    _attach(cryo_channels)
-    cryo_channels._log.info(
-        "Attached %d pysmurf cryo operations to %s.",
-        len(OPERATION_NODES), label)
-
-
-def attach_all_cryo_operations(fpga: pr.Device, *, n_bands: int = 8) -> list[int]:
-    """Attach the operations to every band present under ``fpga``.
-
-    Returns the sorted list of band indices that were attached, for logging.
-
-    Bands absent from the tree are skipped: not every platform builds all
-    eight, and a carrier with only one AMC populated genuinely has fewer. Note
-    the node lookup, and only the node lookup, is guarded -- an error raised by
-    the attach itself must propagate, or a half-attached band would start up
-    and misbehave later.
-    """
-    bands = []
-
-    for i in range(n_bands):
-        try:
-            cryo_channels = fpga.AppTop.AppCore.SysgenCryo.Base[i].CryoChannels
-        except (AttributeError, KeyError, IndexError):
-            continue
-        attach_cryo_operations(
-            cryo_channels, label=f'Base[{i}].CryoChannels')
-        bands.append(i)
-
-    if not bands:
-        fpga._log.warning(
-            "Found no CryoChannels devices under %s, so no cryo operations "
-            "were attached. Expected AppTop.AppCore.SysgenCryo.Base[i]."
-            "CryoChannels for i in 0..%d.", fpga.name, n_bands - 1)
-
-    return bands
-
 
 def _attach(cryo_channels):
-    """Add all 29 operation nodes, in cryo-det's original order."""
+    """Add all 29 operation nodes, in their original order."""
     _add_local_variables(cryo_channels)
     _add_processes(cryo_channels)
     _add_commands(cryo_channels)
 
 
+# The provider the composition attaches: one instance of these nodes under every
+# band's operations device the platform map names.
+UMUX_OPERATIONS = Provider(name='cryodaq.umux', anchor='band[*].ops',
+                           nodes=OPERATION_NODES, attach=_attach)
+
+
 def _add_local_variables(ch):
     """Add the 19 tuning-parameter LocalVariables.
 
-    Transcribed verbatim from cryo-det, descriptions included. Three of them
-    are the copy-pasted-wrong "etaScan frequencies"; they stay wrong here,
-    because saveVariableList dumps descriptions and the baseline tree diff has
-    to come out empty. Correcting them is a separate, visible change.
+    Descriptions are as they have always been in the tree; three of them read
+    "etaScan frequencies" for a variable that is not one. Correcting them is a
+    visible change to the tree and is left for one.
     """
     ch.add(pr.LocalVariable(
         name        = "etaScanChannel",
@@ -362,16 +256,14 @@ def _add_local_variables(ch):
 def _add_processes(ch):
     """Add the 4 background pr.Process devices.
 
-    SerialFindFreq reads its sweep geometry from the device that owns it, so
-    the constants stay where the hardware map defines them. The other four
-    hardcode 512 and 1.2; that is a pre-existing wart, listed as a follow-up
-    in docs/stage1_ops_out_of_cryo_det.md, not something to fix inside a
-    verbatim move.
+    Each reads its sweep geometry from the device that owns it, so the
+    constants stay where the hardware map defines them.
     """
-    ch.add(SerialGradientDescent())
-    ch.add(NewSerialGradientDescent())
-    ch.add(SerialEtaScan())
-    ch.add(SerialFindFreq(ch._n_channels, ch._freqSpanMHz))
+    geometry = (ch._n_channels, ch._freqSpanMHz)
+    ch.add(SerialGradientDescent(*geometry))
+    ch.add(NewSerialGradientDescent(*geometry))
+    ch.add(SerialEtaScan(*geometry))
+    ch.add(SerialFindFreq(*geometry))
 
 
 def _add_commands(ch):

@@ -472,12 +472,23 @@ def resolution(stem, names=None, package_only=False, platform_name=None):
         if name not in pmap:
             absent[name] = 'not in this platform map'
             continue
-        hits = expand(paths, template_of(pmap, name))
+        hits = expand(device_paths(paths) if pmap.kind_of(name) == platform.DEVICE else paths,
+                      template_of(pmap, name))
         if hits:
             resolved[name] = hits[0]
         else:
             absent[name] = template_of(pmap, name)
     return resolved, absent
+
+
+def device_paths(paths):
+    """Every device path a dump implies: the parent of each variable it lists.
+
+    A variable list records variables and nothing else, so a name that reaches a
+    *device* -- where operations attach -- has no row of its own and is present in a
+    dump exactly when something under it is.
+    """
+    return {path.rsplit('.', 1)[0] for path in paths if '.' in path}
 
 
 def check_each_platform_offers_only_names_its_firmware_has():

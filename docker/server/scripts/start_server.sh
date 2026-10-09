@@ -43,18 +43,14 @@ if echo "${args}" | grep -qE '(^|\s)(-g|--gui)(\s|$)'; then
     fi
 fi
 
-# Call the appropriate server startup script depending on the communication type
-# and pass the list of arguments 'args'.
-if [ ${comm_type} == 'eth' ]; then
-    echo "Staring the server using Ethernet communication..."
-    cmd="/usr/local/src/pysmurf/server_scripts/cmb_eth.py  ${args}"
-elif [ ${comm_type} == 'emu' ]; then
-    echo "Staring the server using Emulation..."
-    cmd="/usr/local/src/pysmurf/server_scripts/emulate.py  ${args}"
-else
-    echo "Staring the server using PCIe communication..."
-    cmd="/usr/local/src/pysmurf/server_scripts/cmb_pcie.py ${args}"
-fi
-
+# Start the server. The transport is the communication type; everything else in
+# 'args' is passed through to the server's own command line.
+case ${comm_type} in
+    eth) transport=eth ;;
+    emu) transport=emulation ;;
+    *)   transport=pcie ;;
+esac
+echo "Starting the server over ${transport}..."
+cmd="python3 -m pysmurf.core.server --transport ${transport} ${args}"
 echo ${cmd}
-${cmd}
+exec ${cmd}

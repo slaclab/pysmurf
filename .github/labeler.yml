@@ -8,7 +8,7 @@ core:
           - python/pysmurf/*            # The files in python/pysmurf (not recursively), common to core and client
           - python/pysmurf/core/**/*    # All python code under pysmurf/core
           - docker/server/**/*          # The pysmurf server docker files
-          - server_scripts/**/*         # The server startup scripts
+          - python/pysmurf/core/server.py  # The server entry point
           - tests/**/*                  # This currently contains tests only related to the core
           - README.*.md                 # All the README.*.md files are related to the core functionality
           - smurfConfig.cmake.in        # This file is related to the core code

@@ -50,8 +50,7 @@ superconducting microresonator arrays.
    core/counters
    core/devices
    core/emulators
-   core/roots
-   core/server_scripts
+   core/server
    core/transmitters
    core/utilities
 

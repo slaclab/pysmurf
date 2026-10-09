@@ -42,7 +42,7 @@
 
 import functools
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import (Any, Callable, Dict, List, Mapping, Sequence, Tuple)
 
 from cryodaq._errors import ConnectError, UnresolvedName
@@ -50,14 +50,19 @@ from cryodaq.platform import _atca, _rfsoc, _umux
 
 __all__ = ['PlatformMap', 'MAPS', 'identify', 'by_name', 'tag_of', 'parse',
            'expand', 'indices', 'witness_names', 'VALUE', 'COMMAND', 'PROCESS',
-           'KINDS', 'MAX_SCOPE_INDEX', 'TAG_PATH']
+           'DEVICE', 'KINDS', 'MAX_SCOPE_INDEX', 'TAG_PATH', 'VERSION_BLOCK_PATH',
+           'STATUS_DEVICE_PATH']
 
 # What kind of node a name reaches: a value is read and written, a command is
 # called, a process is started and polled.
 VALUE = 'value'
 COMMAND = 'command'
 PROCESS = 'process'
-KINDS = (VALUE, COMMAND, PROCESS)
+# A device is where operations attach: the server composition resolves such a
+# name to hand a provider the device, and a client has nothing to get or set
+# at it.
+DEVICE = 'device'
+KINDS = (VALUE, COMMAND, PROCESS, DEVICE)
 
 # How an indexed scope is enumerated: in windows this wide, every index in a
 # window probed, and the next window probed as long as the last one found
@@ -72,6 +77,11 @@ MAX_SCOPE_INDEX = 32
 # here carries an AMC carrier core, so one path serves them all; a generation
 # that reports its firmware elsewhere makes this a property of each map.
 TAG_PATH = _umux.BUILD_STAMP
+# The device the stamp sits in, at the same address on every generation here; a
+# server reads it before it has a tree, so the path is stated where paths live.
+VERSION_BLOCK_PATH = _umux.AXI_VERSION
+# The device a server reports its own state at.
+STATUS_DEVICE_PATH = _umux.APPLICATION
 
 # Matched with fullmatch, not match: `$` also matches just before a trailing
 # newline, so a name carrying one -- out of a file, off a command line -- would
@@ -169,6 +179,12 @@ class PlatformMap:
         Name patterns worth reading back to record how a system was left.
     scopes : mapping
         Scope name to ``(path templates that prove an index, parent scopes)``.
+    top_level : str
+        ``module:attribute`` of the class in the firmware package that builds
+        this platform's register tree; what a server imports to build one.
+    top_level_options : mapping
+        Keyword arguments that class takes for this platform, decided by the
+        platform rather than by whoever starts the server.
     """
 
     name: str
@@ -176,6 +192,8 @@ class PlatformMap:
     registers: Mapping[str, Tuple[str, str]]
     witness: Tuple[str, ...]
     scopes: Mapping[str, Tuple[Tuple[str, ...], Tuple[str, ...]]]
+    top_level: str = ''
+    top_level_options: Mapping[str, Any] = field(default_factory=dict)
 
     def __contains__(self, pattern: str) -> bool:
         return pattern in self.registers
@@ -210,8 +228,14 @@ class PlatformMap:
         """The register path a name resolves to."""
         return self.entry(name)[0]
 
+    def kind_of(self, pattern: str) -> str:
+        """The kind a name *pattern* reaches, without resolving indices."""
+        if pattern not in self:
+            raise UnresolvedName(pattern, pattern=pattern, reason='not in this platform map')
+        return self.registers[pattern][1]
+
     def kind(self, name: str) -> str:
-        """``'value'``, ``'command'`` or ``'process'`` for what the name reaches."""
+        """``'value'``, ``'command'``, ``'process'`` or ``'device'`` for what the name reaches."""
         return self.entry(name)[1]
 
     def doc(self, name: str) -> str:
@@ -225,7 +249,8 @@ def _from_module(module: Any) -> PlatformMap:
     return PlatformMap(name=module.NAME, tags=tuple(module.TAGS),
                        registers={**module.REGISTERS, **module.LEGACY},
                        witness=tuple(module.WITNESS),
-                       scopes=dict(module.SCOPES))
+                       scopes=dict(module.SCOPES), top_level=module.TOP_LEVEL,
+                       top_level_options=dict(module.TOP_LEVEL_OPTIONS))
 
 
 # Every supported platform. One module per platform, and a platform is a set of

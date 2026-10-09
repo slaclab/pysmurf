@@ -30,7 +30,7 @@
 
 from cryodaq.platform._umux import LEGACY, REGISTERS, SCOPES, WITNESS
 
-__all__ = ['NAME', 'TAGS', 'REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES']
+__all__ = ['NAME', 'TAGS', 'TOP_LEVEL', 'TOP_LEVEL_OPTIONS', 'REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES']
 
 NAME = 'umux-rfsoc'
 
@@ -60,3 +60,12 @@ TAGS = (
     'MicrowaveMuxZcu208_HighOrderNyquist',
     'MicrowaveMuxZcu208_PreSpectra',
 )
+
+# The class in the firmware's Python package that builds this platform's register
+# tree, as `module:attribute`. A server composition imports it once the package
+# is on the path and the platform has been identified from the build stamp.
+TOP_LEVEL = 'CryoDet._MicrowaveMuxZcu208:FpgaTopLevel'
+# Keyword arguments the top-level class takes for this platform: the shared
+# class builds an RFSoC's tree -- no converter-board links or bays -- when told
+# so. Decided here, by the platform the stamp identified, never by a caller's flag.
+TOP_LEVEL_OPTIONS = {'isRFSOC': True}

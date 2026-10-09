@@ -2,22 +2,17 @@
 #-----------------------------------------------------------------------------
 # Title      : Serial Find Freq Process
 #-----------------------------------------------------------------------------
-# File       : _SerialFindFreq.py
+# File       : _serial_find_freq.py
 # Created    : 2019-10-09
 #-----------------------------------------------------------------------------
 # Description:
-#    Moved verbatim from cryo-det, where it lived at
-#    firmware/python/CryoDet/DspCoreLib/CryoDetCmbHcd/_SerialFindFreq.py
-#    as of commit 31b6fbfe (== tag MicrowaveMuxBpEthGen2_v2.5.1).
+#    Sweep the given frequencies across every channel of a band and record the
+#    response, one channel at a time.
+#    It reads its parameters from the CryoChannels device that owns it and
+#    takes the channel count and frequency span of that device at construction,
+#    so nothing about one firmware's geometry is written here.
 #
-#    The class body below is byte-identical to that file. Only this header and
-#    the comment above __all__ differ. Do not "clean up" this module: the
-#    byte-for-byte match with cryo-det is what proves the move is behaviour-
-#    preserving. See docs/stage1_ops_out_of_cryo_det.md.
-#
-#    Note this is the one Process that is already parameterised: it takes
-#    n_channels and freq_span_mhz from the CryoChannels device that owns it,
-#    rather than hardcoding 512 / 1.2 like the others.
+#    Originally cryo-det's; the algorithm is as it was there.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -27,13 +22,13 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
+
 import time
 
 import numpy as np
 import pyrogue as pr
 
-# Restrict 'from ... import *' to the class, so the module imports above
-# do not leak into the pysmurf.core.operations package namespace
+# Restrict 'from ... import *' to the class.
 __all__ = ['SerialFindFreq']
 
 class SerialFindFreq(pr.Process):
@@ -101,5 +96,5 @@ class SerialFindFreq(pr.Process):
             self.parent.etaScanResultsImag.set( resultImag.flatten() )
 
         self.Progress.set(1.0)
-        self.Message.setDisp(f"Done")
+        self.Message.setDisp("Done")
         self.parent.etaScanInProgress.set( 0 )

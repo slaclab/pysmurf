@@ -37,7 +37,7 @@ Finally, the script compares the original wrapped signal to the result at the ou
 
 ### validate_cryo_operations.py
 
-This script validates [pysmurf.core.operations](../../python/pysmurf/core/operations)' attachment of the cryo channel operations to a `CryoChannels` device.
+This script validates [cryodaq.server](../../python/cryodaq/server)'s attachment of the cryo channel operations to a `CryoChannels` device, through the operation-provider mechanism.
 
 Unlike the other scripts here it does not exercise the [SmurfProcessor](../../python/pysmurf/core/devices/_SmurfProcessor.py) data path. It builds throwaway pyrogue devices that stand in for one band's `CryoChannels` (512 channels over a +/-1.2 MHz span), so it needs neither hardware nor an installed CryoDet package and runs anywhere `rogue` is importable.
 

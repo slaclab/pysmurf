@@ -11,7 +11,7 @@
 # against the tree this repository builds.
 #
 # The package is a ZIP as the server consumes one: `pyrogue.addLibraryPath` is
-# pointed inside the archive exactly as `server_scripts/Common.py` does, the
+# pointed inside the archive exactly as `cryodaq.server` does, the
 # top-level device is constructed over emulated memory, and the resulting tree is
 # written out. No hardware, no network, and no server -- which is also the limit
 # of what the dump can answer for, since a server adds subtrees of its own that a
@@ -52,7 +52,7 @@ def main():
         raise SystemExit(f'FATAL: {source} is not a zip')
 
     # The trailing /python is a path inside the archive, not on disk; pyrogue mounts
-    # the ZIP. This is what server_scripts/Common.py does with a released package.
+    # the ZIP. This is what cryodaq.server.load_package does with a released package.
     pr.addLibraryPath(f'{source}/python')
 
     from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel

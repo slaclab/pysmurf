@@ -35,7 +35,8 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-__all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES', 'BUILD_STAMP', 'SERVER_ADDED_ROOT_NODES']
+__all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES', 'BUILD_STAMP', 'AXI_VERSION',
+           'APPLICATION', 'SERVER_ADDED_ROOT_NODES']
 
 # --------------------------------------------------------------------------
 # register paths, as templates over the indexed scopes
@@ -262,6 +263,13 @@ USER_CONFIG = f'{APP_CORE}.TimingHeader.userConfig[{{user_config}}]'
 # The per-bay data acquisition mux, which taps the signal path for a capture, and the
 # waveform source that plays a tone file back. Both are indexed by bay on every platform
 # of this generation -- unlike the RF front end below.
+# A software trigger of every bay's data acquisition at once; what the server's run
+# control pulses.
+SW_DAQ_MUX_TRIGGER = f'{FPGA}.SwDaqMuxTrig'
+# The firmware's own check of its serial links, where a release carries one: the
+# command runs it and the status is its last verdict.
+JESD_HEALTH = f'{APP_TOP}.JesdHealth'
+JESD_HEALTH_STATUS = f'{APP_TOP}.JesdHealthStatus'
 DAQ_MUX = f'{APP_TOP}.DaqMuxV2[{{bay}}]'
 DAQ_ARM_HW_TRIGGER = f'{DAQ_MUX}.ArmHwTrigger'
 DAQ_TRIGGER = f'{DAQ_MUX}.TriggerDaq'
@@ -493,7 +501,7 @@ SCOPES = {
 # written, 'c' is called, 'p' is started and polled. Kept small on purpose: a
 # name is here because a core operation or the compatibility layer reaches it,
 # and everything else in the tree is still there under the session's root.
-_V, _C, _P = 'value', 'command', 'process'
+_V, _C, _P, _D = 'value', 'command', 'process', 'device'
 
 REGISTERS = {
     # the server and its application block
@@ -529,6 +537,9 @@ REGISTERS = {
     'firmware.version': (FPGA_VERSION, _V),
     'firmware.build_stamp': (BUILD_STAMP, _V),
     'firmware.git_hash': (GIT_HASH, _V),
+    'daq.software_trigger': (SW_DAQ_MUX_TRIGGER, _C),
+    'jesd.health': (JESD_HEALTH, _C),
+    'jesd.health_status': (JESD_HEALTH_STATUS, _V),
     'firmware.uptime': (UPTIME, _V),
     # timing and streaming
     'timing.rx_link_up': (TIMING_RX_LINK_UP, _V),
@@ -669,6 +680,9 @@ REGISTERS = {
     'band[*].channel[*].eta.phase_degree': (CHANNEL_ETA_PHASE_DEGREE, _V),
     'band[*].channel[*].feedback.enable': (CHANNEL_FEEDBACK_ENABLE, _V),
 }
+# The device the operations attach to, named so the server composition can hand
+# it to the provider that adds them; a client reaches the nodes under it.
+REGISTERS['band[*].ops'] = (OPS, _D)
 REGISTERS.update({f'band[*].ops.{name}': (path, _V)
                   for name, path in OPS_PARAMETERS.items()})
 REGISTERS.update({f'band[*].ops.{name}': (path, _P)

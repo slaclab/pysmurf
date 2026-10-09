@@ -30,7 +30,7 @@
 
 from cryodaq.platform import _umux
 
-__all__ = ['NAME', 'TAGS', 'REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES']
+__all__ = ['NAME', 'TAGS', 'TOP_LEVEL', 'TOP_LEVEL_OPTIONS', 'REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES']
 
 NAME = 'umux-atca'
 
@@ -47,6 +47,14 @@ NAME = 'umux-atca'
 # and an unlisted image is refused by name, which is a better answer than a map
 # that may be wrong about it.
 TAGS = ('MicrowaveMuxBpEthGen2',)
+
+# The class in the firmware's Python package that builds this platform's register
+# tree, as `module:attribute`. A server composition imports it once the package
+# is on the path and the platform has been identified from the build stamp.
+TOP_LEVEL = 'CryoDet._MicrowaveMuxBpEthGen2:FpgaTopLevel'
+# Keyword arguments the top-level class takes for this platform beyond what a
+# deployment chooses (which bays to build, firmware-line flags): none.
+TOP_LEVEL_OPTIONS = {}
 
 # --------------------------------------------------------------------------
 # what only this platform has
@@ -94,6 +102,10 @@ _JESD_TX_DATA_VALID = f'{_umux.JESD_BAY}.JesdTx.DataValid'
 _JESD_RX_ENABLE = f'{_umux.JESD_BAY}.JesdRx.Enable'
 _JESD_TX_ENABLE = f'{_umux.JESD_BAY}.JesdTx.Enable'
 _JESD_TX_DATA_OUT_MUX = f'{_umux.JESD_BAY}.JesdTx.dataOutMux[{{tx_lane}}]'
+# The receive elastic buffers, one latency reading per lane. What a configuration
+# procedure checks after loading the registers: the links came up aligned.
+_JESD_RX_READ = f'{_umux.JESD_BAY}.JesdRx.ReadDevice'
+_JESD_RX_ELASTIC_BUFFER_LATENCY = f'{_umux.JESD_BAY}.JesdRx.ElBuffLatency[{{rx_lane}}]'
 # One status counter per link in each direction, counting how often that link has
 # reported itself valid. Indexed by link, which is not the transmit lane above: the lanes
 # are what a link is made of.
@@ -123,6 +135,8 @@ REGISTERS.update({
     'bay[*].jesd.rx_enable': (_JESD_RX_ENABLE, _V),
     'bay[*].jesd.tx_enable': (_JESD_TX_ENABLE, _V),
     'bay[*].jesd.tx_lane[*].data_out_mux': (_JESD_TX_DATA_OUT_MUX, _V),
+    'bay[*].jesd.rx.read': (_JESD_RX_READ, _C),
+    'bay[*].jesd.rx_lane[*].elastic_buffer_latency': (_JESD_RX_ELASTIC_BUFFER_LATENCY, _V),
 })
 
 # The carrier's names only deprecated accessors reach; see the shared map's LEGACY.
@@ -145,6 +159,7 @@ SCOPES.update({
     'link': ((_JESD_RX_STATUS_VALID_COUNT, _JESD_TX_STATUS_VALID_COUNT), ('bay',)),
     'dac': ((_DAC,), ('bay',)),
     'tx_lane': ((_JESD_TX_DATA_OUT_MUX,), ('bay',)),
+    'rx_lane': ((_JESD_RX_ELASTIC_BUFFER_LATENCY,), ('bay',)),
 })
 
 # Worth recording how a carrier was left: whether each bay's data links had locked, and

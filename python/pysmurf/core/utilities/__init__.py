@@ -17,6 +17,5 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-from pysmurf.core.utilities._SetupGroups import setupGroups
 from pysmurf.core.utilities._SmurfPublisher import SmurfPublisher
 from pysmurf.core.utilities._SmurfDataReceiver import SmurfDataReceiver

@@ -61,6 +61,8 @@ import sys
 import pyrogue as pr
 
 import cryodaq
+import cryodaq.server
+import cryodaq.server._firmware
 from cryodaq import platform
 
 # How long a tuning process gets before the bounded wait gives up. Nothing here
@@ -603,6 +605,78 @@ def check_names_and_kinds_are_refused_when_wrong():
 EXIT_TRIALS = 40
 
 
+def check_the_platform_probe_opens_the_link_before_reading():
+    """The server reads the build stamp over a link it has opened, and closes it after.
+
+    A transport's register path may need starting before it answers -- the RSSI
+    link does, and it opens when the tree holding it starts. The platform probe
+    runs before that tree exists, so it has to start the link itself around its
+    one read and stop it again for the real tree to open. An emulated memory needs
+    no link, so nothing else here would notice a probe that read over a closed
+    one; the transport here is an emulated memory with a stamp planted in it and
+    a stand-in link that records when it is started and stopped, and the order is
+    what is asserted.
+    """
+    import pyrogue.interfaces.simulation
+    events = []
+
+    class Link(pr.Device):
+        def __init__(self):
+            pr.Device.__init__(self, name='link')
+
+        def _start(self):
+            events.append('start')
+            pr.Device._start(self)
+
+        def _stop(self):
+            pr.Device._stop(self)
+            events.append('stop')
+
+    srp = pyrogue.interfaces.simulation.MemEmulate()
+    address = ROOT.getNode(platform.TAG_PATH).address
+    for offset, byte in enumerate(stamp_for(EXPECTED_IMAGE[RFSOC]).encode()):
+        srp._data[address + offset] = byte
+    original = platform.identify
+
+    def identify(tree):
+        events.append('read')
+        return original(tree)
+    platform.identify = identify
+    try:
+        pmap = cryodaq.server._firmware.probe_platform(srp, [Link()])
+    finally:
+        platform.identify = original
+    assert pmap.name == EXPECTED_PLATFORM[RFSOC], pmap.name
+    assert events == ['start', 'read', 'stop'], f"the probe did not bracket its read: {events}"
+
+
+def check_the_server_reports_the_bays_it_was_built_with():
+    """``EnabledBays`` is what the tree holds, not what a launcher said.
+
+    A bay the composition leaves out keeps its DAQ mux but loses its converter
+    front end, so a tree built with one bay reports one; a platform whose
+    converters share the FPGA's die has no front end and reports none. A client
+    addresses each reported bay's registers, so a bay reported and absent is a
+    failure it meets at setup. Built here with bay 1 left out, on the platform
+    under test.
+    """
+    import pysmurf.core.emulators
+    import pysmurf.core.server
+    from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+    comp = pysmurf.core.server.compose(
+        transport=cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource()),
+        platform_name=EXPECTED_PLATFORM[RFSOC], server_port=free_port(), polling=False,
+        top_level_class=FpgaTopLevel, stream_pv_size=0,
+        top_level_options=dict(disableBay0=False, disableBay1=True, isPreSpectra=False))
+    expected = [] if RFSOC else [0]
+    with comp as root:
+        reported = list(root.getNode(f'{platform.STATUS_DEVICE_PATH}.EnabledBays').get())
+        assert reported == expected, f"bay 1 left out: reported {reported}, expected {expected}"
+        for bay in reported:
+            path = root.pmap.path(f'bay[{bay}].debug.enable')
+            assert root.getNode(path) is not None, f"reported bay {bay} has no front end at {path}"
+
+
 def check_a_session_left_open_still_lets_the_interpreter_exit():
     """Forgetting to close costs the transport nothing, and the process nothing.
 
@@ -703,7 +777,7 @@ def write_build_stamp(root, stamp):
     node = root.getNode(platform.TAG_PATH)
     assert node is not None, f"the tree has no {platform.TAG_PATH}"
     for offset, byte in enumerate(stamp.encode()):
-        root._srp._data[node.address + offset] = byte
+        root._transport.srp._data[node.address + offset] = byte
     # The block was read once while the tree was built, and cached what it found
     # then: zeros. Without a forced re-read the stamp would never be seen.
     assert platform.tag_of(node.get(read=True)) == platform.tag_of(stamp), \
@@ -735,13 +809,21 @@ def emulation_root(args, port):
     thing this script exists to report, and reporting it must not hang.
     """
     add_library_paths(args)
-    from pysmurf.core.roots.EmulationRoot import EmulationRoot
-    # is_rfsoc is the package's own construction flag, and all it does is leave
-    # out the JESD lanes and signal generators -- so the tree is this package
+    import pysmurf.core.emulators
+    import pysmurf.core.server
+    # The tree is what the SMuRF server composes over an emulated transport. An
+    # emulated memory holds no build stamp, so the platform is named here; the
+    # stamp the checks expect is written in afterwards. The RFSoC platform's own
+    # top-level option (isRFSOC) comes from its map, and all it does is leave out
+    # the JESD lanes and signal generators -- so the RFSoC tree is this package
     # without its bays, not the RFSoC firmware's tree. See the header.
-    root = EmulationRoot(config_file='', polling_en=False, pv_dump_file='',
-                         disable_bay0=False, disable_bay1=False,
-                         is_rfsoc=args.rfsoc, is_prespectra=False, server_port=port)
+    from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+    comp = pysmurf.core.server.compose(
+        transport=cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource()),
+        platform_name=EXPECTED_PLATFORM[args.rfsoc], server_port=port, polling=False,
+        top_level_class=FpgaTopLevel,
+        top_level_options=dict(disableBay0=False, disableBay1=False, isPreSpectra=False))
+    root = comp.root
     try:
         root.start()
     except Exception:

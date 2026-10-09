@@ -15,27 +15,27 @@ Do not edit them by hand. Regenerate them with that script (its header says
 how); a hand edit is a fixture that answers a question the firmware would
 answer differently.
 
-Built at pysmurf 7a2c38af-dirty.
+Built at pysmurf 69aac982-dirty.
 
 atca.varlist.txt
   built from      cryo-det MicrowaveMuxBpEthGen2_v2.5.1-6-gfe6a0f50
-  built by        pysmurf.core.roots.EmulationRoot over MemEmulate
-  rows            3689 of 63594
+  built by        pysmurf.core.server.compose over an emulated transport
+  rows            3700 of 63594
   bands           [0, 1, 2, 3, 4, 5, 6, 7]
   front-end bays  [0, 1]
   daq mux bays    [0, 1]
 
 rfsoc.varlist.txt
   built from      cryo-det MicrowaveMuxBpEthGen2_v2.5.1-6-gfe6a0f50 (RFSoC)
-  built by        pysmurf.core.roots.EmulationRoot over MemEmulate, isRFSOC=True
-  rows            2175 of 59982
+  built by        pysmurf.core.server.compose over an emulated transport, isRFSOC=True
+  rows            2186 of 59982
   bands           [0, 1, 2, 3, 4, 5, 6, 7]
   front-end bays  none
   daq mux bays    [0, 1]
 
 Note what a dump of a firmware *package* does not contain: the subtrees a
 running server adds -- SmurfProcessor, the stream writers, SmurfApplication,
-the capture receivers, setDefaults, Ready. These fixtures are EmulationRoot
+the capture receivers, setDefaults, Ready. These fixtures are the composed server
 dumps, so they do carry them; a dump built straight from a released ZIP does
 not, which is why check_catalog_resolves.py has a --package-dump mode that
 excludes those names. Absence from a dump is not evidence about the firmware

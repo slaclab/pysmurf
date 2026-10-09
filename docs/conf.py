@@ -153,7 +153,7 @@ latex_documents = [
 ]
 
 # Modules to mock up
-autodoc_mock_imports = ['pyrogue','smurf','rogue','CryoDet','CryoDevBoard']
+autodoc_mock_imports = ['pyrogue','smurf','rogue','CryoDet']
 
 
 # Source code links
