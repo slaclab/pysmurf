@@ -109,12 +109,15 @@ class ReadoutRoot(pyrogue.Root):
         self.add(ApplicationConfig())
         self.add(self._fpga)
 
-        # Which converter bays this tree was built with: the firmware's answer,
-        # read off the tree, rather than the launcher's flags.
-        self._enabled_bays = list(platform.indices(pmap, lambda p: self.getNode(p) is not None, 'bay'))
-        # Which of them have serial links to check after a configuration: a
-        # platform whose converters share the FPGA's die has bays but no links,
-        # and offers no name for them.
+        # Which converter bays are populated -- the ones with a front end in the
+        # tree -- and which of those have serial links to check after a
+        # configuration. A bay the composition left out keeps its DAQ mux but
+        # loses its front end, and a platform whose converters share the FPGA's
+        # die has no front end at all, so reports no populated bay and checks no
+        # link. All read off the tree through the map: none of it is a flag.
+        self._enabled_bays = [bay for bay in platform.indices(
+            pmap, lambda path: self.getNode(path) is not None, 'bay')
+            if self._node('bay[{bay}].debug.enable', bay=bay) is not None]
         self._linked_bays = [bay for bay in self._enabled_bays
                              if self._node('bay[{bay}].jesd.rx.read', bay=bay) is not None]
 

@@ -650,6 +650,33 @@ def check_the_platform_probe_opens_the_link_before_reading():
     assert events == ['start', 'read', 'stop'], f"the probe did not bracket its read: {events}"
 
 
+def check_the_server_reports_the_bays_it_was_built_with():
+    """``EnabledBays`` is what the tree holds, not what a launcher said.
+
+    A bay the composition leaves out keeps its DAQ mux but loses its converter
+    front end, so a tree built with one bay reports one; a platform whose
+    converters share the FPGA's die has no front end and reports none. A client
+    addresses each reported bay's registers, so a bay reported and absent is a
+    failure it meets at setup. Built here with bay 1 left out, on the platform
+    under test.
+    """
+    import pysmurf.core.emulators
+    import pysmurf.core.server
+    from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+    comp = pysmurf.core.server.compose(
+        transport=cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource()),
+        platform_name=EXPECTED_PLATFORM[RFSOC], server_port=free_port(), polling=False,
+        top_level_class=FpgaTopLevel, stream_pv_size=0,
+        top_level_options=dict(disableBay0=False, disableBay1=True, isPreSpectra=False))
+    expected = [] if RFSOC else [0]
+    with comp as root:
+        reported = list(root.getNode(f'{platform.STATUS_DEVICE_PATH}.EnabledBays').get())
+        assert reported == expected, f"bay 1 left out: reported {reported}, expected {expected}"
+        for bay in reported:
+            path = root.pmap.path(f'bay[{bay}].debug.enable')
+            assert root.getNode(path) is not None, f"reported bay {bay} has no front end at {path}"
+
+
 def check_a_session_left_open_still_lets_the_interpreter_exit():
     """Forgetting to close costs the transport nothing, and the process nothing.
 
