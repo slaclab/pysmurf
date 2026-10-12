@@ -169,6 +169,10 @@ def pcie_card(args: argparse.Namespace):
     """The offload card, opened around the server for the eth and pcie transports."""
     if args.no_pcie_card or args.transport == 'emulation':
         return nullcontext()
+    # The card's own register tree imports from the firmware package (surf,
+    # axipcie), so a release archive must be on the path before the card is
+    # opened -- which is before compose() would put it there.
+    cryodaq.server.load_package(args.firmware)
     comm = 'eth-rssi-interleaved' if args.transport == 'eth' else 'pcie-rssi-interleaved'
     return pysmurf.core.devices.PcieCard(lane=args.pcie_rssi_lane, comm_type=comm,
                                          ip_addr=args.ip_addr, dev_rssi=args.pcie_dev_rssi,
@@ -189,11 +193,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                        **cryodaq.server.composition_kwargs(args))
         with comp as root:
             if args.gui:
-                import pyrogue.pydm
-                pyrogue.pydm.runPyDM(serverList=root.zmqServer.address, title=args.windows_title)
+                _run_gui(root, args.windows_title)
             else:
                 pyrogue.waitCntrlC()
     return 0
+
+
+def _run_gui(root, title):
+    # Imported here, not at the top: pydm pulls in Qt, which a headless server
+    # does not have. A function of its own so the import cannot shadow the
+    # module-level `pyrogue` inside main().
+    import pyrogue.pydm
+    pyrogue.pydm.runPyDM(serverList=root.zmqServer.address, title=title)
 
 
 if __name__ == '__main__':

@@ -57,8 +57,10 @@ import os
 import socket
 import subprocess
 import sys
+import time
 
 import pyrogue as pr
+import pyrogue.interfaces
 
 import cryodaq
 import cryodaq.server
@@ -131,6 +133,14 @@ EXPECTED_BANDS = tuple(range(8))
 # waits on the monitor thread, so anything near this bound is a hang and not a
 # slow machine.
 EXIT_DEADLINE_S = 30
+
+# How long the entry point, run as a child, may take to serve its tree. A full
+# emulated tree takes a minute or two on an idle machine and several on a busy
+# one; a child that dies ends the wait early, so this bounds a hang, not a run.
+ENTRY_POINT_READY_S = 600
+# The firmware-package arguments this run was given, handed on to the child
+# entry point so it builds the same tree. Set in main().
+FIRMWARE_ARGS = []
 
 # The one name below whose register the server owns and only reports: it is the
 # state a configuration run leaves, so the tree is put in that state from the
@@ -716,6 +726,67 @@ def check_a_session_left_open_still_lets_the_interpreter_exit():
             f"{done.stderr.strip()[-200:]!r})")
 
 
+def check_the_entry_point_runs_to_ready_and_exits_on_sigterm():
+    """``python -m pysmurf.core.server`` itself, not just what it composes.
+
+    Every other check composes the tree in this process, which is how a defect
+    confined to ``main()`` -- an import order the card needs, a name shadowed in
+    the function's own scope -- stays invisible until a server is started on a
+    crate. So the entry point is run the way a launcher runs it: as a child,
+    over the emulated transport, with this run's firmware package; a client must
+    see ``Ready`` rise, and SIGTERM must end the child with exit 0 and no
+    traceback. What the child cannot exercise -- the offload card, a real link
+    -- it says so in its own arguments.
+    """
+    # The child names the platform this package really builds -- the RFSoC run's
+    # tree is a stand-in made in-process (see the header), and the child has no
+    # such shortcut; what is under test here is main(), not the platform.
+    port = free_port()
+    cmd = [sys.executable, '-m', 'pysmurf.core.server', '--transport', 'emulation',
+           '--platform', EXPECTED_PLATFORM[False], '--server-port', str(port),
+           '--nopoll', '--stream-pv-size', '0', '--log-level', 'WARNING'] + FIRMWARE_ARGS
+    env = dict(os.environ, PYTHONPATH=os.pathsep.join(p for p in sys.path if p))
+    child = subprocess.Popen(cmd, env=env, text=True, stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT)
+    try:
+        # Not cryodaq.connect(): the child's emulated memory holds no build
+        # stamp, which connect() rightly refuses, and nothing outside the child
+        # can write one. A bare rogue client polls the flag the server raises
+        # last -- the ZMQ server answers before start() has finished, and the
+        # SIGTERM handler is installed after that -- so the wait is here,
+        # bounded, and ended early by the child dying.
+        pmap = platform.by_name(EXPECTED_PLATFORM[False])
+        deadline = time.monotonic() + ENTRY_POINT_READY_S
+        while True:
+            try:
+                client = pyrogue.interfaces.VirtualClient(addr='localhost', port=port)
+                try:
+                    ready = client.root.getNode(pmap.path('server.ready')).get()
+                    if ready:
+                        assert client.root.getNode(pmap.path('application.version')).get(), \
+                            "the application's identity is not on the status device"
+                finally:
+                    client.stop()
+                if ready:
+                    break
+            except Exception as e:                                # noqa: BLE001
+                if isinstance(e, AssertionError):
+                    raise
+            if child.poll() is not None or time.monotonic() > deadline:
+                raise AssertionError("the child never raised Ready")
+            time.sleep(2.0)
+        child.terminate()
+        out, _ = child.communicate(timeout=EXIT_DEADLINE_S)
+    except Exception:
+        child.kill()
+        out, _ = child.communicate()
+        raise AssertionError(f"the entry point never served on {port}; its output ends: "
+                             f"{out.strip()[-600:]!r}") from None
+    assert child.returncode == 0 and 'Traceback' not in out, (
+        f"the entry point exited {child.returncode} on SIGTERM; output ends: "
+        f"{out.strip()[-600:]!r}")
+
+
 # --------------------------------------------------------------------------
 
 def add_library_paths(args):
@@ -857,7 +928,7 @@ def run(checks):
 
 
 def main():
-    global SESSION, ROOT, ENDPOINT, RFSOC, BAND
+    global SESSION, ROOT, ENDPOINT, RFSOC, BAND, FIRMWARE_ARGS
     ap = argparse.ArgumentParser(
         description='Drive a cryodaq session against an emulated firmware tree.')
     source = ap.add_mutually_exclusive_group(required=True)
@@ -878,6 +949,7 @@ def main():
                          'these to rebuild the committed fixtures')
     args = ap.parse_args()
     RFSOC = args.rfsoc
+    FIRMWARE_ARGS = ['--firmware', args.zip] if args.zip else []
 
     label = ('RFSoC' if args.rfsoc else 'carrier') + ' tree'
     label += ' from ' + (args.zip or args.cryo_det)
