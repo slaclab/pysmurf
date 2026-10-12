@@ -97,7 +97,8 @@ def compose(*, transport: Any, tx_device: Any = None,
     for variable in _identity():
         root.status.add(variable)
     if pcie_card is not None:
-        root.add(pyrogue.LocalCommand(name='RestartRssi', description='Restart RSSI Link',
+        root.add(pyrogue.LocalCommand(name=root.pmap.path('server.restart_rssi').split('.')[-1],
+                                      description='Restart RSSI Link',
                                       function=lambda: pcie_card.restart_rssi()))
     return root
 
@@ -126,10 +127,12 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
                        help="Do not open the PCIe card's RSSI lanes around the server.")
     group.add_argument('--gui', '-g', action='store_true', help="Start a GUI beside the server.")
     group.add_argument('--windows-title', '-w', default=None, help="GUI window title.")
-    # Accepted and ignored: the platform is read from the hardware, and the
-    # management address belongs to the launcher's firmware check. Kept so a
-    # launcher that still passes them keeps working; to be removed.
+    # Accepted and ignored: the platform and firmware line are read from the
+    # hardware's build stamp, and the management address belongs to the
+    # launcher's firmware check. Kept so a launcher that still passes them
+    # keeps working; to be removed.
     group.add_argument('--is-rfsoc', action='store_true', help=argparse.SUPPRESS)
+    group.add_argument('--is-prespectra', action='store_true', help=argparse.SUPPRESS)
     group.add_argument('--rfsoc-mgmt-ip', default=None, help=argparse.SUPPRESS)
     return parser
 
@@ -154,8 +157,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         prog='python -m pysmurf.core.server', description='Start the SMuRF server.'))
     args = parser.parse_args(argv)
     cryodaq.server.configure_logging(args)
-    if args.is_rfsoc:
-        _log.warning("--is-rfsoc is ignored: the platform is read from the hardware's build stamp")
+    for flag in ('is_rfsoc', 'is_prespectra'):
+        if getattr(args, flag):
+            _log.warning("--%s is ignored: the platform is read from the hardware's build stamp",
+                         flag.replace('_', '-'))
     # The card is a context of its own around the server's: its lanes are opened
     # before the tree is built and closed after it stops.
     with pcie_card(args) as card:

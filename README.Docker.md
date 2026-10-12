@@ -185,9 +185,9 @@ SMuRF application:
 The old server scripts' options are accepted under their old spellings where they still
 mean something: `-z/--zip` is `--firmware`, `-d/--defaults` is `--layer` (and may be given
 more than once), `--stream-pv-size`/`--stream-pv-type` are `--capture-points`/`--capture-type`.
-`--is-rfsoc` and `--rfsoc-mgmt-ip` are accepted and ignored (the platform is read from the
-hardware; the management address is the launcher's). `--is-prespectra` is gone: the pre-SPECTRA
-firmware's own package sets it. `--dump-pvs` and `--use-qt` are gone: no server read them.
+`--is-rfsoc`, `--is-prespectra` and `--rfsoc-mgmt-ip` are accepted and ignored (the platform and
+firmware line are read from the hardware's build stamp; the management address is the launcher's).
+`--dump-pvs` and `--use-qt` are gone: no server read them.
 
 A relative `--defaults`/`--layer` name refers to the configuration directory inside the
 firmware zip (`python/CryoDet/config/`). More than one may be given; they are applied in

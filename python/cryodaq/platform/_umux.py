@@ -72,6 +72,9 @@ SAVE_CONFIG_MESSAGE = f'{SAVE_CONFIG}.Message'
 READY = f'{ROOT}.Ready'                       # set by the server once its start() completes
 SET_DEFAULTS = f'{ROOT}.setDefaults'          # the server's own configuration procedure
 SET_DEFAULTS_START = f'{SET_DEFAULTS}.Start'  # the same procedure, as a rogue Process
+# Re-open the offload card's register link to the carrier; present when the server runs
+# behind such a card.
+RESTART_RSSI = f'{ROOT}.RestartRssi'
 
 # The application block the server adds beside the FPGA.
 APPLICATION = f'{ROOT}.SmurfApplication'
@@ -165,7 +168,7 @@ STREAMING_IS_OPEN = f'{STREAMING_INTERFACE}.IsOpen'
 # are numbered, so theirs keeps its index placeholder.
 SERVER_ADDED_ROOT_NODES = tuple(
     p.split('.')[1]
-    for p in (READY, SET_DEFAULTS, APPLICATION, APPLICATION_CONFIG, PROCESSOR,
+    for p in (READY, SET_DEFAULTS, RESTART_RSSI, APPLICATION, APPLICATION_CONFIG, PROCESSOR,
               STREAM_DATA_SOURCE, CAPTURE, STREAM_WRITER, STREAMING_INTERFACE))
 
 # --------------------------------------------------------------------------
@@ -264,11 +267,12 @@ USER_CONFIG = f'{APP_CORE}.TimingHeader.userConfig[{{user_config}}]'
 # A software trigger of every bay's data acquisition at once; what the server's run
 # control pulses.
 SW_DAQ_MUX_TRIGGER = f'{FPGA}.SwDaqMuxTrig'
-# The firmware's own check of its converter serial links, where a release carries
-# one: the command runs it and the status is its last verdict. The command is the
-# application core's and exists on every platform of this generation; a platform
-# with no such links has nothing for it to find, so only a platform with links
-# reports a verdict on its status device.
+# The firmware's own check of its converter serial links, where a release carries one:
+# the command runs it and the status is its last verdict. The command is the
+# application core's and is built into every tree of this generation -- a platform
+# with no such links has nothing for it to find, and that platform's map names no
+# verdict for it (see `application.jesd_status`, a carrier's). A map states what a
+# tree has; whether the server acts on it is the verdict's business.
 JESD_HEALTH = f'{APP_TOP}.JesdHealth'
 JESD_HEALTH_STATUS = f'{APP_TOP}.JesdHealthStatus'
 DAQ_MUX = f'{APP_TOP}.DaqMuxV2[{{bay}}]'
@@ -504,6 +508,7 @@ REGISTERS = {
     'application.configuring': (CONFIGURING_IN_PROGRESS, _V),
     'application.enabled_bays': (ENABLED_BAYS, _V),
     'application.startup_arguments': (STARTUP_ARGUMENTS, _V),
+    'server.restart_rssi': (RESTART_RSSI, _C),
     'application.version': (SMURF_VERSION, _V),
     'ops.setup': (SET_DEFAULTS, _P),
     'ops.setup.start': (SET_DEFAULTS_START, _C),

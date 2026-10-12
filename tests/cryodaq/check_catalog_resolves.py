@@ -121,6 +121,9 @@ SERVER_ATTACHED = (
     'band[*].ops.gradient_descent',
     'band[*].ops.new_gradient_descent',
     'ops.setup',
+    # Present only when the server runs behind a PCIe offload card, which the emulated
+    # trees the fixtures are built from do not; on the crate's own dump it is there.
+    'server.restart_rssi',
 )
 
 # Writes to a read-only register that predate this check and are left in place. Each is

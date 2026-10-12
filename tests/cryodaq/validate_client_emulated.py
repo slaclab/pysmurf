@@ -57,6 +57,7 @@ import os
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 
 import pyrogue as pr
@@ -205,8 +206,12 @@ def check_every_offered_name_resolves():
     # while another stays absent is the same staleness, half-way.
     partly = [name for name in report.resolved if name.startswith('carrier.regulator.')]
     assert not partly, f"server-attached names resolving on an emulated tree: {partly}"
+    # Likewise the offload card's link restart, which the application adds only
+    # when it runs behind such a card; the emulated server has none.
+    assert 'server.restart_rssi' in dict(report.unresolved), \
+        "server.restart_rssi resolves on an emulated tree, so it is no longer card-only"
     unresolved = [(name, why) for name, why in report.unresolved
-                  if not name.startswith('carrier.regulator.')]
+                  if not name.startswith('carrier.regulator.') and name != 'server.restart_rssi']
     detail = '; '.join(f"{name}: {why}" for name, why in unresolved[:8])
     assert not unresolved, f"{len(unresolved)} unresolved: {detail}"
     assert len(report.resolved) >= 60, len(report.resolved)
@@ -729,6 +734,43 @@ def check_a_session_left_open_still_lets_the_interpreter_exit():
             f"{done.stderr.strip()[-200:]!r})")
 
 
+def check_the_configuration_procedure_ends_on_this_platform():
+    """``setDefaults`` runs to its end on the tree in hand, and reports as the platform allows.
+
+    The procedure's two hardware steps -- loading the register layers and
+    reading the converter links' elastic buffers -- have nothing to work on in
+    emulation (the memory reads back zeros, so the buffer check would reload and
+    fail for minutes), so both are stood in for and told to succeed. What is
+    exercised is everything around them: that the procedure reaches its end on a
+    platform with links and on one without, that ``SystemConfigured`` rises and
+    ``ConfiguringInProgress`` falls, and that the links' verdict is set where
+    the platform has links and nowhere otherwise. A procedure that reached for
+    the verdict on a platform without links raised here before it was gated.
+    """
+    root = ROOT
+    status = root.status
+    has_links = 'application.jesd_status' in root.pmap
+    assert ('JesdStatus' in status.nodes) == has_links, \
+        f"the status device offers a JESD verdict ({'JesdStatus' in status.nodes}) " \
+        f"where the map {'names' if has_links else 'does not name'} one"
+    saved = root._load_config, root._check_elastic_buffers, root._layers
+    try:
+        root._load_config = lambda: True
+        root._check_elastic_buffers = lambda: True
+        root._layers = ['<stand-in>']
+        if has_links:
+            status.JesdStatus.set(0)
+        root._set_defaults_cmd()
+    finally:
+        root._load_config, root._check_elastic_buffers, root._layers = saved
+    assert status.SystemConfigured.get() is True, "the procedure did not report success"
+    assert status.ConfiguringInProgress.get() is False, "the procedure did not report its end"
+    if has_links:
+        assert status.JesdStatus.getDisp() == 'Locked', \
+            f"the links' verdict was not set from the outcome: {status.JesdStatus.getDisp()}"
+    set_configured(root, True)      # leave the tree as the other checks expect
+
+
 def check_the_entry_point_runs_to_ready_and_exits_on_sigterm():
     """``python -m pysmurf.core.server`` itself, not just what it composes.
 
@@ -747,47 +789,67 @@ def check_the_entry_point_runs_to_ready_and_exits_on_sigterm():
     port = free_port()
     cmd = [sys.executable, '-m', 'pysmurf.core.server', '--transport', 'emulation',
            '--platform', EXPECTED_PLATFORM[False], '--server-port', str(port),
-           '--nopoll', '--stream-pv-size', '0', '--log-level', 'WARNING'] + FIRMWARE_ARGS
+           '--nopoll', '--capture-points', '0', '--log-level', 'WARNING'] + FIRMWARE_ARGS
     env = dict(os.environ, PYTHONPATH=os.pathsep.join(p for p in sys.path if p))
-    child = subprocess.Popen(cmd, env=env, text=True, stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT)
-    try:
-        # Not cryodaq.connect(): the child's emulated memory holds no build
-        # stamp, which connect() rightly refuses, and nothing outside the child
-        # can write one. A bare rogue client polls the flag the server raises
-        # last -- the ZMQ server answers before start() has finished, and the
-        # SIGTERM handler is installed after that -- so the wait is here,
-        # bounded, and ended early by the child dying.
-        pmap = platform.by_name(EXPECTED_PLATFORM[False])
-        deadline = time.monotonic() + ENTRY_POINT_READY_S
-        while True:
+    # Output to a file, not a pipe: a pipe nobody drains fills, and a child
+    # blocked on its own print looks exactly like one that never got there.
+    with tempfile.TemporaryFile(mode='w+', encoding='utf-8') as log:
+        child = subprocess.Popen(cmd, env=env, stdout=log, stderr=subprocess.STDOUT)
+        try:
+            _wait_for_ready(child, port)
+            child.terminate()
             try:
-                client = pyrogue.interfaces.VirtualClient(addr='localhost', port=port)
-                try:
-                    ready = client.root.getNode(pmap.path('server.ready')).get()
-                    if ready:
-                        assert client.root.getNode(pmap.path('application.version')).get(), \
-                            "the application's identity is not on the status device"
-                finally:
-                    client.stop()
-                if ready:
-                    break
-            except Exception as e:                                # noqa: BLE001
-                if isinstance(e, AssertionError):
-                    raise
-            if child.poll() is not None or time.monotonic() > deadline:
-                raise AssertionError("the child never raised Ready")
-            time.sleep(2.0)
-        child.terminate()
-        out, _ = child.communicate(timeout=EXIT_DEADLINE_S)
-    except Exception:
-        child.kill()
-        out, _ = child.communicate()
-        raise AssertionError(f"the entry point never served on {port}; its output ends: "
-                             f"{out.strip()[-600:]!r}") from None
+                child.wait(timeout=EXIT_DEADLINE_S)
+            except subprocess.TimeoutExpired:
+                raise AssertionError(f"the entry point ignored SIGTERM for {EXIT_DEADLINE_S}s")
+        finally:
+            # Whatever happened -- an assertion, Ctrl-C -- no child is left
+            # serving on the port.
+            if child.poll() is None:
+                child.kill()
+                child.wait()
+            log.seek(0)
+            out = log.read()
     assert child.returncode == 0 and 'Traceback' not in out, (
         f"the entry point exited {child.returncode} on SIGTERM; output ends: "
         f"{out.strip()[-600:]!r}")
+
+
+def _wait_for_ready(child, port):
+    """Poll the child's server until ``Ready`` is up, within ENTRY_POINT_READY_S.
+
+    Not cryodaq.connect(): the child's emulated memory holds no build stamp,
+    which connect() rightly refuses, and nothing outside the child can write
+    one. A bare rogue client polls the flag the server raises last -- the ZMQ
+    server answers before start() has finished -- and the deadline covers the
+    read too: a client that connects to a stuck server would otherwise retry
+    for good.
+    """
+    pmap = platform.by_name(EXPECTED_PLATFORM[False])
+    deadline = time.monotonic() + ENTRY_POINT_READY_S
+    while True:
+        try:
+            client = pyrogue.interfaces.VirtualClient(addr='localhost', port=port)
+            # Bound each request as a session does, so a server that answers
+            # the connection and then stalls comes back here, not never.
+            client.setTimeout(5000, 10000)
+        except Exception:                                      # noqa: BLE001
+            client = None                                      # nothing listens yet
+        if client is not None:
+            try:
+                ready = client.root.getNode(pmap.path('server.ready')).get()
+                if ready:
+                    assert client.root.getNode(pmap.path('application.version')).get(), \
+                        "the application's identity is not on the status device"
+                    return
+            finally:
+                client.stop()
+        if child.poll() is not None:
+            raise AssertionError(f"the entry point exited {child.returncode} before Ready")
+        if time.monotonic() > deadline:
+            raise AssertionError(f"the entry point did not raise Ready within "
+                                 f"{ENTRY_POINT_READY_S}s")
+        time.sleep(2.0)
 
 
 # --------------------------------------------------------------------------
