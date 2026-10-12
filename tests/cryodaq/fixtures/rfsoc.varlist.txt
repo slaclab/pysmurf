@@ -46,8 +46,6 @@ AMCc.SmurfApplication.WriteDevice	str	WO	None	0	['Hidden', 'publish', 'stream']	
 AMCc.SmurfApplication.EnabledBays	list	RO	None	0	['publish', 'stream']	List of bays that are enabled
 AMCc.SmurfApplication.ConfiguringInProgress	bool	RO	{False: 'False', True: 'True'}	0	['publish', 'stream']	The system configuration sequence is in progress
 AMCc.SmurfApplication.SystemConfigured	bool	RO	{False: 'False', True: 'True'}	0	['publish', 'stream']	The system was configured correctly
-AMCc.SmurfApplication.CheckJesd	int	WO	None	0	['publish', 'stream']	Check JESD health status
-AMCc.SmurfApplication.JesdStatus	int	RO	{0: 'Unlocked', 1: 'Locked', 2: 'Checking', 3: 'Not found'}	0	['publish', 'stream']	JESD health status (updates by calling the "CheckJesd" command)
 AMCc.SmurfApplication.SmurfVersion	str	RO	None	0	['publish', 'stream']	PySMuRF Version
 AMCc.SmurfApplication.SmurfDirectory	str	RO	None	0	['publish', 'stream']	Path to the PySMuRF Python Files
 AMCc.SmurfApplication.StartupScript	str	RO	None	0	['publish', 'stream']	PySMuRF Server Startup Script

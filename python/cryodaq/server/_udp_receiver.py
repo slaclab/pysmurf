@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 #-----------------------------------------------------------------------------
-# Title      : SMuRF UDP Receiver
+# Title      : Cryodaq UDP Streaming Receiver
 #-----------------------------------------------------------------------------
-# File       : _UdpReceiver.py
+# File       : _udp_receiver.py
 # Created    : 2019-09-30
 #-----------------------------------------------------------------------------
 # Description:
-#    SMuRF UDP receiver device.
+#    The receiver for the streaming interface over Ethernet: a UDP client
+#    without RSSI, kept alive by a thread that sends a byte every few seconds so
+#    the firmware does not close the connection. The transport connects it
+#    behind a FIFO and adds it to the tree.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory

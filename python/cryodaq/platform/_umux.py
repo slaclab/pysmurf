@@ -82,8 +82,6 @@ STARTUP_ARGUMENTS = f'{APPLICATION}.StartupArguments'
 SMURF_VERSION = f'{APPLICATION}.SmurfVersion'
 SMURF_DIRECTORY = f'{APPLICATION}.SmurfDirectory'
 STARTUP_SCRIPT = f'{APPLICATION}.StartupScript'
-JESD_STATUS = f'{APPLICATION}.JesdStatus'
-CHECK_JESD = f'{APPLICATION}.CheckJesd'
 
 # Where the server carries the application configuration it was last given, recorded
 # by the operation that applied it: the resolved values as JSON, their hash, and when.
@@ -266,8 +264,11 @@ USER_CONFIG = f'{APP_CORE}.TimingHeader.userConfig[{{user_config}}]'
 # A software trigger of every bay's data acquisition at once; what the server's run
 # control pulses.
 SW_DAQ_MUX_TRIGGER = f'{FPGA}.SwDaqMuxTrig'
-# The firmware's own check of its serial links, where a release carries one: the
-# command runs it and the status is its last verdict.
+# The firmware's own check of its converter serial links, where a release carries
+# one: the command runs it and the status is its last verdict. The command is the
+# application core's and exists on every platform of this generation; a platform
+# with no such links has nothing for it to find, so only a platform with links
+# reports a verdict on its status device.
 JESD_HEALTH = f'{APP_TOP}.JesdHealth'
 JESD_HEALTH_STATUS = f'{APP_TOP}.JesdHealthStatus'
 DAQ_MUX = f'{APP_TOP}.DaqMuxV2[{{bay}}]'
@@ -279,14 +280,6 @@ DAQ_INPUT_MUX_SEL = f'{DAQ_MUX}.InputMuxSel[{{input}}]'
 DAC_SIG_GEN = f'{APP_TOP}.DacSigGen[{{bay}}]'
 TONE_FILE_PATH = f'{DAC_SIG_GEN}.CsvFilePath'
 LOAD_TONE_FILE = f'{DAC_SIG_GEN}.LoadCsvFile'
-
-# The two per-bay device trees that only a platform with a separate converter board
-# carries: the serial links to the converters, and the RF front end itself. Named here
-# because the scopes below are enumerated by probing for them, and declared as registers
-# by the platform that has them -- a map is a statement of what a platform has, so a
-# platform whose converters share the FPGA's die should not claim these at all.
-JESD_BAY = f'{APP_TOP}.AppTopJesd[{{bay}}]'
-MUX_CORE = f'{APP_CORE}.MicrowaveMuxCore[{{bay}}]'
 
 # The RTM: flux-ramp generator, slow DACs (bias lines) and the cryocard SPI.
 RTM = f'{APP_CORE}.RtmCryoDet'
@@ -469,11 +462,12 @@ OPS_COMMANDS = {
 # the scopes its own templates are nested inside.
 SCOPES = {
     'band': ((BAND,), ()),
-    # A bay is proved by any of the per-bay device trees, because which of them a
-    # platform has differs: the acquisition mux is per-bay everywhere, while the front
-    # end and the data links belong to a platform with a separate converter board. So
-    # the scope is shared and the registers under it are not.
-    'bay': ((MUX_CORE, JESD_BAY, DAQ_MUX), ()),
+    # A bay is proved by its acquisition mux, which is per-bay on every platform of
+    # this generation. The front end and the serial links that only a separate
+    # converter board has are declared by the platform that has them -- a map is a
+    # statement of what a platform has -- so the scope is shared and what sits under
+    # it is not.
+    'bay': ((DAQ_MUX,), ()),
     'channel': ((CHANNEL,), ('band',)),
     'input': ((DAQ_INPUT_MUX_SEL,), ('bay',)),
     # The event receiver counts what it matches and what it emits separately, so these
@@ -511,7 +505,6 @@ REGISTERS = {
     'application.enabled_bays': (ENABLED_BAYS, _V),
     'application.startup_arguments': (STARTUP_ARGUMENTS, _V),
     'application.version': (SMURF_VERSION, _V),
-    'application.jesd_status': (JESD_STATUS, _V),
     'ops.setup': (SET_DEFAULTS, _P),
     'ops.setup.start': (SET_DEFAULTS_START, _C),
     'poll_enable': (POLL_ENABLE, _V),
@@ -522,7 +515,6 @@ REGISTERS = {
     'save_config.start': (SAVE_CONFIG_START, _C),
     'save_config.running': (SAVE_CONFIG_RUNNING, _V),
     'save_config.message': (SAVE_CONFIG_MESSAGE, _V),
-    'application.check_jesd': (CHECK_JESD, _C),
     'application_config.resolved': (RESOLVED_CONFIG, _V),
     'application_config.hash': (RESOLVED_HASH, _V),
     'application_config.written_at': (RESOLVED_WRITTEN_AT, _V),
@@ -755,7 +747,6 @@ LEGACY = {
 # the witnesses of the hardware only it has -- the data links' lock state and the
 # attenuator settings are a carrier's, and are in that platform's own map.
 WITNESS = (
-    'application.jesd_status',
     'timing.rx_link_up',
     'flux_ramp.ramp_max_cnt',
     'flux_ramp.enable_trigger',

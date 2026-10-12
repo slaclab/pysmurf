@@ -31,8 +31,8 @@ import sys
 import pyrogue as pr
 
 from cryodaq import platform
-from cryodaq.server import _provider, _umux_ops as ops
-from cryodaq.server._umux_ops import UMUX_OPERATIONS
+from cryodaq.server import _provider, operations as ops
+from cryodaq.server.operations import UMUX_OPERATIONS
 
 # Matches cryo-det's CryoChannels: 512 channels over a +/-1.2 MHz span.
 N_CHANNELS = 512
@@ -117,7 +117,7 @@ def attach_all(fpga):
     """
     root = pr.Root(name='AMCc', initRead=False, pollEn=False)
     root.add(fpga)
-    attached = _provider.attach_providers(root, platform.by_name('umux-atca'), [UMUX_OPERATIONS])
+    attached = _provider.attach_operations(root, platform.by_name('umux-atca'), [UMUX_OPERATIONS])
     return [int(n[len('band['):-len('].ops')]) for n in attached[UMUX_OPERATIONS.name]]
 
 

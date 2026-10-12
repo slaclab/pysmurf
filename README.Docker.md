@@ -116,6 +116,8 @@ The server is `python -m pysmurf.core.server`, started with `--transport eth`, `
 RFSoC) is read from the firmware's build stamp, not given as a flag. Its options:
 
 ```
+Rogue/pyrogue version v6.14.1. https://github.com/slaclab/rogue
+smurf package imported
 usage: python -m pysmurf.core.server [-h] [--transport {eth,pcie,emulation}]
                                      [--addr IP_ADDR]
                                      [--pcie-rssi-lane {0,1,2,3,4,5}]
@@ -124,12 +126,11 @@ usage: python -m pysmurf.core.server [-h] [--transport {eth,pcie,emulation}]
                                      [--firmware FIRMWARE] [--layer FILE]
                                      [--platform {umux-atca,umux-rfsoc}]
                                      [--configure] [--nopoll] [--disable-bay0]
-                                     [--disable-bay1] [--is-prespectra]
-                                     [--enable-em22xx]
+                                     [--disable-bay1] [--enable-em22xx]
+                                     [--capture-points N]
+                                     [--capture-type {Int16,Int8}]
                                      [--server-port SERVER_PORT]
-                                     [--log-level {DEBUG,INFO,WARNING,ERROR}]
-                                     [--stream-pv-size STREAM_PV_SIZE]
-                                     [--stream-pv-type {Int16,Int32}]
+                                     [--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
                                      [--no-pcie-card] [--gui]
                                      [--windows-title WINDOWS_TITLE]
 
@@ -162,24 +163,31 @@ readout server:
   --nopoll, -n          Disable all polling.
   --disable-bay0        Leave bay 0's devices out of the tree.
   --disable-bay1        Leave bay 1's devices out of the tree.
-  --is-prespectra       Pre-SPECTRA firmware line.
   --enable-em22xx       Enable the EM22xx power monitor.
+  --capture-points N, --stream-pv-size N
+                        Points buffered by each debug capture receiver; 0
+                        disables them.
+  --capture-type {Int16,Int8}, --stream-pv-type {Int16,Int8}
+                        Sample type of the debug capture receivers.
   --server-port SERVER_PORT
                         ZMQ port; defaults to 9000 + 3 * (slot from the
                         address or lane).
-  --log-level {DEBUG,INFO,WARNING,ERROR}
+  --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
 
 SMuRF application:
-  --stream-pv-size STREAM_PV_SIZE
-                        Points buffered by each capture receiver; 0 disables
-                        them.
-  --stream-pv-type {Int16,Int32}
   --no-pcie-card        Do not open the PCIe card's RSSI lanes around the
                         server.
   --gui, -g             Start a GUI beside the server.
   --windows-title WINDOWS_TITLE, -w WINDOWS_TITLE
                         GUI window title.
 ```
+
+The old server scripts' options are accepted under their old spellings where they still
+mean something: `-z/--zip` is `--firmware`, `-d/--defaults` is `--layer` (and may be given
+more than once), `--stream-pv-size`/`--stream-pv-type` are `--capture-points`/`--capture-type`.
+`--is-rfsoc` and `--rfsoc-mgmt-ip` are accepted and ignored (the platform is read from the
+hardware; the management address is the launcher's). `--is-prespectra` is gone: the pre-SPECTRA
+firmware's own package sets it. `--dump-pvs` and `--use-qt` are gone: no server read them.
 
 A relative `--defaults`/`--layer` name refers to the configuration directory inside the
 firmware zip (`python/CryoDet/config/`). More than one may be given; they are applied in

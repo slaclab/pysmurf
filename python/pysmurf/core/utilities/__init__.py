@@ -18,4 +18,3 @@
 #-----------------------------------------------------------------------------
 
 from pysmurf.core.utilities._SmurfPublisher import SmurfPublisher
-from pysmurf.core.utilities._SmurfDataReceiver import SmurfDataReceiver

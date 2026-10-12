@@ -30,7 +30,7 @@
 
 from cryodaq.platform import _umux
 
-__all__ = ['NAME', 'TAGS', 'TOP_LEVEL', 'TOP_LEVEL_OPTIONS', 'REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES']
+__all__ = ['NAME', 'TAGS', 'TOP_LEVEL', 'REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES']
 
 NAME = 'umux-atca'
 
@@ -52,30 +52,34 @@ TAGS = ('MicrowaveMuxBpEthGen2',)
 # tree, as `module:attribute`. A server composition imports it once the package
 # is on the path and the platform has been identified from the build stamp.
 TOP_LEVEL = 'CryoDet._MicrowaveMuxBpEthGen2:FpgaTopLevel'
-# Keyword arguments the top-level class takes for this platform beyond what a
-# deployment chooses (which bays to build, firmware-line flags): none.
-TOP_LEVEL_OPTIONS = {}
 
 # --------------------------------------------------------------------------
 # what only this platform has
 # --------------------------------------------------------------------------
 
+# The two per-bay device trees only a platform with a separate converter board carries:
+# the RF front end itself and the serial links to its converters. Declared here, by the
+# platform that has them, so a platform whose converters share the FPGA's die does not
+# claim them.
+_MUX_CORE = f'{_umux.APP_CORE}.MicrowaveMuxCore[{{bay}}]'
+_JESD_BAY = f'{_umux.APP_TOP}.AppTopJesd[{{bay}}]'
+
 # The RF front end on an AMC bay: the attenuators, the digital-to-analogue converters
-# and the debug block beside them. Absent where converter and FPGA share a die.
+# and the debug block beside them.
 #
 # An attenuator is one RF path through the bay, numbered from 1, with an up-converter
 # and a down-converter setting: UC[n] and DC[n] are the two directions of the same
 # path, so `n` is one index and not two. Which 500 MHz band a path carries is not the
 # firmware's to say -- it is wiring, and the application supplies that mapping.
-_ATTENUATORS = f'{_umux.MUX_CORE}.ATT'
+_ATTENUATORS = f'{_MUX_CORE}.ATT'
 _ATTENUATOR_UC = f'{_ATTENUATORS}.UC[{{attenuator}}]'
 _ATTENUATOR_DC = f'{_ATTENUATORS}.DC[{{attenuator}}]'
-_DAC = f'{_umux.MUX_CORE}.DAC[{{dac}}]'
+_DAC = f'{_MUX_CORE}.DAC[{{dac}}]'
 _DAC_TEMPERATURE = f'{_DAC}.Temperature'
 _DAC_JESD_RESET_N = f'{_DAC}.JesdRstN'
 _DAC_ENABLE = f'{_DAC}.enable'
 # The clock chip on the AMC, which the converters are timed from: a TI LMK04828.
-_LMK = f'{_umux.MUX_CORE}.LMK'
+_LMK = f'{_MUX_CORE}.LMK'
 _LMK_ENABLE = f'{_LMK}.enable'
 _LMK_POWER_UP_SYS_REF = f'{_LMK}.PwrUpSysRef'
 # Which of the chip's clock inputs is used, and how. The firmware names these two by
@@ -89,29 +93,33 @@ _LMK_POWER_UP_SYS_REF = f'{_LMK}.PwrUpSysRef'
 _LMK_CLOCK_INPUT_ENABLE = f'{_LMK}.LmkReg_0x0146'
 _LMK_CLOCK_INPUT_SELECT = f'{_LMK}.LmkReg_0x0147'
 # Select the external reference clock for this bay's converters.
-_SELECT_EXTERNAL_REFERENCE = f'{_umux.MUX_CORE}.SelExtRef'
+_SELECT_EXTERNAL_REFERENCE = f'{_MUX_CORE}.SelExtRef'
 
-_BAY_DEBUG = f'{_umux.MUX_CORE}.DBG'
+_BAY_DEBUG = f'{_MUX_CORE}.DBG'
 _BAY_DEBUG_ENABLE = f'{_BAY_DEBUG}.enable'
 _DAC_RESET = f'{_BAY_DEBUG}.dacReset[{{dac}}]'
 
 # The serial links between the FPGA and those converters, one block per bay: whether
 # each direction has locked, whether it is enabled, and what each transmit lane drives.
-_JESD_RX_DATA_VALID = f'{_umux.JESD_BAY}.JesdRx.DataValid'
-_JESD_TX_DATA_VALID = f'{_umux.JESD_BAY}.JesdTx.DataValid'
-_JESD_RX_ENABLE = f'{_umux.JESD_BAY}.JesdRx.Enable'
-_JESD_TX_ENABLE = f'{_umux.JESD_BAY}.JesdTx.Enable'
-_JESD_TX_DATA_OUT_MUX = f'{_umux.JESD_BAY}.JesdTx.dataOutMux[{{tx_lane}}]'
+# The server reports the verdict of the firmware's link check on its status device
+# and offers a command to re-run it -- on this platform, which has links to check.
+_JESD_STATUS = f'{_umux.APPLICATION}.JesdStatus'
+_CHECK_JESD = f'{_umux.APPLICATION}.CheckJesd'
+_JESD_RX_DATA_VALID = f'{_JESD_BAY}.JesdRx.DataValid'
+_JESD_TX_DATA_VALID = f'{_JESD_BAY}.JesdTx.DataValid'
+_JESD_RX_ENABLE = f'{_JESD_BAY}.JesdRx.Enable'
+_JESD_TX_ENABLE = f'{_JESD_BAY}.JesdTx.Enable'
+_JESD_TX_DATA_OUT_MUX = f'{_JESD_BAY}.JesdTx.dataOutMux[{{tx_lane}}]'
 # The receive elastic buffers, one latency reading per lane. What a configuration
 # procedure checks after loading the registers: the links came up aligned.
-_JESD_RX_READ = f'{_umux.JESD_BAY}.JesdRx.ReadDevice'
-_JESD_RX_ELASTIC_BUFFER_LATENCY = f'{_umux.JESD_BAY}.JesdRx.ElBuffLatency[{{rx_lane}}]'
+_JESD_RX_READ = f'{_JESD_BAY}.JesdRx.ReadDevice'
+_JESD_RX_ELASTIC_BUFFER_LATENCY = f'{_JESD_BAY}.JesdRx.ElBuffLatency[{{rx_lane}}]'
 # One status counter per link in each direction, counting how often that link has
 # reported itself valid. Indexed by link, which is not the transmit lane above: the lanes
 # are what a link is made of.
-_JESD_RX_STATUS_VALID_COUNT = (f'{_umux.JESD_BAY}.JesdRx.StatusValidCnt'
+_JESD_RX_STATUS_VALID_COUNT = (f'{_JESD_BAY}.JesdRx.StatusValidCnt'
                                f'[{{link}}]')
-_JESD_TX_STATUS_VALID_COUNT = (f'{_umux.JESD_BAY}.JesdTx.StatusValidCnt'
+_JESD_TX_STATUS_VALID_COUNT = (f'{_JESD_BAY}.JesdTx.StatusValidCnt'
                                f'[{{link}}]')
 
 _V, _C = 'value', 'command'
@@ -125,6 +133,9 @@ REGISTERS.update({
     'bay[*].dac[*].jesd_reset_n': (_DAC_JESD_RESET_N, _V),
     'bay[*].dac[*].reset': (_DAC_RESET, _V),
     'bay[*].debug.enable': (_BAY_DEBUG_ENABLE, _V),
+    # the server's verdict on the serial links
+    'application.jesd_status': (_JESD_STATUS, _V),
+    'application.check_jesd': (_CHECK_JESD, _C),
     'bay[*].clock.enable': (_LMK_ENABLE, _V),
     'bay[*].clock.power_up_sys_ref': (_LMK_POWER_UP_SYS_REF, _C),
     'bay[*].clock_input.enable': (_LMK_CLOCK_INPUT_ENABLE, _V),
@@ -166,6 +177,7 @@ SCOPES.update({
 # what its attenuators were set to. Both are this platform's hardware, so both are here
 # rather than in the shared list.
 WITNESS = _umux.WITNESS + (
+    'application.jesd_status',
     'bay[*].jesd.rx_data_valid',
     'bay[*].jesd.tx_data_valid',
     'bay[*].attenuator[*].uc',

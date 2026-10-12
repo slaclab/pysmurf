@@ -134,6 +134,10 @@ EXPECTED_BANDS = tuple(range(8))
 # slow machine.
 EXIT_DEADLINE_S = 30
 
+# The debug capture receivers a deployed server is built with, so the tree here
+# is the tree a crate serves (the command line's default).
+CAPTURE_POINTS = 2**19
+
 # How long the entry point, run as a child, may take to serve its tree. A full
 # emulated tree takes a minute or two on an idle machine and several on a busy
 # one; a child that dies ends the wait early, so this bounds a hang, not a run.
@@ -673,13 +677,12 @@ def check_the_server_reports_the_bays_it_was_built_with():
     import pysmurf.core.emulators
     import pysmurf.core.server
     from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
-    comp = pysmurf.core.server.compose(
+    root = pysmurf.core.server.compose(
         transport=cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource()),
         platform_name=EXPECTED_PLATFORM[RFSOC], server_port=free_port(), polling=False,
-        top_level_class=FpgaTopLevel, stream_pv_size=0,
-        top_level_options=dict(disableBay0=False, disableBay1=True, isPreSpectra=False))
+        top_level_class=FpgaTopLevel, top_level_options=dict(disableBay1=True, isRFSOC=RFSOC))
     expected = [] if RFSOC else [0]
-    with comp as root:
+    with root:
         reported = list(root.getNode(f'{platform.STATUS_DEVICE_PATH}.EnabledBays').get())
         assert reported == expected, f"bay 1 left out: reported {reported}, expected {expected}"
         for bay in reported:
@@ -884,17 +887,17 @@ def emulation_root(args, port):
     import pysmurf.core.server
     # The tree is what the SMuRF server composes over an emulated transport. An
     # emulated memory holds no build stamp, so the platform is named here; the
-    # stamp the checks expect is written in afterwards. The RFSoC platform's own
-    # top-level option (isRFSOC) comes from its map, and all it does is leave out
-    # the JESD lanes and signal generators -- so the RFSoC tree is this package
-    # without its bays, not the RFSoC firmware's tree. See the header.
+    # stamp the checks expect is written in afterwards. The RFSoC firmware's own
+    # top-level class is this one with isRFSOC defaulted on, and that package is
+    # not to hand, so the flag is passed here and this class stands in: all it
+    # does is leave out the JESD lanes and signal generators, so the RFSoC tree
+    # is this package without its bays, not the RFSoC firmware's. See the header.
     from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
-    comp = pysmurf.core.server.compose(
+    root = pysmurf.core.server.compose(
         transport=cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource()),
         platform_name=EXPECTED_PLATFORM[args.rfsoc], server_port=port, polling=False,
-        top_level_class=FpgaTopLevel,
-        top_level_options=dict(disableBay0=False, disableBay1=False, isPreSpectra=False))
-    root = comp.root
+        top_level_class=FpgaTopLevel, top_level_options=dict(isRFSOC=args.rfsoc),
+        capture_points=CAPTURE_POINTS)
     try:
         root.start()
     except Exception:

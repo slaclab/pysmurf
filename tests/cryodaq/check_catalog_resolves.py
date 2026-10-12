@@ -96,10 +96,13 @@ SERVER_ADDED_PREFIXES = tuple(n.split('{')[0]
                               for n in _umux.SERVER_ADDED_ROOT_NODES if '{' in n)
 
 # The device trees only a platform with a separate converter board has: the RF front
-# end and the serial links back from it. Used to check that the *dumps* differ the way
-# the maps say they do -- which names are absent is derived from the maps themselves
-# (see below), not listed here, so the two cannot disagree.
-CARRIER_ONLY_DEVICES = ('MicrowaveMuxCore', 'AppTopJesd')
+# end and the serial links back from it -- and, on the server's status device, the
+# verdict on those links, which the server adds only where there are links. Used to
+# check that the *dumps* differ the way the maps say they do -- which names are absent
+# is derived from the maps themselves (see below), not listed here, so the two cannot
+# disagree.
+CARRIER_ONLY_DEVICES = ('MicrowaveMuxCore', 'AppTopJesd', 'SmurfApplication.JesdStatus',
+                        'SmurfApplication.CheckJesd')
 
 # Names whose nodes the server attaches to the tree at start-up, rather than the
 # firmware package declaring them: the four resonator-tuning processes and the
@@ -472,7 +475,7 @@ def resolution(stem, names=None, package_only=False, platform_name=None):
         if name not in pmap:
             absent[name] = 'not in this platform map'
             continue
-        hits = expand(device_paths(paths) if pmap.kind_of(name) == platform.DEVICE else paths,
+        hits = expand(device_paths(paths) if pmap.kind(name) == platform.DEVICE else paths,
                       template_of(pmap, name))
         if hits:
             resolved[name] = hits[0]

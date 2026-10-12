@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 #-----------------------------------------------------------------------------
-# Title      : Cryodaq uMUX Operations Provider
+# Title      : Cryodaq uMUX Operations OperationsProvider
 #-----------------------------------------------------------------------------
-# File       : _umux_ops.py
+# File       : __init__.py
 # Created    : 2026-08-28
 #-----------------------------------------------------------------------------
 # Description:
@@ -30,11 +30,11 @@
 import numpy as np
 import pyrogue as pr
 
-from cryodaq.server._new_serial_gradient_descent import NewSerialGradientDescent
-from cryodaq.server._provider import Provider
-from cryodaq.server._serial_eta_scan import SerialEtaScan
-from cryodaq.server._serial_find_freq import SerialFindFreq
-from cryodaq.server._serial_gradient_descent import SerialGradientDescent
+from cryodaq.server.operations._new_serial_gradient_descent import NewSerialGradientDescent
+from cryodaq.server._provider import OperationsProvider
+from cryodaq.server.operations._serial_eta_scan import SerialEtaScan
+from cryodaq.server.operations._serial_find_freq import SerialFindFreq
+from cryodaq.server.operations._serial_gradient_descent import SerialGradientDescent
 
 __all__ = [
     'OPERATION_COMMANDS',
@@ -100,7 +100,7 @@ def _attach(cryo_channels):
 
 # The provider the composition attaches: one instance of these nodes under every
 # band's operations device the platform map names.
-UMUX_OPERATIONS = Provider(name='cryodaq.umux', anchor='band[*].ops',
+UMUX_OPERATIONS = OperationsProvider(name='cryodaq.umux', anchor='band[*].ops',
                            nodes=OPERATION_NODES, attach=_attach)
 
 

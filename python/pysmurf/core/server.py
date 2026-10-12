@@ -11,8 +11,7 @@
 #    transport, the firmware package, the register configuration files, a
 #    transmitter for the processed data -- and returns the composition the
 #    readout core builds, with the SmurfProcessor on the streaming interface,
-#    the capture receivers on the DDR streams, the publisher, and pysmurf's
-#    identity on the status device. `python -m pysmurf.core.server` runs it; a
+#    the publisher, and pysmurf's identity on the status device. `python -m pysmurf.core.server` runs it; a
 #    streaming application calls `compose()` with its own transmitter.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
@@ -31,7 +30,6 @@ from contextlib import nullcontext
 from typing import Any, Mapping, Optional, Sequence
 
 import pyrogue
-import rogue.interfaces.stream
 
 import cryodaq.server
 import pysmurf
@@ -43,7 +41,9 @@ __all__ = ['compose', 'main', 'add_arguments', 'VARIABLE_GROUPS']
 
 _log = logging.getLogger(__name__)
 
-# The variables published and streamed as metadata.
+# The variables published and streamed as metadata: a path to the groups it
+# joins and its poll interval. A device path applies to everything under it;
+# a poll interval of None leaves the interval alone and 0 disables polling.
 VARIABLE_GROUPS = {
     'root.RogueVersion': {'groups': ['publish', 'stream'], 'pollInterval': None},
     'root.RogueDirectory': {'groups': ['publish', 'stream'], 'pollInterval': None},
@@ -52,31 +52,30 @@ VARIABLE_GROUPS = {
 }
 
 
-def compose(*, transport: Any, firmware: Optional[os.PathLike] = None,
-            layers: Sequence[os.PathLike] = (), platform_name: Optional[str] = None,
-            tx_device: Any = None, stream_pv_size: int = 2**19, stream_pv_type: str = 'Int16',
+def compose(*, transport: Any, tx_device: Any = None,
             providers: Sequence[Any] = cryodaq.server.CORE_PROVIDERS,
-            variable_groups: Optional[Mapping] = None,
-            **kwargs: Any) -> cryodaq.server.Composition:
+            variable_groups: Optional[Mapping] = None, pcie_card: Any = None,
+            **kwargs: Any) -> cryodaq.server.ReadoutRoot:
     """Build the SMuRF server.
 
     Parameters
     ----------
     transport : cryodaq.server.Transport
-        From `transport_for`, or built directly.
-    firmware, layers, platform_name, providers, kwargs
-        As `cryodaq.server.compose`.
+        From `cryodaq.server.transport_from`, or built directly.
     tx_device : pyrogue.Device, optional
         A transmitter the processed data is handed to (a streaming application's).
-    stream_pv_size, stream_pv_type
-        Size and type of the capture receivers on the DDR streams; 0 for none.
+    providers, kwargs
+        As `cryodaq.server.compose`.
     variable_groups : mapping, optional
         Defaults to `VARIABLE_GROUPS`.
+    pcie_card : PcieCard, optional
+        The offload card the server runs behind, if any; a command to restart
+        its RSSI link is added to the tree.
 
     Returns
     -------
-    cryodaq.server.Composition
-        Enter it to start the server; ``root`` is the tree.
+    cryodaq.server.ReadoutRoot
+        Enter it to start the server.
     """
     def processor(root):
         return pysmurf.core.devices.SmurfProcessor(
@@ -85,34 +84,22 @@ def compose(*, transport: Any, firmware: Optional[os.PathLike] = None,
 
     def on_start(root):
         root._pub = pysmurf.core.utilities.SmurfPublisher(root=root)
-        # The client starts streaming at 4 kHz without setting a channel mask,
-        # and the default mask of every channel is more than the processor keeps
-        # up with.
+        # Workaround: the client starts streaming at 4 kHz without setting a
+        # channel mask, and the default mask of every channel is more than the
+        # processor keeps up with; the backlog fills the PCIe card's buffers,
+        # which triggers known problems in its firmware.
         root.SmurfProcessor.ChannelMapper.Mask.set([0])
 
-    comp = cryodaq.server.compose(
-        transport=transport, firmware=firmware, layers=layers, providers=providers,
-        sinks=[processor], platform_name=platform_name,
+    root = cryodaq.server.compose(
+        transport=transport, providers=providers, sinks=[processor],
         variable_groups=VARIABLE_GROUPS if variable_groups is None else variable_groups,
         on_start=on_start, **kwargs)
-    root = comp.root
     for variable in _identity():
         root.status.add(variable)
-    if stream_pv_size:
-        _add_capture_receivers(root, transport, stream_pv_size, stream_pv_type)
-    return comp
-
-
-def transport_for(args: argparse.Namespace):
-    """The transport the command line names, with pysmurf's streaming receiver."""
-    if args.transport == 'eth':
-        receiver = pysmurf.core.devices.UdpReceiver(
-            ip_addr=args.ip_addr, port=cryodaq.server._transport.STREAMING_PORT)
-        return cryodaq.server.transport_from(args, streaming_receiver=receiver)
-    if args.transport == 'emulation':
-        return cryodaq.server.transport_from(
-            args, streaming_source=pysmurf.core.emulators.StreamDataSource())
-    return cryodaq.server.transport_from(args)
+    if pcie_card is not None:
+        root.add(pyrogue.LocalCommand(name='RestartRssi', description='Restart RSSI Link',
+                                      function=lambda: pcie_card.restart_rssi()))
+    return root
 
 
 def _identity():
@@ -129,30 +116,12 @@ def _identity():
     )
 
 
-def _add_capture_receivers(root, transport, size, dtype):
-    """One receiver per DDR stream, behind a FIFO sized to the receiver."""
-    _log.info("enabling stream data on PVs (buffer size = %d points, data type = %s)", size, dtype)
-    bytes_per_point = 2 if '16' in dtype else 4
-    root._stream_fifos, root._stream_slaves = [], []
-    for i, ddr in enumerate(transport.ddr_streams):
-        receiver = pysmurf.core.utilities.SmurfDataReceiver(name=f"Stream{i}", rxSize=size, rxType=dtype)
-        fifo = rogue.interfaces.stream.Fifo(1000, size * bytes_per_point, True)
-        root.add(receiver)
-        pyrogue.streamConnect(fifo, receiver)
-        pyrogue.streamConnect(ddr, fifo)
-        root._stream_slaves.append(receiver)
-        root._stream_fifos.append(fifo)
-
-
 # -- command line ------------------------------------------------------------
 
 def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     """The server's options: the readout server's plus pysmurf's own."""
     cryodaq.server.add_arguments(parser)
     group = parser.add_argument_group('SMuRF application')
-    group.add_argument('--stream-pv-size', type=int, default=2**19,
-                       help="Points buffered by each capture receiver; 0 disables them.")
-    group.add_argument('--stream-pv-type', default='Int16', choices=['Int16', 'Int32'])
     group.add_argument('--no-pcie-card', action='store_true',
                        help="Do not open the PCIe card's RSSI lanes around the server.")
     group.add_argument('--gui', '-g', action='store_true', help="Start a GUI beside the server.")
@@ -187,11 +156,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     cryodaq.server.configure_logging(args)
     if args.is_rfsoc:
         _log.warning("--is-rfsoc is ignored: the platform is read from the hardware's build stamp")
-    with pcie_card(args):
-        comp = compose(transport=transport_for(args), stream_pv_size=args.stream_pv_size,
-                       stream_pv_type=args.stream_pv_type,
+    # The card is a context of its own around the server's: its lanes are opened
+    # before the tree is built and closed after it stops.
+    with pcie_card(args) as card:
+        source = pysmurf.core.emulators.StreamDataSource() if args.transport == 'emulation' else None
+        root = compose(transport=cryodaq.server.transport_from(args, emulation_source=source),
+                       pcie_card=card if isinstance(card, pysmurf.core.devices.PcieCard) else None,
                        **cryodaq.server.composition_kwargs(args))
-        with comp as root:
+        with root:
             if args.gui:
                 _run_gui(root, args.windows_title)
             else:

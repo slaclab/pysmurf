@@ -36,13 +36,13 @@ from typing import Any, Callable, Dict, List, Sequence, Tuple
 
 from cryodaq import platform
 
-__all__ = ['Provider', 'attach_providers', 'exists']
+__all__ = ['OperationsProvider', 'attach_operations', 'exists']
 
 _log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class Provider:
+class OperationsProvider:
     """What one source of operations declares to the composition.
 
     Parameters
@@ -79,8 +79,8 @@ def exists(device: Any, name: str) -> bool:
     return name in device.__dir__() or name in getattr(device, '_anodes', {})
 
 
-def attach_providers(root: Any, pmap: platform.PlatformMap,
-                     providers: Sequence[Provider]) -> Dict[str, List[str]]:
+def attach_operations(root: Any, pmap: platform.PlatformMap,
+                     providers: Sequence[OperationsProvider]) -> Dict[str, List[str]]:
     """Attach every provider's operations to the tree, in the order given.
 
     Must run after the FPGA device is in the tree and before ``Root.start()``,
@@ -94,13 +94,13 @@ def attach_providers(root: Any, pmap: platform.PlatformMap,
         The tree under construction; ``getNode(path)`` is all that is asked of it.
     pmap : PlatformMap
         The map the anchors are resolved through.
-    providers : sequence of Provider
+    providers : sequence of OperationsProvider
         Attached in this order.
 
     Returns
     -------
     dict
-        Provider name to the list of anchor names it was attached to.
+        OperationsProvider name to the list of anchor names it was attached to.
 
     Raises
     ------
