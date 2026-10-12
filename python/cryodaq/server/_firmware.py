@@ -28,6 +28,7 @@
 import importlib
 import logging
 import os
+import sys
 import zipfile
 from typing import Any, List, Optional
 
@@ -66,11 +67,15 @@ def load_package(path: Optional[os.PathLike]) -> None:
         return
     path = os.fspath(path)
     if zipfile.is_zipfile(path):
-        pyrogue.addLibraryPath(f"{path}/python")
+        entry = f"{path}/python"
     elif os.path.isdir(path):
-        pyrogue.addLibraryPath(path)
+        entry = path
     else:
         raise FileNotFoundError(f"no firmware package at {path}")
+    # Idempotent: an entry point that needs the package before compose() does
+    # (to open an offload card) loads it first, and compose() loads it again.
+    if entry not in sys.path:
+        pyrogue.addLibraryPath(entry)
 
 
 def resolve_layers(layers, firmware: Optional[os.PathLike]) -> List[str]:
@@ -171,7 +176,10 @@ def probe_platform(srp: Any, link_nodes: Any = ()) -> platform.PlatformMap:
     except ConnectError:
         raise
     except Exception as e:
-        raise ConnectError(f"could not read the firmware's build stamp: {e}") from e
+        # The first thing a server reads from the hardware, so an address that
+        # is wrong or a carrier that is down surfaces here.
+        raise ConnectError(f"could not read the firmware's build stamp -- is the FPGA "
+                           f"reachable over this transport? ({e})") from e
     _log.info("firmware %s identified as platform %s", pmap.tags, pmap.name)
     return pmap
 
