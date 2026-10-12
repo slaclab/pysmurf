@@ -34,6 +34,8 @@ import rogue.hardware.axi
 import rogue.interfaces.stream
 import rogue.protocols.srp
 
+from cryodaq.server._udp_receiver import UdpReceiver
+
 __all__ = ['Transport', 'eth', 'pcie', 'emulation',
            'RSSI_PORT', 'STREAMING_PORT', 'DDR_TDEST', 'STREAMING_TDEST']
 
@@ -83,34 +85,32 @@ class Transport:
     probes_firmware: bool = True
 
 
-def eth(ip_addr: str, *, streaming_receiver: Any = None) -> Transport:
+def eth(ip_addr: str) -> Transport:
     """Ethernet: registers over interleaved RSSI, data over UDP.
+
+    The streaming interface arrives on a plain UDP port, without RSSI, and is
+    received behind a FIFO by a client that keeps the connection alive.
 
     Parameters
     ----------
     ip_addr : str
         The FPGA's address.
-    streaming_receiver : rogue stream master, optional
-        What receives the streaming interface's UDP packets; it is placed behind
-        a FIFO. The application supplies one with a keep-alive; without it the
-        streaming path is left unconnected, which a register-only server can do.
     """
     rssi = pyrogue.protocols.UdpRssiPack(name='rudp', host=ip_addr, port=RSSI_PORT,
                                          packVer=2, jumbo=True)
     srp = rogue.protocols.srp.SrpV3()
     pyrogue.streamConnectBiDir(srp, rssi.application(dest=0x0))
     ddr = [rssi.application(dest) for dest in DDR_TDEST]
+    receiver = UdpReceiver(ip_addr=ip_addr, port=STREAMING_PORT)
     fifo = rogue.interfaces.stream.Fifo(100000, 0, True)
-    nodes = [rssi]
-    if streaming_receiver is not None:
-        pyrogue.streamConnect(streaming_receiver, fifo)
-        nodes.append(streaming_receiver)
-    return Transport('eth', srp, ddr, fifo, nodes, register_nodes=[rssi])
+    pyrogue.streamConnect(receiver, fifo)
+    return Transport('eth', srp, ddr, fifo, [rssi, receiver], register_nodes=[rssi])
 
 
 def pcie(*, lane: int = 0, dev_rssi: str = '/dev/datadev_0',
          dev_data: str = '/dev/datadev_1') -> Transport:
     """A PCIe offload card: registers and data over its DMA channels."""
+    # Once, before any DMA channel on the device is opened.
     rogue.hardware.axi.AxiStreamDma.zeroCopyDisable(dev_rssi)
     base = lane * 0x100
     srp_stream = rogue.hardware.axi.AxiStreamDma(dev_rssi, base + 0, True)

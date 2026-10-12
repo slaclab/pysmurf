@@ -93,7 +93,7 @@ sinks it is a register server from a plain Python environment -- enough to bring
 a carrier up (``python -m cryodaq.server``); an application passes its providers
 and data processing to the same call.
 
-Operations reach the tree through a :class:`~cryodaq.server.Provider`: a name,
+Operations reach the tree through a :class:`~cryodaq.server.OperationsProvider`: a name,
 the semantic name of the device each copy attaches to, the node names it adds,
 and the function that adds them. The composition expands the anchor through the
 platform map, so a provider never spells a register path, and checks every node
@@ -103,6 +103,6 @@ This is the one part of cryodaq that imports rogue at module level; the package
 does not import it.
 
 .. automodule:: cryodaq.server
-    :members: compose, Composition, Provider, attach_providers, Transport, eth,
-              pcie, emulation, ReadoutRoot, CORE_PROVIDERS
+    :members: compose, OperationsProvider, attach_operations, Transport, eth,
+              pcie, emulation, ReadoutRoot, CORE_PROVIDERS, add_capture_receivers
     :undoc-members:

@@ -182,9 +182,6 @@ class PlatformMap:
     top_level : str
         ``module:attribute`` of the class in the firmware package that builds
         this platform's register tree; what a server imports to build one.
-    top_level_options : mapping
-        Keyword arguments that class takes for this platform, decided by the
-        platform rather than by whoever starts the server.
     """
 
     name: str
@@ -193,7 +190,6 @@ class PlatformMap:
     witness: Tuple[str, ...]
     scopes: Mapping[str, Tuple[Tuple[str, ...], Tuple[str, ...]]]
     top_level: str = ''
-    top_level_options: Mapping[str, Any] = field(default_factory=dict)
 
     def __contains__(self, pattern: str) -> bool:
         return pattern in self.registers
@@ -228,15 +224,16 @@ class PlatformMap:
         """The register path a name resolves to."""
         return self.entry(name)[0]
 
-    def kind_of(self, pattern: str) -> str:
-        """The kind a name *pattern* reaches, without resolving indices."""
-        if pattern not in self:
-            raise UnresolvedName(pattern, pattern=pattern, reason='not in this platform map')
-        return self.registers[pattern][1]
-
     def kind(self, name: str) -> str:
-        """``'value'``, ``'command'``, ``'process'`` or ``'device'`` for what the name reaches."""
-        return self.entry(name)[1]
+        """``'value'``, ``'command'``, ``'process'`` or ``'device'`` for what a name reaches.
+
+        The kind is the pattern's, so a pattern (``band[*].ops``) answers as
+        well as a name (``band[0].ops``).
+        """
+        pattern, _ = parse(name)
+        if pattern not in self:
+            raise UnresolvedName(name, pattern=pattern, reason='not in this platform map')
+        return self.registers[pattern][1]
 
     def doc(self, name: str) -> str:
         """One line naming the register behind a name; the map carries no prose."""
@@ -249,8 +246,7 @@ def _from_module(module: Any) -> PlatformMap:
     return PlatformMap(name=module.NAME, tags=tuple(module.TAGS),
                        registers={**module.REGISTERS, **module.LEGACY},
                        witness=tuple(module.WITNESS),
-                       scopes=dict(module.SCOPES), top_level=module.TOP_LEVEL,
-                       top_level_options=dict(module.TOP_LEVEL_OPTIONS))
+                       scopes=dict(module.SCOPES), top_level=module.TOP_LEVEL)
 
 
 # Every supported platform. One module per platform, and a platform is a set of

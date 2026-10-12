@@ -59,18 +59,26 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
                        help="Apply the register configuration at startup.")
     group.add_argument('--nopoll', '-n', action='store_false', dest='polling',
                        help="Disable all polling.")
+    # What the deployment knows and the FPGA cannot report before its tree is
+    # built: which bays are populated and which carrier revision this is. The
+    # launcher learns both over the crate's management bus.
     group.add_argument('--disable-bay0', action='store_true',
                        help="Leave bay 0's devices out of the tree.")
     group.add_argument('--disable-bay1', action='store_true',
                        help="Leave bay 1's devices out of the tree.")
-    group.add_argument('--is-prespectra', action='store_true', help="Pre-SPECTRA firmware line.")
     group.add_argument('--enable-em22xx', action='store_true', dest='enable_pwri2c',
                        help="Enable the EM22xx power monitor.")
+    group.add_argument('--capture-points', '--stream-pv-size', dest='capture_points', type=int,
+                       default=2**19, metavar='N',
+                       help="Points buffered by each debug capture receiver; 0 disables them.")
+    group.add_argument('--capture-type', '--stream-pv-type', dest='capture_type',
+                       default='Int16', choices=['Int16', 'Int8'],
+                       help="Sample type of the debug capture receivers.")
     group.add_argument('--server-port', type=int, default=None,
                        help=f"ZMQ port; defaults to {SERVER_PORT_BASE} + "
                        f"{SERVER_PORT_STRIDE} * (slot from the address or lane).")
-    group.add_argument('--log-level', default='INFO',
-                       choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'])
+    group.add_argument('--log-level', type=str.upper, default='INFO',
+                       choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'])
     return parser
 
 
@@ -91,8 +99,18 @@ def server_port_for(args: argparse.Namespace) -> int:
     return SERVER_PORT_BASE
 
 
-def transport_from(args: argparse.Namespace, **extra: Any):
-    """Build the transport the arguments name; ``extra`` goes to its constructor."""
+def transport_from(args: argparse.Namespace, emulation_source: Any = None):
+    """Build the transport the arguments name.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        As parsed from `add_arguments`.
+    emulation_source : rogue stream master, optional
+        For the emulation transport only: what stands in for the streaming
+        interface, so an application can emulate its own data. The hardware
+        transports have a real one and take nothing.
+    """
     from cryodaq.server import _transport
     if args.transport == 'eth':
         if not args.ip_addr:
@@ -101,18 +119,18 @@ def transport_from(args: argparse.Namespace, **extra: Any):
             socket.inet_pton(socket.AF_INET, args.ip_addr)
         except OSError:
             raise SystemExit(f"invalid IP address {args.ip_addr!r}") from None
-        return _transport.eth(args.ip_addr, **extra)
+        return _transport.eth(args.ip_addr)
     if args.transport == 'pcie':
         return _transport.pcie(lane=args.pcie_rssi_lane, dev_rssi=args.pcie_dev_rssi,
                                dev_data=args.pcie_dev_data)
-    return _transport.emulation(**extra)
+    return _transport.emulation(emulation_source)
 
 
 def composition_kwargs(args: argparse.Namespace) -> Dict[str, Any]:
     """The `compose()` keyword arguments the parsed options name, less the transport."""
     return dict(firmware=args.firmware, layers=args.layers, platform_name=args.platform_name,
                 server_port=server_port_for(args), polling=args.polling,
-                configure=args.configure,
+                configure=args.configure, capture_points=args.capture_points,
+                capture_type=args.capture_type,
                 top_level_options=dict(disableBay0=args.disable_bay0, disableBay1=args.disable_bay1,
-                                       isPreSpectra=args.is_prespectra,
                                        enablePwrI2C=args.enable_pwri2c))

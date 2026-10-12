@@ -12,8 +12,3 @@ _SmurfProcessor
 ---------------
 .. automodule:: pysmurf.core.devices._SmurfProcessor
     :members:
-
-_UdpReceiver
-------------
-.. automodule:: pysmurf.core.devices._UdpReceiver
-    :members:

@@ -41,7 +41,7 @@ from cryodaq._errors import UnresolvedName
 from cryodaq.server._application_config import ApplicationConfig
 from cryodaq.server._application_status import ApplicationStatus
 from cryodaq.server._firmware import ROOT_NAME
-from cryodaq.server._provider import Provider, attach_providers
+from cryodaq.server._provider import OperationsProvider, attach_operations
 
 __all__ = ['ReadoutRoot']
 
@@ -59,7 +59,7 @@ class ReadoutRoot(pyrogue.Root):
         Where the data streams come from, and any nodes the link needs in the tree.
     pmap : PlatformMap
         The platform the firmware was identified as; providers attach through it.
-    providers : sequence of Provider
+    providers : sequence of OperationsProvider
         What adds operations to the tree, in order.
     sinks : sequence
         What the streaming interface is connected to: rogue stream slaves, or
@@ -82,7 +82,7 @@ class ReadoutRoot(pyrogue.Root):
     """
 
     def __init__(self, *, fpga: Any, transport: Any, pmap: platform.PlatformMap,
-                 providers: Sequence[Provider] = (), sinks: Sequence[Any] = (),
+                 providers: Sequence[OperationsProvider] = (), sinks: Sequence[Any] = (),
                  layers: Sequence[Any] = (), server_port: int = 0, polling: bool = True,
                  configure: bool = False, variable_groups: Optional[Mapping] = None,
                  on_start: Optional[Callable] = None, **kwargs):
@@ -102,28 +102,25 @@ class ReadoutRoot(pyrogue.Root):
         # The metadata stream: every variable in the 'stream' group, as it changes.
         self.stream = pyrogue.interfaces.stream.Variable(root=self, incGroups='stream')
 
-        self.status = ApplicationStatus()
+        self.status = ApplicationStatus(pmap)
         self.add(self.status)
         # Where the configuration a client applies is published, so a later
         # client can read it back without the file.
         self.add(ApplicationConfig())
         self.add(self._fpga)
 
-        # Which converter bays are populated -- the ones with a front end in the
-        # tree -- and which of those have serial links to check after a
-        # configuration. A bay the composition left out keeps its DAQ mux but
-        # loses its front end, and a platform whose converters share the FPGA's
-        # die has no front end at all, so reports no populated bay and checks no
-        # link. All read off the tree through the map: none of it is a flag.
+        # Which converter bays are populated: the ones with a front end in the
+        # tree. A bay the composition left out keeps its DAQ mux but loses its
+        # front end, and a platform whose converters share the FPGA's die has no
+        # front end at all, so reports none. Read off the tree through the map,
+        # not from a flag.
         self._enabled_bays = [bay for bay in platform.indices(
             pmap, lambda path: self.getNode(path) is not None, 'bay')
             if self._node('bay[{bay}].debug.enable', bay=bay) is not None]
-        self._linked_bays = [bay for bay in self._enabled_bays
-                             if self._node('bay[{bay}].jesd.rx.read', bay=bay) is not None]
 
         # Operations attach after the FPGA is in the tree and before start()
         # seals it; the platform map says where.
-        self.attached = attach_providers(self, pmap, providers)
+        self.attached = attach_operations(self, pmap, providers)
 
         # File writers: the capture streams (TDEST 0x80..) and the streaming
         # interface (TDEST 0xC0..).
@@ -152,7 +149,10 @@ class ReadoutRoot(pyrogue.Root):
             rates={1: '1 Hz', 10: '10 Hz', 30: '30 Hz'}))
 
         # The configuration procedure: load the register layers and check the
-        # links. Exposed as a process so a client can start it and wait on it.
+        # links. Exposed as a process so a client can start it and wait on it,
+        # and one that takes no argument: the files it loads are the server's,
+        # so a client with a 40-character limit on what it can send (EPICS
+        # channel access) can still run it.
         self.add(pyrogue.Process(
             name='setDefaults',
             description='Set default configuration',
@@ -160,6 +160,7 @@ class ReadoutRoot(pyrogue.Root):
 
         # Saving state and configuration must not read first: a read of the
         # whole tree mid-run disturbs it, and the cached values are current.
+        # (The SaveConfig process rogue also offers does read first.)
         self.SaveState.replaceFunction(lambda arg: self.saveYaml(
             name=arg, readFirst=False, modes=['RW', 'RO', 'WO'], incGroups=None,
             excGroups='NoState', autoPrefix='state', autoCompress=True))
@@ -204,12 +205,14 @@ class ReadoutRoot(pyrogue.Root):
 
         self.status.EnabledBays.set(self._enabled_bays)
 
-        # The firmware's own link check exists on some releases only; remember
-        # whether this tree has it so the status register can say 'Not found'.
-        # Looked up before any configuration runs, which reports through it.
+        # The firmware's own link check: a platform without links never names
+        # it, and a release before the check lacks it -- then the status says
+        # 'Not found'. Looked up before any configuration runs, since the
+        # configuration itself calls the check and reports through its status.
         self._jesd_health_cmd = self._node('jesd.health')
-        if self._jesd_health_cmd is None:
-            self.status.JesdStatus.set(3)
+        self._jesd_status = self._node('application.jesd_status')
+        if self._jesd_status is not None and self._jesd_health_cmd is None:
+            self._jesd_status.set(3)
 
         # Variable updates must not interleave with configuration.
         self.setDefaults.UpdatePeriod.set(0.0)
@@ -282,9 +285,14 @@ class ReadoutRoot(pyrogue.Root):
         for k in range(max_retries):
             _log.info("check elastic buffers (try %d)", k)
             retry_load_config = False
-            for i in self._linked_bays:
+            # The populated bays whose links this platform's map names: a platform
+            # without links checks nothing and passes.
+            for i in self._enabled_bays:
+                read = self._node('bay[{bay}].jesd.rx.read', bay=i)
+                if read is None:
+                    continue
                 # Reading the individual registers does not work; read the device.
-                self._node('bay[{bay}].jesd.rx.read', bay=i)()
+                read()
                 for j in range(10):
                     latency = self._node('bay[{bay}].jesd.rx_lane[{lane}].elastic_buffer_latency',
                                          bay=i, lane=j).value()
@@ -324,13 +332,14 @@ class ReadoutRoot(pyrogue.Root):
             success = False
 
         status.SystemConfigured.set(success)
+        # The loaded configuration runs the firmware's link check, so its
+        # outcome is also the links' verdict.
         if self._jesd_health_cmd is not None:
-            status.JesdStatus.set(success)
+            self._jesd_status.set(success)
         status.ConfiguringInProgress.set(False)
 
     def _check_jesd_health(self):
         """Run the firmware's JESD health check and record its verdict."""
         if self._jesd_health_cmd is not None:
-            status = self.status
-            status.JesdStatus.set(2)
-            status.JesdStatus.set(self._jesd_health_cmd.call())
+            self._jesd_status.set(2)
+            self._jesd_status.set(self._jesd_health_cmd.call())
