@@ -31,7 +31,8 @@ import sys
 import pyrogue as pr
 
 from cryodaq import platform
-from cryodaq.server import _provider, operations as ops
+from cryodaq.server import _provider
+from cryodaq.server.operations import _umux as ops
 from cryodaq.server.operations import UMUX_OPERATIONS
 
 # Matches cryo-det's CryoChannels: 512 channels over a +/-1.2 MHz span.

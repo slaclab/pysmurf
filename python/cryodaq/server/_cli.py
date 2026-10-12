@@ -77,7 +77,7 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     group.add_argument('--server-port', type=int, default=None,
                        help=f"ZMQ port; defaults to {SERVER_PORT_BASE} + "
                        f"{SERVER_PORT_STRIDE} * (slot from the address or lane).")
-    group.add_argument('--log-level', type=str.upper, default='INFO',
+    group.add_argument('--log-level', type=str.upper, default='WARNING',
                        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'])
     return parser
 

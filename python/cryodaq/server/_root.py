@@ -194,6 +194,18 @@ class ReadoutRoot(pyrogue.Root):
     def start(self):
         """Start the tree, then what a readout server does once it is up."""
         pyrogue.Root.start(self)
+        try:
+            self._after_start()
+        except BaseException:
+            # A started root runs threads that are not daemons; left running
+            # after a failed start it holds the process open with no server
+            # on it. The context manager's exit does not run for an enter that
+            # raised, so the stop is here.
+            self.stop()
+            raise
+
+    def _after_start(self):
+        """What a readout server does once its tree is up, before ``Ready``."""
         self._setup_groups()
 
         try:
@@ -205,12 +217,14 @@ class ReadoutRoot(pyrogue.Root):
 
         self.status.EnabledBays.set(self._enabled_bays)
 
-        # The firmware's own link check: a platform without links never names
-        # it, and a release before the check lacks it -- then the status says
-        # 'Not found'. Looked up before any configuration runs, since the
-        # configuration itself calls the check and reports through its status.
-        self._jesd_health_cmd = self._node('jesd.health')
+        # The firmware's own link check. A platform without links names neither
+        # the check nor a status for it; a release before the check lacks the
+        # command, and then the status says 'Not found'. Looked up before any
+        # configuration runs, since the configuration itself calls the check and
+        # reports through its status. One predicate decides both: the status
+        # node exists -- the map's say-so, the same one the status device used.
         self._jesd_status = self._node('application.jesd_status')
+        self._jesd_health_cmd = self._node('jesd.health') if self._jesd_status is not None else None
         if self._jesd_status is not None and self._jesd_health_cmd is None:
             self._jesd_status.set(3)
 

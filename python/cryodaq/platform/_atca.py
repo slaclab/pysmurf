@@ -101,8 +101,9 @@ _DAC_RESET = f'{_BAY_DEBUG}.dacReset[{{dac}}]'
 
 # The serial links between the FPGA and those converters, one block per bay: whether
 # each direction has locked, whether it is enabled, and what each transmit lane drives.
-# The server reports the verdict of the firmware's link check on its status device
-# and offers a command to re-run it -- on this platform, which has links to check.
+# The server's verdict from the firmware's link check (`jesd.health`, shared: the command
+# is built into every tree of the generation), reported on the status device with a
+# command to re-run it -- on this platform, which has links for it to find.
 _JESD_STATUS = f'{_umux.APPLICATION}.JesdStatus'
 _CHECK_JESD = f'{_umux.APPLICATION}.CheckJesd'
 _JESD_RX_DATA_VALID = f'{_JESD_BAY}.JesdRx.DataValid'
