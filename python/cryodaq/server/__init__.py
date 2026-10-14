@@ -47,13 +47,14 @@ __all__ = ['compose', 'CORE_PROVIDERS', 'OperationsProvider', 'attach_operations
            'Transport', 'eth', 'pcie', 'emulation', 'ReadoutRoot',
            'ApplicationConfig', 'ApplicationStatus', 'EXCLUDED_FROM', 'UMUX_OPERATIONS',
            'add_capture_receivers', 'add_arguments', 'configure_logging', 'transport_from',
-           'composition_kwargs']
+           'composition_kwargs', 'run']
 
 # The command line a server entry point shares.
 add_arguments = _cli.add_arguments
 configure_logging = _cli.configure_logging
 transport_from = _cli.transport_from
 composition_kwargs = _cli.composition_kwargs
+run = _cli.run
 
 _log = logging.getLogger(__name__)
 

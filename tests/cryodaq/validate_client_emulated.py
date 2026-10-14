@@ -783,11 +783,24 @@ def check_the_entry_point_runs_to_ready_and_exits_on_sigterm():
     traceback. What the child cannot exercise -- the offload card, a real link
     -- it says so in its own arguments.
     """
+    _run_entry_point_to_ready('pysmurf.core.server', identity=True)
+
+
+def check_the_reduced_entry_point_runs_to_ready_and_exits_on_sigterm():
+    """``python -m cryodaq.server``, the same way: it has a ``main()`` of its own.
+
+    The expected difference from the full server: no application identity on
+    the status device, since no application composed it.
+    """
+    _run_entry_point_to_ready('cryodaq.server', identity=False)
+
+
+def _run_entry_point_to_ready(module, identity):
     # The child names the platform this package really builds -- the RFSoC run's
     # tree is a stand-in made in-process (see the header), and the child has no
     # such shortcut; what is under test here is main(), not the platform.
     port = free_port()
-    cmd = [sys.executable, '-m', 'pysmurf.core.server', '--transport', 'emulation',
+    cmd = [sys.executable, '-m', module, '--transport', 'emulation',
            '--platform', EXPECTED_PLATFORM[False], '--server-port', str(port),
            '--nopoll', '--capture-points', '0', '--log-level', 'WARNING'] + FIRMWARE_ARGS
     env = dict(os.environ, PYTHONPATH=os.pathsep.join(p for p in sys.path if p))
@@ -796,12 +809,12 @@ def check_the_entry_point_runs_to_ready_and_exits_on_sigterm():
     with tempfile.TemporaryFile(mode='w+', encoding='utf-8') as log:
         child = subprocess.Popen(cmd, env=env, stdout=log, stderr=subprocess.STDOUT)
         try:
-            _wait_for_ready(child, port)
+            _wait_for_ready(child, port, identity)
             child.terminate()
             try:
                 child.wait(timeout=EXIT_DEADLINE_S)
             except subprocess.TimeoutExpired:
-                raise AssertionError(f"the entry point ignored SIGTERM for {EXIT_DEADLINE_S}s")
+                raise AssertionError(f"{module} ignored SIGTERM for {EXIT_DEADLINE_S}s")
         finally:
             # Whatever happened -- an assertion, Ctrl-C -- no child is left
             # serving on the port.
@@ -811,12 +824,15 @@ def check_the_entry_point_runs_to_ready_and_exits_on_sigterm():
             log.seek(0)
             out = log.read()
     assert child.returncode == 0 and 'Traceback' not in out, (
-        f"the entry point exited {child.returncode} on SIGTERM; output ends: "
+        f"{module} exited {child.returncode} on SIGTERM; output ends: "
         f"{out.strip()[-600:]!r}")
 
 
-def _wait_for_ready(child, port):
+def _wait_for_ready(child, port, identity):
     """Poll the child's server until ``Ready`` is up, within ENTRY_POINT_READY_S.
+
+    ``identity`` says whether the application's version must be on the status
+    device once it is (an application server) or must not be (a reduced one).
 
     Not cryodaq.connect(): the child's emulated memory holds no build stamp,
     which connect() rightly refuses, and nothing outside the child can write
@@ -839,8 +855,13 @@ def _wait_for_ready(child, port):
             try:
                 ready = client.root.getNode(pmap.path('server.ready')).get()
                 if ready:
-                    assert client.root.getNode(pmap.path('application.version')).get(), \
-                        "the application's identity is not on the status device"
+                    version = client.root.getNode(pmap.path('application.version'))
+                    if identity:
+                        assert version is not None and version.get(), \
+                            "the application's identity is not on the status device"
+                    else:
+                        assert version is None, \
+                            "a reduced server carries an application's identity"
                     return
             finally:
                 client.stop()

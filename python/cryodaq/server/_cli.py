@@ -6,9 +6,10 @@
 # Created    : 2026-10-08
 #-----------------------------------------------------------------------------
 # Description:
-#    The command-line options a readout server takes, and how they become the
-#    arguments of `compose()`. Shared by the reduced server here and by any
-#    application entry point, which adds its own options to the same parser.
+#    The command-line options a readout server takes, how they become the
+#    arguments of `compose()`, and `run()`, which holds the started server
+#    open. Shared by the reduced server here and by any application entry
+#    point, which adds its own options to the same parser.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -21,12 +22,12 @@
 import argparse
 import logging
 import socket
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from cryodaq import platform
 
 __all__ = ['add_arguments', 'configure_logging', 'transport_from', 'composition_kwargs',
-           'server_port_for']
+           'server_port_for', 'run']
 
 # The ZMQ port convention: a base, three ports per server, chosen by the slot.
 SERVER_PORT_BASE = 9000
@@ -77,9 +78,38 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     group.add_argument('--server-port', type=int, default=None,
                        help=f"ZMQ port; defaults to {SERVER_PORT_BASE} + "
                        f"{SERVER_PORT_STRIDE} * (slot from the address or lane).")
+    group.add_argument('--gui', '-g', action='store_true',
+                       help="Open rogue's GUI on the server, and stop when it closes.")
+    group.add_argument('--windows-title', '-w', default=None, help="GUI window title.")
     group.add_argument('--log-level', type=str.upper, default='WARNING',
                        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'])
     return parser
+
+
+def run(root: Any, args: argparse.Namespace) -> None:
+    """Hold a started server open until it is told to stop.
+
+    Parameters
+    ----------
+    root : ReadoutRoot
+        A started root (inside its ``with``).
+    args : argparse.Namespace
+        As parsed from `add_arguments`. With ``--gui`` rogue's GUI is opened
+        on the server and the call returns when it closes; otherwise the call
+        returns on Ctrl-C or SIGTERM.
+    """
+    if args.gui:
+        _run_gui(root, args.windows_title)
+    else:
+        import pyrogue
+        pyrogue.waitCntrlC()
+
+
+def _run_gui(root: Any, title: Optional[str]) -> None:
+    # Imported here, not at the top: pydm pulls in Qt, which a headless server
+    # does not have.
+    import pyrogue.pydm
+    pyrogue.pydm.runPyDM(serverList=root.zmqServer.address, title=title)
 
 
 def configure_logging(args: argparse.Namespace) -> None:
