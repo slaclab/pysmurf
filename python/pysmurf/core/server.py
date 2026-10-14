@@ -125,8 +125,6 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     group = parser.add_argument_group('SMuRF application')
     group.add_argument('--no-pcie-card', action='store_true',
                        help="Do not open the PCIe card's RSSI lanes around the server.")
-    group.add_argument('--gui', '-g', action='store_true', help="Start a GUI beside the server.")
-    group.add_argument('--windows-title', '-w', default=None, help="GUI window title.")
     # Accepted and ignored: the platform and firmware line are read from the
     # hardware's build stamp, and the management address belongs to the
     # launcher's firmware check. Kept so a launcher that still passes them
@@ -169,19 +167,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                        pcie_card=card if isinstance(card, pysmurf.core.devices.PcieCard) else None,
                        **cryodaq.server.composition_kwargs(args))
         with root:
-            if args.gui:
-                _run_gui(root, args.windows_title)
-            else:
-                pyrogue.waitCntrlC()
+            cryodaq.server.run(root, args)
     return 0
-
-
-def _run_gui(root, title):
-    # Imported here, not at the top: pydm pulls in Qt, which a headless server
-    # does not have. A function of its own so the import cannot shadow the
-    # module-level `pyrogue` inside main().
-    import pyrogue.pydm
-    pyrogue.pydm.runPyDM(serverList=root.zmqServer.address, title=title)
 
 
 if __name__ == '__main__':

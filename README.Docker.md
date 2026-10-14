@@ -129,10 +129,10 @@ usage: python -m pysmurf.core.server [-h] [--transport {eth,pcie,emulation}]
                                      [--disable-bay1] [--enable-em22xx]
                                      [--capture-points N]
                                      [--capture-type {Int16,Int8}]
-                                     [--server-port SERVER_PORT]
-                                     [--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
-                                     [--no-pcie-card] [--gui]
+                                     [--server-port SERVER_PORT] [--gui]
                                      [--windows-title WINDOWS_TITLE]
+                                     [--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
+                                     [--no-pcie-card]
 
 Start the SMuRF server.
 
@@ -172,14 +172,15 @@ readout server:
   --server-port SERVER_PORT
                         ZMQ port; defaults to 9000 + 3 * (slot from the
                         address or lane).
+  --gui, -g             Open rogue's GUI on the server, and stop when it
+                        closes.
+  --windows-title WINDOWS_TITLE, -w WINDOWS_TITLE
+                        GUI window title.
   --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
 
 SMuRF application:
   --no-pcie-card        Do not open the PCIe card's RSSI lanes around the
                         server.
-  --gui, -g             Start a GUI beside the server.
-  --windows-title WINDOWS_TITLE, -w WINDOWS_TITLE
-                        GUI window title.
 ```
 
 The old server scripts' options are accepted under their old spellings where they still

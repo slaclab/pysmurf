@@ -716,8 +716,9 @@ class SmurfCommandMixin(SmurfBase):
         max_timeout_sec : float, optional, default 300.0
             Seconds to wait for system to configure before giving up.
             Only used for pysmurf core code versions >= 4.1.0.
-            The underlying process will give up after 240s by default,
-            so if a shorter timeout is set here, it may not complete.
+            The server-side procedure retries a configuration load that
+            fails, each try bounded at 300 s, so it can outlast this wait;
+            `get_system_configured` then says whether it finished.
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to
             all `_caget` calls.

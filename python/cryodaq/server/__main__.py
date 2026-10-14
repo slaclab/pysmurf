@@ -24,8 +24,6 @@ import argparse
 import logging
 import sys
 
-import pyrogue
-
 import cryodaq.server
 from cryodaq.server import _cli
 
@@ -39,7 +37,7 @@ def main(argv=None) -> int:
                                 **_cli.composition_kwargs(args)) as root:
         logging.getLogger(__name__).info("server on %s; platform %s; Ctrl-C to stop",
                                          root.zmqServer.address, root.pmap.name)
-        pyrogue.waitCntrlC()
+        _cli.run(root, args)
     return 0
 
 

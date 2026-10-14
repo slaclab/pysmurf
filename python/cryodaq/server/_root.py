@@ -122,13 +122,22 @@ class ReadoutRoot(pyrogue.Root):
         # seals it; the platform map says where.
         self.attached = attach_operations(self, pmap, providers)
 
-        # File writers: the capture streams (TDEST 0x80..) and the streaming
-        # interface (TDEST 0xC0..).
+        # Three unrelated things are called a stream here. `self.stream` above
+        # is metadata: variable updates. The transport carries two kinds of
+        # data from the FPGA: the DDR capture channels, raw samples the DAQ mux
+        # records on demand (`ddr_streams`, one per channel), and the streaming
+        # interface, the detector data frames the firmware sends continuously
+        # (`streaming_stream`). Each kind gets a file writer; only the second
+        # is processed.
         self._stm_data_writer = pyrogue.utilities.fileio.StreamWriter(name='streamDataWriter')
         self.add(self._stm_data_writer)
         self._stm_interface_writer = pyrogue.utilities.fileio.StreamWriter(name='streamingInterface')
         self.add(self._stm_interface_writer)
 
+        # The sinks are what the application attaches to the detector data
+        # frames -- a processor, a transmitter. Each receives every frame; the
+        # same frames are also written raw, so a file capture does not depend
+        # on any sink.
         self.sinks = []
         for sink in sinks:
             if callable(sink) and not isinstance(sink, pyrogue.Node):
@@ -137,10 +146,13 @@ class ReadoutRoot(pyrogue.Root):
                 self.add(sink)
             pyrogue.streamConnect(transport.streaming_stream, sink)
             self.sinks.append(sink)
-        for i, ddr in enumerate(transport.ddr_streams):
-            pyrogue.streamConnect(ddr, self._stm_data_writer.getChannel(i))
         pyrogue.streamConnect(transport.streaming_stream,
                               self._stm_interface_writer.getChannel(0))
+        # The DDR captures go to file only, one writer channel per capture
+        # channel; the debug capture receivers added later read the same
+        # streams into memory.
+        for i, ddr in enumerate(transport.ddr_streams):
+            pyrogue.streamConnect(ddr, self._stm_data_writer.getChannel(i))
 
         self.add(pyrogue.RunControl(
             name='streamRunControl',
@@ -257,28 +269,52 @@ class ReadoutRoot(pyrogue.Root):
 
     # -- the configuration procedure -----------------------------------------
 
-    def _load_config(self, timeout=60, max_retries=4):
-        """Load the register layers, retrying; True if rogue reported Done."""
+    def _load_config(self, timeout=300, max_retries=4):
+        """Load the register layers, retrying; True if rogue reported Done.
+
+        Each try is judged by the message the load itself leaves, cleared
+        before it starts, so no try is credited with an earlier load's
+        result. A full load takes about a minute over the crate's link; the
+        bound is well clear of that. A load that outruns it is given as long
+        again to end -- and credited if it ends well -- before a retry; one
+        that still has not ended is left alone and the procedure gives up.
+        ``timeout=0`` waits without bound.
+        """
         success = False
         # The update thread can interfere with some steps of initialisation.
         self.LoadConfigProcess.UpdatePeriod.set(0.0)
         files = ','.join(self._layers)
+
+        def ended():
+            # Start() returns before the worker thread raises Running, so an
+            # empty or 'Running' message is the only sign a load is still due.
+            return not self.LoadConfigProcess.Running.value() and \
+                self.LoadConfigProcess.Message.value() not in ('', 'Running')
+
+        def wait_until(deadline):
+            while not ended() and (timeout == 0 or time.time() < deadline):
+                time.sleep(0.1)
+            return ended()
 
         for i in range(max_retries):
             _log.info("setting defaults from %s (try %d)", files, i)
             try:
                 self.LoadConfigProcess.LoadMode.setDisp("File")
                 self.LoadConfigProcess.ConfigFile.set(files)
+                self.LoadConfigProcess.Message.setDisp('')
                 self.LoadConfigProcess.Start()
                 start = time.time()
-                while self.LoadConfigProcess.Running.value() and \
-                        (timeout == 0 or time.time() - start <= timeout):
-                    time.sleep(0.1)
-                if self.LoadConfigProcess.Message.value() != "Done":
-                    _log.warning("setting defaults try %d failed: LoadConfig did not finish", i)
-                else:
+                if not wait_until(start + timeout):
+                    _log.warning("setting defaults try %d: LoadConfig still running after %d s",
+                                 i, timeout)
+                    if not wait_until(start + 2 * timeout):
+                        _log.error("LoadConfig has not ended after %d s; not retrying", 2 * timeout)
+                        break
+                message = self.LoadConfigProcess.Message.value()
+                if message == "Done":
                     success = True
                     break
+                _log.warning("setting defaults try %d failed: LoadConfig ended with %r", i, message)
             except Exception as e:
                 _log.error("setting defaults try %d failed with: %s", i, e)
 
