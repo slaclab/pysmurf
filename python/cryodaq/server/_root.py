@@ -203,17 +203,25 @@ class ReadoutRoot(pyrogue.Root):
 
     # -- lifecycle ---------------------------------------------------------
 
-    def start(self):
-        """Start the tree, then what a readout server does once it is up."""
-        pyrogue.Root.start(self)
+    def start(self) -> None:
+        """Start the tree, then what a readout server does once it is up.
+
+        A start that fails anywhere stops whatever it had started before
+        re-raising, so that a failed server does not hold its process open.
+        """
+        was_running = self.running
         try:
+            pyrogue.Root.start(self)
             self._after_start()
         except BaseException:
-            # A started root runs threads that are not daemons; left running
-            # after a failed start it holds the process open with no server
+            # Rogue starts the tree's threads before it starts the interfaces
+            # and reads the registers, and they are not daemons: left running
+            # after a failed start they hold the process open with no server
             # on it. The context manager's exit does not run for an enter that
-            # raised, so the stop is here.
-            self.stop()
+            # raised, so the stop is here -- unless the root was already
+            # running, in which case the refusal is the only thing to report.
+            if self.running and not was_running:
+                self.stop()
             raise
 
     def _after_start(self):
