@@ -58,6 +58,7 @@ import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 
 import pyrogue as pr
@@ -695,6 +696,52 @@ def check_the_server_reports_the_bays_it_was_built_with():
             assert root.getNode(path) is not None, f"reported bay {bay} has no front end at {path}"
 
 
+def check_a_start_that_fails_in_the_tree_leaves_no_thread_behind():
+    """A server whose tree does not come up is stopped, not left half-running.
+
+    Rogue starts a root's threads -- the update worker, the heartbeat -- before it
+    starts the link nodes, and none of them is a daemon. A link node whose start
+    raises therefore raises out of ``start()`` with the threads running, and
+    ``with compose(...) as root`` never reaches its exit for an entry that
+    raised: the process would hold open with no server on it. (A register read
+    that times out is not this case: rogue catches and logs it, and ``start()``
+    returns with the root running.) The failure here is a link node that refuses
+    to start, which is where a link that cannot open fails. Built on the
+    platform under test, with the same stand-in the bays check uses. A root the
+    guard failed to stop is stopped here so that a regression is reported as a
+    failure and not as a run that never exits.
+    """
+    import pysmurf.core.emulators
+    import pysmurf.core.server
+    from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+
+    class Link(pr.Device):
+        def __init__(self):
+            pr.Device.__init__(self, name='link')
+
+        def _start(self):
+            raise RuntimeError("the link did not open")
+
+    transport = cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource())
+    transport.nodes.append(Link())
+    root = pysmurf.core.server.compose(
+        transport=transport, platform_name=EXPECTED_PLATFORM[RFSOC], server_port=free_port(),
+        polling=False, top_level_class=FpgaTopLevel, top_level_options=dict(isRFSOC=RFSOC))
+    before = set(threading.enumerate())
+    try:
+        try:
+            with root:
+                raise AssertionError("the root started over a link that did not open")
+        except RuntimeError as e:
+            assert 'did not open' in str(e), e
+        assert not root.running, "the root reports running after a start that raised"
+        left = [t.name for t in threading.enumerate() if t not in before and not t.daemon]
+        assert left == [], f"a start that raised left threads running: {left}"
+    finally:
+        if root.running:
+            root.stop()
+
+
 def check_a_session_left_open_still_lets_the_interpreter_exit():
     """Forgetting to close costs the transport nothing, and the process nothing.
 
@@ -984,10 +1031,11 @@ def emulation_root(args, port):
     try:
         root.start()
     except Exception:
-        # A start that raised still leaves threads behind -- an occupied port is
-        # the easy way to see it -- and stop() is what ends them, so the failure
-        # is reported by exiting rather than by hanging.
-        root.stop()
+        # The server's own start() stops the root when it raises; this is the
+        # harness's belt for a regression there, so the failure is reported by
+        # exiting rather than by hanging on threads left behind.
+        if root.running:
+            root.stop()
         raise
     return root
 

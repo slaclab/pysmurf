@@ -134,14 +134,22 @@ class _Probe(pyrogue.Root):
         parent.add(surf.axi.AxiVersion(offset=0, memBase=srp))
 
     def start(self):
-        for node in self._link_nodes:
-            node._start()
+        started = []
         try:
+            for node in self._link_nodes:
+                node._start()
+                started.append(node)
             pyrogue.Root.start(self)
         except Exception:
-            # The initial read failed -- no hardware answered -- and the
-            # context manager's exit will not run for a start that raised.
-            self.stop()
+            # A link that would not open, or a tree that would not start; the
+            # context manager's exit will not run for a start that raised, so
+            # what was started is stopped here. (A read that finds no hardware
+            # does not raise: rogue logs it, and the blank stamp is refused by
+            # identify() instead.)
+            if self.running:
+                pyrogue.Root.stop(self)
+            for node in reversed(started):
+                node._stop()
             raise
 
     def stop(self):
