@@ -273,13 +273,18 @@ Needs PyYAML, which the CI job installs as the client's one dependency before th
 ### check_offload_card.py
 
 Drives the PCIe offload card's RSSI lane through `cryodaq.server.OffloadCard` over an emulated memory,
-with the card's own register tree built from a smurf-pcie package (`--smurf-pcie`, a release ZIP from
-`slaclab/smurf-pcie` or a checkout's `firmware/python`). Four checks: a lane never pointed at a
+with the card firmware's register map from a smurf-pcie package (`--smurf-pcie`, a release ZIP from
+`slaclab/smurf-pcie` or a checkout's `firmware/python`) bound to it as the server binds it — attached,
+never started. Six checks: a lane never pointed at a
 carrier is refused by name when no address is given; an opened lane carries what the carrier needs
 (keep-alive on, connection opened, the address and both ports on both clients, a MAC and IP given to a
 lane that had none) and `restart()` closes and reopens it, exit closes it and keeps the address; the
 Ethernet case closes the lanes at the carrier and no other; a lane the card remembers is reused when no
-address is given. Needs rogue, so the `test-server` job runs it over the public v3.3.1 release.
+address is given; a lane that never connects is refused within the bound; and nothing of the card runs —
+its root is never started (the firmware package's one idle helper thread is the only one alive while a
+lane is open, and none is after it is closed). The fields of a shared
+register word the lane does not own (`Mode`, `HeaderChksumEn`) are set first and must read back unchanged.
+Needs rogue, so the `test-server` job runs it over the public v3.3.1 release.
 
 ### validate_client_emulated.py
 

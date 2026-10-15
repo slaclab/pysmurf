@@ -133,8 +133,7 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
 
     # The offload card's lane is the register path's first link: it is opened
     # here, before the firmware is probed through it, and the root closes it
-    # when it stops. The card's tree is the deployment's package, importable
-    # only once the firmware package is on the path.
+    # when it stops.
     if transport.card is not None:
         transport.card.__enter__()
     try:
