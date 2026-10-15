@@ -40,13 +40,17 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     group.add_argument('--transport', '-t', choices=['eth', 'pcie', 'emulation'], default='eth',
                        help="How the FPGA is reached.")
     group.add_argument('--addr', '-a', dest='ip_addr', default='',
-                       help="FPGA IP address; required for eth.")
+                       help="FPGA IP address; required for eth. For pcie, the address the "
+                            "card's lane is pointed at; omitted, the lane keeps its last one.")
     group.add_argument('--pcie-rssi-lane', '-l', type=int, choices=range(6), default=0,
                        help="PCIe RSSI lane, for pcie.")
     group.add_argument('--pcie-dev-rssi', default='/dev/datadev_0',
                        help="PCIe device node for registers.")
     group.add_argument('--pcie-dev-data', default='/dev/datadev_1',
                        help="PCIe device node for data.")
+    group.add_argument('--no-pcie-card', action='store_true',
+                       help="Do not configure the PCIe offload card: for pcie, take its lane "
+                            "as already open; for eth, leave its lanes alone.")
     group.add_argument('--firmware', '--zip', '-z', dest='firmware', default=None,
                        help="Firmware Python package: a release archive or a checkout.")
     group.add_argument('--layer', '--defaults', '-d', dest='layers', action='append', default=[],
@@ -149,10 +153,12 @@ def transport_from(args: argparse.Namespace, emulation_source: Any = None):
             socket.inet_pton(socket.AF_INET, args.ip_addr)
         except OSError:
             raise SystemExit(f"invalid IP address {args.ip_addr!r}") from None
-        return _transport.eth(args.ip_addr)
+        return _transport.eth(args.ip_addr, dev_rssi=args.pcie_dev_rssi,
+                              offload_card=not args.no_pcie_card)
     if args.transport == 'pcie':
-        return _transport.pcie(lane=args.pcie_rssi_lane, dev_rssi=args.pcie_dev_rssi,
-                               dev_data=args.pcie_dev_data)
+        return _transport.pcie(lane=args.pcie_rssi_lane, ip_addr=args.ip_addr,
+                               dev_rssi=args.pcie_dev_rssi, dev_data=args.pcie_dev_data,
+                               offload_card=not args.no_pcie_card)
     return _transport.emulation(emulation_source)
 
 

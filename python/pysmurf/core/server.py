@@ -26,7 +26,6 @@ import argparse
 import logging
 import os
 import sys
-from contextlib import nullcontext
 from typing import Any, Mapping, Optional, Sequence
 
 import pyrogue
@@ -54,7 +53,7 @@ VARIABLE_GROUPS = {
 
 def compose(*, transport: Any, tx_device: Any = None,
             providers: Sequence[Any] = cryodaq.server.CORE_PROVIDERS,
-            variable_groups: Optional[Mapping] = None, pcie_card: Any = None,
+            variable_groups: Optional[Mapping] = None,
             **kwargs: Any) -> cryodaq.server.ReadoutRoot:
     """Build the SMuRF server.
 
@@ -68,14 +67,13 @@ def compose(*, transport: Any, tx_device: Any = None,
         As `cryodaq.server.compose`.
     variable_groups : mapping, optional
         Defaults to `VARIABLE_GROUPS`.
-    pcie_card : PcieCard, optional
-        The offload card the server runs behind, if any; a command to restart
-        its RSSI link is added to the tree.
 
     Returns
     -------
     cryodaq.server.ReadoutRoot
-        Enter it to start the server.
+        Enter it to start the server. As with `cryodaq.server.compose`, a
+        root that is composed must be stopped (or released), since it holds
+        the transport's offload card.
     """
     def processor(root):
         return pysmurf.core.devices.SmurfProcessor(
@@ -94,12 +92,12 @@ def compose(*, transport: Any, tx_device: Any = None,
         transport=transport, providers=providers, sinks=[processor],
         variable_groups=VARIABLE_GROUPS if variable_groups is None else variable_groups,
         on_start=on_start, **kwargs)
-    for variable in _identity():
-        root.status.add(variable)
-    if pcie_card is not None:
-        root.add(pyrogue.LocalCommand(name=root.pmap.path('server.restart_rssi').split('.')[-1],
-                                      description='Restart RSSI Link',
-                                      function=lambda: pcie_card.restart_rssi()))
+    try:
+        for variable in _identity():
+            root.status.add(variable)
+    except BaseException:
+        root.release()      # the composed root holds the transport's card
+        raise
     return root
 
 
@@ -123,8 +121,6 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     """The server's options: the readout server's plus pysmurf's own."""
     cryodaq.server.add_arguments(parser)
     group = parser.add_argument_group('SMuRF application')
-    group.add_argument('--no-pcie-card', action='store_true',
-                       help="Do not open the PCIe card's RSSI lanes around the server.")
     # Accepted and ignored: the platform and firmware line are read from the
     # hardware's build stamp, and the management address belongs to the
     # launcher's firmware check. Kept so a launcher that still passes them
@@ -133,20 +129,6 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     group.add_argument('--is-prespectra', action='store_true', help=argparse.SUPPRESS)
     group.add_argument('--rfsoc-mgmt-ip', default=None, help=argparse.SUPPRESS)
     return parser
-
-
-def pcie_card(args: argparse.Namespace):
-    """The offload card, opened around the server for the eth and pcie transports."""
-    if args.no_pcie_card or args.transport == 'emulation':
-        return nullcontext()
-    # The card's own register tree imports from the firmware package (surf,
-    # axipcie), so a release archive must be on the path before the card is
-    # opened -- which is before compose() would put it there.
-    cryodaq.server.load_package(args.firmware)
-    comm = 'eth-rssi-interleaved' if args.transport == 'eth' else 'pcie-rssi-interleaved'
-    return pysmurf.core.devices.PcieCard(lane=args.pcie_rssi_lane, comm_type=comm,
-                                         ip_addr=args.ip_addr, dev_rssi=args.pcie_dev_rssi,
-                                         dev_data=args.pcie_dev_data)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -159,15 +141,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if getattr(args, flag):
             _log.warning("--%s is ignored: the platform is read from the hardware's build stamp",
                          flag.replace('_', '-'))
-    # The card is a context of its own around the server's: its lanes are opened
-    # before the tree is built and closed after it stops.
-    with pcie_card(args) as card:
-        source = pysmurf.core.emulators.StreamDataSource() if args.transport == 'emulation' else None
-        root = compose(transport=cryodaq.server.transport_from(args, emulation_source=source),
-                       pcie_card=card if isinstance(card, pysmurf.core.devices.PcieCard) else None,
-                       **cryodaq.server.composition_kwargs(args))
-        with root:
-            cryodaq.server.run(root, args)
+    source = pysmurf.core.emulators.StreamDataSource() if args.transport == 'emulation' else None
+    root = compose(transport=cryodaq.server.transport_from(args, emulation_source=source),
+                   **cryodaq.server.composition_kwargs(args))
+    with root:
+        cryodaq.server.run(root, args)
     return 0
 
 

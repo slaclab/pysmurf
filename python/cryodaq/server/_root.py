@@ -184,6 +184,14 @@ class ReadoutRoot(pyrogue.Root):
         for node in transport.nodes:
             self.add(node)
 
+        # Behind an offload card with a lane open, the link can be restarted
+        # from the tree, for a carrier that has stopped answering.
+        if transport.card is not None and transport.card.lane is not None:
+            self.add(pyrogue.LocalCommand(
+                name=self.pmap.path('server.restart_rssi').split('.')[-1],
+                description='Restart RSSI Link',
+                function=lambda: transport.card.restart()))
+
         self.add(pyrogue.LocalVariable(
             name="Ready",
             description="Server has finished initialisation",
@@ -220,8 +228,15 @@ class ReadoutRoot(pyrogue.Root):
             # on it. The context manager's exit does not run for an enter that
             # raised, so the stop is here -- unless the root was already
             # running, in which case the refusal is the only thing to report.
-            if self.running and not was_running:
+            # A start that failed before rogue marked the root running (the
+            # tree's own checks) has no threads to stop but still holds the
+            # card.
+            if was_running:
+                raise
+            if self.running:
                 self.stop()
+            else:
+                self.release()
             raise
 
     def _after_start(self):
@@ -257,9 +272,23 @@ class ReadoutRoot(pyrogue.Root):
         self.Ready.set(True)
 
     def stop(self):
-        """Stop the tree and everything started with it."""
+        """Stop the tree and everything started with it, then release the card."""
         _log.info("stopping the root")
-        pyrogue.Root.stop(self)
+        try:
+            pyrogue.Root.stop(self)
+        finally:
+            self.release()
+
+    def release(self) -> None:
+        """Give the transport's offload card back: close the lane compose() opened.
+
+        The card was entered by `compose`, before the firmware was probed
+        through it, and the server's end is the lane's end; `stop` calls
+        this, and so does anything that ends a composed root without
+        starting it. Safe to call more than once.
+        """
+        if self._transport.card is not None:
+            self._transport.card.__exit__(None, None, None)
 
     def _setup_groups(self):
         """Apply the variable groups and poll intervals the composition gave."""

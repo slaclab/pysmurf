@@ -99,10 +99,20 @@ and the function that adds them. The composition expands the anchor through the
 platform map, so a provider never spells a register path, and checks every node
 against pyrogue's own collision rule before adding any.
 
+A transport that runs through the PCIe offload card carries the card as well
+(:class:`~cryodaq.server.OffloadCard`): the card has its own register space,
+and its RSSI lane to the carrier is configured and opened by ``compose()``
+before the firmware is probed through it, and closed when the root stops. The
+Ethernet transport carries the card too when one is in the machine, to close
+the lanes that would otherwise intercept the carrier's traffic.
+``--no-pcie-card`` leaves the card alone. The card's register tree is the
+``SmurfPcie`` package's, which the deployment puts on the path.
+
 This is the one part of cryodaq that imports rogue at module level; the package
 does not import it.
 
 .. automodule:: cryodaq.server
     :members: compose, OperationsProvider, attach_operations, Transport, eth,
-              pcie, emulation, ReadoutRoot, CORE_PROVIDERS, add_capture_receivers
+              pcie, emulation, ReadoutRoot, CORE_PROVIDERS, add_capture_receivers,
+              OffloadCard
     :undoc-members:

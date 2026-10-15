@@ -60,6 +60,7 @@ import sys
 import tempfile
 import threading
 import time
+import zipfile
 
 import pyrogue as pr
 import pyrogue.interfaces
@@ -147,6 +148,10 @@ ENTRY_POINT_READY_S = 600
 # The firmware-package arguments this run was given, handed on to the child
 # entry point so it builds the same tree. Set in main().
 FIRMWARE_ARGS = []
+# The PCIe offload card's own package (`SmurfPcie`, a release archive or a
+# checkout of smurf-pcie), when given: the card check builds its register tree
+# over an emulated memory. Without it the check says so and does nothing.
+SMURF_PCIE = None
 
 # The one name below whose register the server owns and only reports: it is the
 # state a configuration run leaves, so the tree is put in that state from the
@@ -381,6 +386,43 @@ def precheck_a_deadline_that_is_not_a_duration_is_refused():
         else:
             session.close()
             raise AssertionError(f"timeout={bad!r} was accepted")
+
+
+def precheck_a_relative_layer_name_means_the_archive_and_nothing_else():
+    """With a release archive, a relative configuration name is a member of it, never a local file.
+
+    Deployments name the defaults a package ships by their bare file name; a file
+    of the same name in the working directory must not be taken instead, since
+    it would configure the registers from the wrong place without a word. An
+    absolute name is used as given, and so is a relative one with no archive to
+    look in. Asserted here on a throwaway archive beside a same-named local file.
+    """
+    import zipfile
+    from cryodaq.server._firmware import PACKAGE_CONFIG_DIR, resolve_layers
+    with tempfile.TemporaryDirectory() as d:
+        archive = os.path.join(d, 'fw.zip')
+        with zipfile.ZipFile(archive, 'w') as zf:
+            zf.writestr(f'{PACKAGE_CONFIG_DIR}/defaults.yml', 'in: archive\n')
+        local = os.path.join(d, 'defaults.yml')
+        with open(local, 'w') as f:
+            f.write('in: directory\n')
+        here = os.getcwd()
+        os.chdir(d)
+        try:
+            resolved = resolve_layers(['defaults.yml'], archive)
+            assert resolved == [f'{archive}/{PACKAGE_CONFIG_DIR}/defaults.yml'], \
+                f"a relative name beside a same-named local file resolved to {resolved}"
+            assert resolve_layers([local], archive) == [local], "an absolute name was not used as given"
+            assert resolve_layers(['defaults.yml'], None) == ['defaults.yml'], \
+                "with no archive a relative name was not used as given"
+            try:
+                resolve_layers(['missing.yml'], archive)
+            except FileNotFoundError:
+                pass
+            else:
+                raise AssertionError("a name the archive lacks was accepted")
+        finally:
+            os.chdir(here)
 
 
 def precheck_declaring_a_platform_that_does_not_exist_is_refused():
@@ -670,6 +712,62 @@ def check_the_platform_probe_opens_the_link_before_reading():
     assert events == ['start', 'read', 'stop'], f"the probe did not bracket its read: {events}"
 
 
+def check_the_offload_card_is_configured_around_the_server():
+    """A transport through the PCIe card opens its lane before the firmware is probed, and closes it after.
+
+    The card's RSSI engine for the lane is what carries the register path to the
+    carrier; until it is pointed at the carrier and opened, nothing can be read,
+    and after a server exits a lane left open is what the next one finds closed.
+    What the lane registers must say, and the Ethernet case, are
+    `check_offload_card.py`'s and run here first over the same package; what only
+    a composed server can show is asserted after: the lane is open before the
+    composition reaches the firmware, the tree offers the link restart, and
+    stopping the root closes the lane. Built here from the card's own package
+    over an emulated memory, with the probe's memory separate.
+    """
+    import pysmurf.core.emulators
+    import pysmurf.core.server
+    from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+    if SMURF_PCIE is None:
+        print("        (no --smurf-pcie package given: the card's tree cannot be built here)")
+        return
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import check_offload_card as coc
+    failed = coc.run_all(SMURF_PCIE, on_path=True)
+    assert failed == 0, f"{failed} of the card's own checks failed"
+
+    events = []
+    transport = cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource())
+    transport.card = coc.recording(events)(coc.LANE, coc.CARRIER, memory=coc.card_memories())
+    original = platform.by_name
+
+    def by_name(name):
+        events.append('platform')
+        return original(name)
+    platform.by_name = by_name
+    try:
+        root = pysmurf.core.server.compose(
+            transport=transport, platform_name=EXPECTED_PLATFORM[RFSOC], server_port=free_port(),
+            polling=False, top_level_class=FpgaTopLevel, top_level_options=dict(isRFSOC=RFSOC))
+    finally:
+        platform.by_name = original
+    # Emulation names its platform where hardware would be probed; the card has
+    # to be open before either.
+    assert events == [f'open {coc.LANE}', 'platform'], \
+        f"the lane was not opened once, before the platform step: {events}"
+    try:
+        restart = root.getNode(root.pmap.path('server.restart_rssi'))
+        assert restart is not None, "no RestartRssi command on a server behind a card"
+        with root:
+            restart()
+            assert events[-2:] == [f'close {coc.LANE}', f'open {coc.LANE}'], \
+                f"restart did not close and reopen: {events}"
+    finally:
+        root.release()      # a failed assertion must not leave the card's root running
+    assert events[-1] == f'close {coc.LANE}', f"stopping the root did not close the lane: {events}"
+    assert transport.card._card is None, "the card's tree was left running"
+
+
 def check_the_server_reports_the_bays_it_was_built_with():
     """``EnabledBays`` is what the tree holds, not what a launcher said.
 
@@ -856,7 +954,7 @@ def _run_entry_point_to_ready(module, identity):
     with tempfile.TemporaryFile(mode='w+', encoding='utf-8') as log:
         child = subprocess.Popen(cmd, env=env, stdout=log, stderr=subprocess.STDOUT)
         try:
-            _wait_for_ready(child, port, identity)
+            _wait_for_ready(child, port, identity, log)
             child.terminate()
             try:
                 child.wait(timeout=EXIT_DEADLINE_S)
@@ -875,7 +973,7 @@ def _run_entry_point_to_ready(module, identity):
         f"{out.strip()[-600:]!r}")
 
 
-def _wait_for_ready(child, port, identity):
+def _wait_for_ready(child, port, identity, log):
     """Poll the child's server until ``Ready`` is up, within ENTRY_POINT_READY_S.
 
     ``identity`` says whether the application's version must be on the status
@@ -913,7 +1011,9 @@ def _wait_for_ready(child, port, identity):
             finally:
                 client.stop()
         if child.poll() is not None:
-            raise AssertionError(f"the entry point exited {child.returncode} before Ready")
+            log.seek(0)
+            raise AssertionError(f"the entry point exited {child.returncode} before Ready; "
+                                 f"output ends: {log.read().strip()[-800:]!r}")
         if time.monotonic() > deadline:
             raise AssertionError(f"the entry point did not raise Ready within "
                                  f"{ENTRY_POINT_READY_S}s")
@@ -1062,7 +1162,7 @@ def run(checks):
 
 
 def main():
-    global SESSION, ROOT, ENDPOINT, RFSOC, BAND, FIRMWARE_ARGS
+    global SESSION, ROOT, ENDPOINT, RFSOC, BAND, FIRMWARE_ARGS, SMURF_PCIE
     ap = argparse.ArgumentParser(
         description='Drive a cryodaq session against an emulated firmware tree.')
     source = ap.add_mutually_exclusive_group(required=True)
@@ -1075,6 +1175,10 @@ def main():
                     help='the RFSoC platform instead of the ATCA carrier: its own '
                          'firmware package is this one with isRFSOC defaulted on, '
                          'so the flag builds that tree without needing it')
+    ap.add_argument('--smurf-pcie', metavar='PATH',
+                    help='the PCIe offload card\'s package (a smurf-pcie release ZIP or a '
+                         'checkout\'s firmware/python): the card check builds its tree over '
+                         'an emulated memory; without it that check is skipped and says so')
     ap.add_argument('--port', type=int, default=None,
                     help='port to serve the emulated tree on (a free one by default)')
     ap.add_argument('--dump-tree', metavar='PATH',
@@ -1084,6 +1188,14 @@ def main():
     args = ap.parse_args()
     RFSOC = args.rfsoc
     FIRMWARE_ARGS = ['--firmware', args.zip] if args.zip else []
+    if args.smurf_pcie:
+        SMURF_PCIE = f"{args.smurf_pcie}/python" if zipfile.is_zipfile(args.smurf_pcie) else args.smurf_pcie
+        # Behind the firmware package, never in front of it: a smurf-pcie release
+        # carries its own `surf`, from a different revision than the firmware's, and
+        # the carrier's tree built over that one has blocks overlapping (a run that
+        # prepended it ended in rogue's overlap error). The card's own tree builds
+        # over the firmware's `surf`, so the order costs the card nothing.
+        sys.path.append(SMURF_PCIE)
 
     label = ('RFSoC' if args.rfsoc else 'carrier') + ' tree'
     label += ' from ' + (args.zip or args.cryo_det)
