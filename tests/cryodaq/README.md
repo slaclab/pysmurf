@@ -270,6 +270,17 @@ requires the complaint to name that thing.
 
 Needs PyYAML, which the CI job installs as the client's one dependency before the first check.
 
+### check_offload_card.py
+
+Drives the PCIe offload card's RSSI lane through `cryodaq.server.OffloadCard` over an emulated memory,
+with the card's own register tree built from a smurf-pcie package (`--smurf-pcie`, a release ZIP from
+`slaclab/smurf-pcie` or a checkout's `firmware/python`). Four checks: a lane never pointed at a
+carrier is refused by name when no address is given; an opened lane carries what the carrier needs
+(keep-alive on, connection opened, the address and both ports on both clients, a MAC and IP given to a
+lane that had none) and `restart()` closes and reopens it, exit closes it and keeps the address; the
+Ethernet case closes the lanes at the carrier and no other; a lane the card remembers is reused when no
+address is given. Needs rogue, so the `test-server` job runs it over the public v3.3.1 release.
+
 ### validate_client_emulated.py
 
 This script drives a `cryodaq` session against an emulated firmware tree.
@@ -322,6 +333,13 @@ signal-generator configuration, which is why that platform has no RF front end a
 one. Both are bay-indexed even so — the acquisition mux is per-bay on either, so what differs is what
 sits *inside* a bay. The scope check names what each platform is expected to have and fails if either
 changes.
+
+With `--smurf-pcie <release ZIP or checkout's firmware/python>` it also runs `check_offload_card.py`'s
+assertions and then the composed-server ones: the PCIe offload card's RSSI lane is open before the
+composition reaches the firmware, `RestartRssi` is in the tree and closes and reopens it, and stopping
+the root closes it. The card's package goes at the *end* of the path (a smurf-pcie release carries a
+`surf` of its own, and the carrier's tree built over that revision has overlapping blocks). Without
+the option the check says so and does nothing.
 
 What it cannot show for the RFSoC is that the firmware image names in its map are the ones a real
 RFSoC reports — the stamp here is one this script wrote. Only a live read settles that.

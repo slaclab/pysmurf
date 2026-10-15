@@ -39,12 +39,13 @@ from cryodaq.server._capture import add_capture_receivers
 from cryodaq.server._firmware import load_package, probe_platform, resolve_layers, top_level
 from cryodaq.server._provider import OperationsProvider, attach_operations
 from cryodaq.server._root import ReadoutRoot
+from cryodaq.server._offload_card import OffloadCard
 from cryodaq.server._transport import Transport, emulation, eth, pcie
 from cryodaq.server.operations import UMUX_OPERATIONS
 from cryodaq.server import _cli
 
 __all__ = ['compose', 'CORE_PROVIDERS', 'OperationsProvider', 'attach_operations', 'load_package',
-           'Transport', 'eth', 'pcie', 'emulation', 'ReadoutRoot',
+           'Transport', 'eth', 'pcie', 'emulation', 'OffloadCard', 'ReadoutRoot',
            'ApplicationConfig', 'ApplicationStatus', 'EXCLUDED_FROM', 'UMUX_OPERATIONS',
            'add_capture_receivers', 'add_arguments', 'configure_logging', 'transport_from',
            'composition_kwargs', 'run']
@@ -118,6 +119,9 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
     ReadoutRoot
         The tree, not started. ``with compose(...) as root:`` starts it on entry
         and stops it on exit; ``root.pmap`` is the platform it was identified as.
+        A transport's offload card is configured here, since the firmware is
+        probed through it, and released when the root stops -- so a root that
+        is composed must be stopped.
 
     Raises
     ------
@@ -127,26 +131,37 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
     load_package(firmware)
     layers = resolve_layers(layers, firmware)
 
-    if transport.probes_firmware:
-        pmap = probe_platform(transport.srp, transport.register_nodes)
-        if platform_name is not None and platform_name != pmap.name:
-            raise ConnectError(f"the hardware reports platform {pmap.name!r}, "
-                               f"not {platform_name!r}")
-    elif platform_name is None:
-        raise ConnectError(f"the {transport.name} transport reads no build stamp; "
-                           f"name the platform: one of "
-                           f"{', '.join(repr(m.name) for m in platform.MAPS)}")
-    else:
-        pmap = platform.by_name(platform_name)
+    # The offload card's lane is the register path's first link: it is opened
+    # here, before the firmware is probed through it, and the root closes it
+    # when it stops. The card's tree is the deployment's package, importable
+    # only once the firmware package is on the path.
+    if transport.card is not None:
+        transport.card.__enter__()
+    try:
+        if transport.probes_firmware:
+            pmap = probe_platform(transport.srp, transport.register_nodes)
+            if platform_name is not None and platform_name != pmap.name:
+                raise ConnectError(f"the hardware reports platform {pmap.name!r}, "
+                                   f"not {platform_name!r}")
+        elif platform_name is None:
+            raise ConnectError(f"the {transport.name} transport reads no build stamp; "
+                               f"name the platform: one of "
+                               f"{', '.join(repr(m.name) for m in platform.MAPS)}")
+        else:
+            pmap = platform.by_name(platform_name)
 
-    fpga = _build_top_level(top_level_class or top_level(pmap), transport.srp,
-                            dict(top_level_options or {}))
+        fpga = _build_top_level(top_level_class or top_level(pmap), transport.srp,
+                                dict(top_level_options or {}))
 
-    root = ReadoutRoot(fpga=fpga, transport=transport, pmap=pmap, providers=providers,
-                       sinks=sinks, layers=layers, server_port=server_port, polling=polling,
-                       configure=configure, variable_groups=variable_groups, on_start=on_start)
-    if capture_points:
-        add_capture_receivers(root, transport, capture_points, capture_type)
+        root = ReadoutRoot(fpga=fpga, transport=transport, pmap=pmap, providers=providers,
+                           sinks=sinks, layers=layers, server_port=server_port, polling=polling,
+                           configure=configure, variable_groups=variable_groups, on_start=on_start)
+        if capture_points:
+            add_capture_receivers(root, transport, capture_points, capture_type)
+    except BaseException:
+        if transport.card is not None:
+            transport.card.__exit__(None, None, None)
+        raise
     _log.info("composed a %s server on platform %s with %d provider(s) and %d sink(s)",
               transport.name, pmap.name, len(providers), len(sinks))
     return root

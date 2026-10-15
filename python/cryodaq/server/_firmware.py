@@ -81,25 +81,26 @@ def load_package(path: Optional[os.PathLike]) -> None:
 def resolve_layers(layers, firmware: Optional[os.PathLike]) -> List[str]:
     """Register configuration files as rogue's loader will take them.
 
-    A relative name is looked up inside the release archive's configuration
-    directory, which is how a deployment names the defaults a package ships;
-    anything else is used as given.
+    With a release archive, a relative name means a file in the archive's
+    configuration directory -- how a deployment names the defaults a package
+    ships -- and nothing else, so a file of the same name in the working
+    directory is never taken for it. An absolute name is used as given, and
+    so is any name when there is no archive to look inside.
 
     Raises
     ------
     FileNotFoundError
-        If a relative name is given with no archive, or is not in it.
+        If a relative name is not in the archive.
     """
     resolved = []
     archive = os.fspath(firmware) if firmware is not None and zipfile.is_zipfile(firmware) else None
     for layer in layers:
         layer = os.fspath(layer)
-        if os.path.isabs(layer) or os.path.exists(layer):
+        if os.path.isabs(layer) or archive is None:
+            # As given: rogue's loader takes a path into an archive as well as
+            # a file, and reports what it cannot open.
             resolved.append(layer)
             continue
-        if archive is None:
-            raise FileNotFoundError(f"no register configuration file {layer!r}, and no "
-                                    f"archive to look inside")
         member = f"{PACKAGE_CONFIG_DIR}/{layer}"
         with zipfile.ZipFile(archive) as zf:
             if member not in zf.namelist():

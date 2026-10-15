@@ -123,7 +123,8 @@ usage: python -m pysmurf.core.server [-h] [--transport {eth,pcie,emulation}]
                                      [--pcie-rssi-lane {0,1,2,3,4,5}]
                                      [--pcie-dev-rssi PCIE_DEV_RSSI]
                                      [--pcie-dev-data PCIE_DEV_DATA]
-                                     [--firmware FIRMWARE] [--layer FILE]
+                                     [--no-pcie-card] [--firmware FIRMWARE]
+                                     [--layer FILE]
                                      [--platform {umux-atca,umux-rfsoc}]
                                      [--configure] [--nopoll] [--disable-bay0]
                                      [--disable-bay1] [--enable-em22xx]
@@ -132,7 +133,6 @@ usage: python -m pysmurf.core.server [-h] [--transport {eth,pcie,emulation}]
                                      [--server-port SERVER_PORT] [--gui]
                                      [--windows-title WINDOWS_TITLE]
                                      [--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
-                                     [--no-pcie-card]
 
 Start the SMuRF server.
 
@@ -143,13 +143,18 @@ readout server:
   --transport {eth,pcie,emulation}, -t {eth,pcie,emulation}
                         How the FPGA is reached.
   --addr IP_ADDR, -a IP_ADDR
-                        FPGA IP address; required for eth.
+                        FPGA IP address; required for eth. For pcie, the
+                        address the card's lane is pointed at; omitted, the
+                        lane keeps its last one.
   --pcie-rssi-lane {0,1,2,3,4,5}, -l {0,1,2,3,4,5}
                         PCIe RSSI lane, for pcie.
   --pcie-dev-rssi PCIE_DEV_RSSI
                         PCIe device node for registers.
   --pcie-dev-data PCIE_DEV_DATA
                         PCIe device node for data.
+  --no-pcie-card        Do not configure the PCIe offload card: for pcie, take
+                        its lane as already open; for eth, leave its lanes
+                        alone.
   --firmware FIRMWARE, --zip FIRMWARE, -z FIRMWARE
                         Firmware Python package: a release archive or a
                         checkout.
@@ -177,10 +182,6 @@ readout server:
   --windows-title WINDOWS_TITLE, -w WINDOWS_TITLE
                         GUI window title.
   --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
-
-SMuRF application:
-  --no-pcie-card        Do not open the PCIe card's RSSI lanes around the
-                        server.
 ```
 
 The old server scripts' options are accepted under their old spellings where they still
@@ -191,8 +192,19 @@ firmware line are read from the hardware's build stamp; the management address i
 `--dump-pvs` and `--use-qt` are gone: no server read them.
 
 A relative `--defaults`/`--layer` name refers to the configuration directory inside the
-firmware zip (`python/CryoDet/config/`). More than one may be given; they are applied in
-order by rogue's own configuration loader.
+firmware zip (`python/CryoDet/config/`), and to nothing else: a file of the same name in the
+working directory is never taken for it, and a name the zip lacks is refused. A path (absolute,
+or any name when there is no zip) is used as given. More than one may be given; they are
+applied in order by rogue's own configuration loader.
+
+With `--transport pcie`, the server configures the PCIe offload card itself: the lane's RSSI
+link to the carrier is opened before the firmware is read and closed when the server stops,
+so a server started after another has exited finds nothing to re-open by hand. `--addr` names
+the carrier; without it the lane keeps the address it was last pointed at. With `--transport
+eth` and a card present, the lanes pointing at the carrier are closed so they do not intercept
+its traffic. `--no-pcie-card` skips both — also the switch for a host whose `/dev/datadev_0` is some
+other card, which the server would otherwise refuse by its DeviceId. The card's register tree comes
+from the `SmurfPcie` package (slaclab/smurf-pcie), which the server image has on its path.
 
 With all that in mind, the command to run the container looks something like this:
 

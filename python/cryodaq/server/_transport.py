@@ -14,7 +14,11 @@
 #    function returning one `Transport`, so the composition that builds the tree
 #    is the same whichever carries the bytes.
 #
-#    Nothing here knows what is in the tree; a transport is built before it.
+#    A transport that runs through the PCIe offload card also carries the card
+#    (`_offload_card`), whose RSSI lane to the carrier is opened around the
+#    server; the Ethernet transport carries it too when one is present, to keep
+#    it from intercepting the carrier's traffic. Nothing here knows what is in
+#    the tree; a transport is built before it.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -25,7 +29,8 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 from dataclasses import dataclass, field
-from typing import Any, List
+import os
+from typing import Any, List, Optional
 
 import pyrogue
 import pyrogue.interfaces.simulation
@@ -34,6 +39,7 @@ import rogue.hardware.axi
 import rogue.interfaces.stream
 import rogue.protocols.srp
 
+from cryodaq.server._offload_card import OffloadCard
 from cryodaq.server._udp_receiver import UdpReceiver
 
 __all__ = ['Transport', 'eth', 'pcie', 'emulation',
@@ -74,6 +80,11 @@ class Transport:
     probes_firmware : bool
         Whether reading a register before the tree exists reaches hardware. An
         emulated memory holds no build stamp, so the platform must be named.
+    card : OffloadCard, optional
+        The PCIe offload card to configure around the server: entered before
+        the firmware is probed, exited after the tree stops. The pcie transport
+        has one with its lane; eth has one, with no lane, when a card is in
+        the machine.
     """
 
     name: str
@@ -83,9 +94,10 @@ class Transport:
     nodes: List[Any] = field(default_factory=list)
     register_nodes: List[Any] = field(default_factory=list)
     probes_firmware: bool = True
+    card: Optional[OffloadCard] = None
 
 
-def eth(ip_addr: str) -> Transport:
+def eth(ip_addr: str, dev_rssi: str = '/dev/datadev_0', offload_card: bool = True) -> Transport:
     """Ethernet: registers over interleaved RSSI, data over UDP.
 
     The streaming interface arrives on a plain UDP port, without RSSI, and is
@@ -95,6 +107,12 @@ def eth(ip_addr: str) -> Transport:
     ----------
     ip_addr : str
         The FPGA's address.
+    dev_rssi : str
+        The offload card's register device, if a card is in the machine: its
+        lanes pointing at ``ip_addr`` are closed around the server, since an
+        open one intercepts the traffic this link needs.
+    offload_card : bool
+        False leaves a card alone even when present.
     """
     rssi = pyrogue.protocols.UdpRssiPack(name='rudp', host=ip_addr, port=RSSI_PORT,
                                          packVer=2, jumbo=True)
@@ -104,12 +122,28 @@ def eth(ip_addr: str) -> Transport:
     receiver = UdpReceiver(ip_addr=ip_addr, port=STREAMING_PORT)
     fifo = rogue.interfaces.stream.Fifo(100000, 0, True)
     pyrogue.streamConnect(receiver, fifo)
-    return Transport('eth', srp, ddr, fifo, [rssi, receiver], register_nodes=[rssi])
+    card = OffloadCard(None, ip_addr, dev_rssi=dev_rssi) \
+        if offload_card and os.path.exists(dev_rssi) else None
+    return Transport('eth', srp, ddr, fifo, [rssi, receiver], register_nodes=[rssi], card=card)
 
 
-def pcie(*, lane: int = 0, dev_rssi: str = '/dev/datadev_0',
-         dev_data: str = '/dev/datadev_1') -> Transport:
-    """A PCIe offload card: registers and data over its DMA channels."""
+def pcie(*, lane: int = 0, ip_addr: str = '', dev_rssi: str = '/dev/datadev_0',
+         dev_data: str = '/dev/datadev_1', offload_card: bool = True) -> Transport:
+    """A PCIe offload card: registers and data over its DMA channels.
+
+    Parameters
+    ----------
+    lane : int
+        The card's lane to the carrier; its RSSI link is opened around the
+        server (`OffloadCard`).
+    ip_addr : str
+        The carrier's address; '' takes the one the lane was last pointed at.
+    dev_rssi, dev_data : str
+        The card's register and data devices.
+    offload_card : bool
+        False does not configure the card: its lane is taken to be open
+        already, by whoever opened it.
+    """
     # Once, before any DMA channel on the device is opened.
     rogue.hardware.axi.AxiStreamDma.zeroCopyDisable(dev_rssi)
     base = lane * 0x100
@@ -119,7 +153,8 @@ def pcie(*, lane: int = 0, dev_rssi: str = '/dev/datadev_0',
     ddr = [rogue.hardware.axi.AxiStreamDma(dev_rssi, base + dest, True)
            for dest in DDR_TDEST]
     streaming = rogue.hardware.axi.AxiStreamDma(dev_data, base + STREAMING_TDEST, True)
-    return Transport('pcie', srp, ddr, streaming)
+    card = OffloadCard(lane, ip_addr, dev_rssi=dev_rssi, dev_data=dev_data) if offload_card else None
+    return Transport('pcie', srp, ddr, streaming, card=card)
 
 
 def emulation(streaming_source: Any = None) -> Transport:

@@ -3,11 +3,6 @@
 devices module
 ==============
 
-_PcieCard
----------
-.. automodule:: pysmurf.core.devices._PcieCard
-    :members:
-
 _SmurfProcessor
 ---------------
 .. automodule:: pysmurf.core.devices._SmurfProcessor
