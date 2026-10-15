@@ -148,9 +148,9 @@ ENTRY_POINT_READY_S = 600
 # The firmware-package arguments this run was given, handed on to the child
 # entry point so it builds the same tree. Set in main().
 FIRMWARE_ARGS = []
-# The PCIe offload card's own package (`SmurfPcie`, a release archive or a
-# checkout of smurf-pcie), when given: the card check builds its register tree
-# over an emulated memory. Without it the check says so and does nothing.
+# The PCIe offload card's firmware package (`SmurfPcie`, a release archive or a
+# checkout of smurf-pcie), when given: the card module binds its register map,
+# so the card check needs it. Without it the check says so and does nothing.
 SMURF_PCIE = None
 
 # The one name below whose register the server owns and only reports: it is the
@@ -722,14 +722,14 @@ def check_the_offload_card_is_configured_around_the_server():
     `check_offload_card.py`'s and run here first over the same package; what only
     a composed server can show is asserted after: the lane is open before the
     composition reaches the firmware, the tree offers the link restart, and
-    stopping the root closes the lane. Built here from the card's own package
-    over an emulated memory, with the probe's memory separate.
+    stopping the root closes the lane. The card is an emulated memory with its
+    firmware's map bound over it; the probe's memory is separate.
     """
     import pysmurf.core.emulators
     import pysmurf.core.server
     from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
     if SMURF_PCIE is None:
-        print("        (no --smurf-pcie package given: the card's tree cannot be built here)")
+        print("        (no --smurf-pcie package given: the card's register map cannot be bound here)")
         return
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import check_offload_card as coc
@@ -763,9 +763,9 @@ def check_the_offload_card_is_configured_around_the_server():
             assert events[-2:] == [f'close {coc.LANE}', f'open {coc.LANE}'], \
                 f"restart did not close and reopen: {events}"
     finally:
-        root.release()      # a failed assertion must not leave the card's root running
+        root.release()      # a failed assertion must not leave the card's lane open
     assert events[-1] == f'close {coc.LANE}', f"stopping the root did not close the lane: {events}"
-    assert transport.card._card is None, "the card's tree was left running"
+    assert transport.card._regs is None, "the card's register access was left open"
 
 
 def check_the_server_reports_the_bays_it_was_built_with():

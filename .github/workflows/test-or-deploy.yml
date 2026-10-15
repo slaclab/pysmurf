@@ -239,10 +239,10 @@ jobs:
           python3 tests/cryodaq/check_catalog_resolves.py \
             --package-dump ./released.varlist.txt
 
-      # - The PCIe offload card's register tree, from a released smurf-pcie package:
-      #   the server configures the card's RSSI lane itself, through that tree, so a
-      #   release the card module cannot drive is a release the server cannot start
-      #   behind a card. The image carries a smurf-pcie checkout on its path already
+      # - The PCIe offload card's lane driven through a released smurf-pcie package:
+      #   the server binds the package's register map to the card and configures the
+      #   RSSI lane by name, so a release whose map the module cannot drive is found
+      #   here and not on a crate. The image carries a smurf-pcie checkout on its path already
       #   (v3.1.1, which has no release); the script puts the given package in front
       #   of it and prints which one it imported, so what is driven here is the
       #   release named below. Public repository: no token.

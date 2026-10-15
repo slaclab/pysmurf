@@ -105,8 +105,9 @@ and its RSSI lane to the carrier is configured and opened by ``compose()``
 before the firmware is probed through it, and closed when the root stops. The
 Ethernet transport carries the card too when one is in the machine, to close
 the lanes that would otherwise intercept the carrier's traffic.
-``--no-pcie-card`` leaves the card alone. The card's register tree is the
-``SmurfPcie`` package's, which the deployment puts on the path.
+``--no-pcie-card`` leaves the card alone. The card's register map is its
+firmware package's (``SmurfPcie``), bound to the device and written by name;
+no tree of the card is started -- the server runs one tree, the carrier's.
 
 This is the one part of cryodaq that imports rogue at module level; the package
 does not import it.

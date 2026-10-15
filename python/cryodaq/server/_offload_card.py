@@ -15,8 +15,9 @@
 #    UDP traffic a software RSSI link over the NIC would carry, so a server
 #    on the Ethernet transport closes the lanes pointing at its carrier first.
 #
-#    The card's register tree is the `SmurfPcie` package's, which the
-#    deployment puts on the path; it is imported when a card is opened.
+#    The card's register map is its firmware package's (`SmurfPcie`), which the
+#    deployment puts on the path; it is bound to the device's memory map and
+#    read and written by register name, without starting a tree of the card.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -26,9 +27,9 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
+import ipaddress
 import logging
 import os
-import socket
 import time
 from typing import Any, Optional
 
@@ -56,6 +57,59 @@ KEEP_ALIVE_CONFIG = 0x2E90EDD0
 # when the carrier answers, and this bounds the wait when it does not.
 CONNECT_TIMEOUT_S = 10.0
 CONNECT_POLL_S = 0.05
+# A register transaction's deadline, seconds.
+TRANSACTION_TIMEOUT_S = 1.0
+
+
+class Registers:
+    """The card firmware's register map over one device node, bound but not running.
+
+    The map is the firmware package's own (``SmurfPcie``), so no offset is
+    spelled here. Rogue binds a device's registers to a memory slave when the
+    device is attached to a root; this attaches one and goes no further -- the
+    root is never started, so it runs no update, heartbeat or poll thread and
+    serves nothing -- and a register is read or written by name, synchronously.
+    (The firmware package itself starts one idle helper thread when its tree is
+    built; it ends with the device.)
+
+    Parameters
+    ----------
+    slave : rogue memory slave
+        The device's memory map, or a stand-in.
+    role : str
+        For the log.
+    """
+
+    def __init__(self, slave: Any, role: str):
+        try:
+            from SmurfPcie import SmurfKcu1500RssiOffload10GbE as card
+        except ImportError as e:
+            raise ConnectError(f"the offload card's register map needs the SmurfPcie "
+                               f"package, which is not importable: {e}") from e
+        self._root = pyrogue.Root(name='card', description=f'PCIe card ({role})',
+                                  pollEn=False, initRead=False)
+        # The slave is an interface of the root so that stopping the root
+        # closes it; an unstarted root would otherwise never touch it.
+        self._root.addInterface(slave)
+        self._root.add(card.Core(memBase=slave))
+        try:
+            self._root._rootAttached()
+            self._root._finishInit()
+            self.core = self._root.Core
+            # Only a started root hands its deadline to the blocks.
+            self.core._setTimeout(TRANSACTION_TIMEOUT_S)
+            # A field is written from the word its block holds, so the words
+            # are read once first; a lane's control word shares bits with
+            # fields the lane does not own. (A started root does this read.)
+            self.core.readBlocks(recurse=True)
+            self.core.waitBlocks(recurse=True)
+        except BaseException:
+            self.stop()
+            raise
+
+    def stop(self) -> None:
+        """Release the device and whatever the map's package started."""
+        pyrogue.Device._stop(self._root)
 
 
 class OffloadCard:
@@ -80,8 +134,8 @@ class OffloadCard:
     Raises
     ------
     ConnectError
-        If a device is missing or is not the device its role needs, or the
-        address is unusable.
+        If a device is missing or is not the device its role needs, the
+        address is unusable, or the lane does not connect.
     """
 
     def __init__(self, lane: Optional[int], ip_addr: str = '',
@@ -95,45 +149,40 @@ class OffloadCard:
         self._dev_rssi = dev_rssi
         self._dev_data = dev_data
         self._memory = memory
-        self._card: Optional[pyrogue.Root] = None
+        self._regs: Optional[Registers] = None
 
-    # -- the card's register tree --------------------------------------------
+    # -- the devices ---------------------------------------------------------
 
-    def _tree(self, dev: str, role: str) -> pyrogue.Root:
-        """The card's register tree over one device node, started."""
+    def _open_device(self, dev: str, role: str, device_id: int) -> Registers:
+        """The register map over ``dev``, checked to be the ``role`` device."""
         if self._memory is None and not os.path.exists(dev):
             raise ConnectError(f"PCIe device {dev} ({role}) is not present")
         if self._memory is not None and dev not in self._memory:
             raise ConnectError(f"PCIe device {dev} ({role}) is not present (no stand-in)")
+        slave = self._memory[dev] if self._memory is not None else rogue.hardware.axi.AxiMemMap(dev)
         try:
-            from SmurfPcie import SmurfKcu1500RssiOffload10GbE as card
-        except ImportError as e:
-            raise ConnectError(f"the offload card's register tree needs the SmurfPcie "
-                               f"package, which is not importable: {e}") from e
-        memory = self._memory[dev] if self._memory is not None else rogue.hardware.axi.AxiMemMap(dev)
-        root = pyrogue.Root(name='card', description=f'PCIe card ({role})', pollEn=False,
-                            initRead=True)
-        root.add(card.Core(memBase=memory))
-        root.start()
-        return root
-
-    def _expect_device(self, dev: str, role: str, device_id: int) -> pyrogue.Root:
-        root = self._tree(dev, role)
-        try:
-            found = int(root.Core.AxiPcieCore.AxiVersion.DeviceId.get())
-        except Exception:
-            root.stop()
+            regs = Registers(slave, role)
+        except ConnectError:
             raise
+        except Exception as e:
+            # Binding reads every register once; a card that does not answer
+            # fails there, before anything of it is looked at.
+            raise ConnectError(f"could not read PCIe device {dev} ({role}): {e}") from e
+        try:
+            found = int(regs.core.AxiPcieCore.AxiVersion.DeviceId.get())
+        except Exception as e:
+            regs.stop()
+            raise ConnectError(f"could not read PCIe device {dev} ({role}): {e}") from e
         if found != device_id:
-            root.stop()
+            regs.stop()
             raise ConnectError(f"PCIe device {dev} reports DeviceId {found}, not the "
                                f"{device_id} of the {role} device")
-        return root
+        return regs
 
     # -- the lanes -----------------------------------------------------------
 
     def _open_lane(self, lane: int) -> None:
-        core = self._card.Core
+        core = self._regs.core
         _log.info("opening the offload card's RSSI lane %d to %s", lane, self.ip_addr)
         core.UdpGrp.UdpConfig[lane].EnKeepAlive.set(1)
         core.UdpGrp.UdpConfig[lane].KeepAliveConfig.set(KEEP_ALIVE_CONFIG)
@@ -144,6 +193,18 @@ class OffloadCard:
             core.UdpGrp.UdpEngine[lane].ClientRemotePort[client].set(port)
         self._wait_connected(lane)
 
+    def _close_lane(self, lane: int) -> None:
+        core = self._regs.core
+        _log.info("closing the offload card's RSSI lane %d", lane)
+        core.UdpGrp.UdpConfig[lane].KeepAliveConfig.set(0)
+        core.UdpGrp.RssiClient[lane].OpenConn.set(0)
+        core.UdpGrp.RssiClient[lane].CloseConn.set(1)
+        for client in range(len(REMOTE_PORTS)):
+            core.UdpGrp.UdpEngine[lane].ClientRemotePort[client].set(0)
+
+    def _connected(self, lane: int) -> bool:
+        return bool(self._regs.core.UdpGrp.RssiClient[lane].ConnectionActive.get())
+
     def _wait_connected(self, lane: int) -> None:
         """Wait for the lane's RSSI connection to be up, within a bound.
 
@@ -151,10 +212,9 @@ class OffloadCard:
         read sent before it completes times out. The connection's state is the
         card's to report, so it is polled rather than slept for.
         """
-        active = self._card.Core.UdpGrp.RssiClient[lane].ConnectionActive
         deadline = time.monotonic() + CONNECT_TIMEOUT_S
         while True:
-            if active.get():
+            if self._connected(lane):
                 _log.info("lane %d connected to %s", lane, self.ip_addr)
                 return
             if time.monotonic() > deadline:
@@ -163,17 +223,8 @@ class OffloadCard:
                                    f"carrier up at that address?")
             time.sleep(CONNECT_POLL_S)
 
-    def _close_lane(self, lane: int) -> None:
-        core = self._card.Core
-        _log.info("closing the offload card's RSSI lane %d", lane)
-        core.UdpGrp.UdpConfig[lane].KeepAliveConfig.set(0)
-        core.UdpGrp.RssiClient[lane].OpenConn.set(0)
-        core.UdpGrp.RssiClient[lane].CloseConn.set(1)
-        for client in range(len(REMOTE_PORTS)):
-            core.UdpGrp.UdpEngine[lane].ClientRemotePort[client].set(0)
-
     def _remote_ip(self, lane: int) -> str:
-        return self._card.Core.UdpGrp.UdpEngine[lane].ClientRemoteIp[0].getDisp()
+        return self._regs.core.UdpGrp.UdpEngine[lane].ClientRemoteIp[0].getDisp()
 
     def _close_lanes_to(self, ip_addr: str) -> None:
         """Close every lane pointing at ``ip_addr``, whichever it is."""
@@ -184,7 +235,7 @@ class OffloadCard:
 
     def _default_addresses(self, lane: int) -> None:
         """A lane never configured has no MAC or IP; give it the conventional ones."""
-        config = self._card.Core.EthPhyGrp.EthConfig[lane]
+        config = self._regs.core.EthPhyGrp.EthConfig[lane]
         if config.LocalMac.getDisp() == '00:00:00:00:00:00':
             config.LocalMac.setDisp(f"08:00:56:00:45:5{lane}")
             _log.info("lane %d had no MAC address; set %s", lane, config.LocalMac.getDisp())
@@ -198,22 +249,22 @@ class OffloadCard:
         """Check the devices, point the lane at the carrier and open it."""
         if self.lane is not None:
             # The data device is only checked for being the right one; the
-            # server reaches it through its DMA channels, not this tree.
-            self._expect_device(self._dev_data, 'data', DATA_DEVICE_ID).stop()
-        self._card = self._expect_device(self._dev_rssi, 'registers', RSSI_DEVICE_ID)
+            # server reaches it through its DMA channels.
+            self._open_device(self._dev_data, 'data', DATA_DEVICE_ID).stop()
+        self._regs = self._open_device(self._dev_rssi, 'registers', RSSI_DEVICE_ID)
         try:
             if self.lane is not None:
                 self._default_addresses(self.lane)
                 if not self.ip_addr:
                     self.ip_addr = self._remote_ip(self.lane)
-                try:
-                    socket.inet_pton(socket.AF_INET, self.ip_addr)
-                except OSError:
-                    raise ConnectError(f"the carrier address {self.ip_addr!r} (lane {self.lane}'s "
-                                       f"last target) is not an address; give one") from None
                 if self.ip_addr == '0.0.0.0':
                     raise ConnectError(f"lane {self.lane} has never been pointed at a carrier "
                                        f"and no address was given")
+                try:
+                    ipaddress.IPv4Address(self.ip_addr)
+                except ValueError:
+                    raise ConnectError(f"the carrier address {self.ip_addr!r} is not an "
+                                       f"address") from None
             if self.ip_addr:
                 self._close_lanes_to(self.ip_addr)
             if self.lane is not None:
@@ -225,25 +276,25 @@ class OffloadCard:
                     self._close_lane(self.lane)
                     raise
         except BaseException:
-            self._card.stop()
-            self._card = None
+            self._regs.stop()
+            self._regs = None
             raise
         return self
 
     def __exit__(self, *exc) -> None:
         """Close the lane opened on entry."""
-        if self._card is None:
+        if self._regs is None:
             return
         try:
             if self.lane is not None:
                 self._close_lane(self.lane)
         finally:
-            self._card.stop()
-            self._card = None
+            self._regs.stop()
+            self._regs = None
 
     def restart(self) -> None:
         """Close and reopen the lane, for a link that has stopped answering."""
-        if self._card is None or self.lane is None:
+        if self._regs is None or self.lane is None:
             raise ConnectError("no RSSI lane is open to restart")
         self._close_lane(self.lane)
         self._open_lane(self.lane)

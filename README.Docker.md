@@ -203,8 +203,9 @@ so a server started after another has exited finds nothing to re-open by hand. `
 the carrier; without it the lane keeps the address it was last pointed at. With `--transport
 eth` and a card present, the lanes pointing at the carrier are closed so they do not intercept
 its traffic. `--no-pcie-card` skips both — also the switch for a host whose `/dev/datadev_0` is some
-other card, which the server would otherwise refuse by its DeviceId. The card's register tree comes
-from the `SmurfPcie` package (slaclab/smurf-pcie), which the server image has on its path.
+other card, which the server would otherwise refuse by its DeviceId. The card's registers are the
+`SmurfPcie` package's map (slaclab/smurf-pcie, on the server image's path), bound to the device and
+written by name; no tree of the card is started.
 
 With all that in mind, the command to run the container looks something like this:
 
