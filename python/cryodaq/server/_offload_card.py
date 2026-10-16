@@ -245,8 +245,14 @@ class OffloadCard:
 
     # -- lifecycle -----------------------------------------------------------
 
-    def __enter__(self) -> 'OffloadCard':
-        """Check the devices, point the lane at the carrier and open it."""
+    def open(self) -> None:
+        """Check the devices, point the lane at the carrier and open it.
+
+        The server opens the card before it probes the firmware through it
+        and closes it when its root stops; the two ends of the server's life
+        are not one Python block, which is why these are methods and the
+        ``with`` form below is only a convenience.
+        """
         if self.lane is not None:
             # The data device is only checked for being the right one; the
             # server reaches it through its DMA channels.
@@ -279,10 +285,9 @@ class OffloadCard:
             self._regs.stop()
             self._regs = None
             raise
-        return self
 
-    def __exit__(self, *exc) -> None:
-        """Close the lane opened on entry."""
+    def close(self) -> None:
+        """Close the lane `open` opened and release the device. Safe to call more than once."""
         if self._regs is None:
             return
         try:
@@ -291,6 +296,13 @@ class OffloadCard:
         finally:
             self._regs.stop()
             self._regs = None
+
+    def __enter__(self) -> 'OffloadCard':
+        self.open()
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self.close()
 
     def restart(self) -> None:
         """Close and reopen the lane, for a link that has stopped answering."""

@@ -282,13 +282,13 @@ class ReadoutRoot(pyrogue.Root):
     def release(self) -> None:
         """Give the transport's offload card back: close the lane compose() opened.
 
-        The card was entered by `compose`, before the firmware was probed
+        The card was opened by `compose`, before the firmware was probed
         through it, and the server's end is the lane's end; `stop` calls
         this, and so does anything that ends a composed root without
         starting it. Safe to call more than once.
         """
         if self._transport.card is not None:
-            self._transport.card.__exit__(None, None, None)
+            self._transport.card.close()
 
     def _setup_groups(self):
         """Apply the variable groups and poll intervals the composition gave."""
