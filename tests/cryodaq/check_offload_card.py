@@ -126,7 +126,7 @@ def check_the_lane_is_opened_as_the_carrier_needs(events, Card, memory):
         core.UdpGrp.RssiClient[LANE].HeaderChksumEn.set(1)
         core.UdpGrp.RssiClient[LANE].Mode.set(1)
     card = Card(LANE, CARRIER, memory=memory)
-    card.__enter__()
+    card.open()
     try:
         assert events == [f'open {LANE}'], f"entry did not open the lane once: {events}"
         with firmware_view(memory) as core:
@@ -151,7 +151,7 @@ def check_the_lane_is_opened_as_the_carrier_needs(events, Card, memory):
             f"restart did not close and reopen: {events}"
     finally:
         # A failed assertion must not leave the card half-way.
-        card.__exit__(None, None, None)
+        card.close()
     assert events[-1] == f'close {LANE}', f"exit did not close the lane: {events}"
     with firmware_view(memory) as core:
         assert (core.UdpGrp.RssiClient[LANE].OpenConn.get(),

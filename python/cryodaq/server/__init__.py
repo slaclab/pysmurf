@@ -135,7 +135,7 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
     # here, before the firmware is probed through it, and the root closes it
     # when it stops.
     if transport.card is not None:
-        transport.card.__enter__()
+        transport.card.open()
     try:
         if transport.probes_firmware:
             pmap = probe_platform(transport.srp, transport.register_nodes)
@@ -159,7 +159,7 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
             add_capture_receivers(root, transport, capture_points, capture_type)
     except BaseException:
         if transport.card is not None:
-            transport.card.__exit__(None, None, None)
+            transport.card.close()
         raise
     _log.info("composed a %s server on platform %s with %d provider(s) and %d sink(s)",
               transport.name, pmap.name, len(providers), len(sinks))

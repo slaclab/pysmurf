@@ -81,8 +81,8 @@ class Transport:
         Whether reading a register before the tree exists reaches hardware. An
         emulated memory holds no build stamp, so the platform must be named.
     card : OffloadCard, optional
-        The PCIe offload card to configure around the server: entered before
-        the firmware is probed, exited after the tree stops. The pcie transport
+        The PCIe offload card to configure around the server: opened before
+        the firmware is probed, closed after the tree stops. The pcie transport
         has one with its lane; eth has one, with no lane, when a card is in
         the machine.
     """
