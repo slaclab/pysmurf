@@ -81,3 +81,39 @@ This is the firmware/software boundary: a register path lives here or nowhere.
     :members: identify, by_name, PlatformMap, MAPS, KINDS, indices, expand,
               tag_of, witness_names
     :undoc-members:
+
+server
+------
+
+The server side: how a readout server is composed, and what it carries. One
+call takes a transport, the firmware package and the register configuration
+layers, reads the build stamp off the hardware to learn the platform, builds the
+tree, attaches the operation providers and connects the data sinks. With no
+sinks it is a register server from a plain Python environment -- enough to bring
+a carrier up (``python -m cryodaq.server``); an application passes its providers
+and data processing to the same call.
+
+Operations reach the tree through a :class:`~cryodaq.server.OperationsProvider`: a name,
+the semantic name of the device each copy attaches to, the node names it adds,
+and the function that adds them. The composition expands the anchor through the
+platform map, so a provider never spells a register path, and checks every node
+against pyrogue's own collision rule before adding any.
+
+A transport that runs through the PCIe offload card carries the card as well
+(:class:`~cryodaq.server.OffloadCard`): the card has its own register space,
+and its RSSI lane to the carrier is configured and opened by ``compose()``
+before the firmware is probed through it, and closed when the root stops. The
+Ethernet transport carries the card too when one is in the machine, to close
+the lanes that would otherwise intercept the carrier's traffic.
+``--no-pcie-card`` leaves the card alone. The card's register map is its
+firmware package's (``SmurfPcie``), bound to the device and written by name;
+no tree of the card is started -- the server runs one tree, the carrier's.
+
+This is the one part of cryodaq that imports rogue at module level; the package
+does not import it.
+
+.. automodule:: cryodaq.server
+    :members: compose, OperationsProvider, attach_operations, Transport, eth,
+              pcie, emulation, ReadoutRoot, CORE_PROVIDERS, add_capture_receivers,
+              OffloadCard
+    :undoc-members:

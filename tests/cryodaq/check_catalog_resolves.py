@@ -96,10 +96,13 @@ SERVER_ADDED_PREFIXES = tuple(n.split('{')[0]
                               for n in _umux.SERVER_ADDED_ROOT_NODES if '{' in n)
 
 # The device trees only a platform with a separate converter board has: the RF front
-# end and the serial links back from it. Used to check that the *dumps* differ the way
-# the maps say they do -- which names are absent is derived from the maps themselves
-# (see below), not listed here, so the two cannot disagree.
-CARRIER_ONLY_DEVICES = ('MicrowaveMuxCore', 'AppTopJesd')
+# end and the serial links back from it -- and, on the server's status device, the
+# verdict on those links, which the server adds only where there are links. Used to
+# check that the *dumps* differ the way the maps say they do -- which names are absent
+# is derived from the maps themselves (see below), not listed here, so the two cannot
+# disagree.
+CARRIER_ONLY_DEVICES = ('MicrowaveMuxCore', 'AppTopJesd', 'SmurfApplication.JesdStatus',
+                        'SmurfApplication.CheckJesd')
 
 # Names whose nodes the server attaches to the tree at start-up, rather than the
 # firmware package declaring them: the four resonator-tuning processes and the
@@ -118,6 +121,9 @@ SERVER_ATTACHED = (
     'band[*].ops.gradient_descent',
     'band[*].ops.new_gradient_descent',
     'ops.setup',
+    # Present only when the server runs behind a PCIe offload card, which the emulated
+    # trees the fixtures are built from do not; on the crate's own dump it is there.
+    'server.restart_rssi',
 )
 
 # Writes to a read-only register that predate this check and are left in place. Each is
@@ -472,12 +478,23 @@ def resolution(stem, names=None, package_only=False, platform_name=None):
         if name not in pmap:
             absent[name] = 'not in this platform map'
             continue
-        hits = expand(paths, template_of(pmap, name))
+        hits = expand(device_paths(paths) if pmap.kind(name) == platform.DEVICE else paths,
+                      template_of(pmap, name))
         if hits:
             resolved[name] = hits[0]
         else:
             absent[name] = template_of(pmap, name)
     return resolved, absent
+
+
+def device_paths(paths):
+    """Every device path a dump implies: the parent of each variable it lists.
+
+    A variable list records variables and nothing else, so a name that reaches a
+    *device* -- where operations attach -- has no row of its own and is present in a
+    dump exactly when something under it is.
+    """
+    return {path.rsplit('.', 1)[0] for path in paths if '.' in path}
 
 
 def check_each_platform_offers_only_names_its_firmware_has():

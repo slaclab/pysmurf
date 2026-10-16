@@ -57,10 +57,17 @@ import os
 import socket
 import subprocess
 import sys
+import tempfile
+import threading
+import time
+import zipfile
 
 import pyrogue as pr
+import pyrogue.interfaces
 
 import cryodaq
+import cryodaq.server
+import cryodaq.server._firmware
 from cryodaq import platform
 
 # How long a tuning process gets before the bounded wait gives up. Nothing here
@@ -130,6 +137,22 @@ EXPECTED_BANDS = tuple(range(8))
 # slow machine.
 EXIT_DEADLINE_S = 30
 
+# The debug capture receivers a deployed server is built with, so the tree here
+# is the tree a crate serves (the command line's default).
+CAPTURE_POINTS = 2**19
+
+# How long the entry point, run as a child, may take to serve its tree. A full
+# emulated tree takes a minute or two on an idle machine and several on a busy
+# one; a child that dies ends the wait early, so this bounds a hang, not a run.
+ENTRY_POINT_READY_S = 600
+# The firmware-package arguments this run was given, handed on to the child
+# entry point so it builds the same tree. Set in main().
+FIRMWARE_ARGS = []
+# The PCIe offload card's firmware package (`SmurfPcie`, a release archive or a
+# checkout of smurf-pcie), when given: the card module binds its register map,
+# so the card check needs it. Without it the check says so and does nothing.
+SMURF_PCIE = None
+
 # The one name below whose register the server owns and only reports: it is the
 # state a configuration run leaves, so the tree is put in that state from the
 # server's side and a client asking to write it is refused.
@@ -189,8 +212,12 @@ def check_every_offered_name_resolves():
     # while another stays absent is the same staleness, half-way.
     partly = [name for name in report.resolved if name.startswith('carrier.regulator.')]
     assert not partly, f"server-attached names resolving on an emulated tree: {partly}"
+    # Likewise the offload card's link restart, which the application adds only
+    # when it runs behind such a card; the emulated server has none.
+    assert 'server.restart_rssi' in dict(report.unresolved), \
+        "server.restart_rssi resolves on an emulated tree, so it is no longer card-only"
     unresolved = [(name, why) for name, why in report.unresolved
-                  if not name.startswith('carrier.regulator.')]
+                  if not name.startswith('carrier.regulator.') and name != 'server.restart_rssi']
     detail = '; '.join(f"{name}: {why}" for name, why in unresolved[:8])
     assert not unresolved, f"{len(unresolved)} unresolved: {detail}"
     assert len(report.resolved) >= 60, len(report.resolved)
@@ -359,6 +386,43 @@ def precheck_a_deadline_that_is_not_a_duration_is_refused():
         else:
             session.close()
             raise AssertionError(f"timeout={bad!r} was accepted")
+
+
+def precheck_a_relative_layer_name_means_the_archive_and_nothing_else():
+    """With a release archive, a relative configuration name is a member of it, never a local file.
+
+    Deployments name the defaults a package ships by their bare file name; a file
+    of the same name in the working directory must not be taken instead, since
+    it would configure the registers from the wrong place without a word. An
+    absolute name is used as given, and so is a relative one with no archive to
+    look in. Asserted here on a throwaway archive beside a same-named local file.
+    """
+    import zipfile
+    from cryodaq.server._firmware import PACKAGE_CONFIG_DIR, resolve_layers
+    with tempfile.TemporaryDirectory() as d:
+        archive = os.path.join(d, 'fw.zip')
+        with zipfile.ZipFile(archive, 'w') as zf:
+            zf.writestr(f'{PACKAGE_CONFIG_DIR}/defaults.yml', 'in: archive\n')
+        local = os.path.join(d, 'defaults.yml')
+        with open(local, 'w') as f:
+            f.write('in: directory\n')
+        here = os.getcwd()
+        os.chdir(d)
+        try:
+            resolved = resolve_layers(['defaults.yml'], archive)
+            assert resolved == [f'{archive}/{PACKAGE_CONFIG_DIR}/defaults.yml'], \
+                f"a relative name beside a same-named local file resolved to {resolved}"
+            assert resolve_layers([local], archive) == [local], "an absolute name was not used as given"
+            assert resolve_layers(['defaults.yml'], None) == ['defaults.yml'], \
+                "with no archive a relative name was not used as given"
+            try:
+                resolve_layers(['missing.yml'], archive)
+            except FileNotFoundError:
+                pass
+            else:
+                raise AssertionError("a name the archive lacks was accepted")
+        finally:
+            os.chdir(here)
 
 
 def precheck_declaring_a_platform_that_does_not_exist_is_refused():
@@ -603,6 +667,179 @@ def check_names_and_kinds_are_refused_when_wrong():
 EXIT_TRIALS = 40
 
 
+def check_the_platform_probe_opens_the_link_before_reading():
+    """The server reads the build stamp over a link it has opened, and closes it after.
+
+    A transport's register path may need starting before it answers -- the RSSI
+    link does, and it opens when the tree holding it starts. The platform probe
+    runs before that tree exists, so it has to start the link itself around its
+    one read and stop it again for the real tree to open. An emulated memory needs
+    no link, so nothing else here would notice a probe that read over a closed
+    one; the transport here is an emulated memory with a stamp planted in it and
+    a stand-in link that records when it is started and stopped, and the order is
+    what is asserted.
+    """
+    import pyrogue.interfaces.simulation
+    events = []
+
+    class Link(pr.Device):
+        def __init__(self):
+            pr.Device.__init__(self, name='link')
+
+        def _start(self):
+            events.append('start')
+            pr.Device._start(self)
+
+        def _stop(self):
+            pr.Device._stop(self)
+            events.append('stop')
+
+    srp = pyrogue.interfaces.simulation.MemEmulate()
+    address = ROOT.getNode(platform.TAG_PATH).address
+    for offset, byte in enumerate(stamp_for(EXPECTED_IMAGE[RFSOC]).encode()):
+        srp._data[address + offset] = byte
+    original = platform.identify
+
+    def identify(tree):
+        events.append('read')
+        return original(tree)
+    platform.identify = identify
+    try:
+        pmap = cryodaq.server._firmware.probe_platform(srp, [Link()])
+    finally:
+        platform.identify = original
+    assert pmap.name == EXPECTED_PLATFORM[RFSOC], pmap.name
+    assert events == ['start', 'read', 'stop'], f"the probe did not bracket its read: {events}"
+
+
+def check_the_offload_card_is_configured_around_the_server():
+    """A transport through the PCIe card opens its lane before the firmware is probed, and closes it after.
+
+    The card's RSSI engine for the lane is what carries the register path to the
+    carrier; until it is pointed at the carrier and opened, nothing can be read,
+    and after a server exits a lane left open is what the next one finds closed.
+    What the lane registers must say, and the Ethernet case, are
+    `check_offload_card.py`'s and run here first over the same package; what only
+    a composed server can show is asserted after: the lane is open before the
+    composition reaches the firmware, the tree offers the link restart, and
+    stopping the root closes the lane. The card is an emulated memory with its
+    firmware's map bound over it; the probe's memory is separate.
+    """
+    import pysmurf.core.emulators
+    import pysmurf.core.server
+    from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+    if SMURF_PCIE is None:
+        print("        (no --smurf-pcie package given: the card's register map cannot be bound here)")
+        return
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import check_offload_card as coc
+    failed = coc.run_all(SMURF_PCIE, on_path=True)
+    assert failed == 0, f"{failed} of the card's own checks failed"
+
+    events = []
+    transport = cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource())
+    transport.card = coc.recording(events)(coc.LANE, coc.CARRIER, memory=coc.card_memories())
+    original = platform.by_name
+
+    def by_name(name):
+        events.append('platform')
+        return original(name)
+    platform.by_name = by_name
+    try:
+        root = pysmurf.core.server.compose(
+            transport=transport, platform_name=EXPECTED_PLATFORM[RFSOC], server_port=free_port(),
+            polling=False, top_level_class=FpgaTopLevel, top_level_options=dict(isRFSOC=RFSOC))
+    finally:
+        platform.by_name = original
+    # Emulation names its platform where hardware would be probed; the card has
+    # to be open before either.
+    assert events == [f'open {coc.LANE}', 'platform'], \
+        f"the lane was not opened once, before the platform step: {events}"
+    try:
+        restart = root.getNode(root.pmap.path('server.restart_rssi'))
+        assert restart is not None, "no RestartRssi command on a server behind a card"
+        with root:
+            restart()
+            assert events[-2:] == [f'close {coc.LANE}', f'open {coc.LANE}'], \
+                f"restart did not close and reopen: {events}"
+    finally:
+        root.release()      # a failed assertion must not leave the card's lane open
+    assert events[-1] == f'close {coc.LANE}', f"stopping the root did not close the lane: {events}"
+    assert transport.card._regs is None, "the card's register access was left open"
+
+
+def check_the_server_reports_the_bays_it_was_built_with():
+    """``EnabledBays`` is what the tree holds, not what a launcher said.
+
+    A bay the composition leaves out keeps its DAQ mux but loses its converter
+    front end, so a tree built with one bay reports one; a platform whose
+    converters share the FPGA's die has no front end and reports none. A client
+    addresses each reported bay's registers, so a bay reported and absent is a
+    failure it meets at setup. Built here with bay 1 left out, on the platform
+    under test.
+    """
+    import pysmurf.core.emulators
+    import pysmurf.core.server
+    from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+    root = pysmurf.core.server.compose(
+        transport=cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource()),
+        platform_name=EXPECTED_PLATFORM[RFSOC], server_port=free_port(), polling=False,
+        top_level_class=FpgaTopLevel, top_level_options=dict(disableBay1=True, isRFSOC=RFSOC))
+    expected = [] if RFSOC else [0]
+    with root:
+        reported = list(root.getNode(f'{platform.STATUS_DEVICE_PATH}.EnabledBays').get())
+        assert reported == expected, f"bay 1 left out: reported {reported}, expected {expected}"
+        for bay in reported:
+            path = root.pmap.path(f'bay[{bay}].debug.enable')
+            assert root.getNode(path) is not None, f"reported bay {bay} has no front end at {path}"
+
+
+def check_a_start_that_fails_in_the_tree_leaves_no_thread_behind():
+    """A server whose tree does not come up is stopped, not left half-running.
+
+    Rogue starts a root's threads -- the update worker, the heartbeat -- before it
+    starts the link nodes, and none of them is a daemon. A link node whose start
+    raises therefore raises out of ``start()`` with the threads running, and
+    ``with compose(...) as root`` never reaches its exit for an entry that
+    raised: the process would hold open with no server on it. (A register read
+    that times out is not this case: rogue catches and logs it, and ``start()``
+    returns with the root running.) The failure here is a link node that refuses
+    to start, which is where a link that cannot open fails. Built on the
+    platform under test, with the same stand-in the bays check uses. A root the
+    guard failed to stop is stopped here so that a regression is reported as a
+    failure and not as a run that never exits.
+    """
+    import pysmurf.core.emulators
+    import pysmurf.core.server
+    from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+
+    class Link(pr.Device):
+        def __init__(self):
+            pr.Device.__init__(self, name='link')
+
+        def _start(self):
+            raise RuntimeError("the link did not open")
+
+    transport = cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource())
+    transport.nodes.append(Link())
+    root = pysmurf.core.server.compose(
+        transport=transport, platform_name=EXPECTED_PLATFORM[RFSOC], server_port=free_port(),
+        polling=False, top_level_class=FpgaTopLevel, top_level_options=dict(isRFSOC=RFSOC))
+    before = set(threading.enumerate())
+    try:
+        try:
+            with root:
+                raise AssertionError("the root started over a link that did not open")
+        except RuntimeError as e:
+            assert 'did not open' in str(e), e
+        assert not root.running, "the root reports running after a start that raised"
+        left = [t.name for t in threading.enumerate() if t not in before and not t.daemon]
+        assert left == [], f"a start that raised left threads running: {left}"
+    finally:
+        if root.running:
+            root.stop()
+
+
 def check_a_session_left_open_still_lets_the_interpreter_exit():
     """Forgetting to close costs the transport nothing, and the process nothing.
 
@@ -640,6 +877,147 @@ def check_a_session_left_open_still_lets_the_interpreter_exit():
             f"exited {exits}: a non-zero exit after a clean run is the client being torn "
             f"down by its destructors rather than stopped (last stderr: "
             f"{done.stderr.strip()[-200:]!r})")
+
+
+def check_the_configuration_procedure_ends_on_this_platform():
+    """``setDefaults`` runs to its end on the tree in hand, and reports as the platform allows.
+
+    The procedure's two hardware steps -- loading the register layers and
+    reading the converter links' elastic buffers -- have nothing to work on in
+    emulation (the memory reads back zeros, so the buffer check would reload and
+    fail for minutes), so both are stood in for and told to succeed. What is
+    exercised is everything around them: that the procedure reaches its end on a
+    platform with links and on one without, that ``SystemConfigured`` rises and
+    ``ConfiguringInProgress`` falls, and that the links' verdict is set where
+    the platform has links and nowhere otherwise. A procedure that reached for
+    the verdict on a platform without links raised here before it was gated.
+    """
+    root = ROOT
+    status = root.status
+    has_links = 'application.jesd_status' in root.pmap
+    assert ('JesdStatus' in status.nodes) == has_links, \
+        f"the status device offers a JESD verdict ({'JesdStatus' in status.nodes}) " \
+        f"where the map {'names' if has_links else 'does not name'} one"
+    saved = root._load_config, root._check_elastic_buffers, root._layers
+    try:
+        root._load_config = lambda: True
+        root._check_elastic_buffers = lambda: True
+        root._layers = ['<stand-in>']
+        if has_links:
+            status.JesdStatus.set(0)
+        root._set_defaults_cmd()
+    finally:
+        root._load_config, root._check_elastic_buffers, root._layers = saved
+    assert status.SystemConfigured.get() is True, "the procedure did not report success"
+    assert status.ConfiguringInProgress.get() is False, "the procedure did not report its end"
+    if has_links:
+        assert status.JesdStatus.getDisp() == 'Locked', \
+            f"the links' verdict was not set from the outcome: {status.JesdStatus.getDisp()}"
+    set_configured(root, True)      # leave the tree as the other checks expect
+
+
+def check_the_entry_point_runs_to_ready_and_exits_on_sigterm():
+    """``python -m pysmurf.core.server`` itself, not just what it composes.
+
+    Every other check composes the tree in this process, which is how a defect
+    confined to ``main()`` -- an import order the card needs, a name shadowed in
+    the function's own scope -- stays invisible until a server is started on a
+    crate. So the entry point is run the way a launcher runs it: as a child,
+    over the emulated transport, with this run's firmware package; a client must
+    see ``Ready`` rise, and SIGTERM must end the child with exit 0 and no
+    traceback. What the child cannot exercise -- the offload card, a real link
+    -- it says so in its own arguments.
+    """
+    _run_entry_point_to_ready('pysmurf.core.server', identity=True)
+
+
+def check_the_reduced_entry_point_runs_to_ready_and_exits_on_sigterm():
+    """``python -m cryodaq.server``, the same way: it has a ``main()`` of its own.
+
+    The expected difference from the full server: no application identity on
+    the status device, since no application composed it.
+    """
+    _run_entry_point_to_ready('cryodaq.server', identity=False)
+
+
+def _run_entry_point_to_ready(module, identity):
+    # The child names the platform this package really builds -- the RFSoC run's
+    # tree is a stand-in made in-process (see the header), and the child has no
+    # such shortcut; what is under test here is main(), not the platform.
+    port = free_port()
+    cmd = [sys.executable, '-m', module, '--transport', 'emulation',
+           '--platform', EXPECTED_PLATFORM[False], '--server-port', str(port),
+           '--nopoll', '--capture-points', '0', '--log-level', 'WARNING'] + FIRMWARE_ARGS
+    env = dict(os.environ, PYTHONPATH=os.pathsep.join(p for p in sys.path if p))
+    # Output to a file, not a pipe: a pipe nobody drains fills, and a child
+    # blocked on its own print looks exactly like one that never got there.
+    with tempfile.TemporaryFile(mode='w+', encoding='utf-8') as log:
+        child = subprocess.Popen(cmd, env=env, stdout=log, stderr=subprocess.STDOUT)
+        try:
+            _wait_for_ready(child, port, identity, log)
+            child.terminate()
+            try:
+                child.wait(timeout=EXIT_DEADLINE_S)
+            except subprocess.TimeoutExpired:
+                raise AssertionError(f"{module} ignored SIGTERM for {EXIT_DEADLINE_S}s")
+        finally:
+            # Whatever happened -- an assertion, Ctrl-C -- no child is left
+            # serving on the port.
+            if child.poll() is None:
+                child.kill()
+                child.wait()
+            log.seek(0)
+            out = log.read()
+    assert child.returncode == 0 and 'Traceback' not in out, (
+        f"{module} exited {child.returncode} on SIGTERM; output ends: "
+        f"{out.strip()[-600:]!r}")
+
+
+def _wait_for_ready(child, port, identity, log):
+    """Poll the child's server until ``Ready`` is up, within ENTRY_POINT_READY_S.
+
+    ``identity`` says whether the application's version must be on the status
+    device once it is (an application server) or must not be (a reduced one).
+
+    Not cryodaq.connect(): the child's emulated memory holds no build stamp,
+    which connect() rightly refuses, and nothing outside the child can write
+    one. A bare rogue client polls the flag the server raises last -- the ZMQ
+    server answers before start() has finished -- and the deadline covers the
+    read too: a client that connects to a stuck server would otherwise retry
+    for good.
+    """
+    pmap = platform.by_name(EXPECTED_PLATFORM[False])
+    deadline = time.monotonic() + ENTRY_POINT_READY_S
+    while True:
+        try:
+            client = pyrogue.interfaces.VirtualClient(addr='localhost', port=port)
+            # Bound each request as a session does, so a server that answers
+            # the connection and then stalls comes back here, not never.
+            client.setTimeout(5000, 10000)
+        except Exception:                                      # noqa: BLE001
+            client = None                                      # nothing listens yet
+        if client is not None:
+            try:
+                ready = client.root.getNode(pmap.path('server.ready')).get()
+                if ready:
+                    version = client.root.getNode(pmap.path('application.version'))
+                    if identity:
+                        assert version is not None and version.get(), \
+                            "the application's identity is not on the status device"
+                    else:
+                        assert version is None, \
+                            "a reduced server carries an application's identity"
+                    return
+            finally:
+                client.stop()
+        if child.poll() is not None:
+            log.seek(0)
+            raise AssertionError(f"the entry point exited {child.returncode} before Ready; "
+                                 f"output ends: {log.read().strip()[-800:]!r}")
+        if time.monotonic() > deadline:
+            raise AssertionError(f"the entry point did not raise Ready within "
+                                 f"{ENTRY_POINT_READY_S}s")
+        time.sleep(2.0)
 
 
 # --------------------------------------------------------------------------
@@ -703,7 +1081,7 @@ def write_build_stamp(root, stamp):
     node = root.getNode(platform.TAG_PATH)
     assert node is not None, f"the tree has no {platform.TAG_PATH}"
     for offset, byte in enumerate(stamp.encode()):
-        root._srp._data[node.address + offset] = byte
+        root._transport.srp._data[node.address + offset] = byte
     # The block was read once while the tree was built, and cached what it found
     # then: zeros. Without a forced re-read the stamp would never be seen.
     assert platform.tag_of(node.get(read=True)) == platform.tag_of(stamp), \
@@ -735,20 +1113,29 @@ def emulation_root(args, port):
     thing this script exists to report, and reporting it must not hang.
     """
     add_library_paths(args)
-    from pysmurf.core.roots.EmulationRoot import EmulationRoot
-    # is_rfsoc is the package's own construction flag, and all it does is leave
-    # out the JESD lanes and signal generators -- so the tree is this package
-    # without its bays, not the RFSoC firmware's tree. See the header.
-    root = EmulationRoot(config_file='', polling_en=False, pv_dump_file='',
-                         disable_bay0=False, disable_bay1=False,
-                         is_rfsoc=args.rfsoc, is_prespectra=False, server_port=port)
+    import pysmurf.core.emulators
+    import pysmurf.core.server
+    # The tree is what the SMuRF server composes over an emulated transport. An
+    # emulated memory holds no build stamp, so the platform is named here; the
+    # stamp the checks expect is written in afterwards. The RFSoC firmware's own
+    # top-level class is this one with isRFSOC defaulted on, and that package is
+    # not to hand, so the flag is passed here and this class stands in: all it
+    # does is leave out the JESD lanes and signal generators, so the RFSoC tree
+    # is this package without its bays, not the RFSoC firmware's. See the header.
+    from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+    root = pysmurf.core.server.compose(
+        transport=cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource()),
+        platform_name=EXPECTED_PLATFORM[args.rfsoc], server_port=port, polling=False,
+        top_level_class=FpgaTopLevel, top_level_options=dict(isRFSOC=args.rfsoc),
+        capture_points=CAPTURE_POINTS)
     try:
         root.start()
     except Exception:
-        # A start that raised still leaves threads behind -- an occupied port is
-        # the easy way to see it -- and stop() is what ends them, so the failure
-        # is reported by exiting rather than by hanging.
-        root.stop()
+        # The server's own start() stops the root when it raises; this is the
+        # harness's belt for a regression there, so the failure is reported by
+        # exiting rather than by hanging on threads left behind.
+        if root.running:
+            root.stop()
         raise
     return root
 
@@ -775,7 +1162,7 @@ def run(checks):
 
 
 def main():
-    global SESSION, ROOT, ENDPOINT, RFSOC, BAND
+    global SESSION, ROOT, ENDPOINT, RFSOC, BAND, FIRMWARE_ARGS, SMURF_PCIE
     ap = argparse.ArgumentParser(
         description='Drive a cryodaq session against an emulated firmware tree.')
     source = ap.add_mutually_exclusive_group(required=True)
@@ -788,6 +1175,10 @@ def main():
                     help='the RFSoC platform instead of the ATCA carrier: its own '
                          'firmware package is this one with isRFSOC defaulted on, '
                          'so the flag builds that tree without needing it')
+    ap.add_argument('--smurf-pcie', metavar='PATH',
+                    help='the PCIe offload card\'s package (a smurf-pcie release ZIP or a '
+                         'checkout\'s firmware/python): the card check builds its tree over '
+                         'an emulated memory; without it that check is skipped and says so')
     ap.add_argument('--port', type=int, default=None,
                     help='port to serve the emulated tree on (a free one by default)')
     ap.add_argument('--dump-tree', metavar='PATH',
@@ -796,6 +1187,15 @@ def main():
                          'these to rebuild the committed fixtures')
     args = ap.parse_args()
     RFSOC = args.rfsoc
+    FIRMWARE_ARGS = ['--firmware', args.zip] if args.zip else []
+    if args.smurf_pcie:
+        SMURF_PCIE = f"{args.smurf_pcie}/python" if zipfile.is_zipfile(args.smurf_pcie) else args.smurf_pcie
+        # Behind the firmware package, never in front of it: a smurf-pcie release
+        # carries its own `surf`, from a different revision than the firmware's, and
+        # the carrier's tree built over that one has blocks overlapping (a run that
+        # prepended it ended in rogue's overlap error). The card's own tree builds
+        # over the firmware's `surf`, so the order costs the card nothing.
+        sys.path.append(SMURF_PCIE)
 
     label = ('RFSoC' if args.rfsoc else 'carrier') + ' tree'
     label += ' from ' + (args.zip or args.cryo_det)

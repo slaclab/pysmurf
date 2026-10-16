@@ -182,7 +182,7 @@ the firmware's own tree resolve against it.
 
 The two modes ask different questions and the difference matters. A dump built from a package has no
 **server-added subtrees** — `SmurfProcessor`, the two stream writers, `SmurfApplication`, the capture
-receivers, `setDefaults` and `Ready` are all attached by `pysmurf.core.roots.Common` at start-up, so a
+receivers, `setDefaults` and `Ready` are all attached by `cryodaq.server.ReadoutRoot` at start-up, so a
 package has never heard of them. `--package-dump` therefore excludes those names and requires every
 name under `AMCc.FpgaTopLevel` to resolve. Without that distinction the released-package run reports
 about 54 false absences and a real one would be lost among them. `SERVER_ADDED_SUBTREES` names them,
@@ -270,12 +270,28 @@ requires the complaint to name that thing.
 
 Needs PyYAML, which the CI job installs as the client's one dependency before the first check.
 
+### check_offload_card.py
+
+Drives the PCIe offload card's RSSI lane through `cryodaq.server.OffloadCard` over an emulated memory,
+with the card firmware's register map from a smurf-pcie package (`--smurf-pcie`, a release ZIP from
+`slaclab/smurf-pcie` or a checkout's `firmware/python`) bound to it as the server binds it — attached,
+never started. Six checks: a lane never pointed at a
+carrier is refused by name when no address is given; an opened lane carries what the carrier needs
+(keep-alive on, connection opened, the address and both ports on both clients, a MAC and IP given to a
+lane that had none) and `restart()` closes and reopens it, exit closes it and keeps the address; the
+Ethernet case closes the lanes at the carrier and no other; a lane the card remembers is reused when no
+address is given; a lane that never connects is refused within the bound; and nothing of the card runs —
+its root is never started (the firmware package's one idle helper thread is the only one alive while a
+lane is open, and none is after it is closed). The fields of a shared
+register word the lane does not own (`Mode`, `HeaderChksumEn`) are set first and must read back unchanged.
+Needs rogue, so the `test-server` job runs it over the public v3.3.1 release.
+
 ### validate_client_emulated.py
 
 This script drives a `cryodaq` session against an emulated firmware tree.
 
-It builds an [EmulationRoot](../../python/pysmurf/core/roots/EmulationRoot.py) over a CryoDet
-package — a checkout with `--cryo-det`, or a pyrogue ZIP with `--zip` — serves it on a local port,
+It composes the server ([pysmurf.core.server](../../python/pysmurf/core/server.py)) over an
+emulated transport and a CryoDet package — a checkout with `--cryo-det`, or a pyrogue ZIP with `--zip` — serves it on a local port,
 and then connects to it with `cryodaq.connect` exactly as a client connects to a deployed server.
 There is one route in and it is the real one: no in-process shortcut, so what runs here is the code
 that talks to a crate.
@@ -322,6 +338,13 @@ signal-generator configuration, which is why that platform has no RF front end a
 one. Both are bay-indexed even so — the acquisition mux is per-bay on either, so what differs is what
 sits *inside* a bay. The scope check names what each platform is expected to have and fails if either
 changes.
+
+With `--smurf-pcie <release ZIP or checkout's firmware/python>` it also runs `check_offload_card.py`'s
+assertions and then the composed-server ones: the PCIe offload card's RSSI lane is open before the
+composition reaches the firmware, `RestartRssi` is in the tree and closes and reopens it, and stopping
+the root closes it. The card's package goes at the *end* of the path (a smurf-pcie release carries a
+`surf` of its own, and the carrier's tree built over that revision has overlapping blocks). Without
+the option the check says so and does nothing.
 
 What it cannot show for the RFSoC is that the firmware image names in its map are the ones a real
 RFSoC reports — the stamp here is one this script wrote. Only a live read settles that.

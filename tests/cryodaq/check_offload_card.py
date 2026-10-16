@@ -1,0 +1,254 @@
+#!/usr/bin/env python3
+#-----------------------------------------------------------------------------
+# Title      : Cryodaq Offload Card Check
+#-----------------------------------------------------------------------------
+# File       : check_offload_card.py
+# Created    : 2026-10-15
+#-----------------------------------------------------------------------------
+# Description:
+# Drives the PCIe offload card's RSSI lane through `cryodaq.server.OffloadCard`
+# over an emulated memory, with the card firmware's own register map (a
+# smurf-pcie release ZIP or a checkout's firmware/python) bound to it the way
+# the server binds it: attached, never started.
+#
+# Asserts what an opened lane's registers say and that the fields of a shared
+# word the lane does not own are untouched, that exit closes what entry opened,
+# that the Ethernet case closes only the lanes at the carrier, that a lane never
+# pointed at a carrier is refused when no address is given, that a lane that
+# never connects is refused within the bound, and that nothing of the card runs
+# -- the card's root is never started and no thread survives its use. No
+# hardware: the device nodes are
+# emulated memories. Needs rogue, so it runs in the server container;
+# `validate_client_emulated.py` runs it too.
+#
+# Usage:
+#     check_offload_card.py --smurf-pcie <rogue_vX.Y.Z.zip | firmware/python>
+#-----------------------------------------------------------------------------
+# This file is part of the pysmurf software platform. It is subject to
+# the license terms in the LICENSE.txt file found in the top-level directory
+# of this distribution and at:
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part of the pysmurf software platform, including this file, may be
+# copied, modified, propagated, or distributed except according to the terms
+# contained in the LICENSE.txt file.
+#-----------------------------------------------------------------------------
+import argparse
+import contextlib
+import sys
+import time
+import zipfile
+
+import pyrogue.interfaces.simulation
+
+import cryodaq
+import cryodaq.server._offload_card as oc
+
+CARRIER = '10.0.1.104'
+LANE = 2
+
+
+def card_memories(connected=(LANE,)):
+    """One emulated memory per device node; the data device reports its DeviceId.
+
+    ``connected`` names the lanes whose connection the card reports active --
+    an emulated card never raises the bit itself. Both read-only values are
+    planted at the addresses the firmware's map gives those registers.
+    """
+    rssi, data = (pyrogue.interfaces.simulation.MemEmulate() for _ in range(2))
+    with firmware_view({'/dev/datadev_0': data}) as core:
+        data._data[core.AxiPcieCore.AxiVersion.DeviceId.address] = oc.DATA_DEVICE_ID
+    with firmware_view({'/dev/datadev_0': rssi}) as core:
+        for lane in connected:
+            rssi._data[core.UdpGrp.RssiClient[lane].ConnectionActive.address] = 1
+    return {'/dev/datadev_0': rssi, '/dev/datadev_1': data}
+
+
+@contextlib.contextmanager
+def firmware_view(memory):
+    """The card firmware's register map over the registers device's memory, as the module binds it."""
+    regs = oc.Registers(memory['/dev/datadev_0'], 'check')
+    try:
+        yield regs.core
+    finally:
+        regs.stop()
+
+
+def recording(events):
+    """An OffloadCard that records which lanes it opens and closes."""
+    class Card(oc.OffloadCard):
+        def _open_lane(self, lane):
+            events.append(f'open {lane}')
+            super()._open_lane(lane)
+
+        def _close_lane(self, lane):
+            events.append(f'close {lane}')
+            super()._close_lane(lane)
+    return Card
+
+
+def check_a_lane_never_pointed_at_a_carrier_is_refused(events, Card, memory):
+    try:
+        with Card(LANE, '', memory=memory):
+            raise AssertionError("a lane with no target address was opened")
+    except cryodaq.ConnectError as e:
+        assert f'lane {LANE}' in str(e) and 'address' in str(e), e
+    assert events == [], f"a refused entry touched the lanes: {events}"
+
+
+def check_a_lane_that_never_connects_is_refused_within_the_bound(events, Card, memory):
+    """A carrier that does not answer the handshake is reported, not waited on for good."""
+    events.clear()
+    saved = oc.CONNECT_TIMEOUT_S
+    oc.CONNECT_TIMEOUT_S = 0.5
+    try:
+        started = time.monotonic()
+        with Card(3, CARRIER, memory=card_memories(connected=())):
+            raise AssertionError("a lane whose connection never came up was taken as open")
+    except cryodaq.ConnectError as e:
+        assert 'lane 3' in str(e) and 'connect' in str(e), e
+        # Generous on purpose: the bound is 0.5 s, and what is asserted is
+        # that the wait ended at all, not how fast a loaded machine polls.
+        assert time.monotonic() - started < 30, "the refusal took far longer than the bound"
+    finally:
+        oc.CONNECT_TIMEOUT_S = saved
+    assert events == ['open 3', 'close 3'], f"a lane that never connected was not closed again: {events}"
+    events.clear()
+
+
+def check_the_lane_is_opened_as_the_carrier_needs(events, Card, memory):
+    """The words the card module wrote are the registers the firmware names, with the right values.
+
+    The connection word also carries fields the lane does not own (``Mode``,
+    ``HeaderChksumEn``); they are set beforehand and must read back unchanged,
+    as the firmware's own per-field writes would leave them.
+    """
+    with firmware_view(memory) as core:
+        core.UdpGrp.RssiClient[LANE].HeaderChksumEn.set(1)
+        core.UdpGrp.RssiClient[LANE].Mode.set(1)
+    card = Card(LANE, CARRIER, memory=memory)
+    card.open()
+    try:
+        assert events == [f'open {LANE}'], f"entry did not open the lane once: {events}"
+        with firmware_view(memory) as core:
+            assert (core.UdpGrp.RssiClient[LANE].HeaderChksumEn.get(),
+                    core.UdpGrp.RssiClient[LANE].Mode.get()) == (1, 1), \
+                "opening the lane changed fields of the connection word it does not own"
+            assert core.UdpGrp.UdpConfig[LANE].EnKeepAlive.get() == 1
+            assert core.UdpGrp.UdpConfig[LANE].KeepAliveConfig.get() == oc.KEEP_ALIVE_CONFIG
+            assert (core.UdpGrp.RssiClient[LANE].OpenConn.get(),
+                    core.UdpGrp.RssiClient[LANE].CloseConn.get()) == (1, 0)
+            for client, port in enumerate(oc.REMOTE_PORTS):
+                assert core.UdpGrp.UdpEngine[LANE].ClientRemoteIp[client].getDisp() == CARRIER, \
+                    f"client {client} address: {core.UdpGrp.UdpEngine[LANE].ClientRemoteIp[client].getDisp()}"
+                assert core.UdpGrp.UdpEngine[LANE].ClientRemotePort[client].get() == port, \
+                    f"client {client} port: {core.UdpGrp.UdpEngine[LANE].ClientRemotePort[client].get()}"
+            assert core.EthPhyGrp.EthConfig[LANE].LocalMac.getDisp() == f'08:00:56:00:45:5{LANE}', \
+                core.EthPhyGrp.EthConfig[LANE].LocalMac.getDisp()
+            assert core.EthPhyGrp.EthConfig[LANE].LocalIp.getDisp() == f'10.0.1.20{LANE}', \
+                core.EthPhyGrp.EthConfig[LANE].LocalIp.getDisp()
+        card.restart()
+        assert events == [f'open {LANE}', f'close {LANE}', f'open {LANE}'], \
+            f"restart did not close and reopen: {events}"
+    finally:
+        # A failed assertion must not leave the card half-way.
+        card.close()
+    assert events[-1] == f'close {LANE}', f"exit did not close the lane: {events}"
+    with firmware_view(memory) as core:
+        assert (core.UdpGrp.RssiClient[LANE].OpenConn.get(),
+                core.UdpGrp.RssiClient[LANE].CloseConn.get()) == (0, 1)
+        assert (core.UdpGrp.RssiClient[LANE].HeaderChksumEn.get(),
+                core.UdpGrp.RssiClient[LANE].Mode.get()) == (1, 1), \
+            "closing the lane changed fields of the connection word it does not own"
+        assert core.UdpGrp.UdpConfig[LANE].KeepAliveConfig.get() == 0
+        assert core.UdpGrp.UdpEngine[LANE].ClientRemotePort[0].get() == 0
+        # The address stays: it is how the next server finds the carrier with no --addr.
+        assert core.UdpGrp.UdpEngine[LANE].ClientRemoteIp[0].getDisp() == CARRIER
+
+
+def check_the_ethernet_case_closes_the_lanes_at_the_carrier_only(events, Card, memory):
+    events.clear()
+    with Card(None, CARRIER, memory=memory):
+        pass
+    assert events == [f'close {LANE}'], \
+        f"eth entry did not close the lane at the carrier, and only it: {events}"
+    events.clear()
+    with Card(None, '10.0.1.105', memory=memory):
+        pass
+    assert events == [], f"eth entry closed a lane pointing elsewhere: {events}"
+
+
+def check_a_lane_remembered_by_the_card_is_reused(events, Card, memory):
+    """No address given, but the lane was pointed at a carrier before: that one."""
+    events.clear()
+    with Card(LANE, '', memory=memory) as card:
+        assert card.ip_addr == CARRIER, f"the lane's remembered target was not taken: {card.ip_addr!r}"
+    assert events == [f'close {LANE}', f'open {LANE}', f'close {LANE}'], events
+
+
+def check_nothing_of_the_card_runs(events, Card, memory):
+    """Binding the map starts no thread, and releasing it leaves none: the card has no tree running."""
+    import threading
+    before = set(threading.enumerate())
+    with Card(LANE, CARRIER, memory=memory) as card:
+        assert not card._regs._root.running, "the card's root was started"
+        during = [t.name for t in threading.enumerate() if t not in before]
+    after = [t.name for t in threading.enumerate() if t not in before]
+    # The firmware package starts one idle helper thread when its tree is built
+    # (surf's AxiLiteMasterProxy poll worker), reaped on Device._stop(); rogue's
+    # own root threads are created only by start(), which never runs here.
+    # Anything else alive, or anything left after exit, is the card running.
+    assert all('_pollWorker' in t for t in during), f"the card ran threads while open: {during}"
+    assert after == [], f"the card left threads after exit: {after}"
+    events.clear()
+
+
+CHECKS = (check_a_lane_never_pointed_at_a_carrier_is_refused,
+          check_a_lane_that_never_connects_is_refused_within_the_bound,
+          check_the_lane_is_opened_as_the_carrier_needs,
+          check_the_ethernet_case_closes_the_lanes_at_the_carrier_only,
+          check_a_lane_remembered_by_the_card_is_reused,
+          check_nothing_of_the_card_runs)
+
+
+def run_all(smurf_pcie, on_path=False):
+    """Run every check in order on one emulated card; returns the number that failed.
+
+    Run alone, the package goes to the *front* of the path, so that the map
+    bound is the given package's and not one the environment already carries. ``on_path`` says a caller has placed it already -- at the end,
+    when a firmware tree is built in the same process: a smurf-pcie release
+    carries its own ``surf``, and a carrier tree built over that revision
+    instead of its own has overlapping blocks.
+    """
+    if not on_path:
+        sys.path.insert(0, f"{smurf_pcie}/python" if zipfile.is_zipfile(smurf_pcie) else smurf_pcie)
+    import SmurfPcie
+    print(f"  SmurfPcie from {SmurfPcie.__file__}")
+    events = []
+    Card = recording(events)
+    memory = card_memories()
+    failed = 0
+    for check in CHECKS:
+        name = check.__name__[len('check_'):]
+        try:
+            check(events, Card, memory)
+        except Exception as e:
+            failed += 1
+            print(f"  FAIL  {name}")
+            print(f"          {type(e).__name__}: {e}")
+        else:
+            print(f"  ok    {name}")
+    return failed
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Drive the offload card's lane over an emulated memory.")
+    ap.add_argument('--smurf-pcie', required=True,
+                    help="a smurf-pcie release ZIP, or a checkout's firmware/python")
+    args = ap.parse_args()
+    failed = run_all(args.smurf_pcie)
+    print("All checks passed." if not failed else f"{failed} check(s) FAILED.")
+    return 1 if failed else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
