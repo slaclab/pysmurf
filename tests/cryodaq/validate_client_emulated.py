@@ -141,6 +141,10 @@ EXIT_DEADLINE_S = 30
 # is the tree a crate serves (the command line's default).
 CAPTURE_POINTS = 2**19
 
+# How long a child interpreter that builds the SMuRF client against three servers
+# gets: each connect takes a few seconds; this bounds a hang.
+CLIENT_CHILD_DEADLINE_S = 120
+
 # How long the entry point, run as a child, may take to serve its tree. A full
 # emulated tree takes a minute or two on an idle machine and several on a busy
 # one; a child that dies ends the wait early, so this bounds a hang, not a run.
@@ -729,8 +733,7 @@ def check_the_offload_card_is_configured_around_the_server():
     import pysmurf.core.server
     from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
     if SMURF_PCIE is None:
-        print("        (no --smurf-pcie package given: the card's register map cannot be bound here)")
-        return
+        raise Skipped("no --smurf-pcie package given: the card's register map cannot be bound here")
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import check_offload_card as coc
     failed = coc.run_all(SMURF_PCIE, on_path=True)
@@ -792,6 +795,86 @@ def check_the_server_reports_the_bays_it_was_built_with():
         for bay in reported:
             path = root.pmap.path(f'bay[{bay}].debug.enable')
             assert root.getNode(path) is not None, f"reported bay {bay} has no front end at {path}"
+
+
+def check_the_application_client_refuses_a_server_without_its_application():
+    """``SmurfControl`` connects to a server pysmurf composed and refuses one it did not.
+
+    A readout server names the application that composed it
+    (``application.name``: ``'pysmurf'`` from ``pysmurf.core.server``, ``''``
+    from the readout core alone). The SMuRF client is that application's; on
+    the reduced server every method would fail at some register, so it is
+    refused at connect, naming the reason. A server from before the name
+    existed says nothing, and is a pysmurf server that cannot say so: it is
+    used, with a line the user sees -- a client at this version must keep working against
+    the servers deployed today. Three servers, then: the session's full one; a
+    reduced one composed beside it with the core's ``compose()``; and a full one
+    with the name taken off its status device before it starts, standing in for
+    the older server. The client is built in a child interpreter --
+    ``SmurfControl`` writes logs and reads its cfg, which this harness does not
+    want in its own process -- and the verdicts come back on its stdout.
+    """
+    probe = subprocess.run([sys.executable, '-c', 'import pysmurf.client'], capture_output=True, text=True)
+    if probe.returncode != 0:
+        # The SMuRF client needs its own dependencies (schema, matplotlib ...)
+        # beside rogue; an interpreter without them cannot build one.
+        raise Skipped("pysmurf.client does not import in this interpreter: "
+                      f"{probe.stderr.strip().splitlines()[-1] if probe.stderr.strip() else 'no detail'}")
+    import pysmurf.core.emulators
+    import pysmurf.core.server
+    from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+    reduced = cryodaq.server.compose(
+        transport=cryodaq.server.emulation(), platform_name=EXPECTED_PLATFORM[RFSOC],
+        server_port=free_port(), polling=False,
+        top_level_class=FpgaTopLevel, top_level_options=dict(isRFSOC=RFSOC))
+    older = pysmurf.core.server.compose(
+        transport=cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource()),
+        platform_name=EXPECTED_PLATFORM[RFSOC], server_port=free_port(), polling=False,
+        top_level_class=FpgaTopLevel, top_level_options=dict(isRFSOC=RFSOC))
+    # A server built before the name existed has no such node; this one loses
+    # it before the tree is sealed by start(). Reaching into the device's node
+    # table is what it takes, since a built tree offers no removal.
+    del older.status._nodes[older.status.Application.name]
+    cfg = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'cfg_files', 'b33',
+                       'experiment_2xLB_testing_Feb2021.cfg')
+    source = (
+        "import matplotlib; matplotlib.use('Agg')\n"
+        "import os, tempfile\n"
+        "import cryodaq, pysmurf.client\n"
+        # The cfg names directories under /data, which this interpreter may not
+        # have; a copy points them under a directory of the run's own.
+        "tmp = tempfile.mkdtemp()\n"
+        f"text = open({cfg!r}).read().replace('/data', tmp + '/data')\n"
+        "cfg = os.path.join(tmp, 'experiment.cfg'); open(cfg, 'w').write(text)\n"
+        "def attempt(port):\n"
+        "    try:\n"
+        "        S = pysmurf.client.SmurfControl(cfg_file=cfg, server_port=port, setup=False,\n"
+        "                                        atca_monitor=False, make_logfile=False, offline=False,\n"
+        "                                        data_dir=tmp + '/data/smurf_data')\n"
+        "        return 'connected ' + repr(S._session.description['application'])\n"
+        "    except cryodaq.ConnectError as e:\n"
+        "        return 'refused ' + str(e)\n"
+        f"print('FULL', attempt({ENDPOINT.rsplit(':', 1)[1]}))\n"
+        "print('REDUCED', attempt(int(__import__('sys').argv[1])))\n"
+        "print('OLDER', attempt(int(__import__('sys').argv[2])))\n")
+    with reduced, older:
+        # The client identifies the platform from the stamp before anything else,
+        # so these trees get one too, as the session's tree did.
+        for root in (reduced, older):
+            write_build_stamp(root, stamp_for(EXPECTED_IMAGE[RFSOC]))
+        assert older.getNode(older.pmap.path('application.name')) is None, \
+            "the stand-in for an older server still carries the application name"
+        ports = [root.zmqServer.address.rsplit(':', 1)[1] for root in (reduced, older)]
+        done = subprocess.run([sys.executable, '-c', source] + ports, text=True,
+                              timeout=CLIENT_CHILD_DEADLINE_S, capture_output=True)
+    lines = {l.split(' ', 1)[0]: l.split(' ', 1)[1] for l in done.stdout.splitlines()
+             if l.startswith(('FULL ', 'REDUCED ', 'OLDER '))}
+    assert done.returncode == 0 and set(lines) == {'FULL', 'REDUCED', 'OLDER'}, \
+        f"the client child exited {done.returncode}: {done.stdout[-400:]!r} {done.stderr[-600:]!r}"
+    assert lines['FULL'] == "connected 'pysmurf'", f"on the full server: {lines['FULL']}"
+    assert lines['REDUCED'].startswith('refused ') and 'readout core alone' in lines['REDUCED'], \
+        f"on the reduced server: {lines['REDUCED']}"
+    assert lines['OLDER'] == 'connected None', f"on a server predating the name: {lines['OLDER']}"
 
 
 def check_a_start_that_fails_in_the_tree_leaves_no_thread_behind():
@@ -1001,12 +1084,15 @@ def _wait_for_ready(child, port, identity, log):
                 ready = client.root.getNode(pmap.path('server.ready')).get()
                 if ready:
                     version = client.root.getNode(pmap.path('application.version'))
+                    name = client.root.getNode(pmap.path('application.name')).get()
                     if identity:
                         assert version is not None and version.get(), \
                             "the application's identity is not on the status device"
+                        assert name == 'pysmurf', f"the full server names its application {name!r}"
                     else:
                         assert version is None, \
                             "a reduced server carries an application's identity"
+                        assert name == '', f"the reduced server names an application: {name!r}"
                     return
             finally:
                 client.stop()
@@ -1146,12 +1232,28 @@ def collect(prefix):
                   if name.startswith(prefix))
 
 
+class Skipped(Exception):
+    """A check that could not run here, and says why: counted apart from the passes."""
+
+
+SKIPPED = []
+
+
 def run(checks):
-    """Run each check, reporting one line apiece; return the names that failed."""
+    """Run each check, reporting one line apiece; return the names that failed.
+
+    A check that raises `Skipped` is neither a pass nor a failure: it is listed
+    with its reason and counted in SKIPPED, so a run's summary says how many of
+    its checks actually ran.
+    """
     failed = []
     for name, fn in checks:
         try:
             fn()
+        except Skipped as e:
+            SKIPPED.append(name)
+            print(f"  skip  {name}")
+            print(f"          {e}")
         except Exception as e:                                   # noqa: BLE001
             failed.append(name)
             print(f"  FAIL  {name}")
@@ -1236,10 +1338,13 @@ def main():
         root.stop()
 
     print("")
+    if SKIPPED:
+        print(f"SKIPPED ({len(SKIPPED)}), not run here: {', '.join(SKIPPED)}")
     if failed:
         print(f"FAILED ({len(failed)}): {', '.join(failed)}")
         return 1
-    print("All checks passed.")
+    print("All checks passed." if not SKIPPED else
+          f"All checks that ran passed ({len(SKIPPED)} skipped).")
     return 0
 
 

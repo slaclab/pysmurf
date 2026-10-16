@@ -659,6 +659,7 @@ class Session:
             'platform': self.pmap.name,
             'read_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
             'root': self.root.name,
+            'application': self._optional_get('application.name'),
             'enabled_bays': self._optional_get('application.enabled_bays'),
             'startup_arguments': self._optional_get('application.startup_arguments'),
             'application_version': self._optional_get('application.version'),

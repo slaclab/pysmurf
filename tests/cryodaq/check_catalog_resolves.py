@@ -891,6 +891,7 @@ def selftest():
                     print(f'  FAIL  {tmpl} wrongly classed as server-added')
             for tmpl in ('AMCc.SmurfProcessor.Filter.Disable',
                          'AMCc.SmurfApplication.SmurfVersion',
+                         'AMCc.SmurfApplication.Application',
                          'AMCc.Stream{capture}.Updated',
                          'AMCc.streamDataWriter.Open', 'AMCc.setDefaults.Start',
                          'AMCc.Ready'):
