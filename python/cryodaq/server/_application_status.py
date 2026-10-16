@@ -31,9 +31,18 @@ __all__ = ['ApplicationStatus']
 class ApplicationStatus(pyrogue.Device):
     """Where a readout server reports its own state."""
 
-    def __init__(self, pmap: platform.PlatformMap, **kwargs):
+    def __init__(self, pmap: platform.PlatformMap, application: str = '', **kwargs):
         pyrogue.Device.__init__(self, name=platform.STATUS_DEVICE_PATH.rsplit('.', 1)[1],
                                 description='SMuRF Application Container', **kwargs)
+
+        # Which application composed this server, so a client built for one
+        # can refuse a server running another -- or none: the readout core
+        # alone leaves it empty.
+        self.add(pyrogue.LocalVariable(
+            name=pmap.path('application.name').rsplit('.', 1)[1],
+            description='The application this server was composed with; empty for the readout core alone',
+            mode='RO',
+            value=application))
 
         # A list of two so its size is fixed whether one or two bays are enabled,
         # filled in with the real list once the root has started: a published

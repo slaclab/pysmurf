@@ -18,6 +18,7 @@ import logging
 import pathlib
 
 import cryodaq
+import pysmurf
 from pysmurf.client.command.cryo_card import CryoCard
 from pysmurf.client.util.pub import Publisher
 from .logger import SmurfLogger, SmurfLogHandler
@@ -110,6 +111,24 @@ class SmurfBase:
                 f'{server_addr}:{server_port}', timeout=30.0, monitor=False,
                 publisher=self.pub, logger=self._cryodaq_logger(),
                 paths=self._session_paths())
+            # A readout server says which application composed it. This client
+            # is the SMuRF application's: on the readout core alone, or on
+            # another application's server, every method past this point would
+            # fail at some register, so those are refused here, by name. A
+            # server from before the name existed says nothing -- it is a
+            # pysmurf server that cannot say so -- and is used, with a line the
+            # user sees at any verbosity.
+            served = self._session.description.get('application')
+            if served is None:
+                self.log(f"The server at {server_addr}:{server_port} predates the application "
+                         f"name; taking it for a {pysmurf.APPLICATION} server.", self.LOG_USER)
+            elif served != pysmurf.APPLICATION:
+                self._session.close()
+                what = ("reports no application: it is the readout core alone" if served == ''
+                        else f"runs the {served!r} application")
+                raise cryodaq.ConnectError(
+                    f"the server at {server_addr}:{server_port} {what}; SmurfControl needs "
+                    f"a server started by pysmurf.core.server")
             self.is_rfsoc = self._session.pmap.name == 'umux-rfsoc'
             if atca_monitor:
                 # The shelf manager's monitor is a second rogue server with its

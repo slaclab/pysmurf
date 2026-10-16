@@ -91,7 +91,7 @@ def compose(*, transport: Any, tx_device: Any = None,
     root = cryodaq.server.compose(
         transport=transport, providers=providers, sinks=[processor],
         variable_groups=VARIABLE_GROUPS if variable_groups is None else variable_groups,
-        on_start=on_start, **kwargs)
+        on_start=on_start, application=pysmurf.APPLICATION, **kwargs)
     try:
         for variable in _identity():
             root.status.add(variable)

@@ -39,3 +39,9 @@ except (ImportError, LookupError):
             "pysmurf is not correctly installed. "
             "Please install it with pip."
         )
+
+# What a server composed by pysmurf.core.server reports as its application
+# (the readout core's ``application.name``), and what the client requires of
+# a server before it will use it. Here, and not in the server package, so the
+# client can know it without importing rogue.
+APPLICATION = 'pysmurf'

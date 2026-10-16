@@ -71,7 +71,7 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
             top_level_options: Optional[Mapping[str, Any]] = None,
             capture_points: int = 0, capture_type: str = 'Int16',
             on_start: Optional[Callable[[ReadoutRoot], None]] = None,
-            top_level_class: Any = None) -> ReadoutRoot:
+            top_level_class: Any = None, application: str = '') -> ReadoutRoot:
     """Build a readout server.
 
     Parameters
@@ -113,6 +113,9 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
     top_level_class : class, optional
         Build the tree with this class instead of the one the platform names;
         for an emulated tree of a platform whose own package is not to hand.
+    application : str, optional
+        The application composing this server, published as
+        ``application.name``; the readout core alone leaves it ''.
 
     Returns
     -------
@@ -154,7 +157,8 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
 
         root = ReadoutRoot(fpga=fpga, transport=transport, pmap=pmap, providers=providers,
                            sinks=sinks, layers=layers, server_port=server_port, polling=polling,
-                           configure=configure, variable_groups=variable_groups, on_start=on_start)
+                           configure=configure, variable_groups=variable_groups, on_start=on_start,
+                           application=application)
         if capture_points:
             add_capture_receivers(root, transport, capture_points, capture_type)
     except BaseException:

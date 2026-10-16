@@ -78,6 +78,7 @@ RESTART_RSSI = f'{ROOT}.RestartRssi'
 
 # The application block the server adds beside the FPGA.
 APPLICATION = f'{ROOT}.SmurfApplication'
+APPLICATION_NAME = f'{APPLICATION}.Application'
 SYSTEM_CONFIGURED = f'{APPLICATION}.SystemConfigured'
 CONFIGURING_IN_PROGRESS = f'{APPLICATION}.ConfiguringInProgress'
 ENABLED_BAYS = f'{APPLICATION}.EnabledBays'
@@ -504,6 +505,7 @@ _V, _C, _P, _D = 'value', 'command', 'process', 'device'
 REGISTERS = {
     # the server and its application block
     'server.ready': (READY, _V),
+    'application.name': (APPLICATION_NAME, _V),
     'application.configured': (SYSTEM_CONFIGURED, _V),
     'application.configuring': (CONFIGURING_IN_PROGRESS, _V),
     'application.enabled_bays': (ENABLED_BAYS, _V),

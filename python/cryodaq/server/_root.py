@@ -79,13 +79,17 @@ class ReadoutRoot(pyrogue.Root):
     on_start : callable, optional
         Called with the root once it has started and before ``Ready`` rises;
         where an application attaches what needs a running tree.
+    application : str, optional
+        The application this server is composed for, published on the status
+        device (``application.name``) so a client can refuse the wrong server;
+        '' for the readout core alone.
     """
 
     def __init__(self, *, fpga: Any, transport: Any, pmap: platform.PlatformMap,
                  providers: Sequence[OperationsProvider] = (), sinks: Sequence[Any] = (),
                  layers: Sequence[Any] = (), server_port: int = 0, polling: bool = True,
                  configure: bool = False, variable_groups: Optional[Mapping] = None,
-                 on_start: Optional[Callable] = None, **kwargs):
+                 on_start: Optional[Callable] = None, application: str = '', **kwargs):
         pyrogue.Root.__init__(self, name=ROOT_NAME, initRead=True, pollEn=polling,
                               timeout=5.0, **kwargs)
         self.pmap = pmap
@@ -102,7 +106,7 @@ class ReadoutRoot(pyrogue.Root):
         # The metadata stream: every variable in the 'stream' group, as it changes.
         self.stream = pyrogue.interfaces.stream.Variable(root=self, incGroups='stream')
 
-        self.status = ApplicationStatus(pmap)
+        self.status = ApplicationStatus(pmap, application=application)
         self.add(self.status)
         # Where the configuration a client applies is published, so a later
         # client can read it back without the file.
