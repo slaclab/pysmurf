@@ -26,9 +26,13 @@ import numpy as np
 import pyrogue as pr
 import rogue.interfaces.stream
 
-__all__ = ['SmurfDataReceiver', 'add_capture_receivers']
+__all__ = ['SmurfDataReceiver', 'add_capture_receivers', 'CAPTURE_POINTS']
 
 _log = logging.getLogger(__name__)
+
+# Points each capture receiver buffers in a server built with them: the DDR
+# capture depth a client's ADC and DAC reads expect.
+CAPTURE_POINTS = 2**19
 
 
 def add_capture_receivers(root, transport, size: int, dtype: str) -> None:

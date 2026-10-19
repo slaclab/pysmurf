@@ -64,7 +64,9 @@ def compose(*, transport: Any, tx_device: Any = None,
     tx_device : pyrogue.Device, optional
         A transmitter the processed data is handed to (a streaming application's).
     providers, kwargs
-        As `cryodaq.server.compose`.
+        As `cryodaq.server.compose`, except that ``capture_points`` defaults
+        to `cryodaq.server.CAPTURE_POINTS` rather than to none: the client's
+        ADC and DAC reads need the capture receivers. Pass 0 to leave them out.
     variable_groups : mapping, optional
         Defaults to `VARIABLE_GROUPS`.
 
@@ -88,6 +90,9 @@ def compose(*, transport: Any, tx_device: Any = None,
         # which triggers known problems in its firmware.
         root.SmurfProcessor.ChannelMapper.Mask.set([0])
 
+    # The command line's default, so a server composed from code gets the
+    # same tree as one started from the command line.
+    kwargs.setdefault('capture_points', cryodaq.server.CAPTURE_POINTS)
     root = cryodaq.server.compose(
         transport=transport, providers=providers, sinks=[processor],
         variable_groups=VARIABLE_GROUPS if variable_groups is None else variable_groups,
