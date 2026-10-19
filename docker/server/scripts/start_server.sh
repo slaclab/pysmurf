@@ -19,9 +19,12 @@ arg_parser args "$@"
 
 # Call the initialization routines.
 # The list of extra arguments will be store in 'extra_args' and it
-# will be added to the list arguments 'args'.
+# will be added to the list arguments 'args'. The generated arguments go
+# first: the register configuration files are applied in the order given, so
+# the population's defaults the detection picked must precede any layer the
+# user passed, which then overrides them.
 initialize extra_args
-args+=" ${extra_args}"
+args="${extra_args} ${args}"
 
 echo
 

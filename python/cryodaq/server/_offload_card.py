@@ -91,8 +91,10 @@ class Registers:
         # The slave is an interface of the root so that stopping the root
         # closes it; an unstarted root would otherwise never touch it.
         self._root.addInterface(slave)
-        self._root.add(card.Core(memBase=slave))
         try:
+            # Building the map starts the package's helper thread; from here on
+            # anything that raises stops what was built.
+            self._root.add(card.Core(memBase=slave))
             self._root._rootAttached()
             self._root._finishInit()
             self.core = self._root.Core
@@ -173,6 +175,9 @@ class OffloadCard:
         except Exception as e:
             regs.stop()
             raise ConnectError(f"could not read PCIe device {dev} ({role}): {e}") from e
+        except BaseException:
+            regs.stop()
+            raise
         if found != device_id:
             regs.stop()
             raise ConnectError(f"PCIe device {dev} reports DeviceId {found}, not the "

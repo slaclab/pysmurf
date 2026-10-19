@@ -35,7 +35,7 @@ from cryodaq import platform
 from cryodaq._errors import ConnectError
 from cryodaq.server._application_config import ApplicationConfig, EXCLUDED_FROM
 from cryodaq.server._application_status import ApplicationStatus
-from cryodaq.server._capture import add_capture_receivers
+from cryodaq.server._capture import CAPTURE_POINTS, add_capture_receivers
 from cryodaq.server._firmware import load_package, probe_platform, resolve_layers, top_level
 from cryodaq.server._provider import OperationsProvider, attach_operations
 from cryodaq.server._root import ReadoutRoot
@@ -47,7 +47,7 @@ from cryodaq.server import _cli
 __all__ = ['compose', 'CORE_PROVIDERS', 'OperationsProvider', 'attach_operations', 'load_package',
            'Transport', 'eth', 'pcie', 'emulation', 'OffloadCard', 'ReadoutRoot',
            'ApplicationConfig', 'ApplicationStatus', 'EXCLUDED_FROM', 'UMUX_OPERATIONS',
-           'add_capture_receivers', 'add_arguments', 'configure_logging', 'transport_from',
+           'add_capture_receivers', 'CAPTURE_POINTS', 'add_arguments', 'configure_logging', 'transport_from',
            'composition_kwargs', 'run']
 
 # The command line a server entry point shares.

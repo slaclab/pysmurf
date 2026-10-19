@@ -96,6 +96,8 @@ If a board is not present in one of the bays, then the corresponding `--disable-
 - **version**: is the version of the AMC daughter boards. If both boards are present, they must be of the same version.
 - **bay[0,1]_type**: if the type of the AMC daughter board in each bay. Supported types are `lb` (for low band boards) and `hb` (for high band boards). In a bay is not populated, then this filed must be set to `none`.
 
+The generated arguments are placed before the ones given on the command line, so a `--defaults`/`--layer` file passed by the user is applied after the detected population's defaults and overrides them.
+
 If the script fails to detect the type of boards, then the startup process is aborted. The reason for the detection to failed are:
 - A board with an unsupported part number was found.
 - The board type or versions can not be extracted from the part numbers.

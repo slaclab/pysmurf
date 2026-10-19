@@ -138,15 +138,18 @@ class _Probe(pyrogue.Root):
         started = []
         try:
             for node in self._link_nodes:
-                node._start()
+                # Recorded before it starts: a link interrupted while it waits
+                # for the far end to answer has its engine running already.
                 started.append(node)
+                node._start()
             pyrogue.Root.start(self)
-        except Exception:
-            # A link that would not open, or a tree that would not start; the
-            # context manager's exit will not run for a start that raised, so
-            # what was started is stopped here. (A read that finds no hardware
-            # does not raise: rogue logs it, and the blank stamp is refused by
-            # identify() instead.)
+        except BaseException:
+            # A link that would not open, a tree that would not start, or an
+            # interrupt; the context manager's exit will not run for a start
+            # that raised, so what was started is stopped here -- rogue's
+            # threads are not daemons and would hold the process open. (A
+            # read that finds no hardware does not raise: rogue logs it, and
+            # the blank stamp is refused by identify() instead.)
             if self.running:
                 pyrogue.Root.stop(self)
             for node in reversed(started):

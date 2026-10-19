@@ -25,6 +25,7 @@ import socket
 from typing import Any, Dict, Optional
 
 from cryodaq import platform
+from cryodaq.server._capture import CAPTURE_POINTS
 
 __all__ = ['add_arguments', 'configure_logging', 'transport_from', 'composition_kwargs',
            'server_port_for', 'run']
@@ -74,7 +75,7 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     group.add_argument('--enable-em22xx', action='store_true', dest='enable_pwri2c',
                        help="Enable the EM22xx power monitor.")
     group.add_argument('--capture-points', '--stream-pv-size', dest='capture_points', type=int,
-                       default=2**19, metavar='N',
+                       default=CAPTURE_POINTS, metavar='N',
                        help="Points buffered by each debug capture receiver; 0 disables them.")
     group.add_argument('--capture-type', '--stream-pv-type', dest='capture_type',
                        default='Int16', choices=['Int16', 'Int8'],

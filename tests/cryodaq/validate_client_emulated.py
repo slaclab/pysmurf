@@ -137,10 +137,6 @@ EXPECTED_BANDS = tuple(range(8))
 # slow machine.
 EXIT_DEADLINE_S = 30
 
-# The debug capture receivers a deployed server is built with, so the tree here
-# is the tree a crate serves (the command line's default).
-CAPTURE_POINTS = 2**19
-
 # How long a child interpreter that builds the SMuRF client against three servers
 # gets: each connect takes a few seconds; this bounds a hang.
 CLIENT_CHILD_DEADLINE_S = 120
@@ -716,6 +712,83 @@ def check_the_platform_probe_opens_the_link_before_reading():
     assert events == ['start', 'read', 'stop'], f"the probe did not bracket its read: {events}"
 
 
+def check_an_interrupted_platform_probe_closes_what_it_opened():
+    """A probe interrupted mid-start stops the link it opened and leaves no thread.
+
+    The probe is a root of its own: it starts the transport's link node, then
+    its tree, whose threads are not daemons, and its context manager's exit
+    never runs for an entry that raised. An interrupt is not an ``Exception``,
+    so a guard that catches only those would let Ctrl-C leave the link open and
+    the probe's threads holding the process. Two places it lands: inside the
+    link's own start -- the RSSI link waits there, engine running, for a far end
+    that may never answer, so the link must be stopped though its start never
+    returned -- and inside the tree's start, after rogue has launched its
+    threads (a node of the probe's tree raises: the tree must be stopped, the
+    link with it). No non-daemon thread may survive either. A probe the guard
+    failed to stop is stopped here, so a regression is reported as a failure
+    and not as a run that never exits.
+    """
+    import pyrogue.interfaces.simulation
+    events = []
+    probes = []
+
+    class Link(pr.Device):
+        def __init__(self, name, interrupt=False):
+            pr.Device.__init__(self, name=name)
+            self._interrupt = interrupt
+
+        def _start(self):
+            pr.Device._start(self)
+            events.append(f'start {self.name}')
+            if self._interrupt:
+                # The engine is up; the wait for the far end is where Ctrl-C lands.
+                raise KeyboardInterrupt
+
+        def _stop(self):
+            pr.Device._stop(self)
+            events.append(f'stop {self.name}')
+
+    probe_cls = cryodaq.server._firmware._Probe
+
+    class Probe(probe_cls):
+        interrupt_in_tree = False
+
+        def __init__(self, srp, link_nodes=()):
+            probe_cls.__init__(self, srp, link_nodes)
+            probes.append(self)
+            if self.interrupt_in_tree:
+                self.add(Link('in_tree', interrupt=True))
+
+    def interrupted(link_nodes, in_tree):
+        srp = pyrogue.interfaces.simulation.MemEmulate()
+        before = set(threading.enumerate())
+        Probe.interrupt_in_tree = in_tree
+        cryodaq.server._firmware._Probe = Probe
+        try:
+            cryodaq.server._firmware.probe_platform(srp, link_nodes)
+        except KeyboardInterrupt:
+            pass
+        else:
+            raise AssertionError("the probe ran to completion over a start that was interrupted")
+        finally:
+            cryodaq.server._firmware._Probe = probe_cls
+        return [t.name for t in threading.enumerate() if t not in before and not t.daemon]
+
+    try:
+        left = interrupted([Link('link', interrupt=True)], in_tree=False)
+        assert events == ['start link', 'stop link'], f"the probe interrupted in its link left: {events}"
+        assert left == [], f"a probe interrupted in its link left threads running: {left}"
+        events.clear()
+        left = interrupted([Link('link')], in_tree=True)
+        assert events == ['start link', 'start in_tree', 'stop in_tree', 'stop link'], \
+            f"the probe interrupted in its tree left: {events}"
+        assert left == [], f"a probe interrupted in its tree left threads running: {left}"
+    finally:
+        for probe in probes:
+            if probe.running:
+                probe.stop()
+
+
 def check_the_offload_card_is_configured_around_the_server():
     """A transport through the PCIe card opens its lane before the firmware is probed, and closes it after.
 
@@ -795,6 +868,44 @@ def check_the_server_reports_the_bays_it_was_built_with():
         for bay in reported:
             path = root.pmap.path(f'bay[{bay}].debug.enable')
             assert root.getNode(path) is not None, f"reported bay {bay} has no front end at {path}"
+
+
+def check_the_application_server_has_its_capture_receivers_by_default():
+    """``pysmurf.core.server.compose()`` builds the capture receivers unless told not to.
+
+    The client's ADC and DAC reads go through the debug capture receivers, so a
+    SMuRF server without them is one those reads fail against. The readout core
+    alone builds none unless asked; the command line asks for the deployed
+    depth, and a server composed from code -- a streaming application's -- must
+    get the same tree without having to know the number. An explicit 0 still
+    leaves them out.
+    """
+    import pysmurf.core.emulators
+    import pysmurf.core.server
+    from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+
+    def composed(**kwargs):
+        return pysmurf.core.server.compose(
+            transport=cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource()),
+            platform_name=EXPECTED_PLATFORM[RFSOC], server_port=free_port(), polling=False,
+            top_level_class=FpgaTopLevel, top_level_options=dict(isRFSOC=RFSOC), **kwargs)
+
+    def captures(root):
+        return platform.indices(root.pmap, lambda path: root.getNode(path) is not None, 'capture')
+
+    by_default = composed()
+    try:
+        found = captures(by_default)
+        assert found == (0, 1, 2, 3), f"composed without a word, the server has captures {found}"
+        depth = len(by_default.getNode(by_default.pmap.path('stream.capture[0].data')).value())
+        assert depth == cryodaq.server.CAPTURE_POINTS, f"the default receiver buffers {depth} points"
+    finally:
+        by_default.release()
+    without = composed(capture_points=0)
+    try:
+        assert captures(without) == (), f"asked for none, the server has captures {captures(without)}"
+    finally:
+        without.release()
 
 
 def check_the_application_client_refuses_a_server_without_its_application():
@@ -1212,8 +1323,7 @@ def emulation_root(args, port):
     root = pysmurf.core.server.compose(
         transport=cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource()),
         platform_name=EXPECTED_PLATFORM[args.rfsoc], server_port=port, polling=False,
-        top_level_class=FpgaTopLevel, top_level_options=dict(isRFSOC=args.rfsoc),
-        capture_points=CAPTURE_POINTS)
+        top_level_class=FpgaTopLevel, top_level_options=dict(isRFSOC=args.rfsoc))
     try:
         root.start()
     except Exception:
