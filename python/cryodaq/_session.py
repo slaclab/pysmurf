@@ -45,7 +45,7 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import (Any, Dict, Iterable, Iterator, List, Mapping, Optional, Tuple, Union)
+from typing import (Any, Dict, Iterable, Iterator, List, Mapping, Optional, Sequence, Tuple, Union)
 
 from cryodaq import config, platform
 from cryodaq._errors import ConnectError, UnresolvedName
@@ -574,7 +574,7 @@ class Session:
         """
         return platform.indices(self.pmap, self._has, scope, **fixed)
 
-    def _candidates(self) -> Iterator[str]:
+    def _candidates(self, sample: Sequence[str] = ()) -> Iterator[str]:
         """Every name the map offers this tree, indices filled in from the tree.
 
         What the map claims, not what resolves: an index the tree has does not
@@ -582,10 +582,11 @@ class Session:
         are real is exactly what ``validate`` reports.
         """
         for pattern in self.pmap.patterns:
-            for name in platform.expand(self.pmap, self._has, pattern):
+            for name in platform.expand(self.pmap, self._has, pattern, sample=sample):
                 yield name
 
-    def validate(self, names: Optional[Iterable[str]] = None) -> ValidationReport:
+    def validate(self, names: Optional[Iterable[str]] = None, *,
+                 sample: Sequence[str] = ()) -> ValidationReport:
         """Confirm that names reach a node in this tree, one lookup each.
 
         An expert tool: a few hundred round trips, and nothing on the normal
@@ -595,10 +596,18 @@ class Session:
         ----------
         names : iterable of str, optional
             What to check; every name the map offers this tree by default.
+        sample : sequence of str, optional
+            Scopes to check at their first, middle and last index only, rather
+            than at every index the tree has. A scope the firmware builds as one
+            array -- the channels of a band -- is present at every index or at
+            none, so three of its five hundred say what all of them would, at a
+            fraction of the round trips. A register missing from one index in
+            the middle of such a scope is not seen this way; the full
+            enumeration is the default.
         """
         resolved: List[str] = []
         unresolved: List[Tuple[str, str]] = []
-        for name in (self._candidates() if names is None else names):
+        for name in (self._candidates(sample) if names is None else names):
             try:
                 path, _ = self.pmap.entry(name)
                 if not self._has(path):

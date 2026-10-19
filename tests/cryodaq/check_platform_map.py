@@ -218,6 +218,39 @@ def check_a_scope_is_enumerated_past_the_window():
             f"{name} channel enumerated {len(got)} indices, last {got[-1:]}, expected 512"
 
 
+def check_a_sampled_scope_expands_to_its_ends_and_middle():
+    """``expand(sample=)`` fills a scope with three of its indices.
+
+    A validation that samples the channels asks three of the 512 for each
+    pattern; what it can and cannot see is asserted here so the trade-off is
+    on record. The scope's extent still comes from the tree -- a band with 400
+    channels samples 0, 200 and 399 -- so a name the sample offers and the
+    tree lacks is a register missing at one of those three indices; a register
+    missing at channel 100 alone is not seen.
+    """
+    pmap = platform.by_name('umux-atca')
+    pattern = 'band[*].channel[*].tone.amplitude'
+
+    def has_channels(n):
+        def has(path):
+            if 'CryoChannel[' not in path:
+                return 'Base[0]' in path
+            index = int(path.split('CryoChannel[')[1].split(']')[0])
+            return index < n
+        return has
+
+    names = platform.expand(pmap, has_channels(512), pattern, sample=('channel',))
+    assert names == ['band[0].channel[0].tone.amplitude', 'band[0].channel[256].tone.amplitude',
+                     'band[0].channel[511].tone.amplitude'], names
+    assert len(platform.expand(pmap, has_channels(512), pattern)) == 512
+    fewer = platform.expand(pmap, has_channels(400), pattern, sample=('channel',))
+    assert fewer == ['band[0].channel[0].tone.amplitude', 'band[0].channel[200].tone.amplitude',
+                     'band[0].channel[399].tone.amplitude'], fewer
+    # Nothing sampled: the full enumeration, as before.
+    assert platform.expand(pmap, has_channels(512), pattern, sample=()) == \
+        platform.expand(pmap, has_channels(512), pattern)
+
+
 def check_a_scope_ends_after_an_empty_window():
     # Indices 0 and 40 are present: 40 is in the second window, so it is found; the
     # third window (64-95) is empty, so nothing past it is probed. A gap wider than a

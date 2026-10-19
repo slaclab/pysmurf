@@ -145,6 +145,12 @@ CLIENT_CHILD_DEADLINE_S = 120
 # emulated tree takes a minute or two on an idle machine and several on a busy
 # one; a child that dies ends the wait early, so this bounds a hang, not a run.
 ENTRY_POINT_READY_S = 600
+# How long that child may take to exit once told to. A server stopped soon after
+# it started waits for rogue to finish rendering the operations' large arrays,
+# which it does once, after start: about 30 s on an idle machine, measured. The
+# bound is three times that, so a server that will not stop is told apart from
+# one that is slow to.
+ENTRY_POINT_EXIT_S = 90
 # The firmware-package arguments this run was given, handed on to the child
 # entry point so it builds the same tree. Set in main().
 FIRMWARE_ARGS = []
@@ -201,9 +207,11 @@ def check_every_offered_name_resolves():
     built from a firmware package has none of it. Excluded by name rather than by
     letting the check pass on an empty set, and required to stay excluded -- a name
     that starts resolving here has stopped being server-attached and should lose its
-    exemption.
+    exemption. The channels are sampled -- first, middle and last of each
+    band -- so a register missing from one channel in between is not seen here;
+    the committed tree listings cover every path.
     """
-    report = SESSION.validate()
+    report = SESSION.validate(sample=('channel',))
     attached = [name for name, _why in report.unresolved
                 if name.startswith('carrier.regulator.')]
     assert attached, ('the regulator names resolve on an emulated tree, so they are no '
@@ -228,7 +236,7 @@ def check_every_offered_name_resolves():
 def check_node_kinds_match_the_map():
     """A name the map calls a process is a process, a command a command, a value a value."""
     wrong = []
-    for name in SESSION.validate().resolved:
+    for name in SESSION.validate(sample=('channel',)).resolved:
         declared = SESSION.pmap.kind(name)
         node = SESSION.node(name)
         if node.isinstance(pr.Process):
@@ -302,7 +310,7 @@ def check_the_scopes_are_the_ones_this_tree_has():
         else:
             raise AssertionError(
                 "a platform with no RF front end declares the 'attenuator' scope")
-        report = SESSION.validate()
+        report = SESSION.validate(sample=('channel',))
         def front_end_name(name):
             return '.attenuator.' in name or '.jesd.' in name
 
@@ -660,11 +668,12 @@ def check_names_and_kinds_are_refused_when_wrong():
         raise AssertionError('a value was called')
 
 
-# How many times a child is run for the exit check below. The abort it guards
-# against is intermittent -- measured at 11 of 60 runs with the client left to its
-# destructors -- so one clean exit is no evidence; at this count a rate that high
-# escapes with probability under one in a thousand.
-EXIT_TRIALS = 40
+# How many times a child is run, per setting, for the exit check below. The abort
+# it guards against is intermittent -- measured at 11 of 60 runs with the client
+# left to its destructors -- so one clean exit is no evidence; at this count a rate
+# that high escapes with probability 0.82**25, under one in a hundred, and each
+# child costs two seconds.
+EXIT_TRIALS = 25
 
 
 def check_the_platform_probe_opens_the_link_before_reading():
@@ -803,8 +812,6 @@ def check_the_offload_card_is_configured_around_the_server():
     firmware's map bound over it; the probe's memory is separate.
     """
     import pysmurf.core.emulators
-    import pysmurf.core.server
-    from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
     if SMURF_PCIE is None:
         raise Skipped("no --smurf-pcie package given: the card's register map cannot be bound here")
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -822,9 +829,10 @@ def check_the_offload_card_is_configured_around_the_server():
         return original(name)
     platform.by_name = by_name
     try:
-        root = pysmurf.core.server.compose(
-            transport=transport, platform_name=EXPECTED_PLATFORM[RFSOC], server_port=free_port(),
-            polling=False, top_level_class=FpgaTopLevel, top_level_options=dict(isRFSOC=RFSOC))
+        # No operations on this root: the card is the transport's, not theirs,
+        # and a started tree carrying the operations' large arrays takes half a
+        # minute to stop while rogue renders them.
+        root = standin_root(transport=transport, providers=())
     finally:
         platform.by_name = original
     # Emulation names its platform where hardware would be probed; the card has
@@ -880,20 +888,10 @@ def check_the_application_server_has_its_capture_receivers_by_default():
     get the same tree without having to know the number. An explicit 0 still
     leaves them out.
     """
-    import pysmurf.core.emulators
-    import pysmurf.core.server
-    from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
-
-    def composed(**kwargs):
-        return pysmurf.core.server.compose(
-            transport=cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource()),
-            platform_name=EXPECTED_PLATFORM[RFSOC], server_port=free_port(), polling=False,
-            top_level_class=FpgaTopLevel, top_level_options=dict(isRFSOC=RFSOC), **kwargs)
-
     def captures(root):
         return platform.indices(root.pmap, lambda path: root.getNode(path) is not None, 'capture')
 
-    by_default = composed()
+    by_default = standin_root()
     try:
         found = captures(by_default)
         assert found == (0, 1, 2, 3), f"composed without a word, the server has captures {found}"
@@ -901,7 +899,7 @@ def check_the_application_server_has_its_capture_receivers_by_default():
         assert depth == cryodaq.server.CAPTURE_POINTS, f"the default receiver buffers {depth} points"
     finally:
         by_default.release()
-    without = composed(capture_points=0)
+    without = standin_root(capture_points=0)
     try:
         assert captures(without) == (), f"asked for none, the server has captures {captures(without)}"
     finally:
@@ -931,17 +929,10 @@ def check_the_application_client_refuses_a_server_without_its_application():
         # beside rogue; an interpreter without them cannot build one.
         raise Skipped("pysmurf.client does not import in this interpreter: "
                       f"{probe.stderr.strip().splitlines()[-1] if probe.stderr.strip() else 'no detail'}")
-    import pysmurf.core.emulators
-    import pysmurf.core.server
-    from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
-    reduced = cryodaq.server.compose(
-        transport=cryodaq.server.emulation(), platform_name=EXPECTED_PLATFORM[RFSOC],
-        server_port=free_port(), polling=False,
-        top_level_class=FpgaTopLevel, top_level_options=dict(isRFSOC=RFSOC))
-    older = pysmurf.core.server.compose(
-        transport=cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource()),
-        platform_name=EXPECTED_PLATFORM[RFSOC], server_port=free_port(), polling=False,
-        top_level_class=FpgaTopLevel, top_level_options=dict(isRFSOC=RFSOC))
+    # No operations on either: what the client reads to decide is the status
+    # device, and the operations' arrays make a started tree slow to stop.
+    reduced = standin_root(reduced=True, transport=cryodaq.server.emulation(), providers=())
+    older = standin_root(providers=())
     # A server built before the name existed has no such node; this one loses
     # it before the tree is sealed by start(). Reaching into the device's node
     # table is what it takes, since a built tree offers no removal.
@@ -998,14 +989,12 @@ def check_a_start_that_fails_in_the_tree_leaves_no_thread_behind():
     raised: the process would hold open with no server on it. (A register read
     that times out is not this case: rogue catches and logs it, and ``start()``
     returns with the root running.) The failure here is a link node that refuses
-    to start, which is where a link that cannot open fails. Built on the
-    platform under test, with the same stand-in the bays check uses. A root the
+    to start, which is where a link that cannot open fails. Built over the
+    stand-in top level: what is asserted is the guard, not the tree. A root the
     guard failed to stop is stopped here so that a regression is reported as a
     failure and not as a run that never exits.
     """
     import pysmurf.core.emulators
-    import pysmurf.core.server
-    from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
 
     class Link(pr.Device):
         def __init__(self):
@@ -1016,9 +1005,7 @@ def check_a_start_that_fails_in_the_tree_leaves_no_thread_behind():
 
     transport = cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource())
     transport.nodes.append(Link())
-    root = pysmurf.core.server.compose(
-        transport=transport, platform_name=EXPECTED_PLATFORM[RFSOC], server_port=free_port(),
-        polling=False, top_level_class=FpgaTopLevel, top_level_options=dict(isRFSOC=RFSOC))
+    root = standin_root(transport=transport)
     before = set(threading.enumerate())
     try:
         try:
@@ -1122,7 +1109,7 @@ def check_the_entry_point_runs_to_ready_and_exits_on_sigterm():
     traceback. What the child cannot exercise -- the offload card, a real link
     -- it says so in its own arguments.
     """
-    _run_entry_point_to_ready('pysmurf.core.server', identity=True)
+    _entry_point_child('pysmurf.core.server').verdict(identity=True)
 
 
 def check_the_reduced_entry_point_runs_to_ready_and_exits_on_sigterm():
@@ -1131,40 +1118,80 @@ def check_the_reduced_entry_point_runs_to_ready_and_exits_on_sigterm():
     The expected difference from the full server: no application identity on
     the status device, since no application composed it.
     """
-    _run_entry_point_to_ready('cryodaq.server', identity=False)
+    _entry_point_child('cryodaq.server').verdict(identity=False)
 
 
-def _run_entry_point_to_ready(module, identity):
-    # The child names the platform this package really builds -- the RFSoC run's
-    # tree is a stand-in made in-process (see the header), and the child has no
-    # such shortcut; what is under test here is main(), not the platform.
-    port = free_port()
-    cmd = [sys.executable, '-m', module, '--transport', 'emulation',
-           '--platform', EXPECTED_PLATFORM[False], '--server-port', str(port),
-           '--nopoll', '--capture-points', '0', '--log-level', 'WARNING'] + FIRMWARE_ARGS
-    env = dict(os.environ, PYTHONPATH=os.pathsep.join(p for p in sys.path if p))
-    # Output to a file, not a pipe: a pipe nobody drains fills, and a child
-    # blocked on its own print looks exactly like one that never got there.
-    with tempfile.TemporaryFile(mode='w+', encoding='utf-8') as log:
-        child = subprocess.Popen(cmd, env=env, stdout=log, stderr=subprocess.STDOUT)
+# The two entry points, each building a full tree in its own interpreter, are
+# the slow checks of this run, and they need nothing from it; main() starts
+# both children as soon as the session's own tree is up, and each check judges
+# its own when its turn comes.
+ENTRY_POINT_MODULES = ('pysmurf.core.server', 'cryodaq.server')
+ENTRY_POINT_CHILDREN = {}
+
+
+def start_entry_point_children():
+    # Both ports before either child, so one cannot be handed the other's.
+    ports = {name: free_port() for name in ENTRY_POINT_MODULES}
+    for name in ENTRY_POINT_MODULES:
+        ENTRY_POINT_CHILDREN[name] = _EntryPointChild(name, ports[name])
+
+
+def _entry_point_child(module):
+    # A check run on its own, outside main(), starts just the child it judges.
+    if module not in ENTRY_POINT_CHILDREN:
+        ENTRY_POINT_CHILDREN[module] = _EntryPointChild(module, free_port())
+    return ENTRY_POINT_CHILDREN.pop(module)
+
+
+class _EntryPointChild:
+    """An entry point run as a child, to be judged once: Ready rose, SIGTERM ended it cleanly."""
+
+    def __init__(self, module, port):
+        # The child names the platform this package really builds -- the RFSoC
+        # run's tree is a stand-in made in-process (see the header), and the
+        # child has no such shortcut; what is under test is main(), not the
+        # platform.
+        self.module, self.port = module, port
+        cmd = [sys.executable, '-m', module, '--transport', 'emulation',
+               '--platform', EXPECTED_PLATFORM[False], '--server-port', str(port),
+               '--nopoll', '--capture-points', '0', '--log-level', 'WARNING'] + FIRMWARE_ARGS
+        env = dict(os.environ, PYTHONPATH=os.pathsep.join(p for p in sys.path if p))
+        # Output to a file, not a pipe: a pipe nobody drains fills, and a child
+        # blocked on its own print looks exactly like one that never got there.
+        self.log = tempfile.TemporaryFile(mode='w+', encoding='utf-8')
+        self.child = subprocess.Popen(cmd, env=env, stdout=self.log, stderr=subprocess.STDOUT)
+
+    def verdict(self, identity):
+        child, module = self.child, self.module
         try:
-            _wait_for_ready(child, port, identity, log)
+            _wait_for_ready(child, self.port, identity, self.log)
             child.terminate()
             try:
-                child.wait(timeout=EXIT_DEADLINE_S)
+                child.wait(timeout=ENTRY_POINT_EXIT_S)
             except subprocess.TimeoutExpired:
-                raise AssertionError(f"{module} ignored SIGTERM for {EXIT_DEADLINE_S}s")
+                raise AssertionError(f"{module} ignored SIGTERM for {ENTRY_POINT_EXIT_S}s")
         finally:
             # Whatever happened -- an assertion, Ctrl-C -- no child is left
             # serving on the port.
             if child.poll() is None:
                 child.kill()
                 child.wait()
-            log.seek(0)
-            out = log.read()
-    assert child.returncode == 0 and 'Traceback' not in out, (
-        f"{module} exited {child.returncode} on SIGTERM; output ends: "
-        f"{out.strip()[-600:]!r}")
+            self.log.seek(0)
+            out = self.log.read()
+            self.log.close()
+        assert child.returncode == 0 and 'Traceback' not in out, (
+            f"{module} exited {child.returncode} on SIGTERM; output ends: "
+            f"{out.strip()[-600:]!r}")
+
+
+def stop_entry_point_children():
+    """Kill any child a check never came to judge (a run that stopped early)."""
+    for pending in ENTRY_POINT_CHILDREN.values():
+        if pending.child.poll() is None:
+            pending.child.kill()
+            pending.child.wait()
+        pending.log.close()
+    ENTRY_POINT_CHILDREN.clear()
 
 
 def _wait_for_ready(child, port, identity, log):
@@ -1248,8 +1275,13 @@ def describe_source(args):
     return f"cryo-det {head}" + (' (RFSoC)' if args.rfsoc else '')
 
 
+# Port triples this run has handed out, so a server still on its way to binding
+# its ports cannot have them offered to another.
+PORTS_GIVEN = set()
+
+
 def free_port():
-    """A port triple starting here is free right now; the server takes three."""
+    """A port triple starting here is free right now, and not given out before; the server takes three."""
     held = []
     try:
         for _ in range(3):
@@ -1263,7 +1295,97 @@ def free_port():
     base = held[0][1]
     for s, _ in held:
         s.close()
+    if any(base + i in PORTS_GIVEN for i in range(3)):
+        return free_port()
+    PORTS_GIVEN.update(base + i for i in range(3))
     return base
+
+
+class StandInTopLevel(pr.Device):
+    """A firmware top level with only what the composition itself needs.
+
+    The real top level takes half a minute to build and as long again to stop
+    (its eta-scan arrays are rendered on the way down). Some checks assert on
+    what ``compose()`` does around the firmware -- the order it opens the card
+    in, the receivers it adds, how a failed start is unwound, the application
+    it names -- and for those the firmware's own contents are beside the point.
+    This stands in for it there: the devices the map anchors the operations on,
+    with the array variables those operations write, a bay scope, the DAQ
+    trigger and a version block for the stamp; nothing else.
+
+    Which checks may use it is a judgement about their assertion: anything
+    asserting on what the real tree holds -- the bays a build leaves out, every
+    mapped name resolving, the entry points -- stays on the real class. It
+    spells firmware node names, as a stand-in for a firmware tree must; they
+    are the ones the platform map anchors on, and a map change that moved
+    them would fail the checks built over it.
+    """
+
+    def __init__(self, memBase=None, **_):
+        import surf.axi
+        pr.Device.__init__(self, name='FpgaTopLevel', memBase=memBase)
+        app_top = pr.Device(name='AppTop')
+        app_core = pr.Device(name='AppCore')
+        sysgen = pr.Device(name='SysgenCryo')
+        self.add(app_top)
+        app_top.add(app_core)
+        app_core.add(sysgen)
+        for band in range(len(EXPECTED_BANDS)):
+            sysgen.add(_StandInBand(band))
+        for bay in range(2):
+            app_top.add(pr.Device(name=f'DaqMuxV2[{bay}]'))
+        self.add(pr.LocalCommand(name='SwDaqMuxTrig', function=lambda: None))
+        # What the SMuRF client reaches as it is built, before it is asked for
+        # anything: the cryostat card's mailboxes, and the crate and slot it
+        # reads to name its files.
+        rtm = pr.Device(name='RtmCryoDet')
+        spi = pr.Device(name='SpiCryo')
+        app_core.add(rtm)
+        rtm.add(spi)
+        for name in ('read', 'write'):
+            spi.add(pr.LocalVariable(name=name, value=0, mode='RW'))
+        carrier = pr.Device(name='AmcCarrierCore')
+        self.add(carrier)
+        carrier.add(surf.axi.AxiVersion(offset=0))
+        bsi = pr.Device(name='AmcCarrierBsi')
+        carrier.add(bsi)
+        for name in ('CrateId', 'SlotNumber'):
+            bsi.add(pr.LocalVariable(name=name, value=0, mode='RO'))
+
+
+class _StandInBand(pr.Device):
+    """One band: the anchor device and the per-channel variables the operations write."""
+
+    CHANNELS = 4
+
+    def __init__(self, band):
+        import numpy as np
+        pr.Device.__init__(self, name=f'Base[{band}]')
+        channels = pr.Device(name='CryoChannels')
+        # What the operations read off their anchor to size themselves.
+        channels._n_channels = 512
+        channels._freqSpanMHz = 1.2
+        self.add(channels)
+        for name in ('amplitudeScale', 'centerFrequencyMHz', 'feedbackEnable', 'etaMag',
+                     'etaPhase', 'frequencyError', 'loopFilterOutput'):
+            channels.add(pr.LocalVariable(name=name, value=np.zeros(self.CHANNELS), mode='RW'))
+        for i in range(self.CHANNELS):
+            channel = pr.Device(name=f'CryoChannel[{i}]')
+            channels.add(channel)
+            for name in ('amplitudeScale', 'centerFrequencyMHz', 'etaMagScaled',
+                         'etaPhaseDegree', 'feedbackEnable', 'frequencyError'):
+                channel.add(pr.LocalVariable(name=name, value=0.0, mode='RW'))
+
+
+def standin_root(reduced=False, **kwargs):
+    """A server composed over `StandInTopLevel`, full unless ``reduced``; not started."""
+    import pysmurf.core.emulators
+    import pysmurf.core.server
+    compose = cryodaq.server.compose if reduced else pysmurf.core.server.compose
+    kwargs.setdefault('transport',
+                      cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource()))
+    return compose(platform_name=EXPECTED_PLATFORM[RFSOC], server_port=free_port(),
+                   polling=False, top_level_class=StandInTopLevel, **kwargs)
 
 
 def write_build_stamp(root, stamp):
@@ -1358,18 +1480,21 @@ def run(checks):
     """
     failed = []
     for name, fn in checks:
+        started = time.monotonic()
         try:
             fn()
         except Skipped as e:
             SKIPPED.append(name)
-            print(f"  skip  {name}")
-            print(f"          {e}")
+            verdict, detail = 'skip', str(e)
         except Exception as e:                                   # noqa: BLE001
             failed.append(name)
-            print(f"  FAIL  {name}")
-            print(f"          {type(e).__name__}: {e}")
+            verdict, detail = 'FAIL', f"{type(e).__name__}: {e}"
         else:
-            print(f"  ok    {name}")
+            verdict, detail = 'ok', None
+        # The time each check took, so a run that slows down says where.
+        print(f"  {verdict:4}  {time.monotonic() - started:6.1f}s  {name}")
+        if detail is not None:
+            print(f"                  {detail}")
     return failed
 
 
@@ -1416,7 +1541,9 @@ def main():
     prechecks = collect('precheck_')
     checks = collect('check_')
     failed = []
+    started = time.monotonic()
     root = ROOT = emulation_root(args, port)
+    print(f"  tree composed and started in {time.monotonic() - started:.1f}s")
     try:
         # Inside the cleanup, not before it: a stamp that will not write is a
         # failure worth reporting, and it is reported by exiting, which a started
@@ -1429,6 +1556,7 @@ def main():
             print(f"  tree written to {args.dump_tree} (source in .source)")
         print(f"Validating the cryodaq client on the {label} "
               f"({len(prechecks)} + {len(checks)} checks)")
+        start_entry_point_children()
         failed += run(prechecks)
         # Nothing here runs the server's own configuration procedure, so the
         # flag it would leave is set on the server side first, and the session
@@ -1445,9 +1573,11 @@ def main():
             failed += run(checks)
         set_configured(root, False)
     finally:
+        stop_entry_point_children()
         root.stop()
 
     print("")
+    print(f"{time.monotonic() - started:.0f}s in all")
     if SKIPPED:
         print(f"SKIPPED ({len(SKIPPED)}), not run here: {', '.join(SKIPPED)}")
     if failed:
