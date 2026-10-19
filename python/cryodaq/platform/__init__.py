@@ -382,7 +382,8 @@ def _scopes_of(pattern: str) -> Tuple[str, ...]:
                  if segment.endswith('[*]'))
 
 
-def expand(pmap: PlatformMap, has: Callable[[str], bool], pattern: str) -> List[str]:
+def expand(pmap: PlatformMap, has: Callable[[str], bool], pattern: str,
+           sample: Sequence[str] = ()) -> List[str]:
     """Fill a pattern's ``*`` placeholders with the indices the tree has.
 
     Parameters
@@ -394,6 +395,10 @@ def expand(pmap: PlatformMap, has: Callable[[str], bool], pattern: str) -> List[
     pattern : str
         e.g. ``bay[*].attenuator[*].uc``. A pattern with no scope expands to
         itself.
+    sample : sequence of str, optional
+        Scopes to fill with their first, middle and last index only, for a
+        caller that wants a representative name per scope rather than every
+        one of them.
 
     Returns
     -------
@@ -401,6 +406,8 @@ def expand(pmap: PlatformMap, has: Callable[[str], bool], pattern: str) -> List[
         Concrete names, empty when a scope in the pattern has no indices here.
     """
     out: List[str] = []
+    # A scope name, not a string to search in: 'lut' must not sample 'lut_dac'.
+    sampled = {sample} if isinstance(sample, str) else set(sample)
 
     def walk(text: str, remaining: Sequence[str], fixed: Dict[str, int]) -> None:
         if not remaining:
@@ -408,7 +415,10 @@ def expand(pmap: PlatformMap, has: Callable[[str], bool], pattern: str) -> List[
             return
         scope, rest = remaining[0], remaining[1:]
         parents = pmap.scopes[scope][1] if scope in pmap.scopes else ()
-        for index in indices(pmap, has, scope, **{p: fixed[p] for p in parents}):
+        found = indices(pmap, has, scope, **{p: fixed[p] for p in parents})
+        if scope in sampled and found:
+            found = tuple(dict.fromkeys((found[0], found[len(found) // 2], found[-1])))
+        for index in found:
             walk(text.replace(f"{scope}[*]", f"{scope}[{index}]", 1), rest,
                  dict(fixed, **{scope: index}))
 
