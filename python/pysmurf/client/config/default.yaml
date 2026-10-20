@@ -123,8 +123,6 @@ timing:
   timing_reference: null              # ext_ref, backplane or fiber (required)
 
 fs: null                              # sample rate, Hz (required)
-dsp_enable: 1
-ultrascale_temperature_limit_degC: null
 
 tune:
   default_tune: null                  # a tune file to load at start, or null
@@ -137,8 +135,6 @@ band_default:
   iq_swap_out: 0
   feedback_enable: 1
   feedback_polarity: 1
-  # data_out_mux defaults per band are the firmware's and are filled in by
-  # the schema (bands 0/4 -> [2, 3], 1/5 -> [0, 1], 2/6 -> [6, 7], 3/7 -> [8, 9]).
   band_delay_us: null                 # total band delay, microseconds; or set `delay`
   # delay: {ref_phase: 6, ref_phase_fine: 0, lms: 24}
   #   sets the three firmware delay registers directly, in their own ticks,

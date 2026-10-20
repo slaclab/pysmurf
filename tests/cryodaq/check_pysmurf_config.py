@@ -71,19 +71,33 @@ EXPECTED_UNLOADABLE = 14
 # are gone; the three deprecated delay ones are compared through `delay`.
 COMPARED = (
     'smurf_cmd_dir', 'tune_dir', 'status_dir', 'default_data_dir', 'pA_per_phi0',
-    'timing_reference', 'default_tune', 'fs', 'R_sh', 'dsp_enable',
-    'ultrascale_temperature_limit_degC', 'bands', 'num_flux_ramp_counter_bits',
+    'timing_reference', 'default_tune', 'fs', 'R_sh',
+    'bands', 'num_flux_ramp_counter_bits',
     'reset_rate_khz', 'fraction_full_scale', 'bias_line_resistance',
     'high_low_current_ratio', 'high_current_mode_bool', 'all_groups', 'n_bias_groups',
     'attenuator', 'pic_to_bias_group', 'bias_group_to_pair', 'bad_mask',
     'gradient_descent_gain', 'gradient_descent_averages', 'gradient_descent_converge_hz',
     'gradient_descent_step_hz', 'gradient_descent_momentum', 'gradient_descent_beta',
     'feedback_start_frac', 'feedback_end_frac', 'eta_scan_del_f', 'eta_scan_averages',
-    'delta_freq', 'lms_freq_hz', 'data_out_mux', 'amplitude_scale', 'iq_swap_in',
+    'delta_freq', 'lms_freq_hz', 'amplitude_scale', 'iq_swap_in',
     'iq_swap_out', 'ref_phase_delay', 'ref_phase_delay_fine', 'band_delay_us', 'att_uc',
     'att_dc', 'trigger_reset_delay', 'lms_gain', 'lms_delay', 'feedback_enable',
     'feedback_gain', 'feedback_limit_khz', 'feedback_polarity',
 )
+# Properties the legacy mixin exposed that are no longer configuration: every
+# shipped file set them to what the server's own defaults already leave -- the
+# register layer's `dspEnable: 1`, the firmware's own output assignment, and no
+# temperature limit at all -- so a key for them named nothing a site decides.
+# The claim is checked against every legacy file: a file that set one of these
+# differently would be a value the dropped key was carrying. (`att_dc` is not
+# here: a site file off this repository sets it to 30, so it stays a key.)
+SERVER_DEFAULTS = {
+    'dsp_enable': 1,
+    'ultrascale_temperature_limit_degC': None,
+    'data_out_mux': lambda bands: {b: {0: [2, 3], 1: [0, 1], 2: [6, 7], 3: [8, 9],
+                                      4: [2, 3], 5: [0, 1], 6: [6, 7], 7: [8, 9]}[b]
+                                   for b in bands},
+}
 
 
 # --------------------------------------------------------------------------
@@ -120,7 +134,7 @@ def legacy_properties(cfg_path):
     config.config = SmurfConfig.validate_config(config.config)
     holder = Mixin()
     holder.copy_config_to_properties(config)
-    return {name: getattr(holder, name) for name in COMPARED}, config.config
+    return {name: getattr(holder, name) for name in COMPARED + tuple(SERVER_DEFAULTS)}, config.config
 
 
 _DIRS = None
@@ -221,7 +235,7 @@ def check_the_default_alone_is_a_complete_template_that_needs_a_site():
     bare = config.load(DEFAULT)
     assert 'bands' in bare.values and bare.values['bands'] == {}
     for key in ('paths', 'wiring', 'attenuator', 'amplifier', 'flux_ramp', 'timing',
-                'fs', 'dsp_enable', 'tune', 'band_default'):
+                'fs', 'tune', 'band_default'):
         assert key in bare.values, f"default.yaml lacks {key}"
     try:
         schema.validate(dict(bare.values))
@@ -235,7 +249,6 @@ def check_a_minimal_configuration_resolves_with_defaults_filled():
     resolved = load_mapping(minimal())
     band = resolved.values['bands'][4]
     assert band['iq_swap_in'] == 0 and band['feedback_enable'] == 1, 'band_default not applied'
-    assert band['data_out_mux'] == [2, 3], 'the firmware data_out_mux for band 4'
     assert resolved.values['wiring']['pA_per_phi0'] == 9e6
     assert resolved.values['amplifier']['hemt1']['drain_dac_num'] == 31
     assert resolved.values['paths']['tune'] == '/data/smurf_data/tune'
@@ -385,8 +398,6 @@ def check_a_layered_site_file_resolves_over_the_default():
     assert set(resolved.provenance) == set(flatten(resolved.values))
     assert resolved.provenance['bands.5.lms_gain'] == resolved.provenance['band_default.lms_gain']
     assert resolved.provenance['bands.5.lms_gain'][0].endswith('site.yaml')
-    assert resolved.provenance['bands.5.data_out_mux'] == (VALIDATED_LAYER, 0), \
-        'the firmware default for data_out_mux came from the validator'
     # A band's own delay block replaces the default's whole; what the schema
     # fills in under it is the schema's, not the line of a default the band
     # did not take -- a provenance that pointed at `ref_phase_fine: 9` for a 0
@@ -441,6 +452,11 @@ def check_every_legacy_file_converts_to_what_the_old_code_read():
         for name in COMPARED:
             if not same(old[name], new[name]):
                 failures.append(f"{cfg.relative_to(REPO)}: {name}: old {old[name]!r} new {new[name]!r}")
+        for name, default in SERVER_DEFAULTS.items():
+            expected = default(old['bands']) if callable(default) else default
+            if not same(old[name], expected):
+                failures.append(f"{cfg.relative_to(REPO)}: {name}: old {old[name]!r} is not the "
+                                f"server default {expected!r}; the key cannot be dropped")
         # Every band block resolves to the same delay decision setup() takes.
         for band in old['bands']:
             assert _delay_writes_old(old, band) == _delay_writes_new(resolved, band), \

@@ -72,6 +72,7 @@ SAVE_CONFIG_MESSAGE = f'{SAVE_CONFIG}.Message'
 READY = f'{ROOT}.Ready'                       # set by the server once its start() completes
 SET_DEFAULTS = f'{ROOT}.setDefaults'          # the server's own configuration procedure
 SET_DEFAULTS_START = f'{SET_DEFAULTS}.Start'  # the same procedure, as a rogue Process
+SETUP_MESSAGE = f'{SET_DEFAULTS}.Message'     # 'Done', or the step that failed and why
 # Re-open the offload card's register link to the carrier; present when the server runs
 # behind such a card.
 RESTART_RSSI = f'{ROOT}.RestartRssi'
@@ -514,6 +515,7 @@ REGISTERS = {
     'application.version': (SMURF_VERSION, _V),
     'ops.setup': (SET_DEFAULTS, _P),
     'ops.setup.start': (SET_DEFAULTS_START, _C),
+    'ops.setup.message': (SETUP_MESSAGE, _V),
     'poll_enable': (POLL_ENABLE, _V),
     'read_all': (READ_ALL, _C),
     'save_config.mode': (SAVE_CONFIG_MODE, _V),

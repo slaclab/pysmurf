@@ -51,7 +51,7 @@ from cryodaq.platform import _atca, _rfsoc, _umux
 __all__ = ['PlatformMap', 'MAPS', 'identify', 'by_name', 'tag_of', 'parse',
            'expand', 'indices', 'witness_names', 'VALUE', 'COMMAND', 'PROCESS',
            'DEVICE', 'KINDS', 'MAX_SCOPE_INDEX', 'TAG_PATH', 'VERSION_BLOCK_PATH',
-           'STATUS_DEVICE_PATH']
+           'STATUS_DEVICE_PATH', 'CARRIER_FRONT_END_PATH', 'CARRIER_LINKS_PATH']
 
 # What kind of node a name reaches: a value is read and written, a command is
 # called, a process is started and polled.
@@ -82,6 +82,12 @@ TAG_PATH = _umux.BUILD_STAMP
 VERSION_BLOCK_PATH = _umux.AXI_VERSION
 # The device a server reports its own state at.
 STATUS_DEVICE_PATH = _umux.APPLICATION
+# The two per-bay devices a carrier with converter cards has and a platform
+# whose converters share the FPGA's die does not: the RF front end and the
+# serial links to it. Templates in `bay`; what the carrier's configuration
+# procedure works on directly, so stated where paths live.
+CARRIER_FRONT_END_PATH = _atca.MUX_CORE
+CARRIER_LINKS_PATH = _atca.JESD_BAY
 
 # Matched with fullmatch, not match: `$` also matches just before a trailing
 # newline, so a name carrying one -- out of a file, off a command line -- would

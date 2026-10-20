@@ -36,11 +36,13 @@ import yaml
 
 __all__ = ['convert', 'read_json_with_comments', 'to_yaml', 'DROPPED_KEYS']
 
-# Keys the shipped files carry that nothing has read for years; the ones the
-# round-trip check expects to see named. Any other unread key is named too.
+# Keys the shipped files carry that nothing has read for years, and the register
+# values every file set to what the server's own defaults already hold; the ones
+# the round-trip check expects to see named. Any other unread key is named too.
 DROPPED_KEYS = ('epics_root', 'chip_to_freq', 'smurf_to_mce', 'band_to_chip',
                 'channel_assignment', 'flux_ramp.select_ramp', 'flux_ramp.ramp_start_mode',
-                'constant.pa_per_phi0', 'init.bands',
+                'constant.pa_per_phi0', 'init.bands', 'init.dspEnable',
+                'ultrascale_temperature_limit_degC',
                 'tune_band.n_samples', 'tune_band.grad_cut', 'tune_band.amp_cut',
                 'tune_band.freq_max', 'tune_band.freq_min', 'tune_band.eta_scan_amplitude')
 
@@ -50,7 +52,7 @@ _BAND_RENAMES = {
     'feedbackEnable': 'feedback_enable', 'feedbackPolarity': 'feedback_polarity',
     'feedbackGain': 'feedback_gain', 'feedbackLimitkHz': 'feedback_limit_khz',
     'att_uc': 'att_uc', 'att_dc': 'att_dc', 'amplitude_scale': 'amplitude_scale',
-    'data_out_mux': 'data_out_mux', 'trigRstDly': 'trigger_reset_delay',
+    'trigRstDly': 'trigger_reset_delay',
     'lmsGain': 'lms_gain', 'bandDelayUs': 'band_delay_us',
 }
 _DELAY_KEYS = {'refPhaseDelay': 'ref_phase', 'refPhaseDelayFine': 'ref_phase_fine',
@@ -73,7 +75,7 @@ _TAKEN = frozenset((
     'default_data_dir', 'smurf_cmd_dir', 'tune_dir', 'status_dir', 'R_sh', 'bias_line_resistance',
     'high_low_current_ratio', 'pic_to_bias_group', 'bias_group_to_pair', 'all_bias_groups',
     'high_current_mode_bool', 'constant', 'bad_mask', 'attenuator', 'amplifier', 'timing', 'fs',
-    'ultrascale_temperature_limit_degC', 'flux_ramp', 'init', 'tune_band'))
+    'flux_ramp', 'init', 'tune_band'))
 # A `#` starts a comment unless it is inside a double-quoted string.
 _COMMENT = re.compile(r'("(?:[^"\\]|\\.)*")|#.*')
 
@@ -136,22 +138,20 @@ def convert(path: Union[str, Path], *, warn: bool = True) -> Dict[str, Any]:
     if 'bad_mask' in old:
         # The old mapping's keys were labels nothing read; the ranges are the value.
         new.setdefault('wiring', {})['bad_mask'] = list(old['bad_mask'].values())
-    for key in ('attenuator', 'amplifier', 'timing', 'fs', 'ultrascale_temperature_limit_degC'):
+    for key in ('attenuator', 'amplifier', 'timing', 'fs'):
         take(old, key, key)
     if 'flux_ramp' in old:
         take(old['flux_ramp'], 'num_flux_ramp_counter_bits', 'flux_ramp', 'num_flux_ramp_counter_bits')
         dropped.extend(f"flux_ramp.{k}" for k in old['flux_ramp'] if k != 'num_flux_ramp_counter_bits')
 
     init = old.get('init', {})
-    take(init, 'dspEnable', 'dsp_enable')
     bands: Dict[int, Dict[str, Any]] = {}
     for key, block in init.items():
         m = _BAND_BLOCK.match(key)
         if not m:
             # `bands` the old validator rebuilt from the band_# blocks present,
             # as the new schema does from the keys under `bands`.
-            if key != 'dspEnable':
-                dropped.append(f"init.{key}")
+            dropped.append(f"init.{key}")
             continue
         band = bands.setdefault(int(m.group(1)), {})
         delay = {}

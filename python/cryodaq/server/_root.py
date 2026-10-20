@@ -11,8 +11,8 @@
 #    application: the ZMQ interface, the application status block, the record
 #    of the configuration a client gave it, the operations the providers add to
 #    the firmware's devices, file writers for the capture and streaming paths,
-#    the run control, and the procedure that loads the register defaults and
-#    checks the links came up.
+#    the run control, and the configuration procedure that loads the register
+#    layers and checks the links came up.
 #
 #    Data sinks -- whatever processes the streaming interface -- are handed in
 #    by the composition and connected here; the root does not know what they
@@ -28,7 +28,6 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import logging
-import time
 from typing import Any, Callable, Mapping, Optional, Sequence
 
 import pyrogue
@@ -42,6 +41,7 @@ from cryodaq.server._application_config import ApplicationConfig
 from cryodaq.server._application_status import ApplicationStatus
 from cryodaq.server._firmware import ROOT_NAME
 from cryodaq.server._provider import OperationsProvider, attach_operations
+from cryodaq.server._setup import setup_for
 
 __all__ = ['ReadoutRoot']
 
@@ -165,14 +165,12 @@ class ReadoutRoot(pyrogue.Root):
             rates={1: '1 Hz', 10: '10 Hz', 30: '30 Hz'}))
 
         # The configuration procedure: load the register layers and check the
-        # links. Exposed as a process so a client can start it and wait on it,
-        # and one that takes no argument: the files it loads are the server's,
-        # so a client with a 40-character limit on what it can send (EPICS
-        # channel access) can still run it.
-        self.add(pyrogue.Process(
-            name='setDefaults',
-            description='Set default configuration',
-            function=self._set_defaults_cmd))
+        # links, as the platform does it. Exposed as a process so a client can
+        # start it and wait on it, and one that takes no argument: the files it
+        # loads are the server's, so a client with a 40-character limit on what
+        # it can send (EPICS channel access) can still run it.
+        self.setup = setup_for(pmap, self._layers, self.status)
+        self.add(self.setup)
 
         # Saving state and configuration must not read first: a read of the
         # whole tree mid-run disturbs it, and the cached values are current.
@@ -268,9 +266,9 @@ class ReadoutRoot(pyrogue.Root):
             self._jesd_status.set(3)
 
         # Variable updates must not interleave with configuration.
-        self.setDefaults.UpdatePeriod.set(0.0)
+        self.setup.UpdatePeriod.set(0.0)
         if self._configure:
-            self._set_defaults_cmd()
+            self.setup._process()
         if self._on_start is not None:
             self._on_start(self)
         self.Ready.set(True)
@@ -308,126 +306,7 @@ class ReadoutRoot(pyrogue.Root):
             if spec.get('pollInterval') is not None and node.isinstance(pyrogue.BaseVariable):
                 node.setPollInterval(spec['pollInterval'])
 
-    # -- the configuration procedure -----------------------------------------
-
-    def _load_config(self, timeout=300, max_retries=4):
-        """Load the register layers, retrying; True if rogue reported Done.
-
-        Each try is judged by the message the load itself leaves, cleared
-        before it starts, so no try is credited with an earlier load's
-        result. A full load takes about a minute over the crate's link; the
-        bound is well clear of that. A load that outruns it is given as long
-        again to end -- and credited if it ends well -- before a retry; one
-        that still has not ended is left alone and the procedure gives up.
-        ``timeout=0`` waits without bound.
-        """
-        success = False
-        # The update thread can interfere with some steps of initialisation.
-        self.LoadConfigProcess.UpdatePeriod.set(0.0)
-        files = ','.join(self._layers)
-
-        def ended():
-            # Start() returns before the worker thread raises Running, so an
-            # empty or 'Running' message is the only sign a load is still due.
-            return not self.LoadConfigProcess.Running.value() and \
-                self.LoadConfigProcess.Message.value() not in ('', 'Running')
-
-        def wait_until(deadline):
-            while not ended() and (timeout == 0 or time.time() < deadline):
-                time.sleep(0.1)
-            return ended()
-
-        for i in range(max_retries):
-            _log.info("setting defaults from %s (try %d)", files, i)
-            try:
-                self.LoadConfigProcess.LoadMode.setDisp("File")
-                self.LoadConfigProcess.ConfigFile.set(files)
-                self.LoadConfigProcess.Message.setDisp('')
-                self.LoadConfigProcess.Start()
-                start = time.time()
-                if not wait_until(start + timeout):
-                    _log.warning("setting defaults try %d: LoadConfig still running after %d s",
-                                 i, timeout)
-                    if not wait_until(start + 2 * timeout):
-                        _log.error("LoadConfig has not ended after %d s; not retrying", 2 * timeout)
-                        break
-                message = self.LoadConfigProcess.Message.value()
-                if message == "Done":
-                    success = True
-                    break
-                _log.warning("setting defaults try %d failed: LoadConfig ended with %r", i, message)
-            except Exception as e:
-                _log.error("setting defaults try %d failed with: %s", i, e)
-
-        if success:
-            _log.info("defaults were set correctly")
-        else:
-            _log.error("failed to set defaults after %d retries", max_retries)
-        return success
-
-    def _check_elastic_buffers(self):
-        """Check the JESD receive elastic buffers after a load; reload on failure.
-
-        The latency must read 13 or 14 on lanes 0-1 and 4-9, and 255 on lanes 2-3.
-        """
-        success = False
-        max_retries = 10
-
-        for k in range(max_retries):
-            _log.info("check elastic buffers (try %d)", k)
-            retry_load_config = False
-            # The populated bays whose links this platform's map names: a platform
-            # without links checks nothing and passes.
-            for i in self._enabled_bays:
-                read = self._node('bay[{bay}].jesd.rx.read', bay=i)
-                if read is None:
-                    continue
-                # Reading the individual registers does not work; read the device.
-                read()
-                for j in range(10):
-                    latency = self._node('bay[{bay}].jesd.rx_lane[{lane}].elastic_buffer_latency',
-                                         bay=i, lane=j).value()
-                    latency_ok = latency == 255 if j in (2, 3) else latency in (13, 14)
-                    if latency_ok:
-                        _log.debug("  OK - JesdRx[%d].ElBuffLatency[%d] = %d", i, j, latency)
-                    else:
-                        _log.warning("  JesdRx[%d].ElBuffLatency[%d] = %d", i, j, latency)
-                        retry_load_config = True
-            if retry_load_config:
-                if k < max_retries - 1:
-                    _log.warning("check failed; reloading the configuration")
-                    if not self._load_config():
-                        break
-            else:
-                success = True
-                break
-
-        if success:
-            _log.info("elastic buffer check passed")
-        else:
-            _log.error("elastic buffer check failed %d times", max_retries)
-        return success
-
-    def _set_defaults_cmd(self):
-        """Configure the system: load the layers, then check the links."""
-        status = self.status
-        status.ConfiguringInProgress.set(True)
-        status.SystemConfigured.set(False)
-
-        success = bool(self._layers)
-        if not success:
-            _log.error("no register configuration files were given; aborting")
-        if success and not self._load_config():
-            success = False
-        if success and not self._check_elastic_buffers():
-            success = False
-
-        status.SystemConfigured.set(success)
-        # The loaded configuration runs the firmware's link check, so its
-        # outcome is also the links' verdict.
-        if self._jesd_health_cmd is not None:
-            self._jesd_status.set(success)
-        status.ConfiguringInProgress.set(False)
+    # -- the links' verdict ----------------------------------------------------
 
     def _check_jesd_health(self):
         """Run the firmware's JESD health check and record its verdict."""
