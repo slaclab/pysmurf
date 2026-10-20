@@ -20,7 +20,7 @@ __all__ = ['SmurfConfigPropertiesMixin', 'PER_BAND_KEYS']
 
 # The per-band keys exposed as {band: value} dictionaries.
 PER_BAND_KEYS = ('amplitude_scale', 'att_uc', 'att_dc', 'iq_swap_in', 'iq_swap_out',
-                 'data_out_mux', 'band_delay_us', 'trigger_reset_delay', 'lms_gain',
+                 'band_delay_us', 'trigger_reset_delay', 'lms_gain',
                  'feedback_enable', 'feedback_gain', 'feedback_limit_khz', 'feedback_polarity',
                  'lms_freq_hz', 'delta_freq', 'feedback_start_frac', 'feedback_end_frac',
                  'gradient_descent_gain', 'gradient_descent_averages',
@@ -277,16 +277,6 @@ class SmurfConfigPropertiesMixin:
         return self._value('fs')
 
     @property
-    def dsp_enable(self):
-        """``dsp_enable``, written to the firmware at setup."""
-        return self._value('dsp_enable')
-
-    @property
-    def ultrascale_temperature_limit_degC(self):
-        """FPGA temperature above which setup refuses to run, or None."""
-        return self._value('ultrascale_temperature_limit_degC')
-
-    @property
     def default_tune(self):
         """A tune file to load at start, ``tune.default_tune``, or None."""
         return self._value('tune', 'default_tune')
@@ -338,11 +328,6 @@ class SmurfConfigPropertiesMixin:
     def iq_swap_out(self):
         """Swap I and Q on output, per band."""
         return self._per_band('iq_swap_out')
-
-    @property
-    def data_out_mux(self):
-        """Which two DAC outputs a band drives, per band."""
-        return self._per_band('data_out_mux')
 
     @property
     def band_delay_us(self):

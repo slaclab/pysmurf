@@ -701,35 +701,30 @@ class SmurfCommandMixin(SmurfBase):
         return n_processed_channels
 
     def set_defaults_pv(self, max_timeout_sec=300.0, **kwargs):
-        r"""Loads the default configuration.
+        r"""Runs the server's configuration procedure.
 
-        Calls the rogue `setDefaults` command, which loads the default
-        software and hardware configuration.
-
-        If using pysmurf core code versions >=4.1.0 (as reported by
-        :func:`get_pysmurf_version`), returns `True` if the
-        `setDefaults` command was successfully executed on the rogue
-        side, or failed.  Returns `None` for older versions.
+        Starts the rogue `setDefaults` process -- the register layers
+        loaded and the converter links checked -- and waits for it to
+        end. It takes no parameter: the layers are the server's, named
+        when it was started.
 
         Args
         ----
         max_timeout_sec : float, optional, default 300.0
             Seconds to wait for system to configure before giving up.
-            Only used for pysmurf core code versions >= 4.1.0.
             The server-side procedure retries a configuration load that
-            fails, each try bounded at 300 s, so it can outlast this wait;
-            `get_system_configured` then says whether it finished.
+            fails, each try bounded at 300 s per layer, so it can outlast
+            this wait; `get_system_configured` then says whether it
+            finished.
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to
             all `_caget` calls.
 
         Returns
         -------
-        success : bool or None
+        success : bool
             Returns `True` if the system was successfully configured,
-            otherwise returns `False`.  Configuration checking is only
-            implemented for pysmurf core code versions >= 4.1.0.  If
-            configuration validation is not available, returns None.
+            otherwise returns `False`.
 
         See Also
         --------
@@ -739,56 +734,32 @@ class SmurfCommandMixin(SmurfBase):
                 configuration process.
 
         """
-        # strip any commit info off the end of the pysmurf version
-        # string
-        pysmurf_version = self.get_pysmurf_version(**kwargs).split('+')[0]
+        # Will report how long the configuration process takes
+        # once complete.
+        start_time = time.time()
 
-        # Extra registers allow confirmation of successful
-        # configuration for pysmurf versions >=4.1.0.
-        # see https://github.com/slaclab/pysmurf/issues/462
-        # for more details.
-        if version.parse(pysmurf_version) >= version.parse('4.1.0'):
-            # Will report how long the configuration process takes
-            # once complete.
-            start_time = time.time()
-
-            # Start by calling the 'setDefaults' command.
-            # This is now implemented as a rogue Process, so this call will
-            # return immediately, and the wait loop that follows will begin
-            self._set_by_name('ops.setup.start', 1, **kwargs)
-
-            # Now let's wait until the process is finished. We define a maximum
-            # time we will wait, 400 seconds in this case
-            try:
-                self.wait_configuring_in_progress(max_timeout_sec)
-            except TimeoutError:
-                self.log(
-                    'The system configuration did not finish after'
-                    f' {max_timeout_sec} seconds.', self.LOG_ERROR)
-                return False
-
-            # At this point, we determine that the configuration
-            # sequence ended in the server via the
-            # "ConfiguringInProgress" flag.
-            # The final status of the configuration sequence is
-            # available in the "SystemConfigured" flag.
-            # So, let's read it and use it as out return value.
-            success = self.get_system_configured(**kwargs)
-
-            # Measure how long the process take
-            end_time = time.time()
-
+        # Start the 'setDefaults' process; the call returns immediately
+        # and the wait that follows watches the server's flag.
+        self._set_by_name('ops.setup.start', 1, **kwargs)
+        try:
+            self.wait_configuring_in_progress(max_timeout_sec)
+        except TimeoutError:
             self.log(
-                'System configuration finished after'
-                f' {int(end_time - start_time)} seconds.'
-                f' The final state was {success}.',
-                self.LOG_USER)
+                'The system configuration did not finish after'
+                f' {max_timeout_sec} seconds.', self.LOG_ERROR)
+            return False
 
-            return success
+        # The final status of the configuration sequence is available
+        # in the "SystemConfigured" flag.
+        success = self.get_system_configured(**kwargs)
 
-        else:
-            self._set_by_name('ops.setup', 1, **kwargs)
-            return None
+        self.log(
+            'System configuration finished after'
+            f' {int(time.time() - start_time)} seconds.'
+            f' The final state was {success}.',
+            self.LOG_USER)
+
+        return success
 
     def set_read_all(self, **kwargs):
         r"""Reads all registers from hardware into the rogue server cache.

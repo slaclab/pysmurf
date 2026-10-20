@@ -9,8 +9,11 @@
 #    What the keys of a pysmurf client configuration mean, and what values
 #    they take. `validate` is handed the merged values by `cryodaq.config.load`
 #    and returns them checked and coerced, with `band_default` applied to every
-#    declared band and the firmware's data_out_mux filled in where a band
-#    leaves it unset.
+#    declared band.
+#
+#    A key is here because some site sets it to something other than what the
+#    server's own defaults leave: a value every site shares with the server is
+#    the server's register layer's to hold, and is not a key.
 #
 #    Nothing here touches the filesystem: whether a directory exists or a tune
 #    file is present is decided where the directory is used, so a file that is
@@ -31,12 +34,7 @@ from typing import Any, Dict
 
 from schema import And, Optional, Or, Schema, SchemaError, Use
 
-__all__ = ['validate', 'ConfigInvalid', 'DATA_OUT_MUX_DEFAULT', 'BAND_KEYS',
-           'TUNING_KEYS']
-
-# The firmware's data_out_mux per band; a band that does not set its own gets this.
-DATA_OUT_MUX_DEFAULT = {0: [2, 3], 1: [0, 1], 2: [6, 7], 3: [8, 9],
-                        4: [2, 3], 5: [0, 1], 6: [6, 7], 7: [8, 9]}
+__all__ = ['validate', 'ConfigInvalid', 'BAND_KEYS', 'TUNING_KEYS']
 
 # Every key a band block takes, and the tuning parameters among them.
 TUNING_KEYS = ('lms_freq_hz', 'delta_freq', 'feedback_start_frac', 'feedback_end_frac',
@@ -46,8 +44,7 @@ TUNING_KEYS = ('lms_freq_hz', 'delta_freq', 'feedback_start_frac', 'feedback_end
                'eta_scan_averages', 'eta_scan_del_f')
 BAND_KEYS = ('iq_swap_in', 'iq_swap_out', 'feedback_enable', 'feedback_polarity',
              'feedback_gain', 'feedback_limit_khz', 'att_uc', 'att_dc', 'amplitude_scale',
-             'data_out_mux', 'trigger_reset_delay', 'lms_gain', 'band_delay_us',
-             'delay') + TUNING_KEYS
+             'trigger_reset_delay', 'lms_gain', 'band_delay_us', 'delay') + TUNING_KEYS
 
 
 class ConfigInvalid(ValueError):
@@ -113,7 +110,6 @@ def _schema():
         'att_uc': _in_range(0, 2**5),
         'att_dc': _in_range(0, 2**5),
         'amplitude_scale': _in_range(0, 2**4),
-        'data_out_mux': And([_in_range(0, 10)], lambda l: len(l) == 2 and l[0] != l[1]),
         'trigger_reset_delay': _in_range(0, 2**7),
         'lms_gain': _in_range(0, 2**3),
         # Either the total delay in microseconds, or the three firmware
@@ -178,8 +174,6 @@ def _schema():
         'flux_ramp': {'num_flux_ramp_counter_bits': lambda n: isinstance(n, int) and n in (20, 32)},
         'timing': {'timing_reference': lambda s: s in ('ext_ref', 'backplane', 'fiber')},
         'fs': positive,
-        'dsp_enable': _bool_int,
-        'ultrascale_temperature_limit_degC': Or(None, And(number, lambda f: 0 <= f <= 99)),
         'tune': {'default_tune': Or(None, And(str, len)), 'fraction_full_scale': And(number, lambda f: 0 < f <= 1),
                  'reset_rate_khz': And(number, lambda f: 0 <= f <= 100)},
         'band_default': dict,
@@ -198,8 +192,7 @@ def validate(values: Dict[str, Any]) -> Dict[str, Any]:
     Returns
     -------
     dict
-        The same shape, with ``band_default`` applied under every band, the
-        firmware's ``data_out_mux`` filled in where a band has none, numbers
+        The same shape, with ``band_default`` applied under every band, numbers
         coerced to the types pysmurf uses, and band keys as ``int``.
 
     Raises
@@ -229,7 +222,6 @@ def validate(values: Dict[str, Any]) -> Dict[str, Any]:
         if block is not None and not isinstance(block, dict):
             raise ConfigInvalid(f"bands.{number}", 'a band is a mapping of per-band keys')
         merged = {**default, **(block or {})}
-        merged.setdefault('data_out_mux', DATA_OUT_MUX_DEFAULT.get(number))
         merged.setdefault('band_delay_us', None)
         for name in merged:
             if name not in BAND_KEYS:
@@ -254,8 +246,7 @@ def validate(values: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # Keys that may stay null: they mean "none" rather than "unset".
-_MAY_BE_NULL = ('tune.default_tune', 'ultrascale_temperature_limit_degC',
-                'band_delay_us', 'delay.lms')
+_MAY_BE_NULL = ('tune.default_tune', 'band_delay_us', 'delay.lms')
 
 
 def _numbered(table: Dict[Any, Any], where: str, what: str, hi: int) -> Dict[int, Any]:

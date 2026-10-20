@@ -979,6 +979,105 @@ def check_the_application_client_refuses_a_server_without_its_application():
     assert lines['OLDER'] == 'connected None', f"on a server predating the name: {lines['OLDER']}"
 
 
+@contextlib.contextmanager
+def stood_in_procedure(_setup, fail_load=False):
+    """The procedure's hardware steps stood in for.
+
+    Loading the register layers and reading the converter links' elastic
+    buffers have nothing to work on in emulation (the memory reads back
+    zeros, so the buffer check would reload and fail for minutes), so both
+    are stood in and told to succeed -- or the load told to fail, to see a
+    failure reported. The whole-tree read is stood in too: on an emulated
+    tree it is ~30 s of rendering the operations' arrays, and it is
+    exercised by its own check.
+    """
+    saved = (_setup.load_layers, _setup.AtcaSetup.check_elastic_buffers, ROOT.ReadAll._function,
+             ROOT.setup.layers)
+
+    def load(root, layers):
+        if fail_load:
+            raise _setup.StepError('stood-in load failed')
+    try:
+        _setup.load_layers = load
+        _setup.AtcaSetup.check_elastic_buffers = lambda self, root: None
+        ROOT.ReadAll.replaceFunction(lambda: None)
+        ROOT.setup.layers = ('<stand-in layer>',)
+        yield
+    finally:
+        _setup.load_layers, _setup.AtcaSetup.check_elastic_buffers, _, ROOT.setup.layers = saved
+        ROOT.ReadAll.replaceFunction(saved[2])
+
+
+def check_the_application_client_configures_through_the_server():
+    """``SmurfControl.setup()`` is the server's procedure plus the client's operating state.
+
+    The client runs the server's procedure and -- once the server reports
+    the system configured -- routes the triggers, sets the flux ramp up from
+    its configuration, turns the stream on, sets the processor's payload and
+    mask, zeroes the detector biases, and records the configuration. The
+    layer load and the link check are stood in on the server, as in the
+    procedure's own check; the cryocard steps skip as they do with no card.
+    What is asserted is the client's end: ``setup()`` returns True, the
+    witnessed ramp period and this client's per-band values are on the
+    tree, the record is on the server, and a procedure the server fails is
+    a False with the failure named. Built in a child interpreter, as the
+    refusal check is, and for the same reasons.
+    """
+    from cryodaq.server import _setup
+    probe = subprocess.run([sys.executable, '-c', 'import pysmurf.client'], capture_output=True, text=True)
+    if probe.returncode != 0:
+        raise Skipped("pysmurf.client does not import in this interpreter: "
+                      f"{probe.stderr.strip().splitlines()[-1] if probe.stderr.strip() else 'no detail'}")
+    cfg = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'cfg_files', 'b33',
+                       'experiment_2xLB_testing_Feb2021.cfg')
+    source = (
+        "import matplotlib; matplotlib.use('Agg')\n"
+        "import os, sys, tempfile, json\n"
+        "import cryodaq, pysmurf.client\n"
+        "tmp = tempfile.mkdtemp()\n"
+        f"text = open({cfg!r}).read().replace('/data', tmp + '/data')\n"
+        "cfg = os.path.join(tmp, 'experiment.cfg'); open(cfg, 'w').write(text)\n"
+        f"S = pysmurf.client.SmurfControl(cfg_file=cfg, server_port={ENDPOINT.rsplit(':', 1)[1]}, setup=False,\n"
+        "                                atca_monitor=False, make_logfile=False, offline=False,\n"
+        "                                data_dir=tmp + '/data/smurf_data')\n"
+        "ok = S.setup(force_configure=True)\n"
+        "print('SETUP', ok)\n"
+        "b = S._bands[0]\n"
+        "print('BAND', b, S.get_lms_gain(b), S.lms_gain[b], S.get_feedback_gain(b), S.feedback_gain[b],\n"
+        "      S.get_gradient_descent_gain(b), S.gradient_descent_gain[b])\n"
+        "print('RAMP', S.get_ramp_max_cnt(), S.get_enable_ramp_trigger(), S.get_stream_enable())\n"
+        "print('MASK', json.dumps(list(S.get_channel_mask())), S.get_payload_size())\n"
+        "rec = S._session.resolved_config()\n"
+        "print('RECORD', rec is not None and rec.hash == S.config.hash, repr(S._session.get('ops.setup.message')))\n"
+        "print('AGAIN', S.setup())\n"
+        "print('FORCED', S.setup(force_configure=True))\n")
+    with stood_in_procedure(_setup):
+        done = subprocess.run([sys.executable, '-c', source], text=True,
+                              timeout=CLIENT_CHILD_DEADLINE_S, capture_output=True)
+        lines = {l.split(' ', 1)[0]: l.split(' ', 1)[1] for l in done.stdout.splitlines()
+                 if l.split(' ', 1)[0] in ('SETUP', 'BAND', 'RAMP', 'MASK', 'RECORD', 'AGAIN', 'FORCED')}
+        assert done.returncode == 0 and len(lines) == 7, \
+            f"the client child exited {done.returncode}: {done.stdout[-600:]!r} {done.stderr[-800:]!r}"
+        assert lines['SETUP'] == 'True', f"setup() returned {lines['SETUP']}: {done.stdout[-600:]!r}"
+        # The client's per-band values are on the tree: register, configured, in pairs.
+        band = lines['BAND'].split()
+        assert band[1] == band[2] and band[3] == band[4] and float(band[5]) == float(band[6]), lines['BAND']
+        assert lines['RAMP'].split() == ['76799', '1', '1'], lines['RAMP']
+        assert lines['MASK'].startswith('[0] '), lines['MASK']
+        assert lines['RECORD'].startswith("True 'Done'"), lines['RECORD']
+        assert lines['AGAIN'] == 'False', 'a second setup() without force was not refused'
+        assert lines['FORCED'] == 'True', lines['FORCED']
+    # A procedure the server fails is a False from the client, the failure named.
+    with stood_in_procedure(_setup, fail_load=True):
+        failing = source.split("print('AGAIN'")[0].replace("print('RAMP'", "print('MESSAGE', repr(S._session.get('ops.setup.message')))\nprint('RAMP'")
+        done = subprocess.run([sys.executable, '-c', failing], text=True,
+                              timeout=CLIENT_CHILD_DEADLINE_S, capture_output=True)
+        assert 'SETUP False' in done.stdout and "MESSAGE 'Error: load layers: stood-in load failed'" in done.stdout, \
+            f"{done.stdout[-600:]!r} {done.stderr[-400:]!r}"
+        assert 'RECORD False' in done.stdout, 'a failed setup left a record on the server'
+    set_configured(ROOT, True)
+
+
 def check_a_start_that_fails_in_the_tree_leaves_no_thread_behind():
     """A server whose tree does not come up is stopped, not left half-running.
 
@@ -1063,37 +1162,42 @@ def check_a_session_left_open_still_lets_the_interpreter_exit():
 def check_the_configuration_procedure_ends_on_this_platform():
     """``setDefaults`` runs to its end on the tree in hand, and reports as the platform allows.
 
-    The procedure's two hardware steps -- loading the register layers and
-    reading the converter links' elastic buffers -- have nothing to work on in
-    emulation (the memory reads back zeros, so the buffer check would reload and
-    fail for minutes), so both are stood in for and told to succeed. What is
-    exercised is everything around them: that the procedure reaches its end on a
-    platform with links and on one without, that ``SystemConfigured`` rises and
-    ``ConfiguringInProgress`` falls, and that the links' verdict is set where
-    the platform has links and nowhere otherwise. A procedure that reached for
-    the verdict on a platform without links raised here before it was gated.
+    The layer load and the link check are stood in for (see
+    ``stood_in_procedure``). What is exercised is everything around them:
+    that the procedure, started through the session as a client would,
+    reaches its end on a platform with links and on one without, that
+    ``SystemConfigured`` rises and ``ConfiguringInProgress`` falls, and that
+    the links' verdict is set where
+    the platform has links and nowhere otherwise. A procedure that reached
+    for the verdict on a platform without links raised here before it was
+    gated. A step that fails is reported with its reason, and the run is
+    judged failed.
     """
+    from cryodaq.server import _setup
     root = ROOT
     status = root.status
     has_links = 'application.jesd_status' in root.pmap
     assert ('JesdStatus' in status.nodes) == has_links, \
         f"the status device offers a JESD verdict ({'JesdStatus' in status.nodes}) " \
         f"where the map {'names' if has_links else 'does not name'} one"
-    saved = root._load_config, root._check_elastic_buffers, root._layers
-    try:
-        root._load_config = lambda: True
-        root._check_elastic_buffers = lambda: True
-        root._layers = ['<stand-in>']
+    assert type(root.setup).__name__ == ('AtcaSetup' if has_links else 'RfsocSetup'), type(root.setup)
+    with stood_in_procedure(_setup):
         if has_links:
             status.JesdStatus.set(0)
-        root._set_defaults_cmd()
-    finally:
-        root._load_config, root._check_elastic_buffers, root._layers = saved
-    assert status.SystemConfigured.get() is True, "the procedure did not report success"
-    assert status.ConfiguringInProgress.get() is False, "the procedure did not report its end"
-    if has_links:
-        assert status.JesdStatus.getDisp() == 'Locked', \
-            f"the links' verdict was not set from the outcome: {status.JesdStatus.getDisp()}"
+        SESSION.call('ops.setup', wait=60)
+        assert SESSION.get('ops.setup.message') == 'Done', SESSION.get('ops.setup.message')
+        assert status.SystemConfigured.get() is True, "the procedure did not report success"
+        assert status.ConfiguringInProgress.get() is False, "the procedure did not report its end"
+        if has_links:
+            assert status.JesdStatus.getDisp() == 'Locked', \
+                f"the links' verdict was not set from the outcome: {status.JesdStatus.getDisp()}"
+    with stood_in_procedure(_setup, fail_load=True):
+        SESSION.call('ops.setup', wait=60)
+        message = SESSION.get('ops.setup.message')
+        assert message == 'Error: load layers: stood-in load failed', message
+        assert status.SystemConfigured.get() is False, "a failed step was credited"
+        if has_links:
+            assert status.JesdStatus.getDisp() != 'Locked', "a failed procedure left the links' verdict Locked"
     set_configured(root, True)      # leave the tree as the other checks expect
 
 
@@ -1522,6 +1626,10 @@ def main():
                     help='also write the full node listing of the tree the checks ran '
                          'on, as saveVariableList() writes it; prune_fixtures.py reads '
                          'these to rebuild the committed fixtures')
+    ap.add_argument('--only', metavar='NAME', action='append', default=[],
+                    help='run only the named check(s) (without the check_ prefix), '
+                         'over the same served tree; the entry-point children are '
+                         'started only if one of them is named')
     args = ap.parse_args()
     RFSOC = args.rfsoc
     FIRMWARE_ARGS = ['--firmware', args.zip] if args.zip else []
@@ -1540,6 +1648,13 @@ def main():
     endpoint = ENDPOINT = f"localhost:{port}"
     prechecks = collect('precheck_')
     checks = collect('check_')
+    if args.only:
+        wanted = set(args.only)
+        prechecks = [(n, f) for n, f in prechecks if n in wanted]
+        checks = [(n, f) for n, f in checks if n in wanted]
+        unknown = wanted - {n for n, _ in prechecks + checks}
+        if unknown:
+            ap.error(f"no such check(s): {', '.join(sorted(unknown))}")
     failed = []
     started = time.monotonic()
     root = ROOT = emulation_root(args, port)
@@ -1556,7 +1671,8 @@ def main():
             print(f"  tree written to {args.dump_tree} (source in .source)")
         print(f"Validating the cryodaq client on the {label} "
               f"({len(prechecks)} + {len(checks)} checks)")
-        start_entry_point_children()
+        if not args.only or any('entry_point' in n for n in args.only):
+            start_entry_point_children()
         failed += run(prechecks)
         # Nothing here runs the server's own configuration procedure, so the
         # flag it would leave is set on the server side first, and the session

@@ -88,9 +88,28 @@ Usage
    S.config.hash                             # the same for any layering with the same values
 
 Every value has provenance. One a band took from ``band_default`` is credited
-to the line that set the default; one the schema filled in, such as a band's
-firmware ``data_out_mux`` or a ``delay`` field a band's own block left out, is
-``('<validated>', 0)``.
+to the line that set the default; one the schema filled in, such as a ``delay``
+field a band's own block left out, is ``('<validated>', 0)``.
+
+What ``setup()`` does
+^^^^^^^^^^^^^^^^^^^^^
+
+``setup()`` first runs the server's own configuration procedure (the rogue
+``setDefaults`` process, which ``set_defaults_pv()`` runs alone): the server
+loads the register layers it was started with and, on a carrier with
+converter cards, resets the converters before the load and checks their links
+after it. That leaves every firmware register at the population's default.
+``setup()`` then writes this file's per-band values over those defaults,
+routes the triggers, sets the flux ramp up, turns the stream on, sets the
+processor's payload size and channel mask, zeroes the detector biases, sets
+the cryostat card's amplifier defaults where a card is present, and selects
+the timing reference. It returns ``False``, saying why, when the server
+reports the procedure failed, and writes nothing further.
+
+A key is in this file because some site sets it to something other than the
+server's default. A register every site leaves at the default -- the DSP
+enable, the JESD output assignment -- is the server's register layer's to hold
+and has no key here.
 
 Reattaching without a file
 --------------------------
@@ -249,8 +268,8 @@ legacy ones unchanged.
     sense resistor, default and limit drain and gate voltages, and the gate
     DAC's bit-to-volt conversion.
 
-flux_ramp, timing, fs, dsp_enable, ultrascale_temperature_limit_degC
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+flux_ramp, timing, fs
+^^^^^^^^^^^^^^^^^^^^^
 
 ``flux_ramp.num_flux_ramp_counter_bits`` (20 or 32, *required*)
     Width of the firmware's flux ramp counter, which sets how a ramp rate is
@@ -260,12 +279,10 @@ flux_ramp, timing, fs, dsp_enable, ultrascale_temperature_limit_degC
     ``timing`` section is the legacy one unchanged.
 ``fs`` (Hz, *required*)
     The sample rate the noise analysis assumes when it is not told one.
-``dsp_enable`` (0 or 1)
-    Whether ``setup()`` enables baseband DSP -- tone generation, tracking,
-    feedback and streaming -- on each band it configures.
-``ultrascale_temperature_limit_degC`` (°C, or ``null``)
-    If set, ``setup()`` arms the FPGA over-temperature shutdown at this
-    limit. Legacy top-level ``ultrascale_temperature_limit_degC``.
+
+The legacy ``dspEnable`` and ``ultrascale_temperature_limit_degC`` are not
+keys: every file set the first to 1, which the server's defaults hold, and
+none set the second.
 
 tune
 ^^^^
@@ -313,10 +330,6 @@ for some, writes into. Legacy: ``init:band_#`` for the firmware settings and
 ``amplitude_scale`` (tone power, 0–15, *required*)
     The tone amplitude tuning starts from; ``setup_notches`` and the like
     write the per-channel power they chose back into this dictionary.
-``data_out_mux`` (``[lane, lane]``)
-    Which two JESD transmit lanes carry the band's DAC data. Firmware-fixed
-    per band and filled in by the schema (bands 0/4 → ``[2, 3]``, 1/5 →
-    ``[0, 1]``, 2/6 → ``[6, 7]``, 3/7 → ``[8, 9]``); set it only to override.
 ``trigger_reset_delay`` (processing-clock ticks, *required*)
     Delay between the flux ramp reset trigger and the integrator reset,
     adjusted so the reset lands on the ramp's glitch.
@@ -368,7 +381,9 @@ Firmware Defaults
 -----------------
 
 The rogue server loads a ``defaults.yml`` (from ``smurf_cfg/defaults/``)
-that sets firmware-level parameters (clocks, JESD, LO frequency).
-Selected automatically based on detected hardware. Naming:
+that sets firmware-level parameters (clocks, JESD, LO frequency, the
+per-band register values every site shares). Selected automatically based
+on detected hardware. Naming:
 ``defaults_<carrier_rev>_<bay0_type>_<bay1_type>.yml``. That is the
-platform's configuration and is not part of this file.
+platform's configuration and is not part of this file; ``setup()`` has the
+server load it before writing anything from this file.

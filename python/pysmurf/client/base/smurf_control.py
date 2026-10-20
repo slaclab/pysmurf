@@ -321,44 +321,18 @@ class SmurfControl(SmurfCommandMixin,
     def setup(self, write_log=True, payload_size=2048, force_configure=False, **kwargs):
         r"""Configures SMuRF system.
 
-        Sets up the SMuRF system by first loading hardware register
-        defaults followed by overriding the hardware default register
-        values with defaults from the pysmurf configuration file.
-
-        Setup steps (in order of execution):
-
-        - Disables hardware logging if it's active (to avoid register
-          access collisions).
-        - Sets FPGA OT limit (if one is specified in pysmurf cfg).
-        - Resets the RF DACs on AMCs in use.
-        - Sets hardware defaults using
-          :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_defaults_pv`.
-        - Checks if JESD is locked using
-          :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_check_jesd`.
-        - Overrides hardware defaults register values for subset of
-          registers controlled by the pysmurf configuration file.
-        - Resets the RTM CPLD.
-        - Turns off flux ramp, but configures based on values for
-          reset rate and fraction full scale provided in pysmurf
-          configuration file.
-        - Enables data streaming.
-        - Sets mask and payload size to a single channel.
-        - Sets RF amplifier biases (without enabling drain voltages).
-        - Configures timing based on pysmurf configuration file settings.
-        - Resumes hardware logging if it was active at beginning.
+        Runs the server's configuration procedure -- the register layers
+        loaded and the converter links checked -- then brings the rest of
+        the system to its operating state: this client's per-band values
+        written over the layers' defaults, the triggers routed, the flux
+        ramp set up, the data stream turned on, the data processor's payload
+        size and channel mask set, the TES biases zeroed, the cryostat
+        card's amplifier defaults where a card is present, and the timing
+        reference selected.
 
         If system configuration fails, returns `False`, otherwise
-        returns `True`.  Failure modes (which will return `False`) are
-        as follows:
-
-        - :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_defaults_pv`
-          fails (only supported for pysmurf core code versions
-          >=4.1.0).  If failure is detected, doesn't attempt to
-          execute the subsequent setup steps.
-        - :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_check_jesd`
-          fails (only supported for Rogue ZIP file versions >=0.3.0).
-          If failure is detected, doesn't attempt to execute the
-          subsequent setup steps.
+        returns `True`. A failure is reported by the server with the name of
+        the step that failed, and the rest of the setup is not attempted.
 
         Args
         ----
@@ -371,8 +345,7 @@ class SmurfControl(SmurfCommandMixin,
             been configured once by the currently running Rogue
             server.
         \**kwargs
-            Arbitrary keyword arguments.  Passed to many, but not all,
-            of the `_caput` calls.
+            Passed to every per-band setter.
 
         Returns
         -------
@@ -385,7 +358,7 @@ class SmurfControl(SmurfCommandMixin,
         See Also
         --------
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_defaults_pv` :
-              Loads the hardware defaults.
+              Runs the server's procedure alone.
         """
 
         # Check if system is already configured.  Be aware this checks
@@ -424,60 +397,13 @@ class SmurfControl(SmurfCommandMixin,
                 self.resume_hardware_logging()
 
     def _setup_hardware(self, write_log, payload_size, **kwargs):
-        """The body of ``setup()``: every hardware write, then the record. True on success."""
-        success = True
-
-        # Thermal OT protection - should this be moved after
-        # setDefaults?
-        ultrascale_temperature_limit_degC = (
-            self.ultrascale_temperature_limit_degC)
-        if ultrascale_temperature_limit_degC is not None:
-            self.log('Setting ultrascale OT protection limit '+
-                     f'to {ultrascale_temperature_limit_degC}C', self.LOG_USER)
-            # OT threshold in degrees C
-            self.set_ultrascale_ot_threshold(
-                self.ultrascale_temperature_limit_degC,
-                write_log=write_log)
-
-        # Which bands are we configuring?
-        bands = self._bands
-
-        if not self.is_rfsoc:
-            # Right now, resetting both DACs in both MicrowaveMuxCore blocks,
-            # but may want to determine at runtime which are actually needed and
-            # only reset the DAC in those.
-            self.log('Toggling DACs')
-            dacs = [0, 1]
-            for val in [1, 0]:
-                for bay in self.bays:
-
-                    # In newer software versions, setDefaults disables
-                    # DBG:enable after loading the defaults.yml.  This
-                    # makes sure we can reset the RF DACs.
-                    self.set_dbg_enable(bay, True)
-
-                    # Reset all RF DACs in use.
-                    for dac in dacs:
-                        self.set_dac_reset(
-                            bay, dac, val, write_log=write_log)
-
-        #
-        # setDefaults
-        self.set_read_all(write_log=write_log)
-        set_defaults_success = self.set_defaults_pv(write_log=write_log)
-
-        # Checking if setDefaults succeeded is only supported for
-        # pysmurf core code versions >=4.1.0.  If it's not supported,
-        # self.set_defaults_pv will return None.  Overriding None with
-        # True to skip this check for older versions of pysmurf that
-        # don't support checking if setDefaults succeeded.
-        if set_defaults_success is None:
-            set_defaults_success = True
-
-        # Log an error if setDefaults failed.
-        if not set_defaults_success:
+        """The body of ``setup()``: the server's procedure, then the operating state, then the record. True on success."""
+        # The server's procedure: the register layers loaded, the converter
+        # links checked. Its message names the step that failed.
+        if not self.set_defaults_pv(write_log=write_log):
+            message = self._session.get('ops.setup.message')
             self.log(
-                'ERROR : System configuration/setDefaults failed!  Do'
+                f'ERROR : System configuration/setDefaults failed ({message})!  Do'
                 ' not proceed!  Reboot or ask someone for help.  You'
                 ' are strongly encouraged to report this as an issue'
                 ' on the pysmurf github repo at'
@@ -485,223 +411,182 @@ class SmurfControl(SmurfCommandMixin,
                 ' provide a state dump using the pysmurf'
                 ' set_read_all/save_state functions).',
                 self.LOG_ERROR)
-            success = False
-
-        # Only proceed with the rest of setup if the defaults were set
-        # correctly.
-        if success and not self.is_rfsoc:
-            # setDefaults runs the JesdHealth check, so just need to poll
-            # status.
-            jesd_health_status = self.get_jesd_status(write_log=write_log)
-
-            # Checking if JesdHealth is Locked is only supported for Rogue
-            # ZIP file versions >=0.3.0 and pysmurf core code versions
-            # >=4.1.0.  If it's not supported, self.set_check_jesd will
-            # return None if the JesdHealth registers in SmurfApplication
-            # aren't present or 'Not found' if they are present but the
-            # JesdHealth method isn't implemented in the loaded Rogue ZIP
-            # file.  Overriding None with True to skip this check for
-            # older versions of pysmurf that don't support the JesdHealth
-            # check.  Log an error if the JesdHealth check reports that
-            # JESD is unlocked.
-            if ( jesd_health_status is not None and
-                 jesd_health_status != 'Not found' and
-                 jesd_health_status != 'Locked' ):
-                self.log(
-                    'ERROR : JESD is not locked!  Do not proceed!'
-                    ' Reboot or ask someone for help.  You are strongly'
-                    ' encouraged to report this as an issue on the'
-                    ' pysmurf github repo at'
-                    ' https://github.com/slaclab/pysmurf/issues (please'
-                    ' provide a state dump using the pysmurf'
-                    ' set_read_all/save_state functions).',
-                    self.LOG_ERROR)
-                success = False
-
-        # Only proceed with the rest of setup if defaults were set
-        # correctly and basic system checks succeeded, otherwise we
-        # risk giving users false hope.
-        if success:
-            # The per band configs. May want to make available per-band
-            # values.
-            for band in bands:
-                self.set_iq_swap_in(band, self.iq_swap_in[band],
-                                    write_log=write_log, **kwargs)
-                self.set_iq_swap_out(band, self.iq_swap_out[band],
-                                     write_log=write_log, **kwargs)
-
-                # The band delay, either as the three firmware registers
-                # the configuration names directly or as a total the
-                # firmware derives them from; delay_writes decides which
-                # from the live per-band properties, like every other write
-                # here. The lmsDelay register matches the system latency for
-                # LMS feedback -- actuator (DSP -> DAC -> RF) plus sensor (RF
-                # -> ADC -> demod) -- and in production firmware equals
-                # refPhaseDelay unless the configuration says otherwise.
-                for register, value in self.delay_writes(band):
-                    getattr(self, f'set_{register}')(band, value,
-                                                     write_log=write_log, **kwargs)
-
-                self.set_lms_gain(
-                    band, self.lms_gain[band],
-                    write_log=write_log, **kwargs)
-
-                self.set_trigger_reset_delay(
-                    band, self.trigger_reset_delay[band],
-                    write_log=write_log, **kwargs)
-
-                self.set_feedback_enable(
-                    band, self.feedback_enable[band],
-                    write_log=write_log, **kwargs)
-                self.set_feedback_gain(
-                    band, self.feedback_gain[band],
-                    write_log=write_log, **kwargs)
-                self.set_feedback_limit_khz(
-                    band, self.feedback_limit_khz[band],
-                    write_log=write_log, **kwargs)
-                self.set_feedback_polarity(
-                    band, self.feedback_polarity[band],
-                    write_log=write_log, **kwargs)
-
-                if not self.is_rfsoc:
-                    for dmx in np.array(self.data_out_mux[band]):
-                        self.set_data_out_mux(
-                            int(self.band_to_bay(band)), int(dmx),
-                            "UserData", write_log=write_log, **kwargs)
-
-                self.set_dsp_enable(
-                    band, self.dsp_enable,
-                    write_log=write_log, **kwargs)
-
-                # Tuning defaults
-                self.set_gradient_descent_gain(
-                    band, self.gradient_descent_gain[band],
-                    write_log=write_log, **kwargs)
-                self.set_gradient_descent_averages(
-                    band, self.gradient_descent_averages[band],
-                    write_log=write_log, **kwargs)
-                self.set_gradient_descent_converge_hz(
-                    band, self.gradient_descent_converge_hz[band],
-                    write_log=write_log, **kwargs)
-                self.set_gradient_descent_step_hz(
-                    band, self.gradient_descent_step_hz[band],
-                    write_log=write_log, **kwargs)
-                self.set_gradient_descent_momentum(
-                    band, self.gradient_descent_momentum[band],
-                    write_log=write_log, **kwargs)
-                self.set_gradient_descent_beta(
-                    band, self.gradient_descent_beta[band],
-                    write_log=write_log, **kwargs)
-                self.set_eta_scan_averages(
-                    band, self.eta_scan_averages[band],
-                    write_log=write_log, **kwargs)
-                self.set_eta_scan_del_f(
-                    band, self.eta_scan_del_f[band],
-                    write_log=write_log, **kwargs)
-
-            # Set UC and DC attenuators
-            if not self.is_rfsoc:
-                for band in bands:
-                    self.set_att_uc(
-                        band, self.att_uc[band],
-                        write_log=write_log)
-                    self.set_att_dc(
-                        band, self.att_dc[band],
-                        write_log=write_log)
-
-                # Things that have to be done for both AMC bays, regardless of whether or not an AMC
-                # is plugged in there.
-                for bay in [0, 1]:
-                    self.set_trigger_hw_arm(bay, 0, write_log=write_log)
-
-            self.set_trigger_width(0, 10, write_log=write_log)  # mystery bit that makes triggering work
-            self.set_trigger_enable(0, 1, write_log=write_log)
-            ## only sets enable, but is initialized to True already by
-            ## default, and crashing for unknown reasons in rogue 4.
-
-            # setting to All ignores other flags not relevant to this application
-            self.set_evr_trigger_dest_type(0, "All", write_log=write_log)
-            self.set_evr_trigger_channel_reg_dest_sel(0,
-                                                      0x0,
-                                                      write_log=write_log)
-
-            self.set_enable_ramp_trigger(1, write_log=write_log)
-
-            if not self.is_rfsoc:
-                self.set_cpld_reset(0, write_log=write_log)
-                self.cpld_toggle(write_log=write_log)
-
-            self.all_off()
-
-            # Make sure flux ramp starts off
-            self.flux_ramp_off(write_log=write_log)
-            self.flux_ramp_setup(self.reset_rate_khz,
-                                 self._fraction_full_scale,
-                                 write_log=write_log)
-
-            # Turn on stream enable for all bands
-            self.set_stream_enable(1, write_log=write_log)
-
-            # Set payload size and mask to a single channel
-            self.set_payload_size(payload_size)
-            self.set_channel_mask([0])
-
-            try:
-                if not self.is_rfsoc:
-                    ## Removed this because better error handling for cc
-                    ## communication in
-                    ## https://github.com/slaclab/pysmurf/pull/794 Causes this
-                    ## command to stall and error out on systems with no
-                    ## cryostat card connected.
-                    ## also read the temperature of the CC
-                    self.log(f"Cryocard temperature = {self.C.read_temperature()}")
-
-                    # If C02, set the gate voltages to the default.
-                    # If C04, also set the drain voltages to zero.
-                    self.set_amp_defaults()
-            except Exception:
-                self.log("Attempts to communicate with a cryocard "
-                         "failed!  Will assume no cryostat card is"
-                         " connected and skip cryocard setup steps.")
-
-            # Setup how this slot handles timing. To take science data, each
-            # SMuRF slot should receive timing from the backplane or RTM fiber
-            # cable. Otherwise, the front panel external reference may also
-            # receive timing. If from fiber, assume that we're on slot 2, and
-            # distribute across the backplane. If from backplane, assume we're
-            # not on slot 2, and receive timing from backplane. If external,
-            # receive external reference from the front of the panel.
-            if self.timing_reference is not None:
-                timing_reference = self.timing_reference
-
-                timing_options = ['ext_ref', 'backplane', 'fiber']
-                assert (timing_reference in timing_options), (
-                    'timing_reference in cfg file ' +
-                    f'(={timing_reference}) not in ' +
-                    f'timing_options={timing_options}')
-
-                self.log(
-                    'Configuring the system to take timing ' +
-                    f'from {timing_reference}')
-
-                # Configure timing
-                self.set_timing_mode(timing_reference)
-
-            self.log('Done with setup.', self.LOG_USER)
-
-            # Record the configuration this client was given: on the server,
-            # so a client that connects later -- with no file -- starts from
-            # the same resolution, and on disk, so it stays on record. It is
-            # the file's resolution, not the per-band dictionaries setup()
-            # read: a value changed on the instance is not configuration.
-            record = self._session.record_config(
-                self.config, extra={'pysmurf_version': self.get_pysmurf_version(),
-                                    'config_file': self._cfg_file})
-            self.log(f'Recorded the resolved configuration; {record}', self.LOG_INFO)
-        else:
             self.log('Setup failed!', self.LOG_ERROR)
+            return False
 
-        return success
+        # The per-band values this site sets differently from the server's
+        # defaults, written over what the layers left.
+        for band in self._bands:
+            self.set_iq_swap_in(band, self.iq_swap_in[band],
+                                write_log=write_log, **kwargs)
+            self.set_iq_swap_out(band, self.iq_swap_out[band],
+                                 write_log=write_log, **kwargs)
+
+            # The band delay, either as the three firmware registers
+            # the configuration names directly or as a total the
+            # firmware derives them from; delay_writes decides which
+            # from the live per-band properties, like every other write
+            # here. The lmsDelay register matches the system latency for
+            # LMS feedback -- actuator (DSP -> DAC -> RF) plus sensor (RF
+            # -> ADC -> demod) -- and in production firmware equals
+            # refPhaseDelay unless the configuration says otherwise.
+            for register, value in self.delay_writes(band):
+                getattr(self, f'set_{register}')(band, value,
+                                                 write_log=write_log, **kwargs)
+
+            self.set_lms_gain(
+                band, self.lms_gain[band],
+                write_log=write_log, **kwargs)
+
+            self.set_trigger_reset_delay(
+                band, self.trigger_reset_delay[band],
+                write_log=write_log, **kwargs)
+
+            self.set_feedback_enable(
+                band, self.feedback_enable[band],
+                write_log=write_log, **kwargs)
+            self.set_feedback_gain(
+                band, self.feedback_gain[band],
+                write_log=write_log, **kwargs)
+            self.set_feedback_limit_khz(
+                band, self.feedback_limit_khz[band],
+                write_log=write_log, **kwargs)
+            self.set_feedback_polarity(
+                band, self.feedback_polarity[band],
+                write_log=write_log, **kwargs)
+
+            # Tuning defaults
+            self.set_gradient_descent_gain(
+                band, self.gradient_descent_gain[band],
+                write_log=write_log, **kwargs)
+            self.set_gradient_descent_averages(
+                band, self.gradient_descent_averages[band],
+                write_log=write_log, **kwargs)
+            self.set_gradient_descent_converge_hz(
+                band, self.gradient_descent_converge_hz[band],
+                write_log=write_log, **kwargs)
+            self.set_gradient_descent_step_hz(
+                band, self.gradient_descent_step_hz[band],
+                write_log=write_log, **kwargs)
+            self.set_gradient_descent_momentum(
+                band, self.gradient_descent_momentum[band],
+                write_log=write_log, **kwargs)
+            self.set_gradient_descent_beta(
+                band, self.gradient_descent_beta[band],
+                write_log=write_log, **kwargs)
+            self.set_eta_scan_averages(
+                band, self.eta_scan_averages[band],
+                write_log=write_log, **kwargs)
+            self.set_eta_scan_del_f(
+                band, self.eta_scan_del_f[band],
+                write_log=write_log, **kwargs)
+
+        # `is_rfsoc` guards the writes to hardware the RFSoC does not have
+        # (attenuators, AMC trigger arming, the RTM CPLD, the cryostat card).
+        # The map already knows each as a name the platform lacks; the flag
+        # stays until these blocks move to the platform layer with the rest of
+        # the carrier bring-up.
+        if not self.is_rfsoc:
+            # Set UC and DC attenuators
+            for band in self._bands:
+                self.set_att_uc(
+                    band, self.att_uc[band],
+                    write_log=write_log)
+                self.set_att_dc(
+                    band, self.att_dc[band],
+                    write_log=write_log)
+
+        if not self.is_rfsoc:
+            # Things that have to be done for both AMC bays, regardless of whether or not an AMC
+            # is plugged in there.
+            for bay in [0, 1]:
+                self.set_trigger_hw_arm(bay, 0, write_log=write_log)
+
+        self.set_trigger_width(0, 10, write_log=write_log)  # mystery bit that makes triggering work
+        self.set_trigger_enable(0, 1, write_log=write_log)
+        ## only sets enable, but is initialized to True already by
+        ## default, and crashing for unknown reasons in rogue 4.
+
+        # setting to All ignores other flags not relevant to this application
+        self.set_evr_trigger_dest_type(0, "All", write_log=write_log)
+        self.set_evr_trigger_channel_reg_dest_sel(0,
+                                                  0x0,
+                                                  write_log=write_log)
+
+        self.set_enable_ramp_trigger(1, write_log=write_log)
+
+        if not self.is_rfsoc:
+            self.set_cpld_reset(0, write_log=write_log)
+            self.cpld_toggle(write_log=write_log)
+
+        self.all_off()
+
+        # Make sure flux ramp starts off
+        self.flux_ramp_off(write_log=write_log)
+        self.flux_ramp_setup(self.reset_rate_khz,
+                             self._fraction_full_scale,
+                             write_log=write_log)
+
+        # Turn on stream enable for all bands
+        self.set_stream_enable(1, write_log=write_log)
+
+        # Set payload size and mask to a single channel
+        self.set_payload_size(payload_size)
+        self.set_channel_mask([0])
+
+        try:
+            if not self.is_rfsoc:
+                ## Removed this because better error handling for cc
+                ## communication in
+                ## https://github.com/slaclab/pysmurf/pull/794 Causes this
+                ## command to stall and error out on systems with no
+                ## cryostat card connected.
+                ## also read the temperature of the CC
+                self.log(f"Cryocard temperature = {self.C.read_temperature()}")
+
+                # If C02, set the gate voltages to the default.
+                # If C04, also set the drain voltages to zero.
+                self.set_amp_defaults()
+        except Exception:
+            self.log("Attempts to communicate with a cryocard "
+                     "failed!  Will assume no cryostat card is"
+                     " connected and skip cryocard setup steps.")
+
+        # Setup how this slot handles timing. To take science data, each
+        # SMuRF slot should receive timing from the backplane or RTM fiber
+        # cable. Otherwise, the front panel external reference may also
+        # receive timing. If from fiber, assume that we're on slot 2, and
+        # distribute across the backplane. If from backplane, assume we're
+        # not on slot 2, and receive timing from backplane. If external,
+        # receive external reference from the front of the panel.
+        if self.timing_reference is not None:
+            timing_reference = self.timing_reference
+
+            timing_options = ['ext_ref', 'backplane', 'fiber']
+            assert (timing_reference in timing_options), (
+                'timing_reference in cfg file ' +
+                f'(={timing_reference}) not in ' +
+                f'timing_options={timing_options}')
+
+            self.log(
+                'Configuring the system to take timing ' +
+                f'from {timing_reference}')
+
+            # Configure timing
+            self.set_timing_mode(timing_reference)
+
+        self.log('Done with setup.', self.LOG_USER)
+
+        # Record the configuration this client was given: on the server, so a
+        # client that connects later -- with no file -- starts from the same
+        # resolution, and on disk, so it stays on record. It is the file's
+        # resolution, not the per-band dictionaries a caller may have edited:
+        # a value changed on the instance is not configuration.
+        record = self._session.record_config(
+            self.config, extra={'pysmurf_version': self.get_pysmurf_version(),
+                                'config_file': self._cfg_file})
+        self.log(f'Recorded the resolved configuration; {record}', self.LOG_INFO)
+        return True
 
     def make_dir(self, directory):
         """Create directory on file system at the specified path.

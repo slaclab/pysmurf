@@ -190,6 +190,15 @@ jobs:
           docker container exec server \
             /bin/bash -c "/usr/local/src/pysmurf/tests/core/validate_cryo_operations.py"
 
+      # - Check the server's configuration procedure: every platform has one,
+      #   every name it reaches is on that platform's committed tree dump, and the
+      #   carrier's sequence -- converters reset, layers loaded, links checked --
+      #   is the witnessed one. Runs over stand-in trees, so no hardware.
+      - name: Check the configuration procedure
+        run: |
+          docker container exec server \
+            /bin/bash -c "cd /usr/local/src/pysmurf && python3 tests/cryodaq/check_setup_steps.py"
+
       # - Resolve the register names against a RELEASED firmware package, not the
       #   committed fixtures. The fixtures are pruned dumps built from this
       #   repository's own cryo-det, so they answer "do the names match the tree we
