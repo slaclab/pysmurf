@@ -23,8 +23,8 @@
 # The full dumps come from validate_client_emulated.py, which builds each tree in a
 # container that has rogue and writes it out with --dump-tree:
 #
-#     validate_client_emulated.py --cryo-det <checkout>         --dump-tree atca.txt
-#     validate_client_emulated.py --cryo-det <checkout> --rfsoc --dump-tree rfsoc.txt
+#     validate_client_emulated.py --cryo-det <checkout>                  --dump-tree atca.txt
+#     validate_client_emulated.py --cryo-det <checkout> --platform rfsoc --dump-tree rfsoc.txt
 #     prune_fixtures.py --atca atca.txt --rfsoc rfsoc.txt
 #
 # Each dump comes with a `.source` file naming the checkout revision or ZIP it was
@@ -165,7 +165,7 @@ def main():
                     help='full dump of the carrier tree (validate_client_emulated.py '
                          '--dump-tree)')
     ap.add_argument('--rfsoc', required=True, type=pathlib.Path,
-                    help='full dump of the RFSoC tree (... --rfsoc --dump-tree)')
+                    help='full dump of the RFSoC tree (... --platform rfsoc --dump-tree)')
     ap.add_argument('--check', action='store_true',
                     help='report what would be written without writing it')
     args = ap.parse_args()
