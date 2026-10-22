@@ -30,8 +30,8 @@
 
 from cryodaq.platform import _umux
 
-__all__ = ['NAME', 'TAGS', 'TOP_LEVEL', 'CARRIER', 'REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES',
-           'MUX_CORE', 'JESD_BAY']
+__all__ = ['NAME', 'TAGS', 'TOP_LEVEL', 'PACKAGE_CONFIG_DIR', 'CARRIER', 'REGISTERS', 'LEGACY',
+           'WITNESS', 'SCOPES', 'MUX_CORE', 'JESD_BAY']
 
 NAME = 'umux-atca'
 
@@ -53,6 +53,9 @@ TAGS = ('MicrowaveMuxBpEthGen2',)
 # tree, as `module:attribute`. A server composition imports it once the package
 # is on the path and the platform has been identified from the build stamp.
 TOP_LEVEL = 'CryoDet._MicrowaveMuxBpEthGen2:FpgaTopLevel'
+# Where the firmware's release archive keeps its configuration files, so a relative
+# name a server is given means a file there.
+PACKAGE_CONFIG_DIR = 'python/CryoDet/config'
 
 # --------------------------------------------------------------------------
 # what only this platform has

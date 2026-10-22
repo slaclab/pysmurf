@@ -30,7 +30,8 @@
 
 from cryodaq.platform import _umux
 
-__all__ = ['NAME', 'TAGS', 'TOP_LEVEL', 'CARRIER', 'REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES']
+__all__ = ['NAME', 'TAGS', 'TOP_LEVEL', 'PACKAGE_CONFIG_DIR', 'CARRIER', 'REGISTERS', 'LEGACY',
+           'WITNESS', 'SCOPES']
 
 # The carrier core is the AMC carrier's: this firmware is the carrier's package built
 # without its bays, and the core, the regulator beside it and the shared registers are
@@ -78,3 +79,6 @@ TAGS = (
 # carrier's package as a submodule -- so keeping the two firmware lines in step
 # is a matter of that submodule's pin.
 TOP_LEVEL = 'CryoDet._MicrowaveMuxZcu208:FpgaTopLevel'
+# Where the firmware's release archive keeps its configuration files, so a relative
+# name a server is given means a file there.
+PACKAGE_CONFIG_DIR = 'python/CryoDet/config'

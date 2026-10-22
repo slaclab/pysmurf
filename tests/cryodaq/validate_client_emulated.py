@@ -27,10 +27,13 @@
 # default isRFSOC on, so that platform's tree is built from the same package with
 # the flag set, without needing its repository on the path -- and what the flag
 # changes is the JESD and signal-generator configuration, which is why that
-# platform has no RF front end and no serial links to one. Both are bay-indexed
-# even so, because the acquisition mux is; what differs is what sits inside a bay.
-# The scope check names what each platform is expected to have and fails if either
-# changes.
+# platform has no RF front end and no serial links to one. The RFMC carrier has a
+# package of its own (--rfmc, a release ZIP), which carries this one as a submodule
+# *with* the tuning operations still in it: the operation-less checkout given here
+# goes ahead of it on the path, so the tree is the RFMC's over this CryoDet. All
+# three are bay-indexed, because the acquisition mux is; what differs is what sits
+# inside a bay. The scope check names what each platform is expected to have and
+# fails if any changes.
 #
 # An emulated register space reads back zeros, so the build stamp a platform is
 # identified by is blank. The stamp of the platform being built is therefore
@@ -115,19 +118,21 @@ CONTRACT_NAMES = (
 # says so -- both keyed by the --platform argument. The image is one that
 # platform really has; a name no map claims would be refused, which is the point
 # of the check.
-EXPECTED_PLATFORM = {'atca': 'umux-atca', 'rfsoc': 'umux-rfsoc'}
+EXPECTED_PLATFORM = {'atca': 'umux-atca', 'rfsoc': 'umux-rfsoc', 'rfmc': 'umux-rfmc'}
 EXPECTED_IMAGE = {'atca': 'MicrowaveMuxBpEthGen2',
-                  'rfsoc': 'MicrowaveMuxZcu208_BaseBand'}
+                  'rfsoc': 'MicrowaveMuxZcu208_BaseBand',
+                  'rfmc': 'MicrowaveMuxRfmcCarrier'}
 # What the firmware's top-level class is told beyond its memory base, per
-# platform: the one package builds either generation, by this flag.
-TOP_LEVEL_OPTIONS = {'atca': dict(isRFSOC=False), 'rfsoc': dict(isRFSOC=True)}
+# platform: the CryoDet package builds either AMC generation, by this flag; the
+# RFMC's own class takes nothing.
+TOP_LEVEL_OPTIONS = {'atca': dict(isRFSOC=False), 'rfsoc': dict(isRFSOC=True), 'rfmc': {}}
 
 # What each is expected to have, so that the difference between them is asserted by
 # name rather than noticed. Both platforms have bays: the acquisition mux is indexed
 # by bay on either, which is why the scope is shared. What only the carrier has is
 # what sits inside a bay -- the RF front end carrying the attenuators, and the serial
 # links back from it -- so the difference is asserted there rather than on the scope.
-EXPECTED_FRONT_END = {'atca': True, 'rfsoc': False}      # keyed by --platform
+EXPECTED_FRONT_END = {'atca': True, 'rfsoc': False, 'rfmc': True}      # keyed by --platform
 
 # The bands both trees have: the two are built from one firmware package, which
 # defines eight either way. Asserted rather than derived, so a package that
@@ -219,8 +224,13 @@ def check_every_offered_name_resolves():
     report = SESSION.validate(sample=('channel',))
     attached = [name for name, _why in report.unresolved
                 if name.startswith('carrier.regulator.')]
-    assert attached, ('the regulator names resolve on an emulated tree, so they are no '
-                      'longer server-attached and the exemption below is stale')
+    # The regulator is the AMC carrier's; a platform on another board does not
+    # offer the names at all, which is the map's statement and not an exemption.
+    has_regulator = 'carrier.regulator.current' in SESSION.pmap
+    assert bool(attached) == has_regulator, (
+        'the regulator names resolve on an emulated tree, so they are no '
+        'longer server-attached and the exemption below is stale' if has_regulator
+        else f"{SESSION.pmap.name} offers no regulator, yet names of it went unresolved: {attached}")
     # ... and none of them, not merely not all of them: one regulator name resolving
     # while another stays absent is the same staleness, half-way.
     partly = [name for name in report.resolved if name.startswith('carrier.regulator.')]
@@ -411,25 +421,29 @@ def precheck_a_relative_layer_name_means_the_archive_and_nothing_else():
     look in. Asserted here on a throwaway archive beside a same-named local file.
     """
     import zipfile
-    from cryodaq.server._firmware import PACKAGE_CONFIG_DIR, resolve_layers
+    from cryodaq.server._firmware import resolve_layers
+    # The directory is the platform's: each package keeps its files in its own.
+    config_dir = platform.by_name(EXPECTED_PLATFORM[PLATFORM]).package_config_dir
+    assert config_dir and not config_dir.startswith('/'), config_dir
     with tempfile.TemporaryDirectory() as d:
         archive = os.path.join(d, 'fw.zip')
         with zipfile.ZipFile(archive, 'w') as zf:
-            zf.writestr(f'{PACKAGE_CONFIG_DIR}/defaults.yml', 'in: archive\n')
+            zf.writestr(f'{config_dir}/defaults.yml', 'in: archive\n')
         local = os.path.join(d, 'defaults.yml')
         with open(local, 'w') as f:
             f.write('in: directory\n')
         here = os.getcwd()
         os.chdir(d)
         try:
-            resolved = resolve_layers(['defaults.yml'], archive)
-            assert resolved == [f'{archive}/{PACKAGE_CONFIG_DIR}/defaults.yml'], \
+            resolved = resolve_layers(['defaults.yml'], archive, config_dir)
+            assert resolved == [f'{archive}/{config_dir}/defaults.yml'], \
                 f"a relative name beside a same-named local file resolved to {resolved}"
-            assert resolve_layers([local], archive) == [local], "an absolute name was not used as given"
-            assert resolve_layers(['defaults.yml'], None) == ['defaults.yml'], \
+            assert resolve_layers([local], archive, config_dir) == [local], \
+                "an absolute name was not used as given"
+            assert resolve_layers(['defaults.yml'], None, config_dir) == ['defaults.yml'], \
                 "with no archive a relative name was not used as given"
             try:
-                resolve_layers(['missing.yml'], archive)
+                resolve_layers(['missing.yml'], archive, config_dir)
             except FileNotFoundError:
                 pass
             else:
@@ -767,8 +781,8 @@ def check_an_interrupted_platform_probe_closes_what_it_opened():
     class Probe(probe_cls):
         interrupt_in_tree = False
 
-        def __init__(self, srp, link_nodes=()):
-            probe_cls.__init__(self, srp, link_nodes)
+        def __init__(self, srp, link_nodes=(), offset=0):
+            probe_cls.__init__(self, srp, link_nodes, offset)
             probes.append(self)
             if self.interrupt_in_tree:
                 self.add(Link('in_tree', interrupt=True))
@@ -801,6 +815,107 @@ def check_an_interrupted_platform_probe_closes_what_it_opened():
         for probe in probes:
             if probe.running:
                 probe.stop()
+
+
+def check_the_bridge_transport_has_the_shape_the_rfmc_needs():
+    """The TCP bridge: registers to the processor system, data as a carrier's, a second path for the converter.
+
+    No bridge answers here, and none is asked to: rogue's TCP memory client
+    connects when a transaction is first issued, so the transport is built and
+    its parts judged without a board. The register path is the client to the
+    processor system's register port with the FPGA's window offset; the
+    converter's path is a second client to its driver's port; the data path is
+    Ethernet's (RSSI DDR streams and the plain UDP stream, pointed at the FPGA's
+    own address) or the card's DMA when asked, and nothing else differs. The
+    command line builds the same, and refuses to without both addresses.
+    """
+    import rogue.interfaces.memory
+    from cryodaq.server import _cli, _transport
+    for data in ('udp', 'pcie'):
+        if data == 'pcie' and not os.path.exists('/dev/datadev_0'):
+            # The DMA data path opens the card's devices; without a card in the
+            # machine the udp half is what can be built here, and is.
+            continue
+        t = _transport.tcp_bridge('10.0.1.203', '10.0.1.103', data=data, offload_card=False)
+        assert t.name == 'tcp-bridge'
+        assert isinstance(t.srp, rogue.interfaces.memory.TcpClient), type(t.srp)
+        assert isinstance(t.srp_rfdc, rogue.interfaces.memory.TcpClient), type(t.srp_rfdc)
+        assert t.srp is not t.srp_rfdc, 'one client serves both the registers and the converter'
+        assert t.register_offset == _transport.BRIDGE_REGISTER_OFFSET == 0x4_0000_0000
+        assert t.probes_firmware, 'a bridge reaches hardware, so the platform is read from it'
+        assert len(t.ddr_streams) == len(_transport.DDR_TDEST) == 4
+        assert not t.register_nodes, 'the bridge needs no link started before it answers'
+        if data == 'udp':
+            assert len(t.nodes) == 2, f"the RSSI link and the UDP receiver: {t.nodes}"
+            assert (t.nodes[0]._host, t.nodes[0]._port) == ('10.0.1.103', _transport.RSSI_PORT), \
+                'the data path is not pointed at the FPGA'
+    try:
+        _transport.tcp_bridge('10.0.1.203', '10.0.1.103', data='rdma')
+    except ValueError as e:
+        assert 'udp' in str(e) and 'pcie' in str(e), e
+    else:
+        raise AssertionError('an unknown data path was accepted')
+    # The other transports gained nothing: no converter path, no window offset.
+    e = _transport.emulation(rfdc=False)
+    assert e.srp_rfdc is None and e.register_offset == 0
+    assert _transport.emulation().srp_rfdc is not None, 'emulation has no memory for the converter'
+    # The command line's arm, with its two addresses required.
+    import argparse
+    parser = _cli.add_arguments(argparse.ArgumentParser())
+    args = parser.parse_args(['--transport', 'tcp-bridge', '--ps-addr', '10.0.1.203',
+                              '--addr', '10.0.1.103', '--no-pcie-card'])
+    t = _cli.transport_from(args)
+    assert t.name == 'tcp-bridge' and isinstance(t.srp_rfdc, rogue.interfaces.memory.TcpClient)
+    for argv in (['--transport', 'tcp-bridge', '--addr', '10.0.1.103'],
+                 ['--transport', 'tcp-bridge', '--ps-addr', '10.0.1.203'],
+                 ['--transport', 'tcp-bridge', '--ps-addr', 'nowhere', '--addr', '10.0.1.103']):
+        try:
+            _cli.transport_from(parser.parse_args(argv))
+        except SystemExit as e:
+            assert 'addr' in str(e), e
+        else:
+            raise AssertionError(f'{argv} built a bridge transport')
+
+
+def check_the_rfmc_composition_carries_its_converter_and_clock_file():
+    """On the RFMC the root has the RF data converter beside the FPGA, and its procedure the package's LMK file.
+
+    Both come from the composition, which knows the package: the converter is
+    built over the transport's second register path and sits where the map says;
+    the procedure's clock file is the one the release ships, named inside the
+    archive. A transport without the second path is refused for this platform
+    with the reason. On the other platforms the root carries neither.
+    """
+    root = ROOT
+    rfdc = root.getNode(platform.RFMC_RFDC_PATH)
+    if PLATFORM != 'rfmc':
+        assert rfdc is None, f"{PLATFORM} carries an RF data converter"
+        assert not hasattr(root.setup, 'lmk_config')
+        return
+    assert rfdc is not None, 'the RFMC root has no RF data converter'
+    assert rfdc.parent is root, 'the converter is not a device beside the FPGA'
+    # What the procedure drives: the multi-tile sync block, and the device's own
+    # initialisation, which its class provides as a method rather than a node.
+    assert rfdc.node('Mts') is not None and callable(rfdc.Init)
+    # The clock file is the release's, extracted where the chip's driver can
+    # open it, and is what TI's tool exports: register address and value per line.
+    assert root.setup.lmk_config.endswith('HexRegisterValues.txt'), root.setup.lmk_config
+    with open(root.setup.lmk_config) as fh:
+        first = fh.readline().split()
+    # `R0 (INIT) 0x000090`: the register, an optional note, the value -- which is
+    # how the chip's driver reads it too.
+    assert first[0].startswith('R') and int(first[-1], 16) >= 0, first
+    import pysmurf.core.emulators
+    import pysmurf.core.server
+    transport = cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource(), rfdc=False)
+    try:
+        pysmurf.core.server.compose(transport=transport, platform_name='umux-rfmc',
+                                    server_port=free_port(), polling=False,
+                                    top_level_class=StandInTopLevel)
+    except cryodaq.ConnectError as e:
+        assert 'second register path' in str(e) and 'emulation' in str(e), e
+    else:
+        raise AssertionError('an RFMC server was composed with no path to its converter')
 
 
 def check_the_offload_card_is_configured_around_the_server():
@@ -869,6 +984,13 @@ def check_the_server_reports_the_bays_it_was_built_with():
     """
     import pysmurf.core.emulators
     import pysmurf.core.server
+    if PLATFORM == 'rfmc':
+        # The RFMC's package builds both quads unconditionally: there is no bay
+        # to leave out, so what is checked is that both are reported off the
+        # tree in hand -- by their front ends, which is what populates a bay.
+        reported = list(ROOT.getNode(f'{platform.STATUS_DEVICE_PATH}.EnabledBays').get())
+        assert reported == [0, 1], f"both quads are on the tree; reported {reported}"
+        return
     from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
     root = pysmurf.core.server.compose(
         transport=cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource()),
@@ -997,19 +1119,31 @@ def stood_in_procedure(_setup, fail_load=False):
     exercised by its own check.
     """
     saved = (_setup.load_layers, _setup.AtcaSetup.check_elastic_buffers, ROOT.ReadAll._function,
-             ROOT.setup.layers)
+             ROOT.setup.layers, _setup.RfmcSetup.steps)
 
     def load(root, layers):
         if fail_load:
             raise _setup.StepError('stood-in load failed')
+
+    def rfmc_steps(self, root):
+        # The RFMC's steps before and after the load drive clock chips and the
+        # RF data converter -- hardware a register emulation has nothing of
+        # (the converter is a device on the processor system, reached over its
+        # own link) -- so only the two steps every platform has are run here;
+        # the RFMC's own are exercised over a stand-in tree by
+        # check_setup_steps.py, and on a board by nothing yet.
+        return (('read all', root.ReadAll),
+                ('load layers', lambda: _setup.load_layers(root, self.layers)))
     try:
         _setup.load_layers = load
         _setup.AtcaSetup.check_elastic_buffers = lambda self, root: None
+        _setup.RfmcSetup.steps = rfmc_steps
         ROOT.ReadAll.replaceFunction(lambda: None)
         ROOT.setup.layers = ('<stand-in layer>',)
         yield
     finally:
-        _setup.load_layers, _setup.AtcaSetup.check_elastic_buffers, _, ROOT.setup.layers = saved
+        (_setup.load_layers, _setup.AtcaSetup.check_elastic_buffers, _, ROOT.setup.layers,
+         _setup.RfmcSetup.steps) = saved
         ROOT.ReadAll.replaceFunction(saved[2])
 
 
@@ -1185,7 +1319,8 @@ def check_the_configuration_procedure_ends_on_this_platform():
     assert ('JesdStatus' in status.nodes) == has_links, \
         f"the status device offers a JESD verdict ({'JesdStatus' in status.nodes}) " \
         f"where the map {'names' if has_links else 'does not name'} one"
-    assert type(root.setup).__name__ == ('AtcaSetup' if has_links else 'RfsocSetup'), type(root.setup)
+    expected_setup = {'atca': 'AtcaSetup', 'rfsoc': 'RfsocSetup', 'rfmc': 'RfmcSetup'}[PLATFORM]
+    assert type(root.setup).__name__ == expected_setup, type(root.setup)
     with stood_in_procedure(_setup):
         if has_links:
             status.JesdStatus.set(0)
@@ -1356,15 +1491,30 @@ def _wait_for_ready(child, port, identity, log):
 # --------------------------------------------------------------------------
 
 def add_library_paths(args):
-    """Put the CryoDet package on pyrogue's library path."""
+    """Put the CryoDet package on pyrogue's library path, and the RFMC's behind it.
+
+    `addLibraryPath` puts each path at the *front*, so what must be found first
+    is added last.
+    """
+    if args.rfmc:
+        # Behind CryoDet: the RFMC release carries its own CryoDet, with the
+        # operations the server attaches, which the composition would refuse.
+        pr.addLibraryPath(f"{args.rfmc}/python")
+        # The release declares a rogue newer than the one here; the one thing it
+        # asks of it is not used (see the header), so the declaration is stood in.
+        import rogue
+        rogue.Version.minVersion = lambda *a, **k: None
     if args.zip:
         pr.addLibraryPath(f"{args.zip}/python")
         return
+    if not args.rfmc:
+        # The RFMC release ships these three at the revisions its own package
+        # needs; with it on the path, only CryoDet comes from the checkout.
+        for sub in ('amc-carrier-core', 'lcls-timing-core', 'surf'):
+            path = os.path.join(args.cryo_det, 'firmware/submodules', sub, 'python')
+            if os.path.isdir(path):
+                pr.addLibraryPath(path)
     pr.addLibraryPath(os.path.join(args.cryo_det, 'firmware/python'))
-    for sub in ('amc-carrier-core', 'lcls-timing-core', 'surf'):
-        path = os.path.join(args.cryo_det, 'firmware/submodules', sub, 'python')
-        if os.path.isdir(path):
-            pr.addLibraryPath(path)
 
 
 def describe_source(args):
@@ -1550,12 +1700,18 @@ def emulation_root(args, port):
     # top-level class is this one with isRFSOC defaulted on, and that package is
     # not to hand, so the flag is passed here and this class stands in: all it
     # does is leave out the JESD lanes and signal generators, so the RFSoC tree
-    # is this package without its bays, not the RFSoC firmware's. See the header.
-    from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+    # is this package without its bays, not the RFSoC firmware's. The RFMC's
+    # class is its own package's, imported as the composition would. See the header.
+    if args.platform == 'rfmc':
+        top_level_class = cryodaq.server._firmware.top_level(
+            platform.by_name(EXPECTED_PLATFORM['rfmc']))
+    else:
+        from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+        top_level_class = FpgaTopLevel
     root = pysmurf.core.server.compose(
         transport=cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource()),
         platform_name=EXPECTED_PLATFORM[args.platform], server_port=port, polling=False,
-        top_level_class=FpgaTopLevel, top_level_options=TOP_LEVEL_OPTIONS[args.platform])
+        top_level_class=top_level_class, top_level_options=TOP_LEVEL_OPTIONS[args.platform])
     try:
         root.start()
     except Exception:
@@ -1622,7 +1778,11 @@ def main():
                     help='which platform\'s tree to build and check (the ATCA carrier '
                          'by default); the RFSoC\'s own firmware package is this one '
                          'with isRFSOC defaulted on, so that tree is built from the '
-                         'same package without needing it')
+                         'same package without needing it; rfmc needs --rfmc too')
+    ap.add_argument('--rfmc', metavar='ZIP',
+                    help='the RFMC carrier\'s pyrogue release ZIP (rfmc-cryo-det), put on '
+                         'the path behind the CryoDet package above; required with '
+                         '--platform rfmc')
     ap.add_argument('--smurf-pcie', metavar='PATH',
                     help='the PCIe offload card\'s package (a smurf-pcie release ZIP or a '
                          'checkout\'s firmware/python): the card check builds its tree over '
@@ -1639,6 +1799,8 @@ def main():
                          'started only if one of them is named')
     args = ap.parse_args()
     PLATFORM = args.platform
+    if (args.platform == 'rfmc') != bool(args.rfmc):
+        ap.error('--platform rfmc and --rfmc go together')
     FIRMWARE_ARGS = ['--firmware', args.zip] if args.zip else []
     if args.smurf_pcie:
         SMURF_PCIE = f"{args.smurf_pcie}/python" if zipfile.is_zipfile(args.smurf_pcie) else args.smurf_pcie

@@ -22,7 +22,12 @@
 # checks here.
 #
 # Usage:
-#     dump_released_tree.py --zip <package.zip> --out <varlist.txt>
+#     dump_released_tree.py --zip <package.zip> --out <varlist.txt> [--platform umux-rfmc]
+#
+# The top-level class is the one the platform's map names, imported from the
+# package as the server imports it. The RFMC carrier's release declares a rogue
+# newer than the server image's for its RF data converter alone; the declaration
+# is stood in for here, since nothing it guards is used (the device is not built).
 #-----------------------------------------------------------------------------
 # This file is part of the pysmurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -34,6 +39,7 @@
 #-----------------------------------------------------------------------------
 
 import argparse
+import importlib
 import os
 import sys
 import zipfile
@@ -45,6 +51,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--zip', required=True, help='released firmware package')
     ap.add_argument('--out', required=True, help='where to write the node listing')
+    ap.add_argument('--platform', default='umux-atca',
+                    help='whose top-level class to build the tree with (its map names it)')
     args = ap.parse_args()
 
     source = os.path.abspath(args.zip)
@@ -54,15 +62,32 @@ def main():
     # The trailing /python is a path inside the archive, not on disk; pyrogue mounts
     # the ZIP. This is what cryodaq.server.load_package does with a released package.
     pr.addLibraryPath(f'{source}/python')
-
-    from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+    # The platform map is this repository's; the script may be run from a copy
+    # outside it (the CI job copies it into the server container), so the
+    # repository is looked for beside the script first and in the working
+    # directory second.
+    for root in (os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                 os.getcwd()):
+        if os.path.isdir(os.path.join(root, 'python', 'cryodaq')):
+            sys.path.insert(0, os.path.join(root, 'python'))
+            break
+    import rogue
+    rogue.Version.minVersion = lambda *a, **k: None
+    from cryodaq import platform
     import pyrogue.interfaces.simulation
 
-    kwargs = dict(memBase=pyrogue.interfaces.simulation.MemEmulate(),
-                  disableBay0=False, disableBay1=False)
-    # isRFSOC/isPreSpectra are recent additions; a release predating them rejects
-    # them, so ask in decreasing order of specificity rather than assuming.
-    for extra in ({'isRFSOC': False, 'isPreSpectra': False}, {'isRFSOC': False}, {}):
+    pmap = platform.by_name(args.platform)
+    module_name, _, attribute = pmap.top_level.partition(':')
+    FpgaTopLevel = getattr(importlib.import_module(module_name), attribute)
+
+    kwargs = dict(memBase=pyrogue.interfaces.simulation.MemEmulate())
+    # The AMC carrier's class takes which bays to build and which generation;
+    # isRFSOC/isPreSpectra are recent additions a release predating them rejects, so
+    # ask in decreasing order of specificity rather than assuming. The RFMC's takes
+    # nothing of the kind.
+    for extra in ({'disableBay0': False, 'disableBay1': False, 'isRFSOC': False, 'isPreSpectra': False},
+                  {'disableBay0': False, 'disableBay1': False, 'isRFSOC': False},
+                  {'disableBay0': False, 'disableBay1': False}, {}):
         try:
             fpga = FpgaTopLevel(**kwargs, **extra)
             break

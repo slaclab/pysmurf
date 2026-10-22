@@ -379,13 +379,18 @@ USER_CONFIG = f'{APP_CORE}.TimingHeader.userConfig[{{user_config}}]'
 # control pulses.
 SW_DAQ_MUX_TRIGGER = f'{FPGA}.SwDaqMuxTrig'
 # The firmware's own check of its converter serial links, where a release carries one:
-# the command runs it and the status is its last verdict. The command is the
-# application core's and is built into every tree of this generation -- a platform
-# with no such links has nothing for it to find, and that platform's map names no
-# verdict for it (see `application.jesd_status`, a carrier's). A map states what a
-# tree has; whether the server acts on it is the verdict's business.
+# the command runs it and the status is its last verdict. The command is the AMC
+# carrier's application top and is built into every tree on that carrier -- the RFSoC
+# has no such links and nothing for it to find, and its map names no verdict for it
+# (see `application.jesd_status`, the ATCA carrier's); the RFMC carrier's application
+# top does not carry it. A map states what a tree has; whether the server acts on it
+# is the verdict's business. In the AMC carrier's table below.
 JESD_HEALTH = f'{APP_TOP}.JesdHealth'
 JESD_HEALTH_STATUS = f'{APP_TOP}.JesdHealthStatus'
+AMC_CARRIER_REGISTERS.update({
+    'jesd.health': (JESD_HEALTH, _C),
+    'jesd.health_status': (JESD_HEALTH_STATUS, _V),
+})
 DAQ_MUX = f'{APP_TOP}.DaqMuxV2[{{bay}}]'
 DAQ_ARM_HW_TRIGGER = f'{DAQ_MUX}.ArmHwTrigger'
 DAQ_TRIGGER = f'{DAQ_MUX}.TriggerDaq'
@@ -626,8 +631,6 @@ REGISTERS = {
     'application_config.written_at': (RESOLVED_WRITTEN_AT, _V),
     'bay[*].tone_file.load': (LOAD_TONE_FILE, _C),
     'daq.software_trigger': (SW_DAQ_MUX_TRIGGER, _C),
-    'jesd.health': (JESD_HEALTH, _C),
-    'jesd.health_status': (JESD_HEALTH_STATUS, _V),
     # timing and streaming
     'stream.enable': (STREAM_ENABLE, _V),
     'stream.downsample.factor': (DOWNSAMPLE_FACTOR, _V),

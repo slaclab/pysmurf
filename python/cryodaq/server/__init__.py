@@ -27,6 +27,9 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
+import atexit
+import contextlib
+import importlib.resources
 import logging
 import os
 from typing import Any, Callable, Mapping, Optional, Sequence
@@ -40,12 +43,12 @@ from cryodaq.server._firmware import load_package, probe_platform, resolve_layer
 from cryodaq.server._provider import OperationsProvider, attach_operations
 from cryodaq.server._root import ReadoutRoot
 from cryodaq.server._offload_card import OffloadCard
-from cryodaq.server._transport import Transport, emulation, eth, pcie
+from cryodaq.server._transport import Transport, emulation, eth, pcie, tcp_bridge
 from cryodaq.server.operations import UMUX_OPERATIONS
 from cryodaq.server import _cli
 
 __all__ = ['compose', 'CORE_PROVIDERS', 'OperationsProvider', 'attach_operations', 'load_package',
-           'Transport', 'eth', 'pcie', 'emulation', 'OffloadCard', 'ReadoutRoot',
+           'Transport', 'eth', 'pcie', 'tcp_bridge', 'emulation', 'OffloadCard', 'ReadoutRoot',
            'ApplicationConfig', 'ApplicationStatus', 'EXCLUDED_FROM', 'UMUX_OPERATIONS',
            'add_capture_receivers', 'CAPTURE_POINTS', 'add_arguments', 'configure_logging', 'transport_from',
            'composition_kwargs', 'run']
@@ -61,6 +64,9 @@ _log = logging.getLogger(__name__)
 
 # The operations the readout core itself provides.
 CORE_PROVIDERS = (UMUX_OPERATIONS,)
+# The RFMC carrier's clock chip register file, as TI's tool exports it, where the
+# firmware's Python package ships it.
+RFMC_LMK_CONFIG = 'config/lmk/HexRegisterValues.txt'
 
 
 def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
@@ -132,7 +138,6 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
         If the platform cannot be identified, or disagrees with ``platform_name``.
     """
     load_package(firmware)
-    layers = resolve_layers(layers, firmware)
 
     # The offload card's lane is the register path's first link: it is opened
     # here, before the firmware is probed through it, and the root closes it
@@ -141,7 +146,8 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
         transport.card.open()
     try:
         if transport.probes_firmware:
-            pmap = probe_platform(transport.srp, transport.register_nodes)
+            pmap = probe_platform(transport.srp, transport.register_nodes,
+                                  offset=transport.register_offset)
             if platform_name is not None and platform_name != pmap.name:
                 raise ConnectError(f"the hardware reports platform {pmap.name!r}, "
                                    f"not {platform_name!r}")
@@ -152,13 +158,21 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
         else:
             pmap = platform.by_name(platform_name)
 
-        fpga = _build_top_level(top_level_class or top_level(pmap), transport.srp,
-                                dict(top_level_options or {}))
+        # A relative file name means one in the archive's configuration
+        # directory, which is where the platform's package keeps them.
+        layers = resolve_layers(layers, firmware, pmap.package_config_dir)
+        # The FPGA's register window starts where the transport says; a link
+        # to the FPGA itself starts at 0, which its classes take for granted.
+        options = dict(top_level_options or {})
+        if transport.register_offset:
+            options['offset'] = transport.register_offset
+        fpga = _build_top_level(top_level_class or top_level(pmap), transport.srp, options)
+        extras = platform_devices(pmap, transport)
 
         root = ReadoutRoot(fpga=fpga, transport=transport, pmap=pmap, providers=providers,
                            sinks=sinks, layers=layers, server_port=server_port, polling=polling,
                            configure=configure, variable_groups=variable_groups, on_start=on_start,
-                           application=application)
+                           application=application, **extras)
         if capture_points:
             add_capture_receivers(root, transport, capture_points, capture_type)
     except BaseException:
@@ -181,3 +195,38 @@ def _build_top_level(cls, srp, options):
         _log.warning("this firmware package does not take %s; building without it",
                      ', '.join(unknown))
         return cls(memBase=srp, **{k: v for k, v in options.items() if k not in unknown})
+
+
+def platform_devices(pmap, transport):
+    """What a platform adds to the root beside the FPGA's tree, from its package.
+
+    The RFMC carrier's RF data converter is a device of the firmware's package
+    driven over a register path of its own (the transport's ``srp_rfdc``), and
+    its configuration procedure programs the carrier's clock chips from a
+    register file the package ships beside its code; both are found here, where
+    the package is importable, and handed to the root. The file is read by the
+    clock chip's driver as a plain file, so one inside a release archive is
+    extracted beside the server for as long as it runs. The two carriers on the
+    AMC form add nothing.
+    """
+    if pmap.version_block_path.rsplit('.', 1)[0] != platform.RFMC_CARRIER_PATH:
+        return {}
+    if transport.srp_rfdc is None:
+        raise ConnectError(f"platform {pmap.name} drives an RF data converter over a second "
+                           f"register path, which the {transport.name} transport does not have")
+    import axi_soc_ultra_plus_core.rfsoc_utility as rfsoc_utility
+    rfdc = rfsoc_utility.Rfdc(name=platform.RFMC_RFDC_PATH.rsplit('.', 1)[1],
+                              memBase=transport.srp_rfdc)
+    package = pmap.top_level.partition(':')[0]
+    resource = importlib.resources.files(package).joinpath(RFMC_LMK_CONFIG)
+    if not resource.is_file():
+        raise ConnectError(f"the {package} package ships no {RFMC_LMK_CONFIG}, which the "
+                           f"{pmap.name} configuration procedure programs the clock chips from")
+    lmk_config = _EXTRACTED.enter_context(importlib.resources.as_file(resource))
+    return dict(devices=[rfdc], setup_options=dict(lmk_config=str(lmk_config)))
+
+
+# Files taken out of a release archive for a driver that reads plain files; kept
+# for the life of the process, since a server composes once and runs.
+_EXTRACTED = contextlib.ExitStack()
+atexit.register(_EXTRACTED.close)
