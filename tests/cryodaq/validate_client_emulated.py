@@ -709,7 +709,7 @@ def check_the_platform_probe_opens_the_link_before_reading():
             events.append('stop')
 
     srp = pyrogue.interfaces.simulation.MemEmulate()
-    address = ROOT.getNode(platform.TAG_PATH).address
+    address = ROOT.getNode(platform.by_name(EXPECTED_PLATFORM[PLATFORM]).tag_path).address
     for offset, byte in enumerate(stamp_for(EXPECTED_IMAGE[PLATFORM]).encode()):
         srp._data[address + offset] = byte
     original = platform.identify
@@ -1506,8 +1506,9 @@ def write_build_stamp(root, stamp):
     work with here as on a crate. The register is read-only from the tree's side,
     as it is in the firmware, so this goes in underneath it.
     """
-    node = root.getNode(platform.TAG_PATH)
-    assert node is not None, f"the tree has no {platform.TAG_PATH}"
+    tag_path = platform.by_name(EXPECTED_PLATFORM[PLATFORM]).tag_path
+    node = root.getNode(tag_path)
+    assert node is not None, f"the tree has no {tag_path}"
     for offset, byte in enumerate(stamp.encode()):
         root._transport.srp._data[node.address + offset] = byte
     # The block was read once while the tree was built, and cached what it found

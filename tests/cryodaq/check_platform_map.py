@@ -66,7 +66,7 @@ def tree(stamp):
 
     class Tree:
         def getNode(self, path):
-            assert path == platform.TAG_PATH, f"identification read {path!r}"
+            assert path in {m.tag_path for m in platform.MAPS}, f"identification read {path!r}"
             return Node()
 
     return Tree()
@@ -90,6 +90,24 @@ def check_every_map_is_named_and_tagged():
         for tag in pmap.tags:
             assert tag and not tag.startswith(' '), f"{pmap.name} has a blank tag"
         assert platform.by_name(pmap.name) is pmap
+
+
+def check_each_map_reads_its_stamp_where_its_table_says():
+    """The stamp a platform is identified by is the register its own map names.
+
+    Identification reads ``tag_path`` before it knows the platform; once known, a
+    client reads ``firmware.build_stamp`` through the map. The two must be one
+    register, and the version block the probe builds must be the device that
+    register sits in -- otherwise a platform could be recognised by one stamp and
+    report another.
+    """
+    for pmap in platform.MAPS:
+        assert pmap.tag_path == pmap.path('firmware.build_stamp'), \
+            f"{pmap.name} is identified at {pmap.tag_path} but reports its stamp elsewhere"
+        assert pmap.tag_path.rsplit('.', 1)[0] == pmap.version_block_path, \
+            f"{pmap.name}: the stamp is not in the version block the probe builds"
+        assert pmap.version_block_path in platform.VERSION_BLOCK_PATHS
+    assert len(platform.VERSION_BLOCK_PATHS) == len(set(platform.VERSION_BLOCK_PATHS))
 
 
 def check_tags_are_unique_across_maps():
