@@ -124,7 +124,8 @@ class ReadoutRoot(pyrogue.Root):
         # end, and a platform whose converters share the FPGA's die has no front
         # end at all, so reports none. Read off the tree through the map, not
         # from a flag.
-        has = lambda path: self.getNode(path) is not None                  # noqa: E731
+        def has(path):
+            return self.getNode(path) is not None
         self._enabled_bays = [
             bay for bay in platform.indices(pmap, has, 'bay')
             if 'attenuator' in pmap.scopes and platform.indices(pmap, has, 'attenuator', bay=bay)]

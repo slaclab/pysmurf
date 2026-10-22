@@ -820,23 +820,29 @@ def check_an_interrupted_platform_probe_closes_what_it_opened():
 def check_the_bridge_transport_has_the_shape_the_rfmc_needs():
     """The TCP bridge: registers to the processor system, data as a carrier's, a second path for the converter.
 
-    No bridge answers here, and none is asked to: rogue's TCP memory client
-    connects when a transaction is first issued, so the transport is built and
-    its parts judged without a board. The register path is the client to the
-    processor system's register port with the FPGA's window offset; the
-    converter's path is a second client to its driver's port; the data path is
-    Ethernet's (RSSI DDR streams and the plain UDP stream, pointed at the FPGA's
-    own address) or the card's DMA when asked, and nothing else differs. The
-    command line builds the same, and refuses to without both addresses.
+    No bridge answers here: the transport is built against addresses nothing
+    listens on and its parts judged without a board -- rogue's TCP client
+    tolerates an absent server (it reconnects in the background until a
+    transaction needs it). The register path is the client to the processor
+    system's register port with the FPGA's window offset; the converter's path
+    is a second client to its driver's port; the data path is Ethernet's (RSSI
+    DDR streams and the plain UDP stream, pointed at the FPGA's own address) or
+    the card's DMA when asked, and nothing else differs. The command line
+    builds the same, and refuses to without both addresses.
     """
     import rogue.interfaces.memory
     from cryodaq.server import _cli, _transport
+    # Documentation addresses (TEST-NET-1, RFC 5737): nothing answers and nothing
+    # on the crate's subnet is touched. rogue's TCP client connects in the
+    # background as soon as it is built and keeps retrying, so a real address
+    # here would knock on a real door.
+    PS, PL = '192.0.2.203', '192.0.2.103'
     for data in ('udp', 'pcie'):
         if data == 'pcie' and not os.path.exists('/dev/datadev_0'):
             # The DMA data path opens the card's devices; without a card in the
             # machine the udp half is what can be built here, and is.
             continue
-        t = _transport.tcp_bridge('10.0.1.203', '10.0.1.103', data=data, offload_card=False)
+        t = _transport.tcp_bridge(PS, PL, data=data, offload_card=False)
         assert t.name == 'tcp-bridge'
         assert isinstance(t.srp, rogue.interfaces.memory.TcpClient), type(t.srp)
         assert isinstance(t.srp_rfdc, rogue.interfaces.memory.TcpClient), type(t.srp_rfdc)
@@ -847,10 +853,10 @@ def check_the_bridge_transport_has_the_shape_the_rfmc_needs():
         assert not t.register_nodes, 'the bridge needs no link started before it answers'
         if data == 'udp':
             assert len(t.nodes) == 2, f"the RSSI link and the UDP receiver: {t.nodes}"
-            assert (t.nodes[0]._host, t.nodes[0]._port) == ('10.0.1.103', _transport.RSSI_PORT), \
+            assert (t.nodes[0]._host, t.nodes[0]._port) == (PL, _transport.RSSI_PORT), \
                 'the data path is not pointed at the FPGA'
     try:
-        _transport.tcp_bridge('10.0.1.203', '10.0.1.103', data='rdma')
+        _transport.tcp_bridge(PS, PL, data='rdma')
     except ValueError as e:
         assert 'udp' in str(e) and 'pcie' in str(e), e
     else:
@@ -862,13 +868,12 @@ def check_the_bridge_transport_has_the_shape_the_rfmc_needs():
     # The command line's arm, with its two addresses required.
     import argparse
     parser = _cli.add_arguments(argparse.ArgumentParser())
-    args = parser.parse_args(['--transport', 'tcp-bridge', '--ps-addr', '10.0.1.203',
-                              '--addr', '10.0.1.103', '--no-pcie-card'])
+    args = parser.parse_args(['--transport', 'tcp-bridge', '--ps-addr', PS, '--addr', PL, '--no-pcie-card'])
     t = _cli.transport_from(args)
     assert t.name == 'tcp-bridge' and isinstance(t.srp_rfdc, rogue.interfaces.memory.TcpClient)
-    for argv in (['--transport', 'tcp-bridge', '--addr', '10.0.1.103'],
-                 ['--transport', 'tcp-bridge', '--ps-addr', '10.0.1.203'],
-                 ['--transport', 'tcp-bridge', '--ps-addr', 'nowhere', '--addr', '10.0.1.103']):
+    for argv in (['--transport', 'tcp-bridge', '--addr', PL],
+                 ['--transport', 'tcp-bridge', '--ps-addr', PS],
+                 ['--transport', 'tcp-bridge', '--ps-addr', 'nowhere', '--addr', PL]):
         try:
             _cli.transport_from(parser.parse_args(argv))
         except SystemExit as e:
@@ -887,7 +892,7 @@ def check_the_rfmc_composition_carries_its_converter_and_clock_file():
     with the reason. On the other platforms the root carries neither.
     """
     root = ROOT
-    rfdc = root.getNode(platform.RFMC_RFDC_PATH)
+    rfdc = root.getNode(root.pmap.rfdc_path) if root.pmap.rfdc_path else None
     if PLATFORM != 'rfmc':
         assert rfdc is None, f"{PLATFORM} carries an RF data converter"
         assert not hasattr(root.setup, 'lmk_config')
@@ -1391,14 +1396,28 @@ class _EntryPointChild:
     """An entry point run as a child, to be judged once: Ready rose, SIGTERM ended it cleanly."""
 
     def __init__(self, module, port):
-        # The child names the platform this package really builds -- the RFSoC
-        # run's tree is a stand-in made in-process (see the header), and the
-        # child has no such shortcut; what is under test is main(), not the
-        # platform.
+        # The child names the platform this run's package really builds: the
+        # carrier for the CryoDet package (the RFSoC run's tree is a stand-in
+        # made in-process, see the header, and the child has no such shortcut),
+        # the RFMC for its own. What is under test is main() with the command
+        # line a launcher would give it, not the platform.
         self.module, self.port = module, port
-        cmd = [sys.executable, '-m', module, '--transport', 'emulation',
-               '--platform', EXPECTED_PLATFORM['atca'], '--server-port', str(port),
-               '--nopoll', '--capture-points', '0', '--log-level', 'WARNING'] + FIRMWARE_ARGS
+        self.platform = EXPECTED_PLATFORM['rfmc' if PLATFORM == 'rfmc' else 'atca']
+        args = ['--transport', 'emulation', '--platform', self.platform, '--server-port', str(port),
+                '--nopoll', '--capture-points', '0', '--log-level', 'WARNING'] + FIRMWARE_ARGS
+        if PLATFORM == 'rfmc':
+            # The RFMC release declares a rogue newer than this one (see
+            # add_library_paths); the child is the entry point run under the
+            # same stand-in, through runpy so that its own main() is what runs.
+            cmd = [sys.executable, '-c',
+                   'import runpy, sys, rogue\n'
+                   'rogue.Version.minVersion = lambda *a, **k: None\n'
+                   f'sys.argv = [{module!r}] + sys.argv[1:]\n'
+                   f'runpy.run_module({module!r}, run_name="__main__", alter_sys=True)'] + args
+        else:
+            cmd = [sys.executable, '-m', module] + args
+        # The child inherits this run's import path: the firmware packages in
+        # the order add_library_paths() put them.
         env = dict(os.environ, PYTHONPATH=os.pathsep.join(p for p in sys.path if p))
         # Output to a file, not a pipe: a pipe nobody drains fills, and a child
         # blocked on its own print looks exactly like one that never got there.
@@ -1408,7 +1427,7 @@ class _EntryPointChild:
     def verdict(self, identity):
         child, module = self.child, self.module
         try:
-            _wait_for_ready(child, self.port, identity, self.log)
+            _wait_for_ready(child, self.port, identity, self.log, self.platform)
             child.terminate()
             try:
                 child.wait(timeout=ENTRY_POINT_EXIT_S)
@@ -1438,7 +1457,7 @@ def stop_entry_point_children():
     ENTRY_POINT_CHILDREN.clear()
 
 
-def _wait_for_ready(child, port, identity, log):
+def _wait_for_ready(child, port, identity, log, platform_name):
     """Poll the child's server until ``Ready`` is up, within ENTRY_POINT_READY_S.
 
     ``identity`` says whether the application's version must be on the status
@@ -1451,7 +1470,7 @@ def _wait_for_ready(child, port, identity, log):
     read too: a client that connects to a stuck server would otherwise retry
     for good.
     """
-    pmap = platform.by_name(EXPECTED_PLATFORM['atca'])
+    pmap = platform.by_name(platform_name)
     deadline = time.monotonic() + ENTRY_POINT_READY_S
     while True:
         try:
@@ -1500,8 +1519,11 @@ def add_library_paths(args):
         # Behind CryoDet: the RFMC release carries its own CryoDet, with the
         # operations the server attaches, which the composition would refuse.
         pr.addLibraryPath(f"{args.rfmc}/python")
-        # The release declares a rogue newer than the one here; the one thing it
-        # asks of it is not used (see the header), so the declaration is stood in.
+        # The release declares rogue >= 6.15.0, for its RF data converter class
+        # alone; what that version adds (RoCEv2, build files) nothing here uses,
+        # and the deployed server image has moved to 6.15.0. This interpreter
+        # has not, so the declaration is stood in -- here, and in the entry-point
+        # child, which runs under the same interpreter.
         import rogue
         rogue.Version.minVersion = lambda *a, **k: None
     if args.zip:
@@ -1531,7 +1553,10 @@ def describe_source(args):
                               capture_output=True, text=True, check=True).stdout.strip()
     except (subprocess.CalledProcessError, OSError):
         head = 'unknown revision'
-    return f"cryo-det {head}" + ('' if args.platform == 'atca' else f" ({args.platform})")
+    source = f"cryo-det {head}" + ('' if args.platform == 'atca' else f" ({args.platform})")
+    if args.rfmc:
+        source += f" over {os.path.basename(args.rfmc)}"
+    return source
 
 
 # Port triples this run has handed out, so a server still on its way to binding

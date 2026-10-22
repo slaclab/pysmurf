@@ -15,12 +15,13 @@
 #    channel-access put can configure a system, and a register-only server
 #    runs the same procedure.
 #
-#    What the procedure leaves behind is the register layers' state and no
-#    more: the flux ramp, the triggers and the data stream are the
-#    application's to turn on afterwards. Each platform has its own small
-#    subclass naming its steps in order and working on the rogue tree directly; where a device is on the
-#    tree comes from the platform's map module, which is the one place a
-#    register path is written down.
+#    What the procedure leaves behind is the register layers' state, and on a
+#    carrier whose clocks and converters are brought up by software (the RFMC)
+#    those brought up; no more -- the flux ramp, the triggers and the data
+#    stream are the application's to turn on afterwards. Each platform has its
+#    own small subclass naming its steps in order and working on the rogue tree
+#    directly; where a device is on the tree comes from the platform's map
+#    module, which is the one place a register path is written down.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -74,6 +75,8 @@ def load_layers(root: Any, layers: Sequence[str]) -> None:
     """
     if not layers:
         raise StepError('no register layers were given')
+    for layer in layers:
+        check_layer_names_this_root(root, layer)
     loader = root.LoadConfigProcess
     # The update thread can interfere with some steps of initialisation.
     loader.UpdatePeriod.set(0.0)
@@ -109,6 +112,27 @@ def load_layers(root: Any, layers: Sequence[str]) -> None:
         _log.warning("register layers try %d ended with %r", i, message)
     raise StepError(f"the register layers did not load in {LOAD_RETRIES} tries; "
                     f"the loader's last message: {message!r}")
+
+
+def check_layer_names_this_root(root: Any, layer: str) -> None:
+    """Refuse a layer whose top-level keys are not this root's name.
+
+    Rogue applies a layer by looking each top-level key up as a node of the
+    root, and a key that is not the root's own name (or ``root``) is logged as
+    ``Entry … not found`` while the load still ends ``Done``. A file written
+    for a tree whose root is called otherwise -- a firmware package's own
+    defaults, say -- would then be credited as loaded and change nothing. Only
+    the keys are read here, with rogue's own reader, so a file it cannot open
+    fails the same way it would in the load.
+    """
+    try:
+        keys = list(pyrogue.yamlToData(fName=layer) or {})
+    except Exception as e:                                           # noqa: BLE001
+        raise StepError(f"{layer}: cannot be read: {e}") from e
+    strangers = [k for k in keys if k not in (root.name, 'root')]
+    if strangers:
+        raise StepError(f"{layer}: written for a root called {strangers[0]!r}, not "
+                        f"{root.name!r}; nothing in it would be applied")
 
 
 class Setup(pyrogue.Process):
@@ -288,12 +312,17 @@ class RfmcSetup(Setup):
 
     The carrier's data converters are on the RFSoC and its clocks come from
     chips on the board, so bringing it up is the order the firmware's own root
-    uses: reset the user logic, route a timing source to the receiver, program
-    the clock chips from the vendor's register file, wait for the DSP clock,
-    initialise the RF data converter, load the layers, then synchronise the
-    converter tiles. The converter is a device of its own on the root, reached
-    over a second register path to the processor system, not a child of the
-    FPGA's tree.
+    uses at start: reset the user logic, route a timing source to the receiver,
+    program the clock chips from the vendor's register file, wait for the DSP
+    clock, initialise the RF data converter, read the tree, synchronise the
+    converter tiles, load the layers, reset the counters. The converter is a
+    device of its own on the root, reached over a second register path to the
+    processor system, not a child of the FPGA's tree.
+
+    Polling is held off for the whole run, as the firmware's root holds it off
+    through its start: a poll landing on the user reset, the clock programming,
+    the converter init or the tile sync reads registers whose clock domain is
+    still held down.
     """
 
     # The clock crossbar output feeding the timing receiver, and the source
@@ -305,7 +334,7 @@ class RfmcSetup(Setup):
     MTS_DAC_TILES, MTS_DAC_REF_TILE = 0xF, 0x0
     MTS_ADC_TILES, MTS_ADC_REF_TILE = 0xF, 0x2
 
-    def __init__(self, layers: Sequence[str], status: Any, lmk_config: str = ''):
+    def __init__(self, layers: Sequence[str], status: Any, lmk_config: Optional[str] = None):
         Setup.__init__(self, layers, status)
         # The LMK's register values as TI's tool exports them; the firmware
         # package ships one beside its register defaults.
@@ -313,15 +342,27 @@ class RfmcSetup(Setup):
 
     def steps(self, root: Any) -> Sequence[Tuple[str, Callable[[], None]]]:
         carrier = root.getNode(platform.RFMC_CARRIER_PATH)
-        rfdc = root.getNode(platform.RFMC_RFDC_PATH)
-        return (('read all', root.ReadAll),
-                ('reset user logic', lambda: self.reset_user_logic(carrier)),
+        rfdc = root.getNode(root.pmap.rfdc_path)
+        return (('reset user logic', lambda: self.reset_user_logic(carrier)),
                 ('route timing', lambda: self.route_timing(carrier)),
-                ('init clocks', lambda: carrier.InitClock(lmkConfig=self.lmk_config)),
+                ('init clocks', lambda: self.init_clocks(carrier)),
                 ('wait for DSP clock', lambda: self.wait_for_dsp_clock(carrier)),
                 ('init RF data converter', rfdc.Init),
+                ('read all', root.ReadAll),
+                ('sync converter tiles', lambda: self.sync_converter_tiles(rfdc)),
                 ('load layers', lambda: load_layers(root, self.layers)),
-                ('sync converter tiles', lambda: self.sync_converter_tiles(rfdc)))
+                ('reset counters', root.CountReset))
+
+    def run(self, root: Any) -> None:
+        if not self.layers:
+            # Refused before polling is touched, as the base refuses before any step.
+            Setup.run(self, root)
+        polling = root.PollEn.value()
+        root.PollEn.set(False)
+        try:
+            Setup.run(self, root)
+        finally:
+            root.PollEn.set(polling)
 
     @staticmethod
     def reset_user_logic(carrier: Any) -> None:
@@ -334,6 +375,12 @@ class RfmcSetup(Setup):
         """Route the start-up timing source to the FPGA's timing receiver."""
         output = carrier.AxiSy56040.OutputConfig[platform.RFMC_TIMING_RECEIVER_CROSSBAR_OUTPUT]
         output.set(platform.RFMC_STARTUP_TIMING_SOURCE[self.TIMING_SOURCE])
+
+    def init_clocks(self, carrier: Any) -> None:
+        """Program the LMK and LMX clock chips from the vendor's register file."""
+        if not self.lmk_config:
+            raise StepError('no clock chip register file was given')
+        carrier.InitClock(lmkConfig=self.lmk_config)
 
     @staticmethod
     def wait_for_dsp_clock(carrier: Any) -> None:

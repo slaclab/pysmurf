@@ -30,7 +30,7 @@
 from cryodaq.platform import _umux
 
 __all__ = ['NAME', 'TAGS', 'TOP_LEVEL', 'PACKAGE_CONFIG_DIR', 'CARRIER', 'REGISTERS', 'LEGACY',
-           'WITNESS', 'SCOPES', 'QUAD', 'RFDC', 'STARTUP_TIMING_SOURCE',
+           'WITNESS', 'SCOPES', 'QUAD', 'RFDC', 'LMK_CONFIG', 'STARTUP_TIMING_SOURCE',
            'TIMING_RECEIVER_CROSSBAR_OUTPUT']
 
 NAME = 'umux-rfmc'
@@ -73,6 +73,10 @@ TIMING_RECEIVER_CROSSBAR_OUTPUT = 1
 # memory, so it is not in a dump of the firmware package. Its configuration procedure
 # initialises it and synchronises its tiles.
 RFDC = f'{_umux.ROOT}.Rfdc'
+# The clock chips' register file, as TI's tool exports it, where the firmware's Python
+# package ships it (relative to the package); the configuration procedure programs the
+# LMK and LMX from it.
+LMK_CONFIG = 'config/lmk/HexRegisterValues.txt'
 
 # --------------------------------------------------------------------------
 # what only this platform has

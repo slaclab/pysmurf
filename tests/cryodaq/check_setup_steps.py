@@ -66,7 +66,14 @@ def setup_module():
             def __init__(self, *a, **k):
                 pass
 
+        def yamlToData(stream='', fName=None):
+            # Enough of rogue's reader for the top-level keys the check reads.
+            import yaml
+            with open(fName) as fh:
+                return yaml.safe_load(fh)
+
         fake.Process = Process
+        fake.yamlToData = yamlToData
         sys.modules['pyrogue'] = fake
     import importlib.util
     path = HERE.parent.parent / 'python' / 'cryodaq' / 'server' / '_setup.py'
@@ -139,8 +146,10 @@ class StandInRoot(Node):
     memory reads as.
     """
 
-    def __init__(self, paths, values=None):
+    def __init__(self, paths, values=None, pmap=None):
         Node.__init__(self, self, 'AMCc')
+        self.name = 'AMCc'
+        self.pmap = pmap
         self.values = dict(values or {})
         self.log = []
         self.by_path = {'AMCc': self}
@@ -195,15 +204,15 @@ class RfmcCarrierCore(Node):
 
 def tree(stem, values=None):
     _setup = setup_module()
-    root = StandInRoot(load_dump(stem), values)
-    if stem == 'rfmc':
+    pmap = platform.by_name(PLATFORM_OF[stem])
+    root = StandInRoot(load_dump(stem), values, pmap)
+    if pmap.rfdc_path:
         # The RF data converter is not in a dump of the firmware package (it is a
         # device the server adds, over its own link), so the stand-in grows it:
         # its init command and the multi-tile sync block the procedure drives.
-        rfdc = platform.RFMC_RFDC_PATH
         for leaf in ('Init', 'Mts.DacTiles', 'Mts.AdcTiles', 'Mts.DacRefTile', 'Mts.AdcRefTile',
                      'Mts.SyncDacTiles', 'Mts.SyncAdcTiles'):
-            root._grow(f'{rfdc}.{leaf}')
+            root._grow(f'{pmap.rfdc_path}.{leaf}')
         # The carrier core's bring-up helpers are methods of its class.
         core = root.by_path[platform.RFMC_CARRIER_PATH]
         core.__class__ = RfmcCarrierCore
@@ -222,6 +231,8 @@ class StoodInLoad:
         self.saved = self._setup.load_layers
 
         def load(root, layers):
+            if not layers:
+                raise self._setup.StepError('no register layers were given')
             self.loads.append(tuple(layers))
             # Into the tree's log too, so a check can see where the load fell
             # among the reads and writes around it.
@@ -267,6 +278,7 @@ def procedure(_setup, stem, layers=('a.yml',)):
     setup.status = Status()
     if cls is _setup.RfmcSetup:
         setup.lmk_config = '<lmk file>'
+        # Polling is this root's variable; the stand-in tree has rogue's leaves.
     # rogue's step counters, stood in for.
     setup.progress = []
     setup.setTotalSteps = lambda n: setup.progress.append(('total', n))
@@ -322,54 +334,65 @@ def check_every_procedure_reaches_only_nodes_its_platform_has():
 def check_the_rfmc_sequence_is_the_firmwares_own():
     """The RFMC's steps, in the order its firmware's root brings the board up.
 
-    Reset the user logic, route the timing source, program the clock chips from
-    the vendor file, wait for the DSP clock, initialise the RF data converter,
-    load the layers, synchronise the converter tiles -- with every wait bounded,
-    the backplane routed to the receiver's crossbar output, and the tile groups
-    the firmware uses. Nothing is written after the sync.
+    The expected side is the firmware root's `start()`, transcribed from the
+    release (`rfmc_cryo_det/_Root.py`): user reset, timing route, clock chips
+    from the vendor file, DSP clock wait, converter init, a read of the tree,
+    tile sync, then the configuration load and a counter reset -- with every
+    wait bounded, the backplane routed to the receiver's crossbar output, the
+    tile groups the firmware uses, and polling off throughout. The firmware's
+    final health check is left out, as the carrier's was.
     """
-    _setup, root = tree('rfmc')
+    _setup, root = tree('rfmc', {'AMCc.PollEn': True})
     setup = procedure(_setup, 'rfmc', layers=('d.yml',))
     setup.lmk_config = '/pkg/lmk.txt'      # over the stand-in's
     with StoodInLoad(_setup) as load:
         setup.run(root)
     core = platform.RFMC_CARRIER_PATH
-    rfdc = platform.RFMC_RFDC_PATH
+    rfdc = root.pmap.rfdc_path
     crossbar = f'{core}.AxiSy56040.OutputConfig[{platform.RFMC_TIMING_RECEIVER_CROSSBAR_OUTPUT}]'
     expected = [
-        ('call', 'AMCc.ReadAll'),
+        ('set', 'AMCc.PollEn', False),
         ('call', f'{core}.UserRst', _setup.RESET_RECOVERY_TIMEOUT_S),
-        ('set', crossbar, platform.RFMC_STARTUP_TIMING_SOURCE['backplane']),
+        ('set', crossbar, 0x2),                                   # backplane, STARTUP_TIMING in the firmware
         ('call', f'{core}.InitClock', '/pkg/lmk.txt'),
         ('call', f'{core}.DspRstWait', _setup.RESET_RECOVERY_TIMEOUT_S),
         ('call', f'{rfdc}.Init'),
-        ('load', 'd.yml'),
+        ('call', 'AMCc.ReadAll'),
         ('set', f'{rfdc}.Mts.DacTiles', 0xF),
         ('set', f'{rfdc}.Mts.AdcTiles', 0xF),
-        ('set', f'{rfdc}.Mts.DacRefTile', 0x0),
-        ('set', f'{rfdc}.Mts.AdcRefTile', 0x2),
+        ('set', f'{rfdc}.Mts.DacRefTile', 0x0),                  # DAC228, the DAC clock source
+        ('set', f'{rfdc}.Mts.AdcRefTile', 0x2),                  # ADC226, the ADC clock source
         ('call', f'{rfdc}.Mts.SyncDacTiles'),
         ('call', f'{rfdc}.Mts.SyncAdcTiles'),
+        ('load', 'd.yml'),
+        ('call', 'AMCc.CountReset'),
+        ('set', 'AMCc.PollEn', True),
     ]
     assert root.log == expected, '\n'.join(f'  {e}' for e in root.log)
     assert load.loads == [('d.yml',)]
-    assert setup.progress == [('total', 8)] + ['step'] * 8, setup.progress
+    assert setup.progress == [('total', 9)] + ['step'] * 9, setup.progress
     # The RFMC has no JESD links and never touches a verdict.
     assert setup.status.JesdStatus.values == []
-    # A reset that does not come back, and a clock that does not lock, are each
-    # the named step's failure, with the firmware's reason where it gives one.
-    for values, step, reason in ((dict({'user reset times out': True}), 'reset user logic', 'did not come out of reset'),
-                                 (dict({'dsp reset times out': True}), 'wait for DSP clock', 'did not come out of reset'),
-                                 (dict({'clocks fail': True}), 'init clocks', 'PLL not locked: Lmx[1]')):
-        _setup, root = tree('rfmc', values)
+    # A reset that does not come back, a clock that does not lock, and no clock
+    # file are each the named step's failure, with the firmware's reason where it
+    # gives one; polling is restored on the way out of a failed run too.
+    for values, step, reason in (({'user reset times out': True}, 'reset user logic', 'did not come out of reset'),
+                                 ({'dsp reset times out': True}, 'wait for DSP clock', 'did not come out of reset'),
+                                 ({'clocks fail': True}, 'init clocks', 'PLL not locked: Lmx[1]'),
+                                 ({}, 'init clocks', 'no clock chip register file')):
+        _setup, root = tree('rfmc', dict(values, **{'AMCc.PollEn': True}))
+        setup = procedure(_setup, 'rfmc')
+        if 'no clock' in reason:
+            setup.lmk_config = None
         try:
             with StoodInLoad(_setup):
-                procedure(_setup, 'rfmc').run(root)
+                setup.run(root)
         except _setup.StepError as e:
             assert str(e).startswith(f'{step}: ') and reason in str(e), e
         else:
             raise AssertionError(f'{step} did not fail')
         assert not [e for e in root.log if e[0] == 'load'], f'{step} failed and the layers were still loaded'
+        assert root.log[-1] == ('set', 'AMCc.PollEn', True), f'polling was not restored after {step} failed'
 
 
 def check_the_carrier_sequence_is_the_witnessed_one():
@@ -447,6 +470,44 @@ def check_the_link_check_judges_lanes_as_witnessed():
     assert not load.loads, 'aligned lanes caused a reload'
 
 
+def check_a_layer_written_for_another_root_is_refused():
+    """A layer whose top-level key is not this root's name would apply nothing and be credited; it is refused first.
+
+    Rogue logs ``Entry … not found`` for such a key and the load still ends
+    ``Done``. A firmware package's own defaults are keyed for its root's name,
+    which is not this server's, so the case is real.
+    """
+    import tempfile
+    _setup, root = tree('rfsoc')
+    with tempfile.TemporaryDirectory() as d:
+        theirs = pathlib.Path(d, 'theirs.yml')
+        theirs.write_text('Root:\n  FpgaTopLevel:\n    AppTop:\n      enable: True\n')
+        ours = pathlib.Path(d, 'ours.yml')
+        ours.write_text('AMCc:\n  FpgaTopLevel:\n    AppTop:\n      enable: True\n')
+        try:
+            _setup.check_layer_names_this_root(root, str(theirs))
+        except _setup.StepError as e:
+            assert "'Root'" in str(e) and "'AMCc'" in str(e), e
+        else:
+            raise AssertionError('a layer keyed for another root was accepted')
+        _setup.check_layer_names_this_root(root, str(ours))
+        try:
+            _setup.check_layer_names_this_root(root, str(pathlib.Path(d, 'missing.yml')))
+        except _setup.StepError as e:
+            assert 'cannot be read' in str(e), e
+        else:
+            raise AssertionError('a missing layer was accepted')
+        # The load runs the check before touching the loader.
+        root.LoadConfigProcess = StoodInLoader(['Done'])
+        try:
+            _setup.load_layers(root, (str(theirs),))
+        except _setup.StepError:
+            pass
+        else:
+            raise AssertionError('load_layers loaded a layer keyed for another root')
+        assert root.LoadConfigProcess.started == [], 'the loader was started for a refused layer'
+
+
 def check_a_load_with_no_layers_is_refused():
     """No layers: the load step refuses, and the whole procedure refuses before touching the hardware."""
     _setup, root = tree('atca')
@@ -499,19 +560,24 @@ class StoodInLoader:
 
 def check_a_load_that_keeps_failing_reports_the_loaders_last_message():
     """Every try judged by the message the loader leaves; the failure carries the last one, a Done returns."""
+    import tempfile
     _setup, root = tree('atca')
-    root.LoadConfigProcess = StoodInLoader(['Stopped after error!'] * 3 + ['Error: [Errno 2] No such file: s.yml'])
-    try:
-        _setup.load_layers(root, ('d.yml', 's.yml'))
-    except _setup.StepError as e:
-        assert str(e).startswith(f"the register layers did not load in {_setup.LOAD_RETRIES} tries"), e
-        assert "No such file: s.yml" in str(e), f"the loader's last message is not in the failure: {e}"
-    else:
-        raise AssertionError('four failed tries were credited')
-    assert root.LoadConfigProcess.started == ['d.yml,s.yml'] * _setup.LOAD_RETRIES
-    root.LoadConfigProcess = StoodInLoader(['Stopped after error!', 'Done'])
-    _setup.load_layers(root, ('d.yml',))
-    assert root.LoadConfigProcess.started == ['d.yml', 'd.yml'], 'a Done on the second try did not end the load'
+    with tempfile.TemporaryDirectory() as tmp:
+        d, s_ = (str(pathlib.Path(tmp, n)) for n in ('d.yml', 's.yml'))
+        for f in (d, s_):
+            pathlib.Path(f).write_text('AMCc:\n  enable: True\n')
+        root.LoadConfigProcess = StoodInLoader(['Stopped after error!'] * 3 + ['Error: [Errno 2] No such file: s.yml'])
+        try:
+            _setup.load_layers(root, (d, s_))
+        except _setup.StepError as e:
+            assert str(e).startswith(f"the register layers did not load in {_setup.LOAD_RETRIES} tries"), e
+            assert "No such file: s.yml" in str(e), f"the loader's last message is not in the failure: {e}"
+        else:
+            raise AssertionError('four failed tries were credited')
+        assert root.LoadConfigProcess.started == [f'{d},{s_}'] * _setup.LOAD_RETRIES
+        root.LoadConfigProcess = StoodInLoader(['Stopped after error!', 'Done'])
+        _setup.load_layers(root, (d,))
+        assert root.LoadConfigProcess.started == [d, d], 'a Done on the second try did not end the load'
 
 
 def check_a_failing_step_ends_the_procedure_unconfigured():
