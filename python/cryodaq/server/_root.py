@@ -89,7 +89,8 @@ class ReadoutRoot(pyrogue.Root):
                  providers: Sequence[OperationsProvider] = (), sinks: Sequence[Any] = (),
                  layers: Sequence[Any] = (), server_port: int = 0, polling: bool = True,
                  configure: bool = False, variable_groups: Optional[Mapping] = None,
-                 on_start: Optional[Callable] = None, application: str = '', **kwargs):
+                 on_start: Optional[Callable] = None, application: str = '',
+                 devices: Sequence[Any] = (), setup_options: Optional[Mapping] = None, **kwargs):
         pyrogue.Root.__init__(self, name=ROOT_NAME, initRead=True, pollEn=polling,
                               timeout=5.0, **kwargs)
         self.pmap = pmap
@@ -112,15 +113,21 @@ class ReadoutRoot(pyrogue.Root):
         # client can read it back without the file.
         self.add(ApplicationConfig())
         self.add(self._fpga)
+        # What the platform adds beside the FPGA's tree (the RFMC's RF data
+        # converter, over its own register path), built by the composition.
+        for device in devices:
+            self.add(device)
 
-        # Which converter bays are populated: the ones with a front end in the
-        # tree. A bay the composition left out keeps its DAQ mux but loses its
-        # front end, and a platform whose converters share the FPGA's die has no
-        # front end at all, so reports none. Read off the tree through the map,
-        # not from a flag.
-        self._enabled_bays = [bay for bay in platform.indices(
-            pmap, lambda path: self.getNode(path) is not None, 'bay')
-            if self._node('bay[{bay}].debug.enable', bay=bay) is not None]
+        # Which converter bays are populated: the ones with an RF front end in
+        # the tree, which on every carrier that has one carries the attenuators.
+        # A bay the composition left out keeps its DAQ mux but loses its front
+        # end, and a platform whose converters share the FPGA's die has no front
+        # end at all, so reports none. Read off the tree through the map, not
+        # from a flag.
+        has = lambda path: self.getNode(path) is not None                  # noqa: E731
+        self._enabled_bays = [
+            bay for bay in platform.indices(pmap, has, 'bay')
+            if 'attenuator' in pmap.scopes and platform.indices(pmap, has, 'attenuator', bay=bay)]
 
         # Operations attach after the FPGA is in the tree and before start()
         # seals it; the platform map says where.
@@ -169,7 +176,7 @@ class ReadoutRoot(pyrogue.Root):
         # start it and wait on it, and one that takes no argument: the files it
         # loads are the server's, so a client with a 40-character limit on what
         # it can send (EPICS channel access) can still run it.
-        self.setup = setup_for(pmap, self._layers, self.status)
+        self.setup = setup_for(pmap, self._layers, self.status, **dict(setup_options or {}))
         self.add(self.setup)
 
         # Saving state and configuration must not read first: a read of the

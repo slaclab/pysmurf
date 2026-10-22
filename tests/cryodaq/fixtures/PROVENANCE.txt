@@ -8,14 +8,14 @@ network -- see the README in this directory for what the check does with them.
 These are *pruned* by tests/cryodaq/prune_fixtures.py: a row is kept when the
 device it sits in is one a register name reaches, with every index of that
 device retained, and the per-channel arrays thinned to 2.
-Keeping every index is what matters: it is how the two generations can still
-be told apart, and how an off-by-one in an index scope is still caught.
+Keeping every index is what matters: it is how the platforms can still be
+told apart, and how an off-by-one in an index scope is still caught.
 
 Do not edit them by hand. Regenerate them with that script (its header says
 how); a hand edit is a fixture that answers a question the firmware would
 answer differently.
 
-Built at pysmurf 5a43cc07-dirty.
+Built at pysmurf cce67404-dirty.
 
 atca.varlist.txt
   built from      cryo-det MicrowaveMuxBpEthGen2_v2.5.1-6-gfe6a0f50
@@ -31,6 +31,14 @@ rfsoc.varlist.txt
   rows            2185 of 59981
   bands           [0, 1, 2, 3, 4, 5, 6, 7]
   front-end bays  none
+  daq mux bays    [0, 1]
+
+rfmc.varlist.txt
+  built from      cryo-det MicrowaveMuxBpEthGen2_v2.5.1-6-gfe6a0f50 (rfmc)
+  built by        pysmurf.core.server.compose over an emulated transport, the RFMC release package behind the operation-less CryoDet
+  rows            2274 of 61640
+  bands           [0, 1, 2, 3, 4, 5, 6, 7]
+  front-end bays  [0, 1]
   daq mux bays    [0, 1]
 
 Note what a dump of a firmware *package* does not contain: the subtrees a

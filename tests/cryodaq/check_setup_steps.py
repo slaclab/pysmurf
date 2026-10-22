@@ -42,7 +42,7 @@ from cryodaq import platform                                        # noqa: E402
 
 HERE = pathlib.Path(__file__).resolve().parent
 FIXTURES = HERE / 'fixtures'
-PLATFORM_OF = {'atca': 'umux-atca', 'rfsoc': 'umux-rfsoc'}
+PLATFORM_OF = {'atca': 'umux-atca', 'rfsoc': 'umux-rfsoc', 'rfmc': 'umux-rfmc'}
 _INDEXED = re.compile(r'^(\w+)\[(\d+)\]$')
 
 
@@ -170,9 +170,43 @@ class StandInRoot(Node):
         return self.by_path.get(path)
 
 
+class RfmcCarrierCore(Node):
+    """The RFMC's carrier core stood in for: the three bring-up helpers its class adds.
+
+    They are methods of the firmware's device, not nodes, so the stand-in tree
+    grows them here: each records its call and answers as the hardware helper
+    does -- a reset wait returns whether it timed out, judged by a value the
+    check may set; the clock init raises if told to.
+    """
+
+    def UserRst(self, timeout=0):
+        self.tree.log.append(('call', f'{self.path}.UserRst', timeout))
+        return bool(self.tree.values.get('user reset times out'))
+
+    def DspRstWait(self, timeout=0):
+        self.tree.log.append(('call', f'{self.path}.DspRstWait', timeout))
+        return bool(self.tree.values.get('dsp reset times out'))
+
+    def InitClock(self, lmkConfig=None):
+        self.tree.log.append(('call', f'{self.path}.InitClock', lmkConfig))
+        if self.tree.values.get('clocks fail'):
+            raise RuntimeError('PLL not locked: Lmx[1]')
+
+
 def tree(stem, values=None):
     _setup = setup_module()
     root = StandInRoot(load_dump(stem), values)
+    if stem == 'rfmc':
+        # The RF data converter is not in a dump of the firmware package (it is a
+        # device the server adds, over its own link), so the stand-in grows it:
+        # its init command and the multi-tile sync block the procedure drives.
+        rfdc = platform.RFMC_RFDC_PATH
+        for leaf in ('Init', 'Mts.DacTiles', 'Mts.AdcTiles', 'Mts.DacRefTile', 'Mts.AdcRefTile',
+                     'Mts.SyncDacTiles', 'Mts.SyncAdcTiles'):
+            root._grow(f'{rfdc}.{leaf}')
+        # The carrier core's bring-up helpers are methods of its class.
+        core = root.by_path[platform.RFMC_CARRIER_PATH]
+        core.__class__ = RfmcCarrierCore
     return _setup, root
 
 
@@ -231,6 +265,8 @@ def procedure(_setup, stem, layers=('a.yml',)):
     setup = cls.__new__(cls)
     setup.layers = tuple(layers)
     setup.status = Status()
+    if cls is _setup.RfmcSetup:
+        setup.lmk_config = '<lmk file>'
     # rogue's step counters, stood in for.
     setup.progress = []
     setup.setTotalSteps = lambda n: setup.progress.append(('total', n))
@@ -281,6 +317,59 @@ def check_every_procedure_reaches_only_nodes_its_platform_has():
         log, loads = run_procedure(stem, values=values)
         assert log, f"{stem}: the procedure touched nothing"
         assert loads == [('a.yml',)], loads
+
+
+def check_the_rfmc_sequence_is_the_firmwares_own():
+    """The RFMC's steps, in the order its firmware's root brings the board up.
+
+    Reset the user logic, route the timing source, program the clock chips from
+    the vendor file, wait for the DSP clock, initialise the RF data converter,
+    load the layers, synchronise the converter tiles -- with every wait bounded,
+    the backplane routed to the receiver's crossbar output, and the tile groups
+    the firmware uses. Nothing is written after the sync.
+    """
+    _setup, root = tree('rfmc')
+    setup = procedure(_setup, 'rfmc', layers=('d.yml',))
+    setup.lmk_config = '/pkg/lmk.txt'      # over the stand-in's
+    with StoodInLoad(_setup) as load:
+        setup.run(root)
+    core = platform.RFMC_CARRIER_PATH
+    rfdc = platform.RFMC_RFDC_PATH
+    crossbar = f'{core}.AxiSy56040.OutputConfig[{platform.RFMC_TIMING_RECEIVER_CROSSBAR_OUTPUT}]'
+    expected = [
+        ('call', 'AMCc.ReadAll'),
+        ('call', f'{core}.UserRst', _setup.RESET_RECOVERY_TIMEOUT_S),
+        ('set', crossbar, platform.RFMC_STARTUP_TIMING_SOURCE['backplane']),
+        ('call', f'{core}.InitClock', '/pkg/lmk.txt'),
+        ('call', f'{core}.DspRstWait', _setup.RESET_RECOVERY_TIMEOUT_S),
+        ('call', f'{rfdc}.Init'),
+        ('load', 'd.yml'),
+        ('set', f'{rfdc}.Mts.DacTiles', 0xF),
+        ('set', f'{rfdc}.Mts.AdcTiles', 0xF),
+        ('set', f'{rfdc}.Mts.DacRefTile', 0x0),
+        ('set', f'{rfdc}.Mts.AdcRefTile', 0x2),
+        ('call', f'{rfdc}.Mts.SyncDacTiles'),
+        ('call', f'{rfdc}.Mts.SyncAdcTiles'),
+    ]
+    assert root.log == expected, '\n'.join(f'  {e}' for e in root.log)
+    assert load.loads == [('d.yml',)]
+    assert setup.progress == [('total', 8)] + ['step'] * 8, setup.progress
+    # The RFMC has no JESD links and never touches a verdict.
+    assert setup.status.JesdStatus.values == []
+    # A reset that does not come back, and a clock that does not lock, are each
+    # the named step's failure, with the firmware's reason where it gives one.
+    for values, step, reason in ((dict({'user reset times out': True}), 'reset user logic', 'did not come out of reset'),
+                                 (dict({'dsp reset times out': True}), 'wait for DSP clock', 'did not come out of reset'),
+                                 (dict({'clocks fail': True}), 'init clocks', 'PLL not locked: Lmx[1]')):
+        _setup, root = tree('rfmc', values)
+        try:
+            with StoodInLoad(_setup):
+                procedure(_setup, 'rfmc').run(root)
+        except _setup.StepError as e:
+            assert str(e).startswith(f'{step}: ') and reason in str(e), e
+        else:
+            raise AssertionError(f'{step} did not fail')
+        assert not [e for e in root.log if e[0] == 'load'], f'{step} failed and the layers were still loaded'
 
 
 def check_the_carrier_sequence_is_the_witnessed_one():

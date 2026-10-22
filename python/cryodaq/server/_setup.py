@@ -38,8 +38,9 @@ import pyrogue
 
 from cryodaq import platform
 
-__all__ = ['Setup', 'AtcaSetup', 'RfsocSetup', 'setup_for', 'SETUPS', 'StepError',
-           'LOAD_TIMEOUT_PER_LAYER_S', 'LOAD_RETRIES', 'ELASTIC_BUFFER_RETRIES']
+__all__ = ['Setup', 'AtcaSetup', 'RfsocSetup', 'RfmcSetup', 'setup_for', 'SETUPS', 'StepError',
+           'LOAD_TIMEOUT_PER_LAYER_S', 'LOAD_RETRIES', 'ELASTIC_BUFFER_RETRIES',
+           'RESET_RECOVERY_TIMEOUT_S']
 
 _log = logging.getLogger(__name__)
 
@@ -49,6 +50,9 @@ _log = logging.getLogger(__name__)
 LOAD_TIMEOUT_PER_LAYER_S = 300.0
 LOAD_RETRIES = 4
 ELASTIC_BUFFER_RETRIES = 10
+# How long the RFMC's logic is given to come out of a reset before the step
+# gives up; the firmware's own helpers wait for ever by default.
+RESET_RECOVERY_TIMEOUT_S = 10.0
 # The status block's JESD verdict, as its enumeration numbers them.
 JESD_UNLOCKED, JESD_LOCKED, JESD_NOT_FOUND = 0, 1, 3
 
@@ -279,15 +283,92 @@ class RfsocSetup(Setup):
                 ('load layers', lambda: load_layers(root, self.layers)))
 
 
+class RfmcSetup(Setup):
+    """The RFMC carrier's procedure: clocks and converters up, then the layers.
+
+    The carrier's data converters are on the RFSoC and its clocks come from
+    chips on the board, so bringing it up is the order the firmware's own root
+    uses: reset the user logic, route a timing source to the receiver, program
+    the clock chips from the vendor's register file, wait for the DSP clock,
+    initialise the RF data converter, load the layers, then synchronise the
+    converter tiles. The converter is a device of its own on the root, reached
+    over a second register path to the processor system, not a child of the
+    FPGA's tree.
+    """
+
+    # The clock crossbar output feeding the timing receiver, and the source
+    # routed to it: the backplane, as the firmware's own start-up routes.
+    TIMING_SOURCE = 'backplane'
+    # The multi-tile synchronisation groups and their reference tiles: every
+    # tile of each converter, with the tile that distributes the clock as the
+    # reference (DAC228 for the DACs, ADC226 for the ADCs).
+    MTS_DAC_TILES, MTS_DAC_REF_TILE = 0xF, 0x0
+    MTS_ADC_TILES, MTS_ADC_REF_TILE = 0xF, 0x2
+
+    def __init__(self, layers: Sequence[str], status: Any, lmk_config: str = ''):
+        Setup.__init__(self, layers, status)
+        # The LMK's register values as TI's tool exports them; the firmware
+        # package ships one beside its register defaults.
+        self.lmk_config = lmk_config
+
+    def steps(self, root: Any) -> Sequence[Tuple[str, Callable[[], None]]]:
+        carrier = root.getNode(platform.RFMC_CARRIER_PATH)
+        rfdc = root.getNode(platform.RFMC_RFDC_PATH)
+        return (('read all', root.ReadAll),
+                ('reset user logic', lambda: self.reset_user_logic(carrier)),
+                ('route timing', lambda: self.route_timing(carrier)),
+                ('init clocks', lambda: carrier.InitClock(lmkConfig=self.lmk_config)),
+                ('wait for DSP clock', lambda: self.wait_for_dsp_clock(carrier)),
+                ('init RF data converter', rfdc.Init),
+                ('load layers', lambda: load_layers(root, self.layers)),
+                ('sync converter tiles', lambda: self.sync_converter_tiles(rfdc)))
+
+    @staticmethod
+    def reset_user_logic(carrier: Any) -> None:
+        """Reset the user logic and wait for it to come back."""
+        if carrier.UserRst(timeout=RESET_RECOVERY_TIMEOUT_S):
+            raise StepError(f"the user logic did not come out of reset in "
+                            f"{RESET_RECOVERY_TIMEOUT_S:.0f} s")
+
+    def route_timing(self, carrier: Any) -> None:
+        """Route the start-up timing source to the FPGA's timing receiver."""
+        output = carrier.AxiSy56040.OutputConfig[platform.RFMC_TIMING_RECEIVER_CROSSBAR_OUTPUT]
+        output.set(platform.RFMC_STARTUP_TIMING_SOURCE[self.TIMING_SOURCE])
+
+    @staticmethod
+    def wait_for_dsp_clock(carrier: Any) -> None:
+        """Wait for the DSP clock domain to come out of reset."""
+        if carrier.DspRstWait(timeout=RESET_RECOVERY_TIMEOUT_S):
+            raise StepError(f"the DSP clock did not come out of reset in "
+                            f"{RESET_RECOVERY_TIMEOUT_S:.0f} s")
+
+    def sync_converter_tiles(self, rfdc: Any) -> None:
+        """Multi-tile synchronise the DAC tiles, then the ADC tiles."""
+        mts = rfdc.Mts
+        mts.DacTiles.set(self.MTS_DAC_TILES)
+        mts.AdcTiles.set(self.MTS_ADC_TILES)
+        mts.DacRefTile.set(self.MTS_DAC_REF_TILE)
+        mts.AdcRefTile.set(self.MTS_ADC_REF_TILE)
+        mts.SyncDacTiles()
+        mts.SyncAdcTiles()
+
+
 # The procedure each platform runs, by the platform's name.
 SETUPS: Dict[str, Type[Setup]] = {
     'umux-atca': AtcaSetup,
     'umux-rfsoc': RfsocSetup,
+    'umux-rfmc': RfmcSetup,
 }
 
 
-def setup_for(pmap: platform.PlatformMap, layers: Sequence[str], status: Any) -> Setup:
+def setup_for(pmap: platform.PlatformMap, layers: Sequence[str], status: Any, **options: Any) -> Setup:
     """The configuration procedure for a platform.
+
+    Parameters
+    ----------
+    options
+        What the platform's procedure needs beyond the layers: the RFMC's
+        clock chip register file (``lmk_config``).
 
     Raises
     ------
@@ -299,4 +380,4 @@ def setup_for(pmap: platform.PlatformMap, layers: Sequence[str], status: Any) ->
     except KeyError:
         raise ValueError(f"no configuration procedure is declared for platform {pmap.name!r}; "
                          f"known: {', '.join(sorted(SETUPS))}") from None
-    return cls(layers, status)
+    return cls(layers, status, **options)
