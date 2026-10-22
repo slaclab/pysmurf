@@ -30,7 +30,7 @@
 
 from cryodaq.platform import _umux
 
-__all__ = ['NAME', 'TAGS', 'TOP_LEVEL', 'REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES',
+__all__ = ['NAME', 'TAGS', 'TOP_LEVEL', 'CARRIER', 'REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES',
            'MUX_CORE', 'JESD_BAY']
 
 NAME = 'umux-atca'
@@ -124,7 +124,10 @@ _JESD_TX_STATUS_VALID_COUNT = (f'{JESD_BAY}.JesdTx.StatusValidCnt'
 
 _V, _C = 'value', 'command'
 
-REGISTERS = dict(_umux.REGISTERS)
+# The AMC carrier core, with the regulator the server attaches beside it.
+CARRIER = _umux.AMC_CARRIER
+
+REGISTERS = {**_umux.REGISTERS, **_umux.AMC_CARRIER_REGISTERS}
 REGISTERS.update({
     # the RF front end
     'bay[*].attenuator[*].uc': (_ATTENUATOR_UC, _V),
@@ -149,7 +152,7 @@ REGISTERS.update({
 })
 
 # The carrier's names only deprecated accessors reach; see the shared map's LEGACY.
-LEGACY = dict(_umux.LEGACY)
+LEGACY = {**_umux.LEGACY, **_umux.AMC_CARRIER_LEGACY}
 LEGACY.update({
     'bay[*].dac[*].enable': (_DAC_ENABLE, _V),
     'bay[*].clock.select_external_reference': (_SELECT_EXTERNAL_REFERENCE, _C),
@@ -160,7 +163,7 @@ LEGACY.update({
 # The scopes those registers are indexed by. They hang off `bay`, which the shared map
 # declares, because a bay is a bay on every platform of the generation; what differs is
 # what is inside one.
-SCOPES = dict(_umux.SCOPES)
+SCOPES = {**_umux.SCOPES, **_umux.AMC_CARRIER_SCOPES}
 SCOPES.update({
     # Either direction proves a path: a firmware with one and not the other has wired up
     # fewer of one, which is a fact about the tree, as with the event receiver's scopes.

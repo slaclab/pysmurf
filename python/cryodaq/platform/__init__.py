@@ -50,7 +50,7 @@ from cryodaq.platform import _atca, _rfsoc, _umux
 
 __all__ = ['PlatformMap', 'MAPS', 'identify', 'by_name', 'tag_of', 'parse',
            'expand', 'indices', 'witness_names', 'VALUE', 'COMMAND', 'PROCESS',
-           'DEVICE', 'KINDS', 'MAX_SCOPE_INDEX', 'TAG_PATH', 'VERSION_BLOCK_PATH',
+           'DEVICE', 'KINDS', 'MAX_SCOPE_INDEX', 'VERSION_BLOCK_PATHS',
            'STATUS_DEVICE_PATH', 'CARRIER_FRONT_END_PATH', 'CARRIER_LINKS_PATH']
 
 # What kind of node a name reaches: a value is read and written, a command is
@@ -73,13 +73,6 @@ KINDS = (VALUE, COMMAND, PROCESS, DEVICE)
 # how many there are: how many of something a tree has is the tree's to say.
 MAX_SCOPE_INDEX = 32
 
-# Where a system reports the firmware it is running. Every generation supported
-# here carries an AMC carrier core, so one path serves them all; a generation
-# that reports its firmware elsewhere makes this a property of each map.
-TAG_PATH = _umux.BUILD_STAMP
-# The device the stamp sits in, at the same address on every generation here; a
-# server reads it before it has a tree, so the path is stated where paths live.
-VERSION_BLOCK_PATH = _umux.AXI_VERSION
 # The device a server reports its own state at.
 STATUS_DEVICE_PATH = _umux.APPLICATION
 # The two per-bay devices a carrier with converter cards has and a platform
@@ -188,6 +181,13 @@ class PlatformMap:
     top_level : str
         ``module:attribute`` of the class in the firmware package that builds
         this platform's register tree; what a server imports to build one.
+    version_block_path : str
+        The version block the build stamp sits in: inside the carrier core,
+        which is named for the board, so where it is depends on the platform.
+        A server reads it before it has a tree, so the path is stated here.
+    tag_path : str
+        The build stamp register itself, by which a tree is recognised as this
+        platform's.
     """
 
     name: str
@@ -196,6 +196,8 @@ class PlatformMap:
     witness: Tuple[str, ...]
     scopes: Mapping[str, Tuple[Tuple[str, ...], Tuple[str, ...]]]
     top_level: str = ''
+    version_block_path: str = ''
+    tag_path: str = ''
 
     def __contains__(self, pattern: str) -> bool:
         return pattern in self.registers
@@ -252,7 +254,9 @@ def _from_module(module: Any) -> PlatformMap:
     return PlatformMap(name=module.NAME, tags=tuple(module.TAGS),
                        registers={**module.REGISTERS, **module.LEGACY},
                        witness=tuple(module.WITNESS),
-                       scopes=dict(module.SCOPES), top_level=module.TOP_LEVEL)
+                       scopes=dict(module.SCOPES), top_level=module.TOP_LEVEL,
+                       version_block_path=module.CARRIER.AXI_VERSION,
+                       tag_path=module.CARRIER.BUILD_STAMP)
 
 
 # Every supported platform. One module per platform, and a platform is a set of
@@ -260,6 +264,11 @@ def _from_module(module: Any) -> PlatformMap:
 # that read the same registers but have to be configured differently are two
 # entries here, however much of their table they share.
 MAPS = (_from_module(_atca), _from_module(_rfsoc))
+
+# Where the platforms keep their version block, each path once: the probe a server
+# runs before it has a tree reads the stamp at each of these, and the one that
+# answers names the platform. Two platforms on one carrier share a path.
+VERSION_BLOCK_PATHS = tuple(dict.fromkeys(m.version_block_path for m in MAPS))
 
 
 def tag_of(stamp: Any) -> str:
@@ -312,7 +321,9 @@ def identify(tree: Any) -> PlatformMap:
     tree : object
         The server's tree, as a session's ``root`` is. ``getNode(path)`` and
         ``get()`` on what it returns are all that is asked of it, so this needs
-        no rogue import; the build stamp is read once.
+        no rogue import. The build stamp is read at each place a platform keeps
+        one -- the carrier cores are named for their boards -- and a tree has
+        exactly one of them.
 
     Returns
     -------
@@ -323,11 +334,16 @@ def identify(tree: Any) -> PlatformMap:
     ConnectError
         If the tree reports no firmware, or reports firmware no map claims.
     """
-    node = tree.getNode(TAG_PATH)
-    tag = tag_of(None if node is None else node.get())
+    tag = ''
+    for path in dict.fromkeys(m.tag_path for m in MAPS):
+        node = tree.getNode(path)
+        tag = tag_of(None if node is None else node.get())
+        if tag:
+            break
     if not tag:
+        where = ' or '.join(dict.fromkeys(m.tag_path for m in MAPS))
         raise ConnectError(
-            f"this tree reports no firmware at {TAG_PATH}, so its platform "
+            f"this tree reports no firmware at {where}, so its platform "
             f"cannot be identified; declare one of "
             f"{', '.join(repr(m.name) for m in MAPS)} instead")
     for candidate in MAPS:
