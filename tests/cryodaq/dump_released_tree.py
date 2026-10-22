@@ -71,12 +71,17 @@ def main():
         if os.path.isdir(os.path.join(root, 'python', 'cryodaq')):
             sys.path.insert(0, os.path.join(root, 'python'))
             break
-    import rogue
-    rogue.Version.minVersion = lambda *a, **k: None
     from cryodaq import platform
     import pyrogue.interfaces.simulation
 
     pmap = platform.by_name(args.platform)
+    if pmap.rfdc_path:
+        # This platform's release declares a rogue newer than the server image
+        # that runs this (6.15.0, for its RF data converter class); the dump
+        # builds the FPGA's tree, not the converter, so the declaration is
+        # stood in rather than failing a check that does not need it.
+        import rogue
+        rogue.Version.minVersion = lambda *a, **k: None
     module_name, _, attribute = pmap.top_level.partition(':')
     FpgaTopLevel = getattr(importlib.import_module(module_name), attribute)
 

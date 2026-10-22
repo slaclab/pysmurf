@@ -52,7 +52,7 @@ __all__ = ['PlatformMap', 'MAPS', 'identify', 'by_name', 'tag_of', 'parse',
            'expand', 'indices', 'witness_names', 'VALUE', 'COMMAND', 'PROCESS',
            'DEVICE', 'KINDS', 'MAX_SCOPE_INDEX', 'VERSION_BLOCK_PATHS',
            'STATUS_DEVICE_PATH', 'CARRIER_FRONT_END_PATH', 'CARRIER_LINKS_PATH',
-           'RFMC_QUAD_PATH', 'RFMC_RFDC_PATH', 'RFMC_CARRIER_PATH', 'RFMC_STARTUP_TIMING_SOURCE',
+           'RFMC_CARRIER_PATH', 'RFMC_LMK_CONFIG', 'RFMC_STARTUP_TIMING_SOURCE',
            'RFMC_TIMING_RECEIVER_CROSSBAR_OUTPUT']
 
 # What kind of node a name reaches: a value is read and written, a command is
@@ -83,12 +83,12 @@ STATUS_DEVICE_PATH = _umux.APPLICATION
 # procedure works on directly, so stated where paths live.
 CARRIER_FRONT_END_PATH = _atca.MUX_CORE
 CARRIER_LINKS_PATH = _atca.JESD_BAY
-# The RFMC carrier's per-bay RF front end, and the clock crossbar output its timing
-# receiver is fed from with the sources that can be routed there; what that
-# platform's configuration procedure works on, stated where paths live.
-RFMC_QUAD_PATH = _rfmc.QUAD
-RFMC_RFDC_PATH = _rfmc.RFDC
+# The RFMC carrier's core, and the clock crossbar output its timing receiver is fed
+# from with the sources that can be routed there; what that platform's configuration
+# procedure works on, stated where paths live. Its RF data converter is the map's
+# (``rfdc_path``), since the map is what says the platform has one.
 RFMC_CARRIER_PATH = _rfmc.CARRIER.CARRIER
+RFMC_LMK_CONFIG = _rfmc.LMK_CONFIG
 RFMC_STARTUP_TIMING_SOURCE = _rfmc.STARTUP_TIMING_SOURCE
 RFMC_TIMING_RECEIVER_CROSSBAR_OUTPUT = _rfmc.TIMING_RECEIVER_CROSSBAR_OUTPUT
 
@@ -201,6 +201,9 @@ class PlatformMap:
     package_config_dir : str
         Where this platform's firmware release archive keeps its configuration
         files, relative to the archive's root.
+    rfdc_path : str
+        Where the server adds this platform's RF data converter, a device
+        driven over a register path of its own; '' for a platform without one.
     """
 
     name: str
@@ -212,6 +215,7 @@ class PlatformMap:
     version_block_path: str = ''
     tag_path: str = ''
     package_config_dir: str = ''
+    rfdc_path: str = ''
 
     def __contains__(self, pattern: str) -> bool:
         return pattern in self.registers
@@ -271,7 +275,8 @@ def _from_module(module: Any) -> PlatformMap:
                        scopes=dict(module.SCOPES), top_level=module.TOP_LEVEL,
                        version_block_path=module.CARRIER.AXI_VERSION,
                        tag_path=module.CARRIER.BUILD_STAMP,
-                       package_config_dir=module.PACKAGE_CONFIG_DIR)
+                       package_config_dir=module.PACKAGE_CONFIG_DIR,
+                       rfdc_path=getattr(module, 'RFDC', ''))
 
 
 # Every supported platform. One module per platform, and a platform is a set of

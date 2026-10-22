@@ -221,19 +221,19 @@ def tcp_bridge(ip_ps: str, ip_pl: str, *, data: str = 'udp', lane: int = 0,
         As `pcie`, for ``data='pcie'``; with ``'udp'`` the card, if present, is
         kept from intercepting the FPGA's traffic as `eth` does.
     """
+    if data not in ('udp', 'pcie'):
+        raise ValueError(f"data must be 'udp' or 'pcie', not {data!r}")
     srp = rogue.interfaces.memory.TcpClient(ip_ps, BRIDGE_REGISTER_PORT)
     srp_rfdc = rogue.interfaces.memory.TcpClient(ip_ps, BRIDGE_RFDC_PORT)
     if data == 'udp':
         _rssi, ddr, streaming, nodes = _udp_data_path(ip_pl)
         card = OffloadCard(None, ip_pl, dev_rssi=dev_rssi) \
             if offload_card and os.path.exists(dev_rssi) else None
-    elif data == 'pcie':
+    else:
         rogue.hardware.axi.AxiStreamDma.zeroCopyDisable(dev_rssi)
         ddr, streaming = _dma_data_path(lane, dev_rssi, dev_data)
         nodes = []
         card = OffloadCard(lane, ip_pl, dev_rssi=dev_rssi, dev_data=dev_data) if offload_card else None
-    else:
-        raise ValueError(f"data must be 'udp' or 'pcie', not {data!r}")
     return Transport('tcp-bridge', srp, ddr, streaming, nodes, card=card,
                      srp_rfdc=srp_rfdc, register_offset=BRIDGE_REGISTER_OFFSET)
 

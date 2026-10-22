@@ -121,8 +121,11 @@ the FPGA's own Ethernet port as a carrier's does -- received on the host's port
 by default, or through the offload card's lane with ``--bridge-data pcie``. The
 converter is built as a device beside the FPGA's tree over its own register
 path, and the carrier's configuration procedure brings the board's clocks and
-converter up before loading the layers, in the order the firmware's own start-up
-uses. The procedure has run only in emulation so far.
+converter up, synchronises the converter's tiles and then loads the layers, in
+the order the firmware's own start-up uses, with polling held off throughout. A
+layer whose top-level key is not the server root's name is refused rather than
+credited: rogue would log it as not found and still end the load well. The
+procedure has run only in emulation so far.
 
 This is the one part of cryodaq that imports rogue at module level; the package
 does not import it.

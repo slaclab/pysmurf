@@ -7,8 +7,8 @@
 #-----------------------------------------------------------------------------
 # Description:
 #    The map between the register tree of a microwave-multiplexed readout and
-#    cryodaq's semantic names. It is data only: register path templates, the
-#    tables of names built from them -- the core, and a legacy table of names
+#    cryodaq's semantic names. It is data, and one template each platform binds:
+#    register path templates, the tables of names built from them -- the core, and a legacy table of names
 #    only deprecated compatibility accessors still reach -- the registers worth
 #    recording as a witness of how a system was left, and how to enumerate the
 #    indexed scopes.
@@ -36,6 +36,8 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
+
+from typing import Dict, Tuple
 
 __all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES', 'Carrier', 'AMC_CARRIER',
            'AMC_CARRIER_REGISTERS', 'AMC_CARRIER_LEGACY', 'AMC_CARRIER_SCOPES',
@@ -273,7 +275,7 @@ class Carrier:
         self.BSA_BUFFER_END_ADDR = f'{self.BSA_ENGINE}.EndAddr[{{buffer}}]'
         self.BSA_BUFFER_WRITE_ADDR = f'{self.BSA_ENGINE}.WrAddr[{{buffer}}]'
 
-    def registers(self):
+    def registers(self) -> Dict[str, Tuple[str, str]]:
         """The carrier's entries of the core table, name pattern to (path, kind)."""
         return {
             'carrier.fpga.temperature': (self.FPGA_TEMPERATURE, _V),
@@ -304,7 +306,7 @@ class Carrier:
             'carrier.bsa.engine[*].buffer[*].empty': (self.BSA_BUFFER_EMPTY, _V),
         }
 
-    def legacy(self):
+    def legacy(self) -> Dict[str, Tuple[str, str]]:
         """The carrier's entries of the legacy table."""
         return {
             'carrier.bsa.engine[*].buffer[*].write_address': (self.BSA_BUFFER_WRITE_ADDR, _V),
@@ -317,7 +319,7 @@ class Carrier:
             'carrier.fpga.overtemp_threshold': (self.FPGA_OVERTEMP_THRESHOLD, _V),
         }
 
-    def scopes(self):
+    def scopes(self) -> Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]]:
         """The scopes the carrier's registers are indexed by."""
         return {
             # The event receiver counts what it matches and what it emits separately, so

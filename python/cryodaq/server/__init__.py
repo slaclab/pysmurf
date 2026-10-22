@@ -32,7 +32,7 @@ import contextlib
 import importlib.resources
 import logging
 import os
-from typing import Any, Callable, Mapping, Optional, Sequence
+from typing import Any, Callable, Dict, Mapping, Optional, Sequence
 
 from cryodaq import platform
 from cryodaq._errors import ConnectError
@@ -64,9 +64,6 @@ _log = logging.getLogger(__name__)
 
 # The operations the readout core itself provides.
 CORE_PROVIDERS = (UMUX_OPERATIONS,)
-# The RFMC carrier's clock chip register file, as TI's tool exports it, where the
-# firmware's Python package ships it.
-RFMC_LMK_CONFIG = 'config/lmk/HexRegisterValues.txt'
 
 
 def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
@@ -167,7 +164,7 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
         if transport.register_offset:
             options['offset'] = transport.register_offset
         fpga = _build_top_level(top_level_class or top_level(pmap), transport.srp, options)
-        extras = platform_devices(pmap, transport)
+        extras = _platform_devices(pmap, transport)
 
         root = ReadoutRoot(fpga=fpga, transport=transport, pmap=pmap, providers=providers,
                            sinks=sinks, layers=layers, server_port=server_port, polling=polling,
@@ -185,42 +182,71 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
 
 
 def _build_top_level(cls, srp, options):
-    """Instantiate the firmware top level, dropping options a release predates."""
-    try:
-        return cls(memBase=srp, **options)
-    except TypeError as e:
-        unknown = [k for k in options if k in str(e)]
-        if not unknown:
-            raise
-        _log.warning("this firmware package does not take %s; building without it",
-                     ', '.join(unknown))
-        return cls(memBase=srp, **{k: v for k, v in options.items() if k not in unknown})
+    """Instantiate the firmware top level with the options it takes.
+
+    The options are what a deployment knows (which bays to leave out, a power
+    monitor to enable) and are the AMC carrier's: a release that predates one,
+    or another carrier's class, does not take it. A class's signature does not
+    say -- the RFMC's forwards ``**kwargs`` to its base -- so the class is
+    asked: an option it refuses by name is dropped, with a warning, and the
+    build retried without it, until it builds or refuses for another reason.
+    One command line thereby serves every platform and release.
+    """
+    options = dict(options)
+    while True:
+        try:
+            return cls(memBase=srp, **options)
+        except TypeError as e:
+            unknown = [k for k in options if f"'{k}'" in str(e)]
+            if not unknown:
+                raise
+            _log.warning("%s does not take %s; building without it", cls.__name__, ', '.join(unknown))
+            for k in unknown:
+                del options[k]
 
 
-def platform_devices(pmap, transport):
+def _platform_devices(pmap: platform.PlatformMap, transport: Transport) -> Dict[str, Any]:
     """What a platform adds to the root beside the FPGA's tree, from its package.
 
-    The RFMC carrier's RF data converter is a device of the firmware's package
-    driven over a register path of its own (the transport's ``srp_rfdc``), and
-    its configuration procedure programs the carrier's clock chips from a
-    register file the package ships beside its code; both are found here, where
-    the package is importable, and handed to the root. The file is read by the
-    clock chip's driver as a plain file, so one inside a release archive is
-    extracted beside the server for as long as it runs. The two carriers on the
-    AMC form add nothing.
+    A platform whose map places an RF data converter on the root (the RFMC
+    carrier) drives it over a register path of its own, the transport's
+    ``srp_rfdc``, and its configuration procedure programs the carrier's
+    clock chips from a register file the firmware package ships beside its
+    code. Both are found here, where the package is importable. The file is
+    read by the clock chip's driver as a plain file, so one inside a release
+    archive is extracted beside the server for as long as it runs.
+
+    Parameters
+    ----------
+    pmap : PlatformMap
+        The platform identified; its ``rfdc_path`` says whether it has one.
+    transport : Transport
+        Where the converter's register path comes from.
+
+    Returns
+    -------
+    dict
+        Keyword arguments for `ReadoutRoot`: ``devices`` to add, and
+        ``setup_options`` for the platform's procedure. Empty for a platform
+        that adds nothing.
+
+    Raises
+    ------
+    ConnectError
+        If the platform has a converter and the transport no path to it, or
+        the package ships no clock file.
     """
-    if pmap.version_block_path.rsplit('.', 1)[0] != platform.RFMC_CARRIER_PATH:
+    if not pmap.rfdc_path:
         return {}
     if transport.srp_rfdc is None:
         raise ConnectError(f"platform {pmap.name} drives an RF data converter over a second "
                            f"register path, which the {transport.name} transport does not have")
     import axi_soc_ultra_plus_core.rfsoc_utility as rfsoc_utility
-    rfdc = rfsoc_utility.Rfdc(name=platform.RFMC_RFDC_PATH.rsplit('.', 1)[1],
-                              memBase=transport.srp_rfdc)
+    rfdc = rfsoc_utility.Rfdc(name=pmap.rfdc_path.rsplit('.', 1)[1], memBase=transport.srp_rfdc)
     package = pmap.top_level.partition(':')[0]
-    resource = importlib.resources.files(package).joinpath(RFMC_LMK_CONFIG)
+    resource = importlib.resources.files(package).joinpath(platform.RFMC_LMK_CONFIG)
     if not resource.is_file():
-        raise ConnectError(f"the {package} package ships no {RFMC_LMK_CONFIG}, which the "
+        raise ConnectError(f"the {package} package ships no {platform.RFMC_LMK_CONFIG}, which the "
                            f"{pmap.name} configuration procedure programs the clock chips from")
     lmk_config = _EXTRACTED.enter_context(importlib.resources.as_file(resource))
     return dict(devices=[rfdc], setup_options=dict(lmk_config=str(lmk_config)))
