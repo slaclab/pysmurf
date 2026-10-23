@@ -59,7 +59,7 @@ sys.path.insert(0, os.path.join(
     'python'))
 
 from cryodaq import platform                                         # noqa: E402
-from cryodaq.platform import _atca, _rfsoc, _umux                    # noqa: E402
+from cryodaq.platform import _atca, _rfmc, _rfsoc, _umux             # noqa: E402
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent.parent
@@ -72,7 +72,7 @@ COMMAND = (REPO / 'python' / 'pysmurf' / 'client' / 'command' / 'smurf_command.p
 CLIENT = COMMAND.parent.parent
 
 # Which platform map each committed dump belongs to.
-PLATFORM_OF = {'atca': 'umux-atca', 'rfsoc': 'umux-rfsoc'}
+PLATFORM_OF = {'atca': 'umux-atca', 'rfsoc': 'umux-rfsoc', 'rfmc': 'umux-rfmc'}
 
 # Fewer names resolving than this means the dump or the map has stopped being the real
 # one, not that the firmware shrank. The selftest lowers it: its fake maps are small.
@@ -82,7 +82,8 @@ MIN_RESOLVED = 100
 # and does not tell them apart -- a name resolves the same way from either -- so the
 # split is checked here, against the modules that declare it.
 TABLES = ((_atca.NAME, _atca.REGISTERS, _atca.LEGACY),
-          (_rfsoc.NAME, _rfsoc.REGISTERS, _rfsoc.LEGACY))
+          (_rfsoc.NAME, _rfsoc.REGISTERS, _rfsoc.LEGACY),
+          (_rfmc.NAME, _rfmc.REGISTERS, _rfmc.LEGACY))
 
 # The subtrees the *server* adds on top of the firmware package, by their top-level node
 # name under the root. The map declares them -- they are its own section, because the
@@ -102,7 +103,15 @@ SERVER_ADDED_PREFIXES = tuple(n.split('{')[0]
 # is derived from the maps themselves (see below), not listed here, so the two cannot
 # disagree.
 CARRIER_ONLY_DEVICES = ('MicrowaveMuxCore', 'AppTopJesd', 'SmurfApplication.JesdStatus',
-                        'SmurfApplication.CheckJesd')
+                        'SmurfApplication.CheckJesd', 'AppTop.JesdHealth')
+
+# What the ATCA carrier and the RFMC carrier differ by: the AMC carrier core against
+# the RFMC's (each named for its board, with the same leaves inside), the AMC's
+# converter cards and their JESD links against the RFMC's quads with their synthesiser
+# PLLs, and the regulator the server attaches on the AMC carrier. The two share the
+# uMux application wholesale, which is what the difference is checked against.
+AMC_CARRIER_ONLY_DEVICES = CARRIER_ONLY_DEVICES + ('AmcCarrierCore',)
+RFMC_CARRIER_ONLY_DEVICES = ('RfmcCarrierCore', 'RfmcQuad')
 
 # Names whose nodes the server attaches to the tree at start-up, rather than the
 # firmware package declaring them: the four resonator-tuning processes and the
@@ -551,6 +560,62 @@ def check_the_platforms_differ_by_the_hardware_one_lacks():
             f'{name} is declared carrier-only and does not resolve on the carrier'
         assert not expand(rfsoc_paths, template), \
             f'{name} is declared carrier-only and resolves on the other platform too'
+
+
+def check_the_two_carriers_differ_by_their_boards_alone():
+    """The ATCA and RFMC maps differ by the carrier core, the front end and the regulator -- and by nothing else.
+
+    Both carry the whole uMux application, so every name that is not the board's
+    must be in both maps and reach the same register. What is only the ATCA's is its
+    converter cards' devices, the JESD verdict and health, the AMC carrier core and the
+    regulator the server attaches to it; what is only the RFMC's is its quads'
+    synthesisers. The carrier-core names are in both maps and reach different
+    devices, named for the board -- so the same name resolves on both dumps, at
+    different paths, and that is asserted here as well.
+    """
+    atca = platform.by_name(PLATFORM_OF['atca'])
+    rfmc = platform.by_name(PLATFORM_OF['rfmc'])
+    atca_only = sorted(set(atca.registers) - set(rfmc.registers))
+    rfmc_only = sorted(set(rfmc.registers) - set(atca.registers))
+    assert atca_only and rfmc_only, 'the two carrier maps do not differ in both directions'
+    stray = [n for n in atca_only
+             if not any(d in template_of(atca, n) for d in AMC_CARRIER_ONLY_DEVICES)]
+    assert not stray, 'ATCA-only name(s) that are not its board\'s: ' + ', '.join(stray[:6])
+    stray = [n for n in rfmc_only
+             if not any(d in template_of(rfmc, n) for d in RFMC_CARRIER_ONLY_DEVICES)]
+    assert not stray, 'RFMC-only name(s) that are not its board\'s: ' + ', '.join(stray[:6])
+    # A shared name that reaches a different device on the two is the carrier core's
+    # (AmcCarrierCore / RfmcCarrierCore) or the front end's (MicrowaveMuxCore / RfmcQuad
+    # carry the same attenuator block); any other difference is two tables drifting.
+    shared = set(atca.registers) & set(rfmc.registers)
+    differ = sorted(n for n in shared if atca.registers[n] != rfmc.registers[n])
+    assert differ, 'no shared name reaches a different device on the two carriers; the ' \
+                   'carrier core is not being told apart'
+    boards = (('AmcCarrierCore', 'RfmcCarrierCore'), ('MicrowaveMuxCore', 'RfmcQuad'))
+    stray = [n for n in differ
+             if not any(a in template_of(atca, n) and r in template_of(rfmc, n) for a, r in boards)]
+    assert not stray, \
+        f"shared name(s) differing other than by the board's devices: {', '.join(stray[:6])}"
+    core_names = [n for n in differ if 'RfmcCarrierCore' in template_of(rfmc, n)]
+    assert len(core_names) >= 20, f'only {len(core_names)} carrier-core names are told apart'
+    assert all(atca.registers[n][1] == rfmc.registers[n][1] for n in shared), \
+        'a shared name has a different kind on the two carriers'
+    # And the dumps agree with the maps: every carrier-core name reaches its own
+    # device on each, and the board-only names reach nothing on the other board.
+    atca_paths, rfmc_paths = load_dump('atca'), load_dump('rfmc')
+    for name in differ:
+        assert expand(atca_paths, template_of(atca, name)), f'{name} does not resolve on the ATCA'
+        assert expand(rfmc_paths, template_of(rfmc, name)), f'{name} does not resolve on the RFMC'
+        assert not expand(rfmc_paths, template_of(atca, name)), \
+            f"{name}: the ATCA's path resolves on the RFMC too"
+    for name in rfmc_only:
+        assert not expand(atca_paths, template_of(rfmc, name)), \
+            f'{name} is declared RFMC-only and resolves on the ATCA too'
+    for name in atca_only:
+        if name in SERVER_ATTACHED:
+            continue
+        assert not expand(rfmc_paths, template_of(atca, name)), \
+            f'{name} is declared ATCA-only and resolves on the RFMC too'
 
 
 def check_both_generations_are_really_different_trees():

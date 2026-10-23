@@ -28,9 +28,19 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-from cryodaq.platform._umux import LEGACY, REGISTERS, SCOPES, WITNESS
+from cryodaq.platform import _atca, _umux
 
-__all__ = ['NAME', 'TAGS', 'TOP_LEVEL', 'REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES']
+__all__ = ['NAME', 'TAGS', 'TOP_LEVEL', 'PACKAGE_CONFIG_DIR', 'CARRIER', 'REGISTERS', 'LEGACY',
+           'WITNESS', 'SCOPES']
+
+# The carrier core is the AMC carrier's: this firmware is the carrier's package built
+# without its bays, and the core, the regulator beside it and the shared registers are
+# as the carrier has them, so the board's tables are taken from the carrier's module.
+CARRIER = _atca.CARRIER
+REGISTERS = {**_umux.REGISTERS, **_atca.AMC_CARRIER_REGISTERS}
+LEGACY = {**_umux.LEGACY, **_atca.AMC_CARRIER_LEGACY}
+SCOPES = {**_umux.SCOPES, **_atca.AMC_CARRIER_SCOPES}
+WITNESS = _umux.WITNESS
 
 NAME = 'umux-rfsoc'
 
@@ -69,3 +79,6 @@ TAGS = (
 # carrier's package as a submodule -- so keeping the two firmware lines in step
 # is a matter of that submodule's pin.
 TOP_LEVEL = 'CryoDet._MicrowaveMuxZcu208:FpgaTopLevel'
+# Where the firmware's release archive keeps its configuration files, so a relative
+# name a server is given means a file there.
+PACKAGE_CONFIG_DIR = 'python/CryoDet/config'

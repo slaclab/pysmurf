@@ -11,11 +11,11 @@
 #    stamp off the hardware to learn which platform this is, and import the class
 #    that builds that platform's tree.
 #
-#    The probe is a two-device tree holding only the version block, which every
-#    platform here places at the same address; it is started, read and stopped
-#    before the real tree is built over the same link. So the platform comes from
-#    the hardware in hand, as the tree's identification does once a client
-#    connects, and nothing is told which hardware it is driving.
+#    The probe is a tree holding only the version block, at the address every
+#    platform here places it; it is started, read and stopped before the real
+#    tree is built over the same link. So the platform comes from the hardware in
+#    hand, as the tree's identification does once a client connects, and nothing
+#    is told which hardware it is driving.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -43,9 +43,7 @@ _log = logging.getLogger(__name__)
 
 # What the root of every tree here is called; the register paths a client
 # resolves start with it.
-ROOT_NAME = platform.VERSION_BLOCK_PATH.split('.')[0]
-# Where a release archive keeps its register configuration files.
-PACKAGE_CONFIG_DIR = 'python/CryoDet/config'
+ROOT_NAME = platform.ROOT_PATH
 
 
 def load_package(path: Optional[os.PathLike]) -> None:
@@ -78,14 +76,15 @@ def load_package(path: Optional[os.PathLike]) -> None:
         pyrogue.addLibraryPath(entry)
 
 
-def resolve_layers(layers, firmware: Optional[os.PathLike]) -> List[str]:
-    """Register configuration files as rogue's loader will take them.
+def resolve_layers(layers, firmware: Optional[os.PathLike], config_dir: str) -> List[str]:
+    """Configuration files as rogue's loader will take them.
 
     With a release archive, a relative name means a file in the archive's
-    configuration directory -- how a deployment names the defaults a package
-    ships -- and nothing else, so a file of the same name in the working
-    directory is never taken for it. An absolute name is used as given, and
-    so is any name when there is no archive to look inside.
+    configuration directory (``config_dir``, the platform's) -- how a
+    deployment names the defaults a package ships -- and nothing else, so a
+    file of the same name in the working directory is never taken for it. An
+    absolute name is used as given, and so is any name when there is no
+    archive to look inside.
 
     Raises
     ------
@@ -101,7 +100,7 @@ def resolve_layers(layers, firmware: Optional[os.PathLike]) -> List[str]:
             # a file, and reports what it cannot open.
             resolved.append(layer)
             continue
-        member = f"{PACKAGE_CONFIG_DIR}/{layer}"
+        member = f"{config_dir}/{layer}"
         with zipfile.ZipFile(archive) as zf:
             if member not in zf.namelist():
                 raise FileNotFoundError(f"{archive} holds no {member}")
@@ -110,29 +109,27 @@ def resolve_layers(layers, firmware: Optional[os.PathLike]) -> List[str]:
 
 
 class _Probe(pyrogue.Root):
-    """The version block alone, at the path the full tree gives it.
+    """The version block alone, read before the real tree exists.
 
     The link the registers travel over opens when the tree holding it starts.
     The link belongs to the real tree, which does not exist yet, and a node
     cannot be in two trees, so the probe opens and closes it directly around
     its one read; the real tree opens it again when it starts.
+
+    Every platform keeps its version block at the same address, so one block
+    serves them all: the platform is named by the stamp's text, not by where
+    the block sits.
     """
 
-    def __init__(self, srp, link_nodes=()):
+    def __init__(self, srp, link_nodes=(), offset=0):
         # The version block is the firmware package's, so it imports once the
         # package is on the path -- which is when a probe is built.
         import surf.axi
         pyrogue.Root.__init__(self, name=ROOT_NAME, initRead=True, pollEn=False, timeout=5.0)
         self._link_nodes = list(link_nodes)
-        # Empty devices down to the version block, so the stamp has the path the
-        # map says it has.
-        *segments, _ = platform.VERSION_BLOCK_PATH.split('.')[1:]
-        parent = self
-        for segment in segments:
-            device = pyrogue.Device(name=segment)
-            parent.add(device)
-            parent = device
-        parent.add(surf.axi.AxiVersion(offset=0, memBase=srp))
+        # At the start of the FPGA's register window, wherever the transport
+        # puts that window.
+        self.add(surf.axi.AxiVersion(offset=offset, memBase=srp))
 
     def start(self):
         started = []
@@ -162,7 +159,7 @@ class _Probe(pyrogue.Root):
             node._stop()
 
 
-def probe_platform(srp: Any, link_nodes: Any = ()) -> platform.PlatformMap:
+def probe_platform(srp: Any, link_nodes: Any = (), offset: int = 0) -> platform.PlatformMap:
     """Read the build stamp over ``srp`` and name the platform running it.
 
     Parameters
@@ -172,6 +169,9 @@ def probe_platform(srp: Any, link_nodes: Any = ()) -> platform.PlatformMap:
     link_nodes : sequence of pyrogue nodes
         What the register path needs started before it answers (a transport's
         ``register_nodes``); the probe starts and stops them around the read.
+    offset : int
+        Where the FPGA's register window starts on this path (a transport's
+        ``register_offset``).
 
     Returns
     -------
@@ -183,8 +183,8 @@ def probe_platform(srp: Any, link_nodes: Any = ()) -> platform.PlatformMap:
         If the stamp is empty or names firmware no platform claims.
     """
     try:
-        with _Probe(srp, link_nodes) as probe:
-            pmap = platform.identify(probe)
+        with _Probe(srp, link_nodes, offset) as probe:
+            pmap = platform.from_stamp(probe.AxiVersion.BuildStamp.get())
     except ConnectError:
         raise
     except Exception as e:

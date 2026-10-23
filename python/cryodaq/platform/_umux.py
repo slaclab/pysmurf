@@ -7,8 +7,8 @@
 #-----------------------------------------------------------------------------
 # Description:
 #    The map between the register tree of a microwave-multiplexed readout and
-#    cryodaq's semantic names. It is data only: register path templates, the
-#    tables of names built from them -- the core, and a legacy table of names
+#    cryodaq's semantic names. It is data, and one template each platform binds:
+#    register path templates, the tables of names built from them -- the core, and a legacy table of names
 #    only deprecated compatibility accessors still reach -- the registers worth
 #    recording as a witness of how a system was left, and how to enumerate the
 #    indexed scopes.
@@ -25,6 +25,8 @@
 #    trees also differ by omission, one having per-bay data links and an RF front
 #    end the other does not, so a name those registers back does not resolve
 #    everywhere; a caller sees that as an index-free scope, not a broken name.
+#    The carrier core is the one device named for the board it is on, so its
+#    paths are a template here (`Carrier`) that each platform binds to its core.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -35,7 +37,10 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-__all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES', 'BUILD_STAMP', 'AXI_VERSION',
+from dataclasses import dataclass
+from typing import Dict, Tuple
+
+__all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES', 'Carrier', 'ServerDevice',
            'APPLICATION', 'SERVER_ADDED_ROOT_NODES']
 
 # --------------------------------------------------------------------------
@@ -178,69 +183,181 @@ SERVER_ADDED_ROOT_NODES = tuple(
 # --------------------------------------------------------------------------
 
 FPGA = f'{ROOT}.FpgaTopLevel'
-CARRIER = f'{FPGA}.AmcCarrierCore'
-AXI_VERSION = f'{CARRIER}.AxiVersion'
-FPGA_VERSION = f'{AXI_VERSION}.FpgaVersion'
-BUILD_STAMP = f'{AXI_VERSION}.BuildStamp'
-GIT_HASH = f'{AXI_VERSION}.GitHash'
-GIT_HASH_SHORT = f'{AXI_VERSION}.GitHashShort'
-UPTIME = f'{AXI_VERSION}.UpTimeCnt'
 
-# The carrier's system monitor: die temperature and the three supply rails.
-SYSTEM_MONITOR = f'{CARRIER}.AxiSysMonUltraScale'
-FPGA_TEMPERATURE = f'{SYSTEM_MONITOR}.Temperature'
-FPGA_VCC_INT = f'{SYSTEM_MONITOR}.VccInt'
-FPGA_VCC_AUX = f'{SYSTEM_MONITOR}.VccAux'
-FPGA_VCC_BRAM = f'{SYSTEM_MONITOR}.VccBram'
-# The die temperature at which the FPGA shuts itself down.
-FPGA_OVERTEMP_THRESHOLD = f'{SYSTEM_MONITOR}.OTUpperThreshold'
 
-# The point-of-load regulator, reached over I2C. The *server* attaches this device
-# rather than the firmware package declaring it, so a dump of a package has none of it
-# and its absence there says nothing about the hardware.
-REGULATOR = f'{CARRIER}.EM22xx'
-REGULATOR_CURRENT = f'{REGULATOR}.IOUT'
-REGULATOR_TEMPERATURE = f'{REGULATOR}.TEMPERATURE[{{temperature}}]'
+# --------------------------------------------------------------------------
+# the carrier core
+# --------------------------------------------------------------------------
 
-# Where the carrier reports its place in the crate.
-CARRIER_BSI = f'{CARRIER}.AmcCarrierBsi'
-CRATE_ID = f'{CARRIER_BSI}.CrateId'
-SLOT_NUMBER = f'{CARRIER_BSI}.SlotNumber'
+# What kind of node a name reaches, as the map tables state it: 'value' is read and
+# written, 'command' is called, 'process' is started and polled, 'device' is where
+# operations attach.
+_V, _C, _P, _D = 'value', 'command', 'process', 'device'
 
-# The timing system: the receive link, and the event receiver's two index spaces. A
-# channel selects what to match, a trigger shapes the pulse that results, and they are
-# counted separately -- so they are separate scopes, and neither is the per-band channel.
-TIMING = f'{CARRIER}.AmcCarrierTiming'
-TIMING_FRAME_RX = f'{TIMING}.TimingFrameRx'
-TIMING_RX_LINK_UP = f'{TIMING_FRAME_RX}.RxLinkUp'
-# Error and reset counters on the receive link: how often a frame failed its check, how
-# often the decoder or the serial layer errored, how often the link was reset.
-TIMING_CRC_ERROR_COUNT = f'{TIMING_FRAME_RX}.CrcErrCount'
-TIMING_RX_DECODE_ERROR_COUNT = f'{TIMING_FRAME_RX}.RxDecErrCount'
-TIMING_RX_DSP_ERROR_COUNT = f'{TIMING_FRAME_RX}.RxDspErrCount'
-TIMING_RX_RESET_COUNT = f'{TIMING_FRAME_RX}.RxRstCount'
-EVR = f'{TIMING}.EvrV2CoreTriggers'
-EVR_CHANNEL = f'{EVR}.EvrV2ChannelReg[{{evr_channel}}]'
-EVR_CHANNEL_ENABLE = f'{EVR_CHANNEL}.EnableReg'
-EVR_CHANNEL_DEST_SEL = f'{EVR_CHANNEL}.DestSel'
-EVR_CHANNEL_DEST_TYPE = f'{EVR_CHANNEL}.DestType'
-EVR_CHANNEL_COUNT = f'{EVR_CHANNEL}.Count'
-EVR_CHANNEL_RATE_SEL = f'{EVR_CHANNEL}.RateSel'
-EVR_TRIGGER = f'{EVR}.EvrV2TriggerReg[{{evr_trigger}}]'
-EVR_TRIGGER_ENABLE = f'{EVR_TRIGGER}.EnableTrig'
-EVR_TRIGGER_WIDTH = f'{EVR_TRIGGER}.Width'
-EVR_TRIGGER_DELAY = f'{EVR_TRIGGER}.Delay'
+@dataclass(frozen=True)
+class ServerDevice:
+    """A device the server adds to the tree beside the FPGA's, from the firmware package.
 
-# The RF crossbar that routes the carrier's clock and timing outputs.
-CROSSBAR_OUTPUT_CONFIG = f'{CARRIER}.AxiSy56040.OutputConfig[{{output}}]'
+    The firmware package declares the FPGA's tree; some hardware beside the FPGA
+    is driven by a class of the same package over a register path of its own,
+    and is the server's to build and add -- so a dump of the package has none of
+    it, and the map says what the server adds and where.
 
-# The beam-synchronous acquisition engines and their capture buffers.
-BSA_ENGINE = (f'{CARRIER}.AmcCarrierBsa.BsaWaveformEngine[{{engine}}]'
-              f'.WaveformEngineBuffers')
-BSA_BUFFER_EMPTY = f'{BSA_ENGINE}.Empty[{{buffer}}]'
-BSA_BUFFER_START_ADDR = f'{BSA_ENGINE}.StartAddr[{{buffer}}]'
-BSA_BUFFER_END_ADDR = f'{BSA_ENGINE}.EndAddr[{{buffer}}]'
-BSA_BUFFER_WRITE_ADDR = f'{BSA_ENGINE}.WrAddr[{{buffer}}]'
+    Parameters
+    ----------
+    path : str
+        Where the device sits on the tree: a child of the root.
+    driver : str
+        ``module:attribute`` of the class that drives it, in the firmware package.
+    link : str
+        Which of the transport's register paths it is driven over, by the
+        transport's attribute name (``srp_rfdc``).
+    """
+
+    path: str
+    driver: str
+    link: str
+
+
+# The carrier core is the one device of the FPGA that is named for the board it is
+# on: `AmcCarrierCore` on the ATCA carrier (and on the RFSoC, whose firmware is the
+# carrier's with the bays left out), `RfmcCarrierCore` on the RFMC carrier. What is
+# inside it -- the version block, the system monitor, the crate-slot identity, the
+# timing receiver and event receiver, the clock crossbar, the acquisition engines --
+# has the same leaves on every carrier, with the board's name on two of the devices.
+# So the carrier's paths are built once, here, from the names a platform gives its
+# core and those two devices, and each platform module binds them.
+class Carrier:
+    """The carrier core's register paths, for a core device named ``core``.
+
+    Parameters
+    ----------
+    core : str
+        The carrier core device's name under the top level.
+    bsi, timing : str
+        The names of its board-support and timing devices, which also carry
+        the board's name.
+    """
+
+    def __init__(self, core: str, bsi: str, timing: str):
+        self.CARRIER = f'{FPGA}.{core}'
+        carrier = self.CARRIER
+        self.AXI_VERSION = f'{carrier}.AxiVersion'
+        self.FPGA_VERSION = f'{self.AXI_VERSION}.FpgaVersion'
+        self.BUILD_STAMP = f'{self.AXI_VERSION}.BuildStamp'
+        self.GIT_HASH = f'{self.AXI_VERSION}.GitHash'
+        self.GIT_HASH_SHORT = f'{self.AXI_VERSION}.GitHashShort'
+        self.UPTIME = f'{self.AXI_VERSION}.UpTimeCnt'
+
+        # The carrier's system monitor: die temperature and the three supply rails.
+        self.SYSTEM_MONITOR = f'{carrier}.AxiSysMonUltraScale'
+        self.FPGA_TEMPERATURE = f'{self.SYSTEM_MONITOR}.Temperature'
+        self.FPGA_VCC_INT = f'{self.SYSTEM_MONITOR}.VccInt'
+        self.FPGA_VCC_AUX = f'{self.SYSTEM_MONITOR}.VccAux'
+        self.FPGA_VCC_BRAM = f'{self.SYSTEM_MONITOR}.VccBram'
+        # The die temperature at which the FPGA shuts itself down.
+        self.FPGA_OVERTEMP_THRESHOLD = f'{self.SYSTEM_MONITOR}.OTUpperThreshold'
+
+        # Where the carrier reports its place in the crate.
+        self.CARRIER_BSI = f'{carrier}.{bsi}'
+        self.CRATE_ID = f'{self.CARRIER_BSI}.CrateId'
+        self.SLOT_NUMBER = f'{self.CARRIER_BSI}.SlotNumber'
+
+        # The timing system: the receive link, and the event receiver's two index
+        # spaces. A channel selects what to match, a trigger shapes the pulse that
+        # results, and they are counted separately -- so they are separate scopes, and
+        # neither is the per-band channel.
+        self.TIMING = f'{carrier}.{timing}'
+        self.TIMING_FRAME_RX = f'{self.TIMING}.TimingFrameRx'
+        self.TIMING_RX_LINK_UP = f'{self.TIMING_FRAME_RX}.RxLinkUp'
+        # Error and reset counters on the receive link: how often a frame failed its
+        # check, how often the decoder or the serial layer errored, how often the link
+        # was reset.
+        self.TIMING_CRC_ERROR_COUNT = f'{self.TIMING_FRAME_RX}.CrcErrCount'
+        self.TIMING_RX_DECODE_ERROR_COUNT = f'{self.TIMING_FRAME_RX}.RxDecErrCount'
+        self.TIMING_RX_DSP_ERROR_COUNT = f'{self.TIMING_FRAME_RX}.RxDspErrCount'
+        self.TIMING_RX_RESET_COUNT = f'{self.TIMING_FRAME_RX}.RxRstCount'
+        self.EVR = f'{self.TIMING}.EvrV2CoreTriggers'
+        self.EVR_CHANNEL = f'{self.EVR}.EvrV2ChannelReg[{{evr_channel}}]'
+        self.EVR_CHANNEL_ENABLE = f'{self.EVR_CHANNEL}.EnableReg'
+        self.EVR_CHANNEL_DEST_SEL = f'{self.EVR_CHANNEL}.DestSel'
+        self.EVR_CHANNEL_DEST_TYPE = f'{self.EVR_CHANNEL}.DestType'
+        self.EVR_CHANNEL_COUNT = f'{self.EVR_CHANNEL}.Count'
+        self.EVR_CHANNEL_RATE_SEL = f'{self.EVR_CHANNEL}.RateSel'
+        self.EVR_TRIGGER = f'{self.EVR}.EvrV2TriggerReg[{{evr_trigger}}]'
+        self.EVR_TRIGGER_ENABLE = f'{self.EVR_TRIGGER}.EnableTrig'
+        self.EVR_TRIGGER_WIDTH = f'{self.EVR_TRIGGER}.Width'
+        self.EVR_TRIGGER_DELAY = f'{self.EVR_TRIGGER}.Delay'
+
+        # The RF crossbar that routes the carrier's clock and timing outputs.
+        self.CROSSBAR_OUTPUT_CONFIG = f'{carrier}.AxiSy56040.OutputConfig[{{output}}]'
+
+        # The beam-synchronous acquisition engines and their capture buffers.
+        self.BSA_ENGINE = (f'{carrier}.AmcCarrierBsa.BsaWaveformEngine[{{engine}}]'
+                           f'.WaveformEngineBuffers')
+        self.BSA_BUFFER_EMPTY = f'{self.BSA_ENGINE}.Empty[{{buffer}}]'
+        self.BSA_BUFFER_START_ADDR = f'{self.BSA_ENGINE}.StartAddr[{{buffer}}]'
+        self.BSA_BUFFER_END_ADDR = f'{self.BSA_ENGINE}.EndAddr[{{buffer}}]'
+        self.BSA_BUFFER_WRITE_ADDR = f'{self.BSA_ENGINE}.WrAddr[{{buffer}}]'
+
+    def registers(self) -> Dict[str, Tuple[str, str]]:
+        """The carrier's entries of the core table, name pattern to (path, kind)."""
+        return {
+            'carrier.fpga.temperature': (self.FPGA_TEMPERATURE, _V),
+            'carrier.fpga.vcc_int': (self.FPGA_VCC_INT, _V),
+            'carrier.fpga.vcc_aux': (self.FPGA_VCC_AUX, _V),
+            'carrier.fpga.vcc_bram': (self.FPGA_VCC_BRAM, _V),
+            'carrier.bsa.engine[*].buffer[*].start_address': (self.BSA_BUFFER_START_ADDR, _V),
+            'carrier.bsa.engine[*].buffer[*].end_address': (self.BSA_BUFFER_END_ADDR, _V),
+            # firmware identity
+            'firmware.version': (self.FPGA_VERSION, _V),
+            'firmware.build_stamp': (self.BUILD_STAMP, _V),
+            'firmware.git_hash': (self.GIT_HASH, _V),
+            'firmware.uptime': (self.UPTIME, _V),
+            'timing.rx_link_up': (self.TIMING_RX_LINK_UP, _V),
+            # the carrier's place in the crate, and the rest of the firmware's identity
+            'carrier.crate_id': (self.CRATE_ID, _V),
+            'carrier.slot_number': (self.SLOT_NUMBER, _V),
+            'firmware.git_hash_short': (self.GIT_HASH_SHORT, _V),
+            # the timing system's event receiver
+            'timing.evr_channel[*].enable': (self.EVR_CHANNEL_ENABLE, _V),
+            'timing.evr_channel[*].dest_sel': (self.EVR_CHANNEL_DEST_SEL, _V),
+            'timing.evr_channel[*].dest_type': (self.EVR_CHANNEL_DEST_TYPE, _V),
+            'timing.evr_channel[*].rate_select': (self.EVR_CHANNEL_RATE_SEL, _V),
+            'timing.evr_trigger[*].enable': (self.EVR_TRIGGER_ENABLE, _V),
+            'timing.evr_trigger[*].width': (self.EVR_TRIGGER_WIDTH, _V),
+            # the clock and timing crossbar, and the capture engines
+            'crossbar.output[*].config': (self.CROSSBAR_OUTPUT_CONFIG, _V),
+            'carrier.bsa.engine[*].buffer[*].empty': (self.BSA_BUFFER_EMPTY, _V),
+        }
+
+    def legacy(self) -> Dict[str, Tuple[str, str]]:
+        """The carrier's entries of the legacy table."""
+        return {
+            'carrier.bsa.engine[*].buffer[*].write_address': (self.BSA_BUFFER_WRITE_ADDR, _V),
+            'timing.crc_error_count': (self.TIMING_CRC_ERROR_COUNT, _V),
+            'timing.rx_decode_error_count': (self.TIMING_RX_DECODE_ERROR_COUNT, _V),
+            'timing.rx_dsp_error_count': (self.TIMING_RX_DSP_ERROR_COUNT, _V),
+            'timing.rx_reset_count': (self.TIMING_RX_RESET_COUNT, _V),
+            'timing.evr_channel[*].count': (self.EVR_CHANNEL_COUNT, _V),
+            'timing.evr_trigger[*].delay': (self.EVR_TRIGGER_DELAY, _V),
+            'carrier.fpga.overtemp_threshold': (self.FPGA_OVERTEMP_THRESHOLD, _V),
+        }
+
+    def scopes(self) -> Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]]:
+        """The scopes the carrier's registers are indexed by."""
+        return {
+            # The event receiver counts what it matches and what it emits separately, so
+            # these are two scopes and neither is the per-band channel. A tree with one
+            # and not the other is a firmware that wired up fewer of one, which is a
+            # fact about the tree rather than a contradiction.
+            'evr_channel': ((self.EVR_CHANNEL_ENABLE,), ()),
+            'evr_trigger': ((self.EVR_TRIGGER_ENABLE,), ()),
+            'output': ((self.CROSSBAR_OUTPUT_CONFIG,), ()),
+            'engine': ((self.BSA_ENGINE,), ()),
+            'buffer': ((self.BSA_BUFFER_EMPTY,), ('engine',)),
+        }
+
 
 APP_TOP = f'{FPGA}.AppTop'
 APP_CORE = f'{APP_TOP}.AppCore'
@@ -269,14 +386,6 @@ USER_CONFIG = f'{APP_CORE}.TimingHeader.userConfig[{{user_config}}]'
 # A software trigger of every bay's data acquisition at once; what the server's run
 # control pulses.
 SW_DAQ_MUX_TRIGGER = f'{FPGA}.SwDaqMuxTrig'
-# The firmware's own check of its converter serial links, where a release carries one:
-# the command runs it and the status is its last verdict. The command is the
-# application core's and is built into every tree of this generation -- a platform
-# with no such links has nothing for it to find, and that platform's map names no
-# verdict for it (see `application.jesd_status`, a carrier's). A map states what a
-# tree has; whether the server acts on it is the verdict's business.
-JESD_HEALTH = f'{APP_TOP}.JesdHealth'
-JESD_HEALTH_STATUS = f'{APP_TOP}.JesdHealthStatus'
 DAQ_MUX = f'{APP_TOP}.DaqMuxV2[{{bay}}]'
 DAQ_ARM_HW_TRIGGER = f'{DAQ_MUX}.ArmHwTrigger'
 DAQ_TRIGGER = f'{DAQ_MUX}.TriggerDaq'
@@ -476,20 +585,10 @@ SCOPES = {
     'bay': ((DAQ_MUX,), ()),
     'channel': ((CHANNEL,), ('band',)),
     'input': ((DAQ_INPUT_MUX_SEL,), ('bay',)),
-    # The event receiver counts what it matches and what it emits separately, so these
-    # are two scopes and neither is the per-band channel above. A tree with one and not
-    # the other is a firmware that wired up fewer of one, which is a fact about the
-    # tree rather than a contradiction.
-    'evr_channel': ((EVR_CHANNEL_ENABLE,), ()),
-    'evr_trigger': ((EVR_TRIGGER_ENABLE,), ()),
-    'output': ((CROSSBAR_OUTPUT_CONFIG,), ()),
     'select': ((DEBUG_SELECT,), ()),
     'capture': ((CAPTURE_DATA,), ()),
     'user_config': ((USER_CONFIG,), ()),
-    'temperature': ((REGULATOR_TEMPERATURE,), ()),
     'timing_channel': ((DEBUG_TIMING_OVERRIDE,), ('bay',)),
-    'engine': ((BSA_ENGINE,), ()),
-    'buffer': ((BSA_BUFFER_EMPTY,), ('engine',)),
     # The RTM waveform controller's lookup tables, and the DACs it addresses them
     # through. Its DACs are on the RTM and are not the converters a bay carries, so they
     # are a scope of their own: a scope name has to mean one thing.
@@ -497,12 +596,10 @@ SCOPES = {
     'lut_dac': ((RTM_LUT_DAC_ADDRESS,), ()),
 }
 
-# Semantic name pattern -> (register path template, kind). 'v' is read and
-# written, 'c' is called, 'p' is started and polled. Kept small on purpose: a
+# Semantic name pattern -> (register path template, kind). Kept small on purpose: a
 # name is here because a core operation or the compatibility layer reaches it,
-# and everything else in the tree is still there under the session's root.
-_V, _C, _P, _D = 'value', 'command', 'process', 'device'
-
+# and everything else in the tree is still there under the session's root. The
+# carrier core's names are not here: each platform binds its carrier's.
 REGISTERS = {
     # the server and its application block
     'server.ready': (READY, _V),
@@ -527,23 +624,9 @@ REGISTERS = {
     'application_config.resolved': (RESOLVED_CONFIG, _V),
     'application_config.hash': (RESOLVED_HASH, _V),
     'application_config.written_at': (RESOLVED_WRITTEN_AT, _V),
-    'carrier.fpga.temperature': (FPGA_TEMPERATURE, _V),
-    'carrier.fpga.vcc_int': (FPGA_VCC_INT, _V),
-    'carrier.fpga.vcc_aux': (FPGA_VCC_AUX, _V),
-    'carrier.fpga.vcc_bram': (FPGA_VCC_BRAM, _V),
-    'carrier.bsa.engine[*].buffer[*].start_address': (BSA_BUFFER_START_ADDR, _V),
-    'carrier.bsa.engine[*].buffer[*].end_address': (BSA_BUFFER_END_ADDR, _V),
     'bay[*].tone_file.load': (LOAD_TONE_FILE, _C),
-    # firmware identity
-    'firmware.version': (FPGA_VERSION, _V),
-    'firmware.build_stamp': (BUILD_STAMP, _V),
-    'firmware.git_hash': (GIT_HASH, _V),
     'daq.software_trigger': (SW_DAQ_MUX_TRIGGER, _C),
-    'jesd.health': (JESD_HEALTH, _C),
-    'jesd.health_status': (JESD_HEALTH_STATUS, _V),
-    'firmware.uptime': (UPTIME, _V),
     # timing and streaming
-    'timing.rx_link_up': (TIMING_RX_LINK_UP, _V),
     'stream.enable': (STREAM_ENABLE, _V),
     'stream.downsample.factor': (DOWNSAMPLE_FACTOR, _V),
     'stream.filter.disable': (FILTER_DISABLE, _V),
@@ -578,9 +661,6 @@ REGISTERS = {
     # the server's own nodes, and what it writes captured data to
     'server.rogue_version': (ROGUE_VERSION, _V),
     'stream.data_source_enable': (STREAM_DATA_SOURCE_ENABLE, _V),
-    # the carrier's thermal shutdown threshold
-    'carrier.regulator.current': (REGULATOR_CURRENT, _V),
-    'carrier.regulator.temperature[*]': (REGULATOR_TEMPERATURE, _V),
     # the two synthetic data sources
     'stream.capture[*].data': (CAPTURE_DATA, _V),
     'stream.capture[*].updated': (CAPTURE_UPDATED, _V),
@@ -601,22 +681,10 @@ REGISTERS = {
     'stream.filter.b': (FILTER_B, _V),
     'stream.filter.gain': (FILTER_GAIN, _V),
     'stream.filter.order': (FILTER_ORDER, _V),
-    # the carrier's place in the crate, and the rest of the firmware's identity
-    'carrier.crate_id': (CRATE_ID, _V),
-    'carrier.slot_number': (SLOT_NUMBER, _V),
-    'firmware.git_hash_short': (GIT_HASH_SHORT, _V),
+    # which bands this build was made for
     'firmware.band_mask': (FIRMWARE_BAND_MASK, _V),
-    # the timing system's event receiver
-    'timing.evr_channel[*].enable': (EVR_CHANNEL_ENABLE, _V),
-    'timing.evr_channel[*].dest_sel': (EVR_CHANNEL_DEST_SEL, _V),
-    'timing.evr_channel[*].dest_type': (EVR_CHANNEL_DEST_TYPE, _V),
-    'timing.evr_channel[*].rate_select': (EVR_CHANNEL_RATE_SEL, _V),
-    'timing.evr_trigger[*].enable': (EVR_TRIGGER_ENABLE, _V),
-    'timing.evr_trigger[*].width': (EVR_TRIGGER_WIDTH, _V),
-    # the clock and timing crossbar, the debug mux, and the capture engines
-    'crossbar.output[*].config': (CROSSBAR_OUTPUT_CONFIG, _V),
+    # the debug mux
     'debug.select[*]': (DEBUG_SELECT, _V),
-    'carrier.bsa.engine[*].buffer[*].empty': (BSA_BUFFER_EMPTY, _V),
     # per bay: the acquisition mux and the waveform source
     'bay[*].daq.arm_hw_trigger': (DAQ_ARM_HW_TRIGGER, _C),
     'bay[*].daq.trigger': (DAQ_TRIGGER, _C),
@@ -699,7 +767,6 @@ REGISTERS.update({f'band[*].ops.{name}': (path, _C)
 # does not tell them apart; the split is a statement about who needs the name, made
 # here and checked in the tests, not a second lookup.
 LEGACY = {
-    'carrier.bsa.engine[*].buffer[*].write_address': (BSA_BUFFER_WRITE_ADDR, _V),
     'band[*].decimation': (DECIMATION, _V),
     'band[*].analysis_scale': (ANALYSIS_SCALE, _V),
     'band[*].tone.scale': (TONE_SCALE, _V),
@@ -707,13 +774,6 @@ LEGACY = {
     'band[*].channel[*].frequency_error': (CHANNEL_FREQUENCY_ERROR, _V),
     'stream.frame_count': (FRAME_COUNT, _V),
     'timing.user_config[*]': (USER_CONFIG, _V),
-    'timing.crc_error_count': (TIMING_CRC_ERROR_COUNT, _V),
-    'timing.rx_decode_error_count': (TIMING_RX_DECODE_ERROR_COUNT, _V),
-    'timing.rx_dsp_error_count': (TIMING_RX_DSP_ERROR_COUNT, _V),
-    'timing.rx_reset_count': (TIMING_RX_RESET_COUNT, _V),
-    'timing.evr_channel[*].count': (EVR_CHANNEL_COUNT, _V),
-    'timing.evr_trigger[*].delay': (EVR_TRIGGER_DELAY, _V),
-    'carrier.fpga.overtemp_threshold': (FPGA_OVERTEMP_THRESHOLD, _V),
     'rtm.waveform.busy': (RTM_LUT_BUSY, _V),
     'rtm.waveform.max_address': (RTM_LUT_MAX_ADDRESS, _V),
     'rtm.waveform.trigger_count': (RTM_LUT_TRIGGER_COUNT, _V),

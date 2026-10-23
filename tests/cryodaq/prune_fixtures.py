@@ -23,9 +23,10 @@
 # The full dumps come from validate_client_emulated.py, which builds each tree in a
 # container that has rogue and writes it out with --dump-tree:
 #
-#     validate_client_emulated.py --cryo-det <checkout>         --dump-tree atca.txt
-#     validate_client_emulated.py --cryo-det <checkout> --rfsoc --dump-tree rfsoc.txt
-#     prune_fixtures.py --atca atca.txt --rfsoc rfsoc.txt
+#     validate_client_emulated.py --cryo-det <checkout>                  --dump-tree atca.txt
+#     validate_client_emulated.py --cryo-det <checkout> --platform rfsoc --dump-tree rfsoc.txt
+#     validate_client_emulated.py --cryo-det <checkout> --platform rfmc --rfmc <zip> --dump-tree rfmc.txt
+#     prune_fixtures.py --atca atca.txt --rfsoc rfsoc.txt --rfmc rfmc.txt
 #
 # Each dump comes with a `.source` file naming the checkout revision or ZIP it was
 # built from; that is copied into the provenance rather than asserted here.
@@ -70,7 +71,12 @@ FIXTURES = HERE / 'fixtures'
 BUILT_BY = {
     'atca': 'pysmurf.core.server.compose over an emulated transport',
     'rfsoc': 'pysmurf.core.server.compose over an emulated transport, isRFSOC=True',
+    'rfmc': 'pysmurf.core.server.compose over an emulated transport, the RFMC release '
+            'package behind the operation-less CryoDet',
 }
+# The device that is a bay's RF front end on each platform that has one; the RFSoC
+# has none, which is the difference the catalog check turns on.
+FRONT_END_DEVICE = {'atca': 'MicrowaveMuxCore', 'rfsoc': 'MicrowaveMuxCore', 'rfmc': 'RfmcQuad'}
 
 # How many per-channel entries to keep. Two rather than one so that a check which
 # enumerated a channel scope would still see more than a single index.
@@ -81,15 +87,17 @@ SCOPE = re.compile(r'\{(\w+)\}')
 
 
 def path_templates():
-    """The register path template behind every name, across both platform maps.
+    """The register path templates behind every name, across every platform map.
 
-    Both are read, so a device only one generation has is still kept -- pruning it
-    out would flatten the very difference the check depends on.
+    All are read, so a device only one platform has is still kept -- pruning it
+    out would flatten the very difference the check depends on. A name may reach
+    a different device on each carrier (the carrier core is named for its board),
+    so every template a name has is kept, not the first.
     """
     out = {}
     for pmap in platform.MAPS:
         for name, (template, _) in pmap.registers.items():
-            out.setdefault(name, template)
+            out.setdefault(name, set()).add(template)
     return out
 
 
@@ -101,7 +109,7 @@ def wanted_devices(templates):
     every index it has. Pinning an unbracketed one to 0 kept ``Stream0`` alone.
     """
     devices = set()
-    for template in templates.values():
+    for template in (t for ts in templates.values() for t in ts):
         device = template.rsplit('.', 1)[0]
         devices.add(re.compile(
             '^' + re.escape(SCOPE.sub('\0', device)).replace('\0', r'\d+') + '$'))
@@ -165,11 +173,14 @@ def main():
                     help='full dump of the carrier tree (validate_client_emulated.py '
                          '--dump-tree)')
     ap.add_argument('--rfsoc', required=True, type=pathlib.Path,
-                    help='full dump of the RFSoC tree (... --rfsoc --dump-tree)')
+                    help='full dump of the RFSoC tree (... --platform rfsoc --dump-tree)')
+    ap.add_argument('--rfmc', required=True, type=pathlib.Path,
+                    help='full dump of the RFMC carrier tree (... --platform rfmc --rfmc <zip> '
+                         '--dump-tree)')
     ap.add_argument('--check', action='store_true',
                     help='report what would be written without writing it')
     args = ap.parse_args()
-    sources = {'atca': args.atca, 'rfsoc': args.rfsoc}
+    sources = {'atca': args.atca, 'rfsoc': args.rfsoc, 'rfmc': args.rfmc}
 
     templates = path_templates()
     devices = wanted_devices(templates)
@@ -189,7 +200,7 @@ def main():
         kept = prune(lines, devices)
         pruned_paths[stem] = {line.split('\t', 1)[0] for line in kept[1:]}
         bands = scope_indices(kept, 'Base')
-        bays = scope_indices(kept, 'MicrowaveMuxCore')
+        bays = scope_indices(kept, FRONT_END_DEVICE[stem])
         daq = scope_indices(kept, 'DaqMuxV2')
         if not bands:
             sys.exit(f'{stem}: pruned to no bands at all; the fixture would be useless')
@@ -199,9 +210,9 @@ def main():
         # to be absent from both -- otherwise the fixture is a smaller tree that happens
         # to pass, which is the failure a pruned fixture invites.
         full = {line.split('\t', 1)[0] for line in lines[1:]}
-        absent_full = {n for n, t in templates.items() if not resolves(full, t)}
-        absent_pruned = {n for n, t in templates.items()
-                         if not resolves(pruned_paths[stem], t)}
+        absent_full = {n for n, ts in templates.items() if not any(resolves(full, t) for t in ts)}
+        absent_pruned = {n for n, ts in templates.items()
+                         if not any(resolves(pruned_paths[stem], t) for t in ts)}
         if absent_full != absent_pruned:
             differ = sorted(absent_full ^ absent_pruned)[:6]
             sys.exit(f'{stem}: the pruned fixture answers differently from the full '
@@ -214,14 +225,12 @@ def main():
               f'bands={bands} front-end bays={bays} daq bays={daq}; '
               f'pruned and full dumps agree ({len(absent_pruned)} name(s) absent)')
 
-    # The property the catalog check turns on: one generation has the per-bay front
-    # end, the other does not. If pruning ever flattened that, every comparison built
+    # The property the catalog check turns on: the two carriers have a per-bay front
+    # end, the RFSoC does not. If pruning ever flattened that, every comparison built
     # on it would pass while proving nothing.
-    if summary['atca']['front_end_bays'] == summary['rfsoc']['front_end_bays']:
-        sys.exit('both fixtures ended up with the same front-end bays; the pruning has '
-                 'flattened the difference the catalog check depends on')
-    if not summary['atca']['front_end_bays']:
-        sys.exit('the carrier fixture kept no front-end bays')
+    for stem in ('atca', 'rfmc'):
+        if not summary[stem]['front_end_bays']:
+            sys.exit(f'the {stem} fixture kept no front-end bays')
     if summary['rfsoc']['front_end_bays']:
         sys.exit('the bayless fixture kept front-end bays')
 
@@ -239,8 +248,8 @@ def main():
         'These are *pruned* by tests/cryodaq/prune_fixtures.py: a row is kept when the',
         'device it sits in is one a register name reaches, with every index of that',
         f'device retained, and the per-channel arrays thinned to {KEEP_CHANNELS}.',
-        'Keeping every index is what matters: it is how the two generations can still',
-        'be told apart, and how an off-by-one in an index scope is still caught.',
+        'Keeping every index is what matters: it is how the platforms can still be',
+        'told apart, and how an off-by-one in an index scope is still caught.',
         '',
         'Do not edit them by hand. Regenerate them with that script (its header says',
         'how); a hand edit is a fixture that answers a question the firmware would',

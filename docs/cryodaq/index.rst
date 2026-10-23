@@ -73,14 +73,73 @@ platform
 
 Which registers a system has, and where. A platform is identified by the
 firmware image its FPGA reports, so a session resolves names against the map for
-the hardware in front of it rather than against a configured guess.
+the hardware in front of it rather than against a configured guess. Three are
+mapped: the ATCA carrier with its AMC converter cards (``umux-atca``), the RFSoC
+built from the same firmware without them (``umux-rfsoc``), and the RFMC
+carrier, an RFSoC on a board of its own (``umux-rfmc``). The carrier core is the
+one device named for the board, so where the build stamp sits is a property of
+each map; the stamp's text is what names the platform.
 
 This is the firmware/software boundary: a register path lives here or nowhere.
 
 .. automodule:: cryodaq.platform
-    :members: identify, by_name, PlatformMap, MAPS, KINDS, indices, expand,
-              tag_of, witness_names
+    :members: identify, from_stamp, by_name, PlatformMap, ServerDevice, MAPS, KINDS,
+              indices, expand, tag_of, witness_names
     :undoc-members:
+
+Writing a platform map
+^^^^^^^^^^^^^^^^^^^^^^
+
+A platform is a set of firmware that shares both a register map and a bring-up
+procedure; two that read the same registers but are configured differently are
+two platforms. Each is one module under ``cryodaq/platform/``, data only -- no
+rogue, no reads -- listed in ``MAPS`` and turned into a :class:`PlatformMap` by
+the package. The module declares:
+
+``NAME``
+    The platform's short name (``umux-atca``), what ``--platform`` and
+    :func:`by_name` take.
+``TAGS``
+    The firmware image names this platform runs, as the build stamp reports
+    them before its first colon. Read one off a board rather than deriving it:
+    an image not listed is refused by name, which is the safe failure.
+``TOP_LEVEL``
+    ``module:attribute`` of the class in the firmware's Python package that
+    builds the FPGA's tree.
+``PACKAGE_CONFIG_DIR``
+    Where the firmware's release archive keeps its configuration files, so a
+    relative layer name a server is given means a file there.
+``CARRIER``
+    The carrier core's paths, bound from the shared template
+    (``_umux.Carrier(core, bsi=, timing=)``) to the core device this board
+    has; its ``BUILD_STAMP`` is where identification reads the stamp.
+``REGISTERS``, ``LEGACY``
+    Name pattern to ``(path template, kind)``. Take the shared tables from
+    ``_umux`` and add the registers of the hardware only this platform
+    carries; a name the platform cannot back must not be declared -- a map is
+    a statement of what a tree has. Patterns index their scopes with ``[*]``
+    and the template formats the same scope names (``{bay}``). ``LEGACY``
+    holds names only deprecated compatibility accessors reach.
+``SCOPES``
+    Scope name to ``(path templates that prove an index exists, parent
+    scopes)``; a scope is something the hardware has *n* of.
+``WITNESS``
+    Name patterns worth reading back to record how a system was left.
+``SERVER_DEVICES`` (optional)
+    :class:`ServerDevice` entries for hardware the *server* adds beside the
+    FPGA's tree, driven by a class of the firmware package over a register
+    path of its own (the transport attribute that carries it). A dump of the
+    package has none of these.
+``SETUP_FILES`` (optional)
+    Files the platform's configuration procedure needs from the firmware
+    package, by the procedure's option name, relative to the package.
+
+A platform also needs a configuration procedure: a ``Setup`` subclass in
+``cryodaq.server``, registered under its name, whose ``steps`` are the
+firmware's own bring-up order. The checks that keep a map honest are in
+``tests/cryodaq``: every name must resolve on a dump of the platform's released
+package, every procedure step must reach a node its platform has, and the
+map's stamp register must be the one the platform reports its own stamp at.
 
 server
 ------
@@ -109,11 +168,24 @@ the lanes that would otherwise intercept the carrier's traffic.
 firmware package's (``SmurfPcie``), bound to the device and written by name;
 no tree of the card is started -- the server runs one tree, the carrier's.
 
+The RFMC carrier is reached over a TCP bridge on its processor system
+(``--transport tcp-bridge --ps-addr <PS> --addr <FPGA>``): the FPGA's registers
+and its RF data converter's driver are each served there, and the data leaves
+the FPGA's own Ethernet port as a carrier's does -- received on the host's port
+by default, or through the offload card's lane with ``--bridge-data pcie``. The
+converter is built as a device beside the FPGA's tree over its own register
+path, and the carrier's configuration procedure brings the board's clocks and
+converter up, synchronises the converter's tiles and then loads the layers, in
+the order the firmware's own start-up uses, with polling held off throughout. A
+layer whose top-level key is not the server root's name is refused rather than
+credited: rogue would log it as not found and still end the load well. The
+procedure has run only in emulation so far.
+
 This is the one part of cryodaq that imports rogue at module level; the package
 does not import it.
 
 .. automodule:: cryodaq.server
     :members: compose, OperationsProvider, attach_operations, Transport, eth,
-              pcie, emulation, ReadoutRoot, CORE_PROVIDERS, add_capture_receivers,
-              OffloadCard
+              pcie, tcp_bridge, emulation, ReadoutRoot, CORE_PROVIDERS,
+              add_capture_receivers, OffloadCard
     :undoc-members:
