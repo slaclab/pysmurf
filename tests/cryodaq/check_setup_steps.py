@@ -228,7 +228,10 @@ class StoodInLoad:
         self.loads = []
 
     def __enter__(self):
-        self.saved = self._setup.load_layers
+        self.saved = (self._setup.load_layers, self._setup.check_layer_names_this_root)
+        # The layer files are nominal here; the key check is a file read, stood
+        # in with the load, and has a check of its own over real files.
+        self._setup.check_layer_names_this_root = lambda root, layer: None
 
         def load(root, layers):
             if not layers:
@@ -243,7 +246,7 @@ class StoodInLoad:
         return self
 
     def __exit__(self, *exc):
-        self._setup.load_layers = self.saved
+        self._setup.load_layers, self._setup.check_layer_names_this_root = self.saved
 
 
 class Flag:
@@ -506,6 +509,16 @@ def check_a_layer_written_for_another_root_is_refused():
         else:
             raise AssertionError('load_layers loaded a layer keyed for another root')
         assert root.LoadConfigProcess.started == [], 'the loader was started for a refused layer'
+        # And the whole procedure refuses before touching the hardware, on every platform.
+        for stem in PLATFORM_OF:
+            _setup, root = tree(stem, aligned_lanes({}) if stem == 'atca' else None)
+            try:
+                procedure(_setup, stem, layers=(str(theirs),)).run(root)
+            except _setup.StepError as e:
+                assert str(e).startswith('load layers: ') and "'Root'" in str(e), e
+            else:
+                raise AssertionError(f'{stem}: a procedure with a foreign layer ran')
+            assert root.log == [], f"{stem}: the tree was touched for a refused layer: {root.log[:3]}"
 
 
 def check_a_load_with_no_layers_is_refused():
