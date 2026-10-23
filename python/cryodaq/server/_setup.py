@@ -40,6 +40,7 @@ import pyrogue
 from cryodaq import platform
 
 __all__ = ['Setup', 'AtcaSetup', 'RfsocSetup', 'RfmcSetup', 'setup_for', 'SETUPS', 'StepError',
+           'load_layers', 'check_layer_names_this_root',
            'LOAD_TIMEOUT_PER_LAYER_S', 'LOAD_RETRIES', 'ELASTIC_BUFFER_RETRIES',
            'RESET_RECOVERY_TIMEOUT_S']
 
@@ -124,6 +125,18 @@ def check_layer_names_this_root(root: Any, layer: str) -> None:
     defaults, say -- would then be credited as loaded and change nothing. Only
     the keys are read here, with rogue's own reader, so a file it cannot open
     fails the same way it would in the load.
+
+    Parameters
+    ----------
+    root : pyrogue.Root
+        The tree the layer is for; only its name is used.
+    layer : str
+        The file, as rogue's loader will take it (a path into an archive too).
+
+    Raises
+    ------
+    StepError
+        If the file cannot be read, or a top-level key is not the root's name.
     """
     try:
         keys = list(pyrogue.yamlToData(fName=layer) or {})
@@ -164,15 +177,27 @@ class Setup(pyrogue.Process):
         """The platform's steps on the started tree, in order, each named for ``Message``."""
         raise NotImplementedError('a platform subclass names its steps')
 
-    def run(self, root: Any) -> None:
-        """Run the steps in order; a step that cannot complete raises, naming itself.
+    def refuse_unloadable_layers(self, root: Any) -> None:
+        """Refuse, before any step, layers the load could not apply: none, or ones for another root.
 
-        A server with no layers is refused before any step runs: the carrier's
-        converter resets would otherwise disturb the hardware for a load that
-        was never going to happen.
+        The carrier's converter resets, or the RFMC's clock programming, would
+        otherwise disturb the hardware for a load that was never going to
+        configure it.
         """
         if not self.layers:
             raise StepError('load layers: no register layers were given')
+        for layer in self.layers:
+            try:
+                check_layer_names_this_root(root, layer)
+            except StepError as e:
+                raise StepError(f"load layers: {e}") from e
+
+    def run(self, root: Any) -> None:
+        """Run the steps in order; a step that cannot complete raises, naming itself.
+
+        Layers the load could not apply are refused before any step runs.
+        """
+        self.refuse_unloadable_layers(root)
         steps = self.steps(root)
         self.setTotalSteps(len(steps))
         for name, step in steps:
@@ -354,9 +379,8 @@ class RfmcSetup(Setup):
                 ('reset counters', root.CountReset))
 
     def run(self, root: Any) -> None:
-        if not self.layers:
-            # Refused before polling is touched, as the base refuses before any step.
-            Setup.run(self, root)
+        # Refused before polling is touched, as the base refuses before any step.
+        self.refuse_unloadable_layers(root)
         polling = root.PollEn.value()
         root.PollEn.set(False)
         try:

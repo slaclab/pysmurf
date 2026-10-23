@@ -1124,7 +1124,7 @@ def stood_in_procedure(_setup, fail_load=False):
     exercised by its own check.
     """
     saved = (_setup.load_layers, _setup.AtcaSetup.check_elastic_buffers, ROOT.ReadAll._function,
-             ROOT.setup.layers, _setup.RfmcSetup.steps)
+             ROOT.setup.layers, _setup.RfmcSetup.steps, _setup.check_layer_names_this_root)
 
     def load(root, layers):
         if fail_load:
@@ -1141,6 +1141,9 @@ def stood_in_procedure(_setup, fail_load=False):
                 ('load layers', lambda: _setup.load_layers(root, self.layers)))
     try:
         _setup.load_layers = load
+        # The stand-in layer is a name, not a file; the key check that reads
+        # one is stood in with the load, and has a check of its own.
+        _setup.check_layer_names_this_root = lambda root, layer: None
         _setup.AtcaSetup.check_elastic_buffers = lambda self, root: None
         _setup.RfmcSetup.steps = rfmc_steps
         ROOT.ReadAll.replaceFunction(lambda: None)
@@ -1148,7 +1151,7 @@ def stood_in_procedure(_setup, fail_load=False):
         yield
     finally:
         (_setup.load_layers, _setup.AtcaSetup.check_elastic_buffers, _, ROOT.setup.layers,
-         _setup.RfmcSetup.steps) = saved
+         _setup.RfmcSetup.steps, _setup.check_layer_names_this_root) = saved
         ROOT.ReadAll.replaceFunction(saved[2])
 
 
@@ -1521,8 +1524,8 @@ def add_library_paths(args):
         pr.addLibraryPath(f"{args.rfmc}/python")
         # The release declares rogue >= 6.15.0, for its RF data converter class
         # alone; what that version adds (RoCEv2, build files) nothing here uses,
-        # and the deployed server image has moved to 6.15.0. This interpreter
-        # has not, so the declaration is stood in -- here, and in the entry-point
+        # and a server image with 6.15.0 exists. This interpreter has not
+        # moved, so the declaration is stood in -- here, and in the entry-point
         # child, which runs under the same interpreter.
         import rogue
         rogue.Version.minVersion = lambda *a, **k: None

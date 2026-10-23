@@ -193,11 +193,15 @@ def _build_top_level(cls, srp, options):
     One command line thereby serves every platform and release.
     """
     options = dict(options)
+    # The register window's offset is the transport's fact, not a deployment
+    # option: a class that cannot take it must not be built without it.
+    required = {k for k in options if k == 'offset'}
     while True:
         try:
             return cls(memBase=srp, **options)
         except TypeError as e:
-            unknown = [k for k in options if f"'{k}'" in str(e)]
+            unknown = [k for k in options
+                       if f"unexpected keyword argument '{k}'" in str(e) and k not in required]
             if not unknown:
                 raise
             _log.warning("%s does not take %s; building without it", cls.__name__, ', '.join(unknown))
