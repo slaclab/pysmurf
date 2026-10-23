@@ -726,16 +726,16 @@ def check_the_platform_probe_opens_the_link_before_reading():
     address = ROOT.getNode(platform.by_name(EXPECTED_PLATFORM[PLATFORM]).tag_path).address
     for offset, byte in enumerate(stamp_for(EXPECTED_IMAGE[PLATFORM]).encode()):
         srp._data[address + offset] = byte
-    original = platform.identify
+    original = platform.from_stamp
 
-    def identify(tree):
+    def from_stamp(stamp):
         events.append('read')
-        return original(tree)
-    platform.identify = identify
+        return original(stamp)
+    platform.from_stamp = from_stamp
     try:
         pmap = cryodaq.server._firmware.probe_platform(srp, [Link()])
     finally:
-        platform.identify = original
+        platform.from_stamp = original
     assert pmap.name == EXPECTED_PLATFORM[PLATFORM], pmap.name
     assert events == ['start', 'read', 'stop'], f"the probe did not bracket its read: {events}"
 
@@ -892,13 +892,18 @@ def check_the_rfmc_composition_carries_its_converter_and_clock_file():
     with the reason. On the other platforms the root carries neither.
     """
     root = ROOT
-    rfdc = root.getNode(root.pmap.rfdc_path) if root.pmap.rfdc_path else None
     if PLATFORM != 'rfmc':
-        assert rfdc is None, f"{PLATFORM} carries an RF data converter"
+        assert not root.pmap.server_devices and not root.pmap.setup_files, \
+            f"{PLATFORM} declares something for the server to add"
+        assert root.getNode(platform.RFMC_RFDC_PATH) is None, f"{PLATFORM} carries an RF data converter"
         assert not hasattr(root.setup, 'lmk_config')
         return
+    (declared,) = root.pmap.server_devices
+    assert declared.path == platform.RFMC_RFDC_PATH and declared.link == 'srp_rfdc', declared
+    rfdc = root.getNode(declared.path)
     assert rfdc is not None, 'the RFMC root has no RF data converter'
     assert rfdc.parent is root, 'the converter is not a device beside the FPGA'
+    assert type(rfdc).__name__ == declared.driver.partition(':')[2], type(rfdc)
     # What the procedure drives: the multi-tile sync block, and the device's own
     # initialisation, which its class provides as a method rather than a node.
     assert rfdc.node('Mts') is not None and callable(rfdc.Init)
@@ -918,7 +923,7 @@ def check_the_rfmc_composition_carries_its_converter_and_clock_file():
                                     server_port=free_port(), polling=False,
                                     top_level_class=StandInTopLevel)
     except cryodaq.ConnectError as e:
-        assert 'second register path' in str(e) and 'emulation' in str(e), e
+        assert 'srp_rfdc' in str(e) and 'emulation' in str(e), e
     else:
         raise AssertionError('an RFMC server was composed with no path to its converter')
 

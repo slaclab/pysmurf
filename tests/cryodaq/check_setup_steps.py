@@ -206,13 +206,14 @@ def tree(stem, values=None):
     _setup = setup_module()
     pmap = platform.by_name(PLATFORM_OF[stem])
     root = StandInRoot(load_dump(stem), values, pmap)
-    if pmap.rfdc_path:
+    if pmap.server_devices:
         # The RF data converter is not in a dump of the firmware package (it is a
         # device the server adds, over its own link), so the stand-in grows it:
         # its init command and the multi-tile sync block the procedure drives.
+        (rfdc,) = pmap.server_devices
         for leaf in ('Init', 'Mts.DacTiles', 'Mts.AdcTiles', 'Mts.DacRefTile', 'Mts.AdcRefTile',
                      'Mts.SyncDacTiles', 'Mts.SyncAdcTiles'):
-            root._grow(f'{pmap.rfdc_path}.{leaf}')
+            root._grow(f'{rfdc.path}.{leaf}')
         # The carrier core's bring-up helpers are methods of its class.
         core = root.by_path[platform.RFMC_CARRIER_PATH]
         core.__class__ = RfmcCarrierCore
@@ -351,14 +352,14 @@ def check_the_rfmc_sequence_is_the_firmwares_own():
     with StoodInLoad(_setup) as load:
         setup.run(root)
     core = platform.RFMC_CARRIER_PATH
-    rfdc = root.pmap.rfdc_path
+    rfdc = platform.RFMC_RFDC_PATH
     crossbar = f'{core}.AxiSy56040.OutputConfig[{platform.RFMC_TIMING_RECEIVER_CROSSBAR_OUTPUT}]'
     expected = [
         ('set', 'AMCc.PollEn', False),
-        ('call', f'{core}.UserRst', _setup.RESET_RECOVERY_TIMEOUT_S),
+        ('call', f'{core}.UserRst', _setup.RfmcSetup.RESET_RECOVERY_TIMEOUT_S),
         ('set', crossbar, 0x2),                                   # backplane, STARTUP_TIMING in the firmware
         ('call', f'{core}.InitClock', '/pkg/lmk.txt'),
-        ('call', f'{core}.DspRstWait', _setup.RESET_RECOVERY_TIMEOUT_S),
+        ('call', f'{core}.DspRstWait', _setup.RfmcSetup.RESET_RECOVERY_TIMEOUT_S),
         ('call', f'{rfdc}.Init'),
         ('call', 'AMCc.ReadAll'),
         ('set', f'{rfdc}.Mts.DacTiles', 0xF),
@@ -452,8 +453,8 @@ def check_the_link_check_judges_lanes_as_witnessed():
     assert all(expected[lane] == (13, 14) for lane in (0, 1, 4, 5, 6, 7, 8, 9))
     root.values[f'{JESD_BAY(0)}.JesdRx.ElBuffLatency[5]'] = 7
     setup = procedure(_setup, 'atca')
-    saved_retries = _setup.ELASTIC_BUFFER_RETRIES
-    _setup.ELASTIC_BUFFER_RETRIES = 2
+    saved_retries = _setup.AtcaSetup.ELASTIC_BUFFER_RETRIES
+    _setup.AtcaSetup.ELASTIC_BUFFER_RETRIES = 2
     try:
         with StoodInLoad(_setup) as load:
             try:
@@ -466,7 +467,7 @@ def check_the_link_check_judges_lanes_as_witnessed():
         reads = [e for e in root.log if e[0] == 'call' and e[1].endswith('ReadDevice')]
         assert len(reads) == 4, f"{len(reads)} device reads for two bays over two tries"
     finally:
-        _setup.ELASTIC_BUFFER_RETRIES = saved_retries
+        _setup.AtcaSetup.ELASTIC_BUFFER_RETRIES = saved_retries
     _setup, root = tree('atca', aligned_lanes({}))
     with StoodInLoad(_setup) as load:
         setup.check_elastic_buffers(root)
@@ -623,7 +624,7 @@ def check_a_failing_step_ends_the_procedure_unconfigured():
     assert status.SystemConfigured.values == [False, False], status.SystemConfigured.values
     assert status.ConfiguringInProgress.values == [True, False]
     # The carrier reports its links unlocked when a step fails, locked when the run ends well.
-    assert status.JesdStatus.values == [_setup.JESD_UNLOCKED], status.JesdStatus.values
+    assert status.JesdStatus.values == [_setup.AtcaSetup.JESD_UNLOCKED], status.JesdStatus.values
     # The message names the step that failed as well as why.
     assert Message.text == 'Error: load layers: stood-in load failed', Message.text
     # The message is published before the in-progress flag drops, which is what
@@ -632,7 +633,7 @@ def check_a_failing_step_ends_the_procedure_unconfigured():
     with StoodInLoad(_setup):
         setup._process()
     assert status.SystemConfigured.values[-1] is True
-    assert status.JesdStatus.values == [_setup.JESD_UNLOCKED, _setup.JESD_LOCKED], status.JesdStatus.values
+    assert status.JesdStatus.values == [_setup.AtcaSetup.JESD_UNLOCKED, _setup.AtcaSetup.JESD_LOCKED], status.JesdStatus.values
     assert Message.text == 'Done', Message.text
     # A read that fails on a rerun after a good one reports the links unlocked, not the earlier Locked.
     again = procedure(_setup, 'atca')
@@ -648,12 +649,12 @@ def check_a_failing_step_ends_the_procedure_unconfigured():
         assert str(e) == 'read all: register transaction timed out', e
     else:
         raise AssertionError('a failing read was not reported')
-    assert again.status.JesdStatus.values == [_setup.JESD_LOCKED, _setup.JESD_UNLOCKED], again.status.JesdStatus.values
+    assert again.status.JesdStatus.values == [_setup.AtcaSetup.JESD_LOCKED, _setup.AtcaSetup.JESD_UNLOCKED], again.status.JesdStatus.values
     # Four steps declared each run; the good run stepped through all four, the bad one through none.
     assert again.progress == [('total', 4)] + ['step'] * 4 + [('total', 4)], again.progress
     # A firmware without the health check has a status of 'Not found', which the outcome leaves alone.
     old = procedure(_setup, 'atca')
-    old.status.JesdStatus = Flag(_setup.JESD_NOT_FOUND)
+    old.status.JesdStatus = Flag(_setup.AtcaSetup.JESD_NOT_FOUND)
     with StoodInLoad(_setup):
         old.run(tree('atca', aligned_lanes({}))[1])
     with StoodInLoad(_setup, fail=True):

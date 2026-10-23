@@ -75,7 +75,7 @@ def main():
     import pyrogue.interfaces.simulation
 
     pmap = platform.by_name(args.platform)
-    if pmap.rfdc_path:
+    if pmap.server_devices:
         # This platform's release declares a rogue newer than the server image
         # that runs this (6.15.0, for its RF data converter class); the dump
         # builds the FPGA's tree, not the converter, so the declaration is

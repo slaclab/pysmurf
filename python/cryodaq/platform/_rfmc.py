@@ -30,19 +30,18 @@
 from cryodaq.platform import _umux
 
 __all__ = ['NAME', 'TAGS', 'TOP_LEVEL', 'PACKAGE_CONFIG_DIR', 'CARRIER', 'REGISTERS', 'LEGACY',
-           'WITNESS', 'SCOPES', 'QUAD', 'RFDC', 'LMK_CONFIG', 'STARTUP_TIMING_SOURCE',
+           'WITNESS', 'SCOPES', 'QUAD', 'RFDC', 'SERVER_DEVICES', 'SETUP_FILES', 'STARTUP_TIMING_SOURCE',
            'TIMING_RECEIVER_CROSSBAR_OUTPUT']
 
 NAME = 'umux-rfmc'
 
-# The firmware image name this platform runs, as the build stamp reports it. Not
-# yet read off a board: derived, as the RFSoC's are, from the one build target of
-# the rfmc-cryo-det firmware, which is also the stem of its release assets
-# (MicrowaveMuxRfmcCarrier-0x01010000-...). An image reports the target it was
-# built from, as the carrier's does; to be confirmed against a live board, and
-# corrected here if what it reports differs. A wrong name fails safe --
-# identification refuses what it does not recognise -- and `platform_name=`
-# names the platform for a system whose firmware is not listed.
+# The firmware image name this platform runs, as the build stamp reports it. Read
+# off a board running v1.1.0:
+#
+#   MicrowaveMuxRfmcCarrier: Vivado v2026.1, rdsrv403 (Ubuntu 22.04.5 LTS), ...
+#
+# which is the one build target of the rfmc-cryo-det firmware, as the carrier's
+# image reports its target.
 TAGS = ('MicrowaveMuxRfmcCarrier',)
 
 # The class in the firmware's Python package that builds this platform's register
@@ -68,15 +67,18 @@ CARRIER = _umux.Carrier('RfmcCarrierCore', bsi='RfmcCarrierBsi', timing='RfmcCar
 STARTUP_TIMING_SOURCE = {'backplane': 0x2, 'rtm0': 0x0, 'rtm1': 0x3, 'standalone': 0x1}
 TIMING_RECEIVER_CROSSBAR_OUTPUT = 1
 
-# The RF data converter: a device the *server* adds beside the FPGA's tree, reached
-# over its own register path to the processor system rather than through the FPGA's
-# memory, so it is not in a dump of the firmware package. Its configuration procedure
-# initialises it and synchronises its tiles.
+# The RF data converter: a device the *server* adds beside the FPGA's tree, driven by
+# the firmware package's class over its own register path to the processor system
+# rather than through the FPGA's memory, so it is not in a dump of the package. The
+# configuration procedure initialises it and synchronises its tiles.
 RFDC = f'{_umux.ROOT}.Rfdc'
+SERVER_DEVICES = (
+    _umux.ServerDevice(path=RFDC, driver='axi_soc_ultra_plus_core.rfsoc_utility:Rfdc', link='srp_rfdc'),
+)
 # The clock chips' register file, as TI's tool exports it, where the firmware's Python
 # package ships it (relative to the package); the configuration procedure programs the
 # LMK and LMX from it.
-LMK_CONFIG = 'config/lmk/HexRegisterValues.txt'
+SETUP_FILES = {'lmk_config': 'config/lmk/HexRegisterValues.txt'}
 
 # --------------------------------------------------------------------------
 # what only this platform has

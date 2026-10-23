@@ -97,17 +97,73 @@ def check_each_map_reads_its_stamp_where_its_table_says():
 
     Identification reads ``tag_path`` before it knows the platform; once known, a
     client reads ``firmware.build_stamp`` through the map. The two must be one
-    register, and the version block the probe builds must be the device that
-    register sits in -- otherwise a platform could be recognised by one stamp and
-    report another.
+    register -- otherwise a platform could be recognised by one stamp and report
+    another -- and it must sit in the carrier core's version block, which is the
+    one device the server's probe builds before it has a tree.
     """
     for pmap in platform.MAPS:
         assert pmap.tag_path == pmap.path('firmware.build_stamp'), \
             f"{pmap.name} is identified at {pmap.tag_path} but reports its stamp elsewhere"
-        assert pmap.tag_path.rsplit('.', 1)[0] == pmap.version_block_path, \
-            f"{pmap.name}: the stamp is not in the version block the probe builds"
-        assert pmap.version_block_path in platform.VERSION_BLOCK_PATHS
-    assert len(platform.VERSION_BLOCK_PATHS) == len(set(platform.VERSION_BLOCK_PATHS))
+        assert pmap.tag_path.endswith('.AxiVersion.BuildStamp'), \
+            f"{pmap.name}: the stamp is not in a version block"
+
+
+def check_a_stamp_alone_names_the_platform():
+    """A build stamp's text identifies the platform with no tree: what the server's probe uses.
+
+    One version block serves every platform, so the platform is in the stamp's
+    text and never in where the block was read from. The same stamp through a
+    tree gives the same answer, and the two refuse the same inputs.
+    """
+    for pmap in platform.MAPS:
+        for tag in pmap.tags:
+            stamp = f"{tag}: Vivado v2020.2, host (os), Built today by someone"
+            assert platform.from_stamp(stamp) is pmap
+            assert platform.identify(tree(stamp)) is pmap
+    assert platform.from_stamp(LIVE_STAMP).name == 'umux-atca'
+    for stamp in (EMPTY_STAMP, '', None, '   '):
+        try:
+            platform.from_stamp(stamp)
+        except ConnectError as e:
+            assert 'declare' in str(e), e
+        else:
+            raise AssertionError(f"{stamp!r} named a platform")
+    try:
+        platform.from_stamp('SomeFutureImage: Vivado v2020.2, host (os), Built today by someone')
+    except ConnectError as e:
+        assert 'SomeFutureImage' in str(e), e
+    else:
+        raise AssertionError('unknown firmware named a platform')
+
+
+def check_identification_reads_each_stamp_register_once():
+    """A tree is asked for each distinct stamp register once, whatever the answer.
+
+    Two platforms keep their stamp at one path, a third elsewhere; a tree that
+    runs none of them must still have been asked at each path exactly once --
+    not once per map -- and the error names every path that was read.
+    """
+    asked = []
+
+    class Node:
+        def get(self):
+            return EMPTY_STAMP
+
+    class Tree:
+        def getNode(self, path):
+            asked.append(path)
+            return Node()
+
+    try:
+        platform.identify(Tree())
+    except ConnectError as e:
+        for path in set(asked):
+            assert path in str(e), f"the error does not name {path}: {e}"
+    else:
+        raise AssertionError('an empty tree was identified')
+    distinct = {m.tag_path for m in platform.MAPS}
+    assert len(asked) == len(distinct) and set(asked) == distinct, asked
+    assert len(asked) < len(platform.MAPS), 'no two maps share a stamp register; the case is empty'
 
 
 def check_tags_are_unique_across_maps():

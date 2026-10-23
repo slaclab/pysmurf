@@ -28,18 +28,18 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-from cryodaq.platform import _umux
+from cryodaq.platform import _atca, _umux
 
 __all__ = ['NAME', 'TAGS', 'TOP_LEVEL', 'PACKAGE_CONFIG_DIR', 'CARRIER', 'REGISTERS', 'LEGACY',
            'WITNESS', 'SCOPES']
 
 # The carrier core is the AMC carrier's: this firmware is the carrier's package built
 # without its bays, and the core, the regulator beside it and the shared registers are
-# as the carrier has them.
-CARRIER = _umux.AMC_CARRIER
-REGISTERS = {**_umux.REGISTERS, **_umux.AMC_CARRIER_REGISTERS}
-LEGACY = {**_umux.LEGACY, **_umux.AMC_CARRIER_LEGACY}
-SCOPES = {**_umux.SCOPES, **_umux.AMC_CARRIER_SCOPES}
+# as the carrier has them, so the board's tables are taken from the carrier's module.
+CARRIER = _atca.CARRIER
+REGISTERS = {**_umux.REGISTERS, **_atca.AMC_CARRIER_REGISTERS}
+LEGACY = {**_umux.LEGACY, **_atca.AMC_CARRIER_LEGACY}
+SCOPES = {**_umux.SCOPES, **_atca.AMC_CARRIER_SCOPES}
 WITNESS = _umux.WITNESS
 
 NAME = 'umux-rfsoc'

@@ -47,12 +47,13 @@ from typing import (Any, Callable, Dict, List, Mapping, Sequence, Tuple)
 
 from cryodaq._errors import ConnectError, UnresolvedName
 from cryodaq.platform import _atca, _rfmc, _rfsoc, _umux
+from cryodaq.platform._umux import ServerDevice
 
-__all__ = ['PlatformMap', 'MAPS', 'identify', 'by_name', 'tag_of', 'parse',
-           'expand', 'indices', 'witness_names', 'VALUE', 'COMMAND', 'PROCESS',
-           'DEVICE', 'KINDS', 'MAX_SCOPE_INDEX', 'VERSION_BLOCK_PATHS',
+__all__ = ['PlatformMap', 'ServerDevice', 'MAPS', 'identify', 'from_stamp', 'by_name',
+           'tag_of', 'parse', 'expand', 'indices', 'witness_names', 'VALUE', 'COMMAND',
+           'PROCESS', 'DEVICE', 'KINDS', 'MAX_SCOPE_INDEX', 'ROOT_PATH',
            'STATUS_DEVICE_PATH', 'CARRIER_FRONT_END_PATH', 'CARRIER_LINKS_PATH',
-           'RFMC_CARRIER_PATH', 'RFMC_LMK_CONFIG', 'RFMC_STARTUP_TIMING_SOURCE',
+           'RFMC_CARRIER_PATH', 'RFMC_RFDC_PATH', 'RFMC_STARTUP_TIMING_SOURCE',
            'RFMC_TIMING_RECEIVER_CROSSBAR_OUTPUT']
 
 # What kind of node a name reaches: a value is read and written, a command is
@@ -75,6 +76,8 @@ KINDS = (VALUE, COMMAND, PROCESS, DEVICE)
 # how many there are: how many of something a tree has is the tree's to say.
 MAX_SCOPE_INDEX = 32
 
+# The root of every tree, which is what a server names its own.
+ROOT_PATH = _umux.ROOT
 # The device a server reports its own state at.
 STATUS_DEVICE_PATH = _umux.APPLICATION
 # The two per-bay devices a carrier with converter cards has and a platform
@@ -83,12 +86,11 @@ STATUS_DEVICE_PATH = _umux.APPLICATION
 # procedure works on directly, so stated where paths live.
 CARRIER_FRONT_END_PATH = _atca.MUX_CORE
 CARRIER_LINKS_PATH = _atca.JESD_BAY
-# The RFMC carrier's core, and the clock crossbar output its timing receiver is fed
-# from with the sources that can be routed there; what that platform's configuration
-# procedure works on, stated where paths live. Its RF data converter is the map's
-# (``rfdc_path``), since the map is what says the platform has one.
+# The RFMC carrier's core and its RF data converter, and the clock crossbar output its
+# timing receiver is fed from with the sources that can be routed there; what that
+# platform's configuration procedure works on, stated where paths live.
 RFMC_CARRIER_PATH = _rfmc.CARRIER.CARRIER
-RFMC_LMK_CONFIG = _rfmc.LMK_CONFIG
+RFMC_RFDC_PATH = _rfmc.RFDC
 RFMC_STARTUP_TIMING_SOURCE = _rfmc.STARTUP_TIMING_SOURCE
 RFMC_TIMING_RECEIVER_CROSSBAR_OUTPUT = _rfmc.TIMING_RECEIVER_CROSSBAR_OUTPUT
 
@@ -191,19 +193,19 @@ class PlatformMap:
     top_level : str
         ``module:attribute`` of the class in the firmware package that builds
         this platform's register tree; what a server imports to build one.
-    version_block_path : str
-        The version block the build stamp sits in: inside the carrier core,
-        which is named for the board, so where it is depends on the platform.
-        A server reads it before it has a tree, so the path is stated here.
     tag_path : str
-        The build stamp register itself, by which a tree is recognised as this
-        platform's.
+        The build stamp register, by which a tree is recognised as this
+        platform's: inside the carrier core, which is named for the board, so
+        where it is depends on the platform.
     package_config_dir : str
         Where this platform's firmware release archive keeps its configuration
         files, relative to the archive's root.
-    rfdc_path : str
-        Where the server adds this platform's RF data converter, a device
-        driven over a register path of its own; '' for a platform without one.
+    server_devices : tuple of ServerDevice
+        What the server adds to the tree beside the FPGA's; empty for a
+        platform whose tree is the FPGA's alone.
+    setup_files : mapping
+        Files the platform's configuration procedure needs from the firmware
+        package, by the procedure's option name: path relative to the package.
     """
 
     name: str
@@ -212,10 +214,10 @@ class PlatformMap:
     witness: Tuple[str, ...]
     scopes: Mapping[str, Tuple[Tuple[str, ...], Tuple[str, ...]]]
     top_level: str = ''
-    version_block_path: str = ''
     tag_path: str = ''
     package_config_dir: str = ''
-    rfdc_path: str = ''
+    server_devices: Tuple[ServerDevice, ...] = ()
+    setup_files: Mapping[str, str] = field(default_factory=dict)
 
     def __contains__(self, pattern: str) -> bool:
         return pattern in self.registers
@@ -273,10 +275,10 @@ def _from_module(module: Any) -> PlatformMap:
                        registers={**module.REGISTERS, **module.LEGACY},
                        witness=tuple(module.WITNESS),
                        scopes=dict(module.SCOPES), top_level=module.TOP_LEVEL,
-                       version_block_path=module.CARRIER.AXI_VERSION,
                        tag_path=module.CARRIER.BUILD_STAMP,
                        package_config_dir=module.PACKAGE_CONFIG_DIR,
-                       rfdc_path=getattr(module, 'RFDC', ''))
+                       server_devices=tuple(getattr(module, 'SERVER_DEVICES', ())),
+                       setup_files=dict(getattr(module, 'SETUP_FILES', {})))
 
 
 # Every supported platform. One module per platform, and a platform is a set of
@@ -284,11 +286,6 @@ def _from_module(module: Any) -> PlatformMap:
 # that read the same registers but have to be configured differently are two
 # entries here, however much of their table they share.
 MAPS = (_from_module(_atca), _from_module(_rfsoc), _from_module(_rfmc))
-
-# Where the platforms keep their version block, each path once: the probe a server
-# runs before it has a tree reads the stamp at each of these, and the one that
-# answers names the platform. Two platforms on one carrier share a path.
-VERSION_BLOCK_PATHS = tuple(dict.fromkeys(m.version_block_path for m in MAPS))
 
 
 def tag_of(stamp: Any) -> str:
@@ -329,6 +326,39 @@ def by_name(name: str) -> PlatformMap:
     raise ConnectError(f"no platform called {name!r}; cryodaq has {known}")
 
 
+def from_stamp(stamp: Any) -> PlatformMap:
+    """Return the map for the firmware a build stamp names.
+
+    Parameters
+    ----------
+    stamp : str or None
+        A build stamp as the firmware reports it (see `tag_of`).
+
+    Raises
+    ------
+    ConnectError
+        If the stamp names no firmware, or firmware no map claims.
+    """
+    tag = tag_of(stamp)
+    if not tag:
+        raise _no_firmware('')
+    for candidate in MAPS:
+        if tag in candidate.tags:
+            return candidate
+    raise _unknown_firmware(tag)
+
+
+def _no_firmware(where: str) -> ConnectError:
+    return ConnectError(
+        f"this tree reports no firmware{where}, so its platform cannot be identified; "
+        f"declare one of {', '.join(repr(m.name) for m in MAPS)} instead")
+
+
+def _unknown_firmware(tag: str) -> ConnectError:
+    known = ', '.join(f"{t} ({m.name})" for m in MAPS for t in m.tags)
+    return ConnectError(f"firmware {tag!r} belongs to no platform cryodaq knows; it has {known}")
+
+
 def identify(tree: Any) -> PlatformMap:
     """Return the map for the firmware a tree is running.
 
@@ -354,24 +384,20 @@ def identify(tree: Any) -> PlatformMap:
     ConnectError
         If the tree reports no firmware, or reports firmware no map claims.
     """
-    tag = ''
-    for path in dict.fromkeys(m.tag_path for m in MAPS):
-        node = tree.getNode(path)
-        tag = tag_of(None if node is None else node.get())
-        if tag:
-            break
-    if not tag:
-        where = ' or '.join(dict.fromkeys(m.tag_path for m in MAPS))
-        raise ConnectError(
-            f"this tree reports no firmware at {where}, so its platform "
-            f"cannot be identified; declare one of "
-            f"{', '.join(repr(m.name) for m in MAPS)} instead")
+    # Each stamp register read once, though two platforms may keep theirs at
+    # the same path.
+    read: Dict[str, Any] = {}
     for candidate in MAPS:
-        if tag in candidate.tags:
+        if candidate.tag_path not in read:
+            node = tree.getNode(candidate.tag_path)
+            read[candidate.tag_path] = None if node is None else node.get()
+        if tag_of(read[candidate.tag_path]) in candidate.tags:
             return candidate
-    known = ', '.join(f"{t} ({m.name})" for m in MAPS for t in m.tags)
-    raise ConnectError(f"firmware {tag!r} belongs to no platform cryodaq knows; "
-                       f"it has {known}")
+    tags = [tag_of(stamp) for stamp in read.values() if tag_of(stamp)]
+    if not tags:
+        raise _no_firmware(f" at {' or '.join(read)}")
+    # A stamp was read and no map claims it at the register it was read from.
+    raise _unknown_firmware(tags[0])
 
 
 def indices(pmap: PlatformMap, has: Callable[[str], bool], scope: str,

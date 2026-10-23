@@ -31,7 +31,8 @@
 from cryodaq.platform import _umux
 
 __all__ = ['NAME', 'TAGS', 'TOP_LEVEL', 'PACKAGE_CONFIG_DIR', 'CARRIER', 'REGISTERS', 'LEGACY',
-           'WITNESS', 'SCOPES', 'MUX_CORE', 'JESD_BAY']
+           'WITNESS', 'SCOPES', 'MUX_CORE', 'JESD_BAY', 'AMC_CARRIER_REGISTERS', 'AMC_CARRIER_LEGACY',
+           'AMC_CARRIER_SCOPES']
 
 NAME = 'umux-atca'
 
@@ -56,6 +57,44 @@ TOP_LEVEL = 'CryoDet._MicrowaveMuxBpEthGen2:FpgaTopLevel'
 # Where the firmware's release archive keeps its configuration files, so a relative
 # name a server is given means a file there.
 PACKAGE_CONFIG_DIR = 'python/CryoDet/config'
+
+_V, _C = 'value', 'command'
+
+# --------------------------------------------------------------------------
+# the AMC carrier board, shared with the RFSoC whose firmware is this carrier's
+# package built without its bays
+# --------------------------------------------------------------------------
+
+# The carrier core, with its board-support and timing devices named for the board.
+CARRIER = _umux.Carrier('AmcCarrierCore', bsi='AmcCarrierBsi', timing='AmcCarrierTiming')
+
+# The point-of-load regulator on the carrier, reached over I2C. The *server* attaches
+# this device rather than the firmware package declaring it, so a dump of a package has
+# none of it and its absence there says nothing about the hardware. The registers are
+# the board's, not the core's.
+_REGULATOR = f'{CARRIER.CARRIER}.EM22xx'
+_REGULATOR_CURRENT = f'{_REGULATOR}.IOUT'
+_REGULATOR_TEMPERATURE = f'{_REGULATOR}.TEMPERATURE[{{temperature}}]'
+
+# The firmware's own check of its converter serial links, where a release carries one:
+# the command runs it and the status is its last verdict. The command is this carrier's
+# application top and is built into every tree on it -- the RFSoC has no such links and
+# nothing for it to find, and its map names no verdict for it (see
+# `application.jesd_status` below). A map states what a tree has; whether the server acts
+# on it is the verdict's business.
+_JESD_HEALTH = f'{_umux.APP_TOP}.JesdHealth'
+_JESD_HEALTH_STATUS = f'{_umux.APP_TOP}.JesdHealthStatus'
+
+# The carrier board's tables, which the RFSoC's map takes whole.
+AMC_CARRIER_REGISTERS = {
+    **CARRIER.registers(),
+    'carrier.regulator.current': (_REGULATOR_CURRENT, _V),
+    'carrier.regulator.temperature[*]': (_REGULATOR_TEMPERATURE, _V),
+    'jesd.health': (_JESD_HEALTH, _C),
+    'jesd.health_status': (_JESD_HEALTH_STATUS, _V),
+}
+AMC_CARRIER_LEGACY = CARRIER.legacy()
+AMC_CARRIER_SCOPES = {**CARRIER.scopes(), 'temperature': ((_REGULATOR_TEMPERATURE,), ())}
 
 # --------------------------------------------------------------------------
 # what only this platform has
@@ -125,12 +164,7 @@ _JESD_RX_STATUS_VALID_COUNT = (f'{JESD_BAY}.JesdRx.StatusValidCnt'
 _JESD_TX_STATUS_VALID_COUNT = (f'{JESD_BAY}.JesdTx.StatusValidCnt'
                                f'[{{link}}]')
 
-_V, _C = 'value', 'command'
-
-# The AMC carrier core, with the regulator the server attaches beside it.
-CARRIER = _umux.AMC_CARRIER
-
-REGISTERS = {**_umux.REGISTERS, **_umux.AMC_CARRIER_REGISTERS}
+REGISTERS = {**_umux.REGISTERS, **AMC_CARRIER_REGISTERS}
 REGISTERS.update({
     # the RF front end
     'bay[*].attenuator[*].uc': (_ATTENUATOR_UC, _V),
@@ -155,7 +189,7 @@ REGISTERS.update({
 })
 
 # The carrier's names only deprecated accessors reach; see the shared map's LEGACY.
-LEGACY = {**_umux.LEGACY, **_umux.AMC_CARRIER_LEGACY}
+LEGACY = {**_umux.LEGACY, **AMC_CARRIER_LEGACY}
 LEGACY.update({
     'bay[*].dac[*].enable': (_DAC_ENABLE, _V),
     'bay[*].clock.select_external_reference': (_SELECT_EXTERNAL_REFERENCE, _C),
@@ -166,7 +200,7 @@ LEGACY.update({
 # The scopes those registers are indexed by. They hang off `bay`, which the shared map
 # declares, because a bay is a bay on every platform of the generation; what differs is
 # what is inside one.
-SCOPES = {**_umux.SCOPES, **_umux.AMC_CARRIER_SCOPES}
+SCOPES = {**_umux.SCOPES, **AMC_CARRIER_SCOPES}
 SCOPES.update({
     # Either direction proves a path: a firmware with one and not the other has wired up
     # fewer of one, which is a fact about the tree, as with the event receiver's scopes.
