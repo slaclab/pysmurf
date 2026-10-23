@@ -227,13 +227,13 @@ jobs:
           fi
           tag=MicrowaveMuxBpEthGen2_v2.5.1
           zip=rogue_${tag}.zip
-          id=$(curl --fail --silent --location \
+          id=$(curl --fail --silent --show-error --location \
                  --header "Authorization: token ${GITHUB_TOKEN}" \
                  "https://api.github.com/repos/slaclab/cryo-det/releases/tags/${tag}" \
                | python3 -c "import json,sys;
           print(next(a['id'] for a in json.load(sys.stdin)['assets']
                      if a['name'] == '${zip}'))")
-          curl --fail --silent --location \
+          curl --fail --silent --show-error --location \
                --header "Authorization: token ${GITHUB_TOKEN}" \
                --header "Accept: application/octet-stream" \
                --output "${zip}" \
@@ -248,20 +248,36 @@ jobs:
           python3 tests/cryodaq/check_catalog_resolves.py \
             --package-dump ./released.varlist.txt
 
-      # - The same, for the RFMC carrier's firmware (slaclab/rfmc-cryo-det, public: no
-      #   token). Its release carries the carrier's and the application's packages
-      #   as submodules; the dump builds its own top level, and the RFMC map is what
-      #   is resolved against it. The release declares a rogue newer than this
-      #   container's for its RF data converter alone, which the dump does not build,
-      #   so the dump stands the declaration in.
+      # - The same, for the RFMC carrier's firmware (slaclab/rfmc-cryo-det). Its
+      #   release carries the carrier's and the application's packages as submodules;
+      #   the dump builds its own top level, and the RFMC map is what is resolved
+      #   against it. The release declares a rogue newer than this container's for its
+      #   RF data converter alone, which the dump does not build, so the dump stands
+      #   the declaration in. A private repository like cryo-det: the same token, the
+      #   same skip-and-say-so on a fork pull request.
       - name: Resolve the RFMC names against a released firmware package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           set -euo pipefail
+          if [ -z "${GITHUB_TOKEN}" ]; then
+            echo "::notice::no token for slaclab/rfmc-cryo-det (fork pull request?);" \
+                 "the RFMC released-package resolution is skipped, the fixture still runs"
+            exit 0
+          fi
           tag=MicrowaveMuxRfmcCarrier_v1.1.0
           zip=rogue_${tag}.zip
-          curl --fail --silent --location \
+          id=$(curl --fail --silent --show-error --location \
+                 --header "Authorization: token ${GITHUB_TOKEN}" \
+                 "https://api.github.com/repos/slaclab/rfmc-cryo-det/releases/tags/${tag}" \
+               | python3 -c "import json,sys;
+          print(next(a['id'] for a in json.load(sys.stdin)['assets']
+                     if a['name'] == '${zip}'))")
+          curl --fail --silent --show-error --location \
+               --header "Authorization: token ${GITHUB_TOKEN}" \
+               --header "Accept: application/octet-stream" \
                --output "${zip}" \
-               "https://github.com/slaclab/rfmc-cryo-det/releases/download/${tag}/${zip}"
+               "https://api.github.com/repos/slaclab/rfmc-cryo-det/releases/assets/${id}"
           docker container cp "${zip}" server:/tmp/"${zip}"
           docker container cp tests/cryodaq/dump_released_tree.py \
             server:/tmp/dump_released_tree.py
