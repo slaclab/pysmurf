@@ -29,6 +29,7 @@
 #-----------------------------------------------------------------------------
 import atexit
 import contextlib
+import importlib
 import importlib.resources
 import logging
 import os
@@ -210,50 +211,56 @@ def _build_top_level(cls, srp, options):
 
 
 def _platform_devices(pmap: platform.PlatformMap, transport: Transport) -> Dict[str, Any]:
-    """What a platform adds to the root beside the FPGA's tree, from its package.
+    """What a platform's map says the server adds beside the FPGA's tree, built from its package.
 
-    A platform whose map places an RF data converter on the root (the RFMC
-    carrier) drives it over a register path of its own, the transport's
-    ``srp_rfdc``, and its configuration procedure programs the carrier's
-    clock chips from a register file the firmware package ships beside its
-    code. Both are found here, where the package is importable. The file is
-    read by the clock chip's driver as a plain file, so one inside a release
-    archive is extracted beside the server for as long as it runs.
+    A map declares the devices the server drives over register paths of their
+    own (``server_devices``: the RFMC carrier's RF data converter, over the
+    transport's second path) and the files its configuration procedure needs
+    from the firmware package (``setup_files``: that carrier's clock chip
+    register file). Both are resolved here, where the package is importable. A
+    file is read by its driver as a plain file, so one inside a release archive
+    is extracted beside the server for as long as it runs.
 
     Parameters
     ----------
     pmap : PlatformMap
-        The platform identified; its ``rfdc_path`` says whether it has one.
+        The platform identified.
     transport : Transport
-        Where the converter's register path comes from.
+        Where the devices' register paths come from, by attribute name.
 
     Returns
     -------
     dict
         Keyword arguments for `ReadoutRoot`: ``devices`` to add, and
         ``setup_options`` for the platform's procedure. Empty for a platform
-        that adds nothing.
+        that declares nothing.
 
     Raises
     ------
     ConnectError
-        If the platform has a converter and the transport no path to it, or
-        the package ships no clock file.
+        If a declared device's register path is one the transport does not
+        have, or the package ships no file the procedure needs.
     """
-    if not pmap.rfdc_path:
+    if not pmap.server_devices and not pmap.setup_files:
         return {}
-    if transport.srp_rfdc is None:
-        raise ConnectError(f"platform {pmap.name} drives an RF data converter over a second "
-                           f"register path, which the {transport.name} transport does not have")
-    import axi_soc_ultra_plus_core.rfsoc_utility as rfsoc_utility
-    rfdc = rfsoc_utility.Rfdc(name=pmap.rfdc_path.rsplit('.', 1)[1], memBase=transport.srp_rfdc)
+    devices = []
+    for declared in pmap.server_devices:
+        srp = getattr(transport, declared.link, None)
+        if srp is None:
+            raise ConnectError(f"platform {pmap.name} drives {declared.path} over a register path "
+                               f"({declared.link}) which the {transport.name} transport does not have")
+        module_name, _, attribute = declared.driver.partition(':')
+        driver = getattr(importlib.import_module(module_name), attribute)
+        devices.append(driver(name=declared.path.rsplit('.', 1)[1], memBase=srp))
     package = pmap.top_level.partition(':')[0]
-    resource = importlib.resources.files(package).joinpath(platform.RFMC_LMK_CONFIG)
-    if not resource.is_file():
-        raise ConnectError(f"the {package} package ships no {platform.RFMC_LMK_CONFIG}, which the "
-                           f"{pmap.name} configuration procedure programs the clock chips from")
-    lmk_config = _EXTRACTED.enter_context(importlib.resources.as_file(resource))
-    return dict(devices=[rfdc], setup_options=dict(lmk_config=str(lmk_config)))
+    files = {}
+    for option, relative in pmap.setup_files.items():
+        resource = importlib.resources.files(package).joinpath(relative)
+        if not resource.is_file():
+            raise ConnectError(f"the {package} package ships no {relative}, which the {pmap.name} "
+                               f"configuration procedure needs ({option})")
+        files[option] = str(_EXTRACTED.enter_context(importlib.resources.as_file(resource)))
+    return dict(devices=devices, setup_options=files)
 
 
 # Files taken out of a release archive for a driver that reads plain files; kept

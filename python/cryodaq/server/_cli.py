@@ -39,7 +39,11 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     """Add the readout server's options to ``parser``."""
     group = parser.add_argument_group('readout server')
     group.add_argument('--transport', '-t', choices=['eth', 'pcie', 'tcp-bridge', 'emulation'],
-                       default='eth', help="How the FPGA is reached.")
+                       default='eth',
+                       help="How the FPGA's registers are reached: over its Ethernet port (eth), "
+                            "through the PCIe offload card (pcie), or through the TCP bridge on an "
+                            "RFSoC's processor system (tcp-bridge; the data path is then chosen "
+                            "separately with --bridge-data).")
     group.add_argument('--addr', '-a', dest='ip_addr', default='',
                        help="FPGA IP address; required for eth and tcp-bridge (where it is the "
                             "FPGA's own port, the data's source). For pcie, the address the "
@@ -48,8 +52,9 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
                        help="For tcp-bridge: the RFSoC processor system's address, where the "
                             "register bridge runs.")
     group.add_argument('--bridge-data', choices=['udp', 'pcie'], default='udp',
-                       help="For tcp-bridge: receive the data on the host's Ethernet port, or "
-                            "through the PCIe offload card's lane (--pcie-rssi-lane).")
+                       help="For tcp-bridge: receive the data on the host's Ethernet port (udp), "
+                            "or through the PCIe offload card's lane (pcie, with --pcie-rssi-lane "
+                            "and the --pcie-dev-* nodes as for the pcie transport).")
     group.add_argument('--pcie-rssi-lane', '-l', type=int, choices=range(6), default=0,
                        help="PCIe RSSI lane, for pcie.")
     group.add_argument('--pcie-dev-rssi', default='/dev/datadev_0',

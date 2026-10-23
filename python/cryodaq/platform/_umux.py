@@ -37,10 +37,10 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
+from dataclasses import dataclass
 from typing import Dict, Tuple
 
-__all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES', 'Carrier', 'AMC_CARRIER',
-           'AMC_CARRIER_REGISTERS', 'AMC_CARRIER_LEGACY', 'AMC_CARRIER_SCOPES',
+__all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES', 'Carrier', 'ServerDevice',
            'APPLICATION', 'SERVER_ADDED_ROOT_NODES']
 
 # --------------------------------------------------------------------------
@@ -194,6 +194,31 @@ FPGA = f'{ROOT}.FpgaTopLevel'
 # operations attach.
 _V, _C, _P, _D = 'value', 'command', 'process', 'device'
 
+@dataclass(frozen=True)
+class ServerDevice:
+    """A device the server adds to the tree beside the FPGA's, from the firmware package.
+
+    The firmware package declares the FPGA's tree; some hardware beside the FPGA
+    is driven by a class of the same package over a register path of its own,
+    and is the server's to build and add -- so a dump of the package has none of
+    it, and the map says what the server adds and where.
+
+    Parameters
+    ----------
+    path : str
+        Where the device sits on the tree: a child of the root.
+    driver : str
+        ``module:attribute`` of the class that drives it, in the firmware package.
+    link : str
+        Which of the transport's register paths it is driven over, by the
+        transport's attribute name (``srp_rfdc``).
+    """
+
+    path: str
+    driver: str
+    link: str
+
+
 # The carrier core is the one device of the FPGA that is named for the board it is
 # on: `AmcCarrierCore` on the ATCA carrier (and on the RFSoC, whose firmware is the
 # carrier's with the bays left out), `RfmcCarrierCore` on the RFMC carrier. What is
@@ -334,25 +359,6 @@ class Carrier:
         }
 
 
-# The AMC carrier core: the ATCA carrier's, and the RFSoC's, whose firmware is the
-# carrier's package. The ATCA module adds what only a board with AMC bays has.
-AMC_CARRIER = Carrier('AmcCarrierCore', bsi='AmcCarrierBsi', timing='AmcCarrierTiming')
-
-# The point-of-load regulator on the AMC carrier, reached over I2C. The *server* attaches
-# this device rather than the firmware package declaring it, so a dump of a package has
-# none of it and its absence there says nothing about the hardware. The two platforms on
-# that carrier add these to their tables; the registers are the board's, not the core's.
-REGULATOR = f'{AMC_CARRIER.CARRIER}.EM22xx'
-REGULATOR_CURRENT = f'{REGULATOR}.IOUT'
-REGULATOR_TEMPERATURE = f'{REGULATOR}.TEMPERATURE[{{temperature}}]'
-AMC_CARRIER_REGISTERS = {
-    **AMC_CARRIER.registers(),
-    'carrier.regulator.current': (REGULATOR_CURRENT, _V),
-    'carrier.regulator.temperature[*]': (REGULATOR_TEMPERATURE, _V),
-}
-AMC_CARRIER_LEGACY = AMC_CARRIER.legacy()
-AMC_CARRIER_SCOPES = {**AMC_CARRIER.scopes(), 'temperature': ((REGULATOR_TEMPERATURE,), ())}
-
 APP_TOP = f'{FPGA}.AppTop'
 APP_CORE = f'{APP_TOP}.AppCore'
 STREAM_ENABLE = f'{APP_CORE}.enableStreaming'
@@ -380,19 +386,6 @@ USER_CONFIG = f'{APP_CORE}.TimingHeader.userConfig[{{user_config}}]'
 # A software trigger of every bay's data acquisition at once; what the server's run
 # control pulses.
 SW_DAQ_MUX_TRIGGER = f'{FPGA}.SwDaqMuxTrig'
-# The firmware's own check of its converter serial links, where a release carries one:
-# the command runs it and the status is its last verdict. The command is the AMC
-# carrier's application top and is built into every tree on that carrier -- the RFSoC
-# has no such links and nothing for it to find, and its map names no verdict for it
-# (see `application.jesd_status`, the ATCA carrier's); the RFMC carrier's application
-# top does not carry it. A map states what a tree has; whether the server acts on it
-# is the verdict's business. In the AMC carrier's table below.
-JESD_HEALTH = f'{APP_TOP}.JesdHealth'
-JESD_HEALTH_STATUS = f'{APP_TOP}.JesdHealthStatus'
-AMC_CARRIER_REGISTERS.update({
-    'jesd.health': (JESD_HEALTH, _C),
-    'jesd.health_status': (JESD_HEALTH_STATUS, _V),
-})
 DAQ_MUX = f'{APP_TOP}.DaqMuxV2[{{bay}}]'
 DAQ_ARM_HW_TRIGGER = f'{DAQ_MUX}.ArmHwTrigger'
 DAQ_TRIGGER = f'{DAQ_MUX}.TriggerDaq'

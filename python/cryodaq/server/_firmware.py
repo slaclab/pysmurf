@@ -11,12 +11,11 @@
 #    stamp off the hardware to learn which platform this is, and import the class
 #    that builds that platform's tree.
 #
-#    The probe is a tree holding only the version block -- at the address every
-#    platform here places it, under each path a platform keeps it at, since the
-#    carrier core is named for its board; it is started, read and stopped before
-#    the real tree is built over the same link. So the platform comes from the
-#    hardware in hand, as the tree's identification does once a client connects,
-#    and nothing is told which hardware it is driving.
+#    The probe is a tree holding only the version block, at the address every
+#    platform here places it; it is started, read and stopped before the real
+#    tree is built over the same link. So the platform comes from the hardware in
+#    hand, as the tree's identification does once a client connects, and nothing
+#    is told which hardware it is driving.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -44,7 +43,7 @@ _log = logging.getLogger(__name__)
 
 # What the root of every tree here is called; the register paths a client
 # resolves start with it.
-ROOT_NAME = platform.VERSION_BLOCK_PATHS[0].split('.')[0]
+ROOT_NAME = platform.ROOT_PATH
 
 
 def load_package(path: Optional[os.PathLike]) -> None:
@@ -110,18 +109,16 @@ def resolve_layers(layers, firmware: Optional[os.PathLike], config_dir: str) -> 
 
 
 class _Probe(pyrogue.Root):
-    """The version block alone, at each path a platform's full tree gives it.
+    """The version block alone, read before the real tree exists.
 
     The link the registers travel over opens when the tree holding it starts.
     The link belongs to the real tree, which does not exist yet, and a node
     cannot be in two trees, so the probe opens and closes it directly around
     its one read; the real tree opens it again when it starts.
 
-    Every platform keeps its version block at the same address, inside a
-    carrier core named for its board. One block is read, and the tree answers
-    at every path it is asked for: two devices over one address would be an
-    overlap rogue refuses, so the paths other than the first are link nodes
-    reading the same block.
+    Every platform keeps its version block at the same address, so one block
+    serves them all: the platform is named by the stamp's text, not by where
+    the block sits.
     """
 
     def __init__(self, srp, link_nodes=(), offset=0):
@@ -130,31 +127,9 @@ class _Probe(pyrogue.Root):
         import surf.axi
         pyrogue.Root.__init__(self, name=ROOT_NAME, initRead=True, pollEn=False, timeout=5.0)
         self._link_nodes = list(link_nodes)
-        first, *others = platform.VERSION_BLOCK_PATHS
         # At the start of the FPGA's register window, wherever the transport
         # puts that window.
-        block = surf.axi.AxiVersion(offset=offset, memBase=srp)
-        self._device_at(first).add(block)
-        for path in others:
-            alias = pyrogue.Device(name=path.rsplit('.', 1)[1])
-            self._device_at(path).add(alias)
-            # Only the stamp: it is the one register identification reads, and
-            # a device of its own already has an `enable`.
-            alias.add(pyrogue.LinkVariable(name='BuildStamp', mode='RO',
-                                           linkedGet=block.BuildStamp.get,
-                                           dependencies=[block.BuildStamp]))
-
-    def _device_at(self, path):
-        """Empty devices down to the parent of ``path``, so a stamp has the path its map says."""
-        *segments, _ = path.split('.')[1:]
-        parent = self
-        for segment in segments:
-            device = parent.node(segment)
-            if device is None:
-                device = pyrogue.Device(name=segment)
-                parent.add(device)
-            parent = device
-        return parent
+        self.add(surf.axi.AxiVersion(offset=offset, memBase=srp))
 
     def start(self):
         started = []
@@ -209,7 +184,7 @@ def probe_platform(srp: Any, link_nodes: Any = (), offset: int = 0) -> platform.
     """
     try:
         with _Probe(srp, link_nodes, offset) as probe:
-            pmap = platform.identify(probe)
+            pmap = platform.from_stamp(probe.AxiVersion.BuildStamp.get())
     except ConnectError:
         raise
     except Exception as e:
