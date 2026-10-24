@@ -695,6 +695,13 @@ def check_names_and_kinds_are_refused_when_wrong():
 EXIT_TRIALS = 25
 
 
+def probe_transport(srp, link_nodes):
+    """A transport with only what the platform probe reads: a register path and its link nodes."""
+    from cryodaq.server import _transport
+    return _transport.Transport(name='stand-in', srp=srp, ddr_streams=[], streaming_stream=None,
+                                register_nodes=list(link_nodes))
+
+
 def check_the_platform_probe_opens_the_link_before_reading():
     """The server reads the build stamp over a link it has opened, and closes it after.
 
@@ -733,7 +740,7 @@ def check_the_platform_probe_opens_the_link_before_reading():
         return original(stamp)
     platform.from_stamp = from_stamp
     try:
-        pmap = cryodaq.server._firmware.probe_platform(srp, [Link()])
+        pmap = cryodaq.server._firmware.probe_platform(probe_transport(srp, [Link()]))
     finally:
         platform.from_stamp = original
     assert pmap.name == EXPECTED_PLATFORM[PLATFORM], pmap.name
@@ -793,7 +800,7 @@ def check_an_interrupted_platform_probe_closes_what_it_opened():
         Probe.interrupt_in_tree = in_tree
         cryodaq.server._firmware._Probe = Probe
         try:
-            cryodaq.server._firmware.probe_platform(srp, link_nodes)
+            cryodaq.server._firmware.probe_platform(probe_transport(srp, link_nodes))
         except KeyboardInterrupt:
             pass
         else:
@@ -883,34 +890,32 @@ def check_the_bridge_transport_has_the_shape_the_rfmc_needs():
 
 
 def check_the_rfmc_composition_carries_its_converter_and_clock_file():
-    """On the RFMC the root has the RF data converter beside the FPGA, and its procedure the package's LMK file.
+    """On the RFMC the root has the RF data converter beside the FPGA, and its procedure finds the package's LMK file.
 
-    Both come from the composition, which knows the package: the converter is
-    built over the transport's second register path and sits where the map says;
-    the procedure's clock file is the one the release ships, named inside the
-    archive. A transport without the second path is refused for this platform
-    with the reason. On the other platforms the root carries neither.
+    Both come from the platform's own support module: the converter is built over
+    the transport's second register path and sits where the map says; the
+    procedure resolves the clock file in the firmware package, the one the
+    release ships. A transport without the second path is refused for this
+    platform with the reason. On the other platforms the root carries neither.
     """
+    from cryodaq.platform import rfmc
     root = ROOT
     if PLATFORM != 'rfmc':
-        assert not root.pmap.server_devices and not root.pmap.setup_files, \
-            f"{PLATFORM} declares something for the server to add"
-        assert root.getNode(platform.RFMC_RFDC_PATH) is None, f"{PLATFORM} carries an RF data converter"
+        assert root.getNode(rfmc.RFDC) is None, f"{PLATFORM} carries an RF data converter"
         assert not hasattr(root.setup, 'lmk_config')
         return
-    (declared,) = root.pmap.server_devices
-    assert declared.path == platform.RFMC_RFDC_PATH and declared.link == 'srp_rfdc', declared
-    rfdc = root.getNode(declared.path)
+    rfdc = root.getNode(rfmc.RFDC)
     assert rfdc is not None, 'the RFMC root has no RF data converter'
     assert rfdc.parent is root, 'the converter is not a device beside the FPGA'
-    assert type(rfdc).__name__ == declared.driver.partition(':')[2], type(rfdc)
+    assert type(rfdc).__name__ == 'Rfdc', type(rfdc)
     # What the procedure drives: the multi-tile sync block, and the device's own
     # initialisation, which its class provides as a method rather than a node.
     assert rfdc.node('Mts') is not None and callable(rfdc.Init)
     # The clock file is the release's, extracted where the chip's driver can
     # open it, and is what TI's tool exports: register address and value per line.
-    assert root.setup.lmk_config.endswith('HexRegisterValues.txt'), root.setup.lmk_config
-    with open(root.setup.lmk_config) as fh:
+    lmk = root.setup.lmk_config()
+    assert lmk.endswith('HexRegisterValues.txt'), lmk
+    with open(lmk) as fh:
         first = fh.readline().split()
     # `R0 (INIT) 0x000090`: the register, an optional note, the value -- which is
     # how the chip's driver reads it too.
@@ -1128,35 +1133,45 @@ def stood_in_procedure(_setup, fail_load=False):
     tree it is ~30 s of rendering the operations' arrays, and it is
     exercised by its own check.
     """
-    saved = (_setup.load_layers, _setup.AtcaSetup.check_elastic_buffers, ROOT.ReadAll._function,
-             ROOT.setup.layers, _setup.RfmcSetup.steps, _setup.check_layer_names_this_root)
+    # Each platform's procedure lives in its own support module, which bound the
+    # loader by name at import; the stand-in goes into every one of them.
+    import cryodaq.platform.atca.support as atca_support
+    import cryodaq.platform.rfmc.support as rfmc_support
+    import cryodaq.platform.rfsoc.support as rfsoc_support
+    trees = (atca_support, rfsoc_support, rfmc_support)
+    saved = (_setup.load_layers, atca_support.AtcaSetup.check_elastic_buffers, ROOT.ReadAll._function,
+             ROOT.layers, rfmc_support.RfmcSetup.steps, _setup.check_layer_names_this_root)
 
     def load(root, layers):
         if fail_load:
             raise _setup.StepError('stood-in load failed')
 
-    def rfmc_steps(self, root):
+    def rfmc_steps(self):
         # The RFMC's steps before and after the load drive clock chips and the
         # RF data converter -- hardware a register emulation has nothing of
         # (the converter is a device on the processor system, reached over its
         # own link) -- so only the two steps every platform has are run here;
         # the RFMC's own are exercised over a stand-in tree by
-        # check_setup_steps.py, and on a board by nothing yet.
-        return (('read all', root.ReadAll),
-                ('load layers', lambda: _setup.load_layers(root, self.layers)))
+        # check_setup_steps.py, and on a board by the bench.
+        return (('read all', self.root.ReadAll),
+                ('load layers', lambda: load(self.root, self.layers)))
     try:
         _setup.load_layers = load
+        for module in trees:
+            module.load_layers = load
         # The stand-in layer is a name, not a file; the key check that reads
         # one is stood in with the load, and has a check of its own.
         _setup.check_layer_names_this_root = lambda root, layer: None
-        _setup.AtcaSetup.check_elastic_buffers = lambda self, root: None
-        _setup.RfmcSetup.steps = rfmc_steps
+        atca_support.AtcaSetup.check_elastic_buffers = lambda self: None
+        rfmc_support.RfmcSetup.steps = rfmc_steps
         ROOT.ReadAll.replaceFunction(lambda: None)
-        ROOT.setup.layers = ('<stand-in layer>',)
+        ROOT.layers = ['<stand-in layer>']
         yield
     finally:
-        (_setup.load_layers, _setup.AtcaSetup.check_elastic_buffers, _, ROOT.setup.layers,
-         _setup.RfmcSetup.steps, _setup.check_layer_names_this_root) = saved
+        (_setup.load_layers, atca_support.AtcaSetup.check_elastic_buffers, _, ROOT.layers,
+         rfmc_support.RfmcSetup.steps, _setup.check_layer_names_this_root) = saved
+        for module in trees:
+            module.load_layers = saved[0]
         ROOT.ReadAll.replaceFunction(saved[2])
 
 
@@ -1736,15 +1751,14 @@ def emulation_root(args, port):
     # is this package without its bays, not the RFSoC firmware's. The RFMC's
     # class is its own package's, imported as the composition would. See the header.
     if args.platform == 'rfmc':
-        top_level_class = cryodaq.server._firmware.top_level(
-            platform.by_name(EXPECTED_PLATFORM['rfmc']))
+        # The RFMC's own class, as the platform's support module builds it.
+        kwargs = {}
     else:
         from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
-        top_level_class = FpgaTopLevel
+        kwargs = dict(top_level_class=FpgaTopLevel, top_level_options=TOP_LEVEL_OPTIONS[args.platform])
     root = pysmurf.core.server.compose(
         transport=cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource()),
-        platform_name=EXPECTED_PLATFORM[args.platform], server_port=port, polling=False,
-        top_level_class=top_level_class, top_level_options=TOP_LEVEL_OPTIONS[args.platform])
+        platform_name=EXPECTED_PLATFORM[args.platform], server_port=port, polling=False, **kwargs)
     try:
         root.start()
     except Exception:

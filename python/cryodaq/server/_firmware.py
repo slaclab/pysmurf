@@ -159,19 +159,16 @@ class _Probe(pyrogue.Root):
             node._stop()
 
 
-def probe_platform(srp: Any, link_nodes: Any = (), offset: int = 0) -> platform.PlatformMap:
-    """Read the build stamp over ``srp`` and name the platform running it.
+def probe_platform(transport: Any) -> platform.PlatformMap:
+    """Read the build stamp over ``transport`` and name the platform it belongs to.
 
     Parameters
     ----------
-    srp : rogue memory master
-        The register path.
-    link_nodes : sequence of pyrogue nodes
-        What the register path needs started before it answers (a transport's
-        ``register_nodes``); the probe starts and stops them around the read.
-    offset : int
-        Where the FPGA's register window starts on this path (a transport's
-        ``register_offset``).
+    transport : Transport
+        Its register path (``srp``), whatever that path needs started before it
+        answers (``register_nodes``), and where the FPGA's register window starts
+        on it (``register_offset``); the probe starts and stops the nodes around
+        its one read.
 
     Returns
     -------
@@ -183,7 +180,7 @@ def probe_platform(srp: Any, link_nodes: Any = (), offset: int = 0) -> platform.
         If the stamp is empty or names firmware no platform claims.
     """
     try:
-        with _Probe(srp, link_nodes, offset) as probe:
+        with _Probe(transport.srp, transport.register_nodes, transport.register_offset) as probe:
             pmap = platform.from_stamp(probe.AxiVersion.BuildStamp.get())
     except ConnectError:
         raise

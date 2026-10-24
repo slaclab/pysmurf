@@ -41,7 +41,7 @@ from cryodaq.server._application_config import ApplicationConfig
 from cryodaq.server._application_status import ApplicationStatus
 from cryodaq.server._firmware import ROOT_NAME
 from cryodaq.server._provider import OperationsProvider, attach_operations
-from cryodaq.server._setup import setup_for
+from cryodaq.server._setup import Setup
 
 __all__ = ['ReadoutRoot']
 
@@ -90,13 +90,13 @@ class ReadoutRoot(pyrogue.Root):
                  layers: Sequence[Any] = (), server_port: int = 0, polling: bool = True,
                  configure: bool = False, variable_groups: Optional[Mapping] = None,
                  on_start: Optional[Callable] = None, application: str = '',
-                 devices: Sequence[Any] = (), setup_options: Optional[Mapping] = None, **kwargs):
+                 devices: Sequence[Any] = (), setup: Optional[Any] = None, **kwargs):
         pyrogue.Root.__init__(self, name=ROOT_NAME, initRead=True, pollEn=polling,
                               timeout=5.0, **kwargs)
         self.pmap = pmap
         self._fpga = fpga
         self._transport = transport
-        self._layers = [str(layer) for layer in layers]
+        self.layers = [str(layer) for layer in layers]
         self._configure = configure
         self._variable_groups = variable_groups
         self._on_start = on_start
@@ -114,7 +114,7 @@ class ReadoutRoot(pyrogue.Root):
         self.add(ApplicationConfig())
         self.add(self._fpga)
         # What the platform adds beside the FPGA's tree (the RFMC's RF data
-        # converter, over its own register path), built by the composition.
+        # converter, over its own register path), built by the platform's own code.
         for device in devices:
             self.add(device)
 
@@ -172,12 +172,12 @@ class ReadoutRoot(pyrogue.Root):
             cmd=self._node('daq.software_trigger'),
             rates={1: '1 Hz', 10: '10 Hz', 30: '30 Hz'}))
 
-        # The configuration procedure: load the register layers and check the
-        # links, as the platform does it. Exposed as a process so a client can
-        # start it and wait on it, and one that takes no argument: the files it
-        # loads are the server's, so a client with a 40-character limit on what
-        # it can send (EPICS channel access) can still run it.
-        self.setup = setup_for(pmap, self._layers, self.status, **dict(setup_options or {}))
+        # The configuration procedure, as the platform does it. Exposed as a
+        # process so a client can start it and wait on it, and one that takes no
+        # argument: the files it loads are the server's, so a client with a
+        # 40-character limit on what it can send (EPICS channel access) can
+        # still run it. The base procedure has no steps; a platform gives its own.
+        self.setup = setup if setup is not None else Setup()
         self.add(self.setup)
 
         # Saving state and configuration must not read first: a read of the

@@ -112,6 +112,20 @@ def in_platform(rel):
     return rel.parts[:1] == ('platform',)
 
 
+def server_side(rel):
+    """Where rogue may be imported at module level: the server package, and a
+    platform's own rogue code, `platform/<name>/support.py`, which exists only where
+    a server runs and is imported by the composition alone."""
+    return rel.parts[:1] == SERVER_SIDE_PACKAGE or (in_platform(rel) and rel.name == 'support.py')
+
+
+def platform_submodules(package):
+    """The names under `cryodaq.platform` that are modules, not functions: the maps."""
+    root = package / 'platform'
+    return {p.stem if p.suffix == '.py' else p.name
+            for p in root.iterdir() if p.name != '__init__.py' and (p.suffix == '.py' or p.is_dir())}
+
+
 def imported_modules(tree):
     """Yield (dotted module name, level) for every import in tree."""
     for node in ast.walk(tree):
@@ -183,31 +197,34 @@ def numbers(tree):
 def violations(package):
     """Return every boundary violation under package as (rule, 'file:line detail')."""
     found = []
+    maps = platform_submodules(package)
     for rel, tree in modules(package):
         platform = in_platform(rel)
+        rogue_ok = server_side(rel)
         for name, level in imported_modules(tree):
             top = name.split('.')[0]
             if level == 0 and top in APPLICATION_IMPORTS:
                 found.append(('imports', f"{rel}: imports {name}"))
-            if platform and top in MAP_FORBIDDEN_IMPORTS:
+            if platform and not rogue_ok and top in MAP_FORBIDDEN_IMPORTS:
                 found.append(('imports', f"{rel}: imports {name} inside cryodaq.platform"))
             # The client uses the platform package, not one of its map modules:
             # `cryodaq.platform._x` or `from .platform._x import`.
             private = (name.startswith('cryodaq.platform.') or
                        (level == 1 and name.startswith('platform.')))
-            if private and not platform:
+            if private and not platform and not rogue_ok:
                 found.append(('imports', f"{rel}: reaches into {name}"))
-        if rel.parts[:1] != SERVER_SIDE_PACKAGE:
+        if not rogue_ok:
             for name, lineno in module_level_imports(tree):
                 if name.split('.')[0] in MAP_FORBIDDEN_IMPORTS:
                     found.append(('rogue', f"{rel}:{lineno} imports {name} at module level"))
         for module, name, level in imported_from(tree):
-            # `from cryodaq.platform import _umux`. A public name out of the
-            # package is how the client is meant to reach the maps, so only a
-            # private one is a violation.
+            # `from cryodaq.platform import atca`. A function out of the package
+            # is how the client is meant to reach the maps; a map module itself,
+            # whatever its name, is a violation -- so what counts is whether the
+            # name is a submodule, read off the package, not how it is spelled.
             reaches_map = (module in ('cryodaq.platform', 'platform') and
-                           name.startswith('_'))
-            if reaches_map and not platform:
+                           (name in maps or name.startswith('_')))
+            if reaches_map and not platform and not rogue_ok:
                 found.append(('imports', f"{rel}: reaches into {module}.{name}"))
         for lineno, ident in identifiers(tree):
             if ident in APPLICATION_NAMES:
@@ -558,6 +575,8 @@ def check_rules_fire_on_a_bad_package():
         "from .platform._umux import REGISTERS\n"
         # The same reach written so that the module name alone looks public.
         "from cryodaq.platform import _atca\n"
+        # A map module under a public name is still a map module.
+        "from cryodaq.platform import atca\n"
         # Legal, and must stay legal: the public lookup is how the client is
         # meant to reach a map.
         "from cryodaq.platform import parse\n"
@@ -599,6 +618,12 @@ def check_rules_fire_on_a_bad_package():
         (pkg / 'other' / '_root.py').write_text(server_side)
         (pkg / 'platform' / '__init__.py').write_text('')
         (pkg / 'platform' / '_x.py').write_text(bad_map)
+        # A platform's own rogue code, where it belongs: exempt from the rogue
+        # rule, as the server is. The same file name elsewhere is not.
+        (pkg / 'platform' / 'atca').mkdir()
+        (pkg / 'platform' / 'atca' / '__init__.py').write_text('')
+        (pkg / 'platform' / 'atca' / 'support.py').write_text(server_side + 'import rogue\n')
+        (pkg / 'other' / 'support.py').write_text(server_side)
         # A map shipped as data outside the platform package, which the source
         # rules cannot see; the same thing in its legitimate home, which may not be
         # reported; and a binary file outside platform, which must be -- not for
@@ -632,15 +657,19 @@ def check_rules_fire_on_a_bad_package():
     assert rules == expected, f"rules fired: {sorted(rules)}, expected {sorted(expected)}"
     details = '\n'.join(d for _, d in found)
     for needle in ('imports pysmurf', 'reaches into platform._umux',
-                   'reaches into cryodaq.platform._atca', 'imports sodetlib',
+                   'reaches into cryodaq.platform._atca', 'reaches into cryodaq.platform.atca',
+                   'imports sodetlib',
                    'imports pyrogue inside cryodaq.platform',
                    "identifier 'is_rfsoc'", "identifier 'bias_group'",
                    "mentions 'tes'", 'literal 512', 'literal 614.4', 'register path',
-                   '_client.py:11 imports rogue at module level',
+                   '_client.py:12 imports rogue at module level',
                    '_x.py:2 imports pyrogue at module level',
                    'other/_root.py:1 imports pyrogue at module level',
+                   'other/support.py:1 imports pyrogue at module level',
                    'server/_bad.py: imports pysmurf'):
         assert needle in details, f"rule for {needle!r} did not fire:\n{details}"
+    assert 'atca/support.py' not in details, \
+        f"a platform's own rogue code was reported as a violation:\n{details}"
     assert 'platform.parse' not in details, \
         f"the public map lookup was reported as a violation:\n{details}"
     assert 'pyrogue.interfaces' not in details, \
