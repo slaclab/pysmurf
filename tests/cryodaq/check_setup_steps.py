@@ -39,6 +39,7 @@ sys.path.insert(0, os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'python'))
 
 from cryodaq import platform                                        # noqa: E402
+from cryodaq.platform import atca, rfmc                             # noqa: E402
 
 HERE = pathlib.Path(__file__).resolve().parent
 FIXTURES = HERE / 'fixtures'
@@ -47,13 +48,15 @@ _INDEXED = re.compile(r'^(\w+)\[(\d+)\]$')
 
 
 def setup_module():
-    """The procedure module, imported with rogue stood in for.
+    """The procedure modules, imported with rogue stood in for.
 
-    The module imports pyrogue to subclass its Process; the steps do not use
-    it. Where rogue is not installed a stand-in module with the names the
-    class statement needs is put in its place, and the module is loaded by
+    The base module imports pyrogue to subclass its Process; the steps do not
+    use it. Where rogue is not installed a stand-in module with the names the
+    class statements need is put in its place, and the modules are loaded by
     file so that the server package's own import of the rest of rogue is not
-    triggered.
+    triggered. Each platform's procedure lives in its `support` module beside its
+    map; those are loaded the same way, and the base module gets them as
+    attributes (``_setup.atca``, …) for the checks to reach.
     """
     if 'cryodaq.server._setup' in sys.modules:
         return sys.modules['cryodaq.server._setup']
@@ -76,11 +79,18 @@ def setup_module():
         fake.yamlToData = yamlToData
         sys.modules['pyrogue'] = fake
     import importlib.util
-    path = HERE.parent.parent / 'python' / 'cryodaq' / 'server' / '_setup.py'
-    spec = importlib.util.spec_from_file_location('cryodaq.server._setup', path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules['cryodaq.server._setup'] = module
-    spec.loader.exec_module(module)
+
+    def load(name, path):
+        spec = importlib.util.spec_from_file_location(name, path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+        return module
+
+    package = HERE.parent.parent / 'python' / 'cryodaq'
+    module = load('cryodaq.server._setup', package / 'server' / '_setup.py')
+    for stem in PLATFORM_OF:
+        setattr(module, stem, load(f'cryodaq.platform.{stem}.support', package / 'platform' / stem / 'support.py'))
     return module
 
 
@@ -206,16 +216,15 @@ def tree(stem, values=None):
     _setup = setup_module()
     pmap = platform.by_name(PLATFORM_OF[stem])
     root = StandInRoot(load_dump(stem), values, pmap)
-    if pmap.server_devices:
+    if stem == 'rfmc':
         # The RF data converter is not in a dump of the firmware package (it is a
         # device the server adds, over its own link), so the stand-in grows it:
         # its init command and the multi-tile sync block the procedure drives.
-        (rfdc,) = pmap.server_devices
         for leaf in ('Init', 'Mts.DacTiles', 'Mts.AdcTiles', 'Mts.DacRefTile', 'Mts.AdcRefTile',
                      'Mts.SyncDacTiles', 'Mts.SyncAdcTiles'):
-            root._grow(f'{rfdc.path}.{leaf}')
+            root._grow(f'{rfmc.RFDC}.{leaf}')
         # The carrier core's bring-up helpers are methods of its class.
-        core = root.by_path[platform.RFMC_CARRIER_PATH]
+        core = root.by_path[rfmc.CARRIER.CARRIER]
         core.__class__ = RfmcCarrierCore
     return _setup, root
 
@@ -243,11 +252,17 @@ class StoodInLoad:
             root.log.append(('load',) + tuple(layers))
             if self.fail:
                 raise self._setup.StepError('stood-in load failed')
+        # Each platform's support module bound the loader by name at import, so
+        # the stand-in goes into each of them as well as the base.
         self._setup.load_layers = load
+        for stem in PLATFORM_OF:
+            getattr(self._setup, stem).load_layers = load
         return self
 
     def __exit__(self, *exc):
         self._setup.load_layers, self._setup.check_layer_names_this_root = self.saved
+        for stem in PLATFORM_OF:
+            getattr(self._setup, stem).load_layers = self.saved[0]
 
 
 class Flag:
@@ -275,14 +290,17 @@ class Status:
 
 
 def procedure(_setup, stem, layers=('a.yml',)):
-    """A platform's procedure object, built without rogue."""
-    cls = _setup.SETUPS[PLATFORM_OF[stem]]
+    """A platform's procedure object, built without rogue; `attach` puts it on a tree."""
+    cls = getattr(_setup, stem).__dict__[f"{stem.capitalize()}Setup"]
     setup = cls.__new__(cls)
-    setup.layers = tuple(layers)
-    setup.status = Status()
-    if cls is _setup.RfmcSetup:
-        setup.lmk_config = '<lmk file>'
-        # Polling is this root's variable; the stand-in tree has rogue's leaves.
+    # The layers and the status block are the root's; the procedure reads them
+    # from whichever tree it is attached to, so they are kept here and put on
+    # the tree at attach time -- a status that persists across trees, as the
+    # server's does across runs.
+    setup.given_layers = tuple(layers)
+    setup.given_status = Status()
+    if stem == 'rfmc':
+        setup.lmk_config = lambda: '<lmk file>'
     # rogue's step counters, stood in for.
     setup.progress = []
     setup.setTotalSteps = lambda n: setup.progress.append(('total', n))
@@ -290,11 +308,28 @@ def procedure(_setup, stem, layers=('a.yml',)):
     return setup
 
 
+def attach(setup, root):
+    """Put a procedure on a stand-in tree, as adding it to the root would."""
+    root.layers = list(setup.given_layers)
+    root.status = setup.given_status
+    # rogue's Node reads `root` from `_root`; the stand-in class has neither.
+    try:
+        setup.root = root
+    except AttributeError:
+        setup._root = root
+    return setup
+
+
+def run_on(setup, root):
+    """Run a procedure on a tree."""
+    attach(setup, root).run()
+
+
 def run_procedure(stem, layers=('a.yml',), values=None):
     """A platform's whole procedure, with the layer load stood in; the recorded log and the loads."""
     _setup, root = tree(stem, values)
     with StoodInLoad(_setup) as load:
-        procedure(_setup, stem, layers).run(root)
+        run_on(procedure(_setup, stem, layers), root)
     return root.log, load.loads
 
 
@@ -307,23 +342,37 @@ def aligned_lanes(values):
 
 
 def JESD_BAY(bay):
-    return platform.CARRIER_LINKS_PATH.format(bay=bay)
+    return atca.JESD_BAY.format(bay=bay)
 
 
 # --------------------------------------------------------------------------
 
 def check_every_platform_has_a_procedure():
+    """Each map has a support module beside it with one PlatformSupport whose setup is a Setup.
+
+    The top level that module builds is the class the map names, spelled once
+    in each: the map's ``TOP_LEVEL`` (what a dump of the released package
+    imports) and the module's own import of it must agree.
+    """
     _setup = setup_module()
     for pmap in platform.MAPS:
-        assert pmap.name in _setup.SETUPS, f"{pmap.name} has no configuration procedure"
-        assert issubclass(_setup.SETUPS[pmap.name], _setup.Setup)
+        stem = pmap.module.rsplit('.', 1)[1]
+        module = getattr(_setup, stem)
+        trees = [v for v in vars(module).values()
+                 if isinstance(v, type) and issubclass(v, _setup.PlatformSupport) and v is not _setup.PlatformSupport]
+        assert len(trees) == 1, f"{pmap.name}: {len(trees)} PlatformSupport subclasses"
+        assert issubclass(trees[0].setup, _setup.Setup) and trees[0].setup is not _setup.Setup, pmap.name
+        top_module, _, attribute = pmap.top_level.partition(':')
+        source = pathlib.Path(module.__file__).read_text()
+        assert f"from {top_module} import {attribute}" in source, \
+            f"{pmap.name}: the support module does not build {pmap.top_level}"
     try:
-        _setup.setup_for(platform.by_name('umux-atca').__class__(
-            name='no-such', tags=(), registers={}, witness=(), scopes={}), (), None)
-    except ValueError as e:
-        assert 'no-such' in str(e) and 'umux-atca' in str(e), e
+        _setup.PlatformSupport.for_map(platform.by_name('umux-atca').__class__(
+            name='no-such', tags=(), registers={}, witness=(), scopes={}, module='cryodaq.platform.no_such'))
+    except ImportError as e:
+        assert 'no_such' in str(e), e
     else:
-        raise AssertionError('a platform with no procedure was accepted')
+        raise AssertionError('a platform with no support module was accepted')
 
 
 def check_every_procedure_reaches_only_nodes_its_platform_has():
@@ -348,18 +397,18 @@ def check_the_rfmc_sequence_is_the_firmwares_own():
     """
     _setup, root = tree('rfmc', {'AMCc.PollEn': True})
     setup = procedure(_setup, 'rfmc', layers=('d.yml',))
-    setup.lmk_config = '/pkg/lmk.txt'      # over the stand-in's
+    setup.lmk_config = lambda: '/pkg/lmk.txt'      # the package's file, stood in
     with StoodInLoad(_setup) as load:
-        setup.run(root)
-    core = platform.RFMC_CARRIER_PATH
-    rfdc = platform.RFMC_RFDC_PATH
-    crossbar = f'{core}.AxiSy56040.OutputConfig[{platform.RFMC_TIMING_RECEIVER_CROSSBAR_OUTPUT}]'
+        run_on(setup, root)
+    core = rfmc.CARRIER.CARRIER
+    rfdc = rfmc.RFDC
+    crossbar = f'{core}.AxiSy56040.OutputConfig[{rfmc.TIMING_RECEIVER_CROSSBAR_OUTPUT}]'
     expected = [
         ('set', 'AMCc.PollEn', False),
-        ('call', f'{core}.UserRst', _setup.RfmcSetup.RESET_RECOVERY_TIMEOUT_S),
+        ('call', f'{core}.UserRst', _setup.rfmc.RfmcSetup.RESET_RECOVERY_TIMEOUT_S),
         ('set', crossbar, 0x2),                                   # backplane, STARTUP_TIMING in the firmware
         ('call', f'{core}.InitClock', '/pkg/lmk.txt'),
-        ('call', f'{core}.DspRstWait', _setup.RfmcSetup.RESET_RECOVERY_TIMEOUT_S),
+        ('call', f'{core}.DspRstWait', _setup.rfmc.RfmcSetup.RESET_RECOVERY_TIMEOUT_S),
         ('call', f'{rfdc}.Init'),
         ('call', 'AMCc.ReadAll'),
         ('set', f'{rfdc}.Mts.DacTiles', 0xF),
@@ -383,14 +432,17 @@ def check_the_rfmc_sequence_is_the_firmwares_own():
     for values, step, reason in (({'user reset times out': True}, 'reset user logic', 'did not come out of reset'),
                                  ({'dsp reset times out': True}, 'wait for DSP clock', 'did not come out of reset'),
                                  ({'clocks fail': True}, 'init clocks', 'PLL not locked: Lmx[1]'),
-                                 ({}, 'init clocks', 'no clock chip register file')):
+                                 ({}, 'init clocks', 'ships no config/lmk')):
         _setup, root = tree('rfmc', dict(values, **{'AMCc.PollEn': True}))
         setup = procedure(_setup, 'rfmc')
-        if 'no clock' in reason:
-            setup.lmk_config = None
+        if 'ships no' in reason:
+            # The package without the file: what the resolver raises.
+            def missing():
+                raise _setup.StepError('the rfmc_cryo_det package ships no config/lmk/HexRegisterValues.txt')
+            setup.lmk_config = missing
         try:
             with StoodInLoad(_setup):
-                setup.run(root)
+                run_on(setup, root)
         except _setup.StepError as e:
             assert str(e).startswith(f'{step}: ') and reason in str(e), e
         else:
@@ -428,7 +480,7 @@ def check_the_carrier_skips_an_unpopulated_bay():
     _setup, root = tree('atca')
     root = StandInRoot(paths, aligned_lanes({}))
     with StoodInLoad(_setup) as load:
-        procedure(_setup, 'atca').run(root)
+        run_on(procedure(_setup, 'atca'), root)
     touched = {e[1] for e in root.log if e[0] in ('set', 'call')}
     # Bay 1's devices are MicrowaveMuxCore[1] and AppTopJesd[1]; DAC 1 of bay 0 is not.
     assert not [p for p in touched if '[1].' in p], touched
@@ -447,18 +499,18 @@ def check_the_platform_without_links_loads_the_layers_alone():
 def check_the_link_check_judges_lanes_as_witnessed():
     """A lane outside its values reloads and, still bad, fails; aligned lanes pass without a reload."""
     _setup, root = tree('atca', aligned_lanes({}))
-    expected = _setup.AtcaSetup.ELASTIC_BUFFER_LATENCY
+    expected = _setup.atca.AtcaSetup.ELASTIC_BUFFER_LATENCY
     assert set(expected) == set(range(10))
     assert expected[2] == expected[3] == (255,)
     assert all(expected[lane] == (13, 14) for lane in (0, 1, 4, 5, 6, 7, 8, 9))
     root.values[f'{JESD_BAY(0)}.JesdRx.ElBuffLatency[5]'] = 7
-    setup = procedure(_setup, 'atca')
-    saved_retries = _setup.AtcaSetup.ELASTIC_BUFFER_RETRIES
-    _setup.AtcaSetup.ELASTIC_BUFFER_RETRIES = 2
+    setup = attach(procedure(_setup, 'atca'), root)
+    saved_retries = _setup.atca.AtcaSetup.ELASTIC_BUFFER_RETRIES
+    _setup.atca.AtcaSetup.ELASTIC_BUFFER_RETRIES = 2
     try:
         with StoodInLoad(_setup) as load:
             try:
-                setup.check_elastic_buffers(root)
+                setup.check_elastic_buffers()
             except _setup.StepError as e:
                 assert 'elastic buffer' in str(e), e
             else:
@@ -467,10 +519,11 @@ def check_the_link_check_judges_lanes_as_witnessed():
         reads = [e for e in root.log if e[0] == 'call' and e[1].endswith('ReadDevice')]
         assert len(reads) == 4, f"{len(reads)} device reads for two bays over two tries"
     finally:
-        _setup.AtcaSetup.ELASTIC_BUFFER_RETRIES = saved_retries
+        _setup.atca.AtcaSetup.ELASTIC_BUFFER_RETRIES = saved_retries
     _setup, root = tree('atca', aligned_lanes({}))
+    attach(setup, root)
     with StoodInLoad(_setup) as load:
-        setup.check_elastic_buffers(root)
+        setup.check_elastic_buffers()
     assert not load.loads, 'aligned lanes caused a reload'
 
 
@@ -514,7 +567,7 @@ def check_a_layer_written_for_another_root_is_refused():
         for stem in PLATFORM_OF:
             _setup, root = tree(stem, aligned_lanes({}) if stem == 'atca' else None)
             try:
-                procedure(_setup, stem, layers=(str(theirs),)).run(root)
+                run_on(procedure(_setup, stem, layers=(str(theirs),)), root)
             except _setup.StepError as e:
                 assert str(e).startswith('load layers: ') and "'Root'" in str(e), e
             else:
@@ -535,7 +588,7 @@ def check_a_load_with_no_layers_is_refused():
         _setup, root = tree(stem, aligned_lanes({}) if stem == 'atca' else None)
         try:
             with StoodInLoad(_setup):
-                procedure(_setup, stem, layers=()).run(root)
+                run_on(procedure(_setup, stem, layers=()), root)
         except _setup.StepError as e:
             assert str(e) == 'load layers: no register layers were given', e
         else:
@@ -608,23 +661,18 @@ def check_a_failing_step_ends_the_procedure_unconfigured():
             if v.startswith('Error') or v == 'Done':
                 order.append('message')
 
-    setup = procedure(_setup, 'atca')
+    setup = attach(procedure(_setup, 'atca'), root)
     status = setup.status
     status.ConfiguringInProgress.set = lambda v: (status.ConfiguringInProgress.values.append(v),
                                                   order.append('in_progress_false') if v is False else None)
     setup.Message = Message()
     setup.setProgress = lambda p: None
-    # rogue's Node reads `root` from `_root`; the stand-in class has neither.
-    try:
-        setup.root = root
-    except AttributeError:
-        setup._root = root
     with StoodInLoad(_setup, fail=True):
         setup._process()
     assert status.SystemConfigured.values == [False, False], status.SystemConfigured.values
     assert status.ConfiguringInProgress.values == [True, False]
     # The carrier reports its links unlocked when a step fails, locked when the run ends well.
-    assert status.JesdStatus.values == [_setup.AtcaSetup.JESD_UNLOCKED], status.JesdStatus.values
+    assert status.JesdStatus.values == [_setup.atca.AtcaSetup.JESD_UNLOCKED], status.JesdStatus.values
     # The message names the step that failed as well as why.
     assert Message.text == 'Error: load layers: stood-in load failed', Message.text
     # The message is published before the in-progress flag drops, which is what
@@ -633,40 +681,40 @@ def check_a_failing_step_ends_the_procedure_unconfigured():
     with StoodInLoad(_setup):
         setup._process()
     assert status.SystemConfigured.values[-1] is True
-    assert status.JesdStatus.values == [_setup.AtcaSetup.JESD_UNLOCKED, _setup.AtcaSetup.JESD_LOCKED], status.JesdStatus.values
+    assert status.JesdStatus.values == [_setup.atca.AtcaSetup.JESD_UNLOCKED, _setup.atca.AtcaSetup.JESD_LOCKED], status.JesdStatus.values
     assert Message.text == 'Done', Message.text
     # A read that fails on a rerun after a good one reports the links unlocked, not the earlier Locked.
     again = procedure(_setup, 'atca')
     good = tree('atca', aligned_lanes({}))[1]
     with StoodInLoad(_setup):
-        again.run(good)
+        run_on(again, good)
     bad = tree('atca', aligned_lanes({}))[1]
     bad.ReadAll = lambda: (_ for _ in ()).throw(TimeoutError('register transaction timed out'))
     try:
         with StoodInLoad(_setup):
-            again.run(bad)
+            run_on(again, bad)
     except _setup.StepError as e:
         assert str(e) == 'read all: register transaction timed out', e
     else:
         raise AssertionError('a failing read was not reported')
-    assert again.status.JesdStatus.values == [_setup.AtcaSetup.JESD_LOCKED, _setup.AtcaSetup.JESD_UNLOCKED], again.status.JesdStatus.values
+    assert again.status.JesdStatus.values == [_setup.atca.AtcaSetup.JESD_LOCKED, _setup.atca.AtcaSetup.JESD_UNLOCKED], again.status.JesdStatus.values
     # Four steps declared each run; the good run stepped through all four, the bad one through none.
     assert again.progress == [('total', 4)] + ['step'] * 4 + [('total', 4)], again.progress
     # A firmware without the health check has a status of 'Not found', which the outcome leaves alone.
     old = procedure(_setup, 'atca')
-    old.status.JesdStatus = Flag(_setup.AtcaSetup.JESD_NOT_FOUND)
+    old.given_status.JesdStatus = Flag(_setup.atca.AtcaSetup.JESD_NOT_FOUND)
     with StoodInLoad(_setup):
-        old.run(tree('atca', aligned_lanes({}))[1])
+        run_on(old, tree('atca', aligned_lanes({}))[1])
     with StoodInLoad(_setup, fail=True):
         try:
-            old.run(tree('atca', aligned_lanes({}))[1])
+            run_on(old, tree('atca', aligned_lanes({}))[1])
         except _setup.StepError:
             pass
     assert old.status.JesdStatus.values == [], f"a 'Not found' verdict was overwritten: {old.status.JesdStatus.values}"
     # The platform without links never touches a verdict.
     rf = procedure(_setup, 'rfsoc')
     with StoodInLoad(_setup):
-        rf.run(tree('rfsoc')[1])
+        run_on(rf, tree('rfsoc')[1])
     assert rf.status.JesdStatus.values == [], rf.status.JesdStatus.values
 
 

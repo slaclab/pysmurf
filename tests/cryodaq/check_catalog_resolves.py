@@ -59,7 +59,7 @@ sys.path.insert(0, os.path.join(
     'python'))
 
 from cryodaq import platform                                         # noqa: E402
-from cryodaq.platform import _atca, _rfmc, _rfsoc, _umux             # noqa: E402
+from cryodaq.platform import _umux, atca, rfmc, rfsoc                # noqa: E402
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent.parent
@@ -81,9 +81,9 @@ MIN_RESOLVED = 100
 # Each platform module's two tables, core and legacy. The map itself holds their union
 # and does not tell them apart -- a name resolves the same way from either -- so the
 # split is checked here, against the modules that declare it.
-TABLES = ((_atca.NAME, _atca.REGISTERS, _atca.LEGACY),
-          (_rfsoc.NAME, _rfsoc.REGISTERS, _rfsoc.LEGACY),
-          (_rfmc.NAME, _rfmc.REGISTERS, _rfmc.LEGACY))
+TABLES = ((atca.NAME, atca.REGISTERS, atca.LEGACY),
+          (rfsoc.NAME, rfsoc.REGISTERS, rfsoc.LEGACY),
+          (rfmc.NAME, rfmc.REGISTERS, rfmc.LEGACY))
 
 # The subtrees the *server* adds on top of the firmware package, by their top-level node
 # name under the root. The map declares them -- they are its own section, because the

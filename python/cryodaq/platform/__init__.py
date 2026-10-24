@@ -46,15 +46,11 @@ from dataclasses import dataclass, field
 from typing import (Any, Callable, Dict, List, Mapping, Sequence, Tuple)
 
 from cryodaq._errors import ConnectError, UnresolvedName
-from cryodaq.platform import _atca, _rfmc, _rfsoc, _umux
-from cryodaq.platform._umux import ServerDevice
+from cryodaq.platform import _umux, atca, rfmc, rfsoc
 
-__all__ = ['PlatformMap', 'ServerDevice', 'MAPS', 'identify', 'from_stamp', 'by_name',
+__all__ = ['PlatformMap', 'MAPS', 'identify', 'from_stamp', 'by_name',
            'tag_of', 'parse', 'expand', 'indices', 'witness_names', 'VALUE', 'COMMAND',
-           'PROCESS', 'DEVICE', 'KINDS', 'MAX_SCOPE_INDEX', 'ROOT_PATH',
-           'STATUS_DEVICE_PATH', 'CARRIER_FRONT_END_PATH', 'CARRIER_LINKS_PATH',
-           'RFMC_CARRIER_PATH', 'RFMC_RFDC_PATH', 'RFMC_STARTUP_TIMING_SOURCE',
-           'RFMC_TIMING_RECEIVER_CROSSBAR_OUTPUT']
+           'PROCESS', 'DEVICE', 'KINDS', 'MAX_SCOPE_INDEX', 'ROOT_PATH', 'STATUS_DEVICE_PATH']
 
 # What kind of node a name reaches: a value is read and written, a command is
 # called, a process is started and polled.
@@ -80,19 +76,6 @@ MAX_SCOPE_INDEX = 32
 ROOT_PATH = _umux.ROOT
 # The device a server reports its own state at.
 STATUS_DEVICE_PATH = _umux.APPLICATION
-# The two per-bay devices a carrier with converter cards has and a platform
-# whose converters share the FPGA's die does not: the RF front end and the
-# serial links to it. Templates in `bay`; what the carrier's configuration
-# procedure works on directly, so stated where paths live.
-CARRIER_FRONT_END_PATH = _atca.MUX_CORE
-CARRIER_LINKS_PATH = _atca.JESD_BAY
-# The RFMC carrier's core and its RF data converter, and the clock crossbar output its
-# timing receiver is fed from with the sources that can be routed there; what that
-# platform's configuration procedure works on, stated where paths live.
-RFMC_CARRIER_PATH = _rfmc.CARRIER.CARRIER
-RFMC_RFDC_PATH = _rfmc.RFDC
-RFMC_STARTUP_TIMING_SOURCE = _rfmc.STARTUP_TIMING_SOURCE
-RFMC_TIMING_RECEIVER_CROSSBAR_OUTPUT = _rfmc.TIMING_RECEIVER_CROSSBAR_OUTPUT
 
 # Matched with fullmatch, not match: `$` also matches just before a trailing
 # newline, so a name carrying one -- out of a file, off a command line -- would
@@ -190,9 +173,13 @@ class PlatformMap:
         Name patterns worth reading back to record how a system was left.
     scopes : mapping
         Scope name to ``(path templates that prove an index, parent scopes)``.
+    module : str
+        The platform's own module, ``cryodaq.platform.<name>``; the server
+        finds the platform's rogue code beside it (``<module>.support``).
     top_level : str
         ``module:attribute`` of the class in the firmware package that builds
-        this platform's register tree; what a server imports to build one.
+        this platform's register tree; what a dump of the released package
+        imports, and what the platform's own code builds the tree from.
     tag_path : str
         The build stamp register, by which a tree is recognised as this
         platform's: inside the carrier core, which is named for the board, so
@@ -200,12 +187,6 @@ class PlatformMap:
     package_config_dir : str
         Where this platform's firmware release archive keeps its configuration
         files, relative to the archive's root.
-    server_devices : tuple of ServerDevice
-        What the server adds to the tree beside the FPGA's; empty for a
-        platform whose tree is the FPGA's alone.
-    setup_files : mapping
-        Files the platform's configuration procedure needs from the firmware
-        package, by the procedure's option name: path relative to the package.
     """
 
     name: str
@@ -213,11 +194,10 @@ class PlatformMap:
     registers: Mapping[str, Tuple[str, str]]
     witness: Tuple[str, ...]
     scopes: Mapping[str, Tuple[Tuple[str, ...], Tuple[str, ...]]]
+    module: str = ''
     top_level: str = ''
     tag_path: str = ''
     package_config_dir: str = ''
-    server_devices: Tuple[ServerDevice, ...] = ()
-    setup_files: Mapping[str, str] = field(default_factory=dict)
 
     def __contains__(self, pattern: str) -> bool:
         return pattern in self.registers
@@ -274,18 +254,16 @@ def _from_module(module: Any) -> PlatformMap:
     return PlatformMap(name=module.NAME, tags=tuple(module.TAGS),
                        registers={**module.REGISTERS, **module.LEGACY},
                        witness=tuple(module.WITNESS),
-                       scopes=dict(module.SCOPES), top_level=module.TOP_LEVEL,
-                       tag_path=module.CARRIER.BUILD_STAMP,
-                       package_config_dir=module.PACKAGE_CONFIG_DIR,
-                       server_devices=tuple(getattr(module, 'SERVER_DEVICES', ())),
-                       setup_files=dict(getattr(module, 'SETUP_FILES', {})))
+                       scopes=dict(module.SCOPES), module=module.__name__,
+                       top_level=module.TOP_LEVEL, tag_path=module.CARRIER.BUILD_STAMP,
+                       package_config_dir=module.PACKAGE_CONFIG_DIR)
 
 
 # Every supported platform. One module per platform, and a platform is a set of
 # firmware that shares both a register map and a bring-up procedure -- so two
 # that read the same registers but have to be configured differently are two
 # entries here, however much of their table they share.
-MAPS = (_from_module(_atca), _from_module(_rfsoc), _from_module(_rfmc))
+MAPS = (_from_module(atca), _from_module(rfsoc), _from_module(rfmc))
 
 
 def tag_of(stamp: Any) -> str:

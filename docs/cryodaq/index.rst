@@ -83,7 +83,7 @@ each map; the stamp's text is what names the platform.
 This is the firmware/software boundary: a register path lives here or nowhere.
 
 .. automodule:: cryodaq.platform
-    :members: identify, from_stamp, by_name, PlatformMap, ServerDevice, MAPS, KINDS,
+    :members: identify, from_stamp, by_name, PlatformMap, MAPS, KINDS,
               indices, expand, tag_of, witness_names
     :undoc-members:
 
@@ -92,9 +92,12 @@ Writing a platform map
 
 A platform is a set of firmware that shares both a register map and a bring-up
 procedure; two that read the same registers but are configured differently are
-two platforms. Each is one module under ``cryodaq/platform/``, data only -- no
-rogue, no reads -- listed in ``MAPS`` and turned into a :class:`PlatformMap` by
-the package. The module declares:
+two platforms. Each is one package under ``cryodaq/platform/`` with two halves:
+``<name>/__init__.py``, the register map -- data only, no rogue, no reads,
+listed in ``MAPS`` and turned into a :class:`PlatformMap` by the package -- and
+``<name>/support.py``, the platform's support code in the board-support sense --
+its devices instantiated and its initialisation sequence, in rogue -- which only
+a server imports. The map module declares:
 
 ``NAME``
     The platform's short name (``umux-atca``), what ``--platform`` and
@@ -125,21 +128,28 @@ the package. The module declares:
     scopes)``; a scope is something the hardware has *n* of.
 ``WITNESS``
     Name patterns worth reading back to record how a system was left.
-``SERVER_DEVICES`` (optional)
-    :class:`ServerDevice` entries for hardware the *server* adds beside the
-    FPGA's tree, driven by a class of the firmware package over a register
-    path of its own (the transport attribute that carries it). A dump of the
-    package has none of these.
-``SETUP_FILES`` (optional)
-    Files the platform's configuration procedure needs from the firmware
-    package, by the procedure's option name, relative to the package.
 
-A platform also needs a configuration procedure: a ``Setup`` subclass in
-``cryodaq.server``, registered under its name, whose ``steps`` are the
-firmware's own bring-up order. The checks that keep a map honest are in
-``tests/cryodaq``: every name must resolve on a dump of the platform's released
-package, every procedure step must reach a node its platform has, and the
-map's stamp register must be the one the platform reports its own stamp at.
+The support module holds one :class:`~cryodaq.server.PlatformSupport` subclass, found
+by the composition beside the map, with plain rogue code in it:
+
+``top_level(transport, **options)``
+    Builds the firmware's top-level device over the transport's register path
+    (``transport.srp``, at ``transport.register_offset`` where the FPGA sits in
+    a processor system's window), with the deployment's options for the class.
+``devices(transport)``
+    Devices the server adds beside the FPGA's tree -- hardware a class of the
+    firmware package drives over a register path of its own, such as the RFMC
+    carrier's RF data converter over ``transport.srp_rfdc``. A dump of the
+    package has none of these; the map still names where they sit.
+``setup``
+    The configuration procedure: a :class:`~cryodaq.server.Setup` subclass
+    whose ``steps`` are the firmware's own bring-up order, working on the tree
+    directly and taking its paths from the map module beside it.
+
+The checks that keep a platform honest are in ``tests/cryodaq``: every name
+must resolve on a dump of the platform's released package, every procedure
+step must reach a node its platform has, and the map's stamp register must be
+the one the platform reports its own stamp at.
 
 server
 ------
@@ -179,13 +189,17 @@ converter up, synchronises the converter's tiles and then loads the layers, in
 the order the firmware's own start-up uses, with polling held off throughout. A
 layer whose top-level key is not the server root's name is refused rather than
 credited: rogue would log it as not found and still end the load well. The
-procedure has run only in emulation so far.
+procedure has run on one board in emulation and on a bench.
 
-This is the one part of cryodaq that imports rogue at module level; the package
-does not import it.
+What a platform contributes to the tree -- its top level, the devices beside
+it, its procedure -- is the platform's own rogue code, in
+``cryodaq.platform.<name>.support`` (see *Writing a platform map*); the
+composition asks it for each and adds what it is given. This subpackage and
+those modules are the parts of cryodaq that import rogue at module level; the
+package does not import it.
 
 .. automodule:: cryodaq.server
-    :members: compose, OperationsProvider, attach_operations, Transport, eth,
-              pcie, tcp_bridge, emulation, ReadoutRoot, CORE_PROVIDERS,
+    :members: compose, OperationsProvider, attach_operations, PlatformSupport, Setup,
+              Transport, eth, pcie, tcp_bridge, emulation, ReadoutRoot, CORE_PROVIDERS,
               add_capture_receivers, OffloadCard
     :undoc-members:

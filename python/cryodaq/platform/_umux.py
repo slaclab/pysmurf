@@ -37,11 +37,10 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-from dataclasses import dataclass
 from typing import Dict, Tuple
 
-__all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES', 'Carrier', 'ServerDevice',
-           'APPLICATION', 'SERVER_ADDED_ROOT_NODES']
+__all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES', 'Carrier', 'APPLICATION',
+           'SERVER_ADDED_ROOT_NODES']
 
 # --------------------------------------------------------------------------
 # register paths, as templates over the indexed scopes
@@ -193,31 +192,6 @@ FPGA = f'{ROOT}.FpgaTopLevel'
 # written, 'command' is called, 'process' is started and polled, 'device' is where
 # operations attach.
 _V, _C, _P, _D = 'value', 'command', 'process', 'device'
-
-@dataclass(frozen=True)
-class ServerDevice:
-    """A device the server adds to the tree beside the FPGA's, from the firmware package.
-
-    The firmware package declares the FPGA's tree; some hardware beside the FPGA
-    is driven by a class of the same package over a register path of its own,
-    and is the server's to build and add -- so a dump of the package has none of
-    it, and the map says what the server adds and where.
-
-    Parameters
-    ----------
-    path : str
-        Where the device sits on the tree: a child of the root.
-    driver : str
-        ``module:attribute`` of the class that drives it, in the firmware package.
-    link : str
-        Which of the transport's register paths it is driven over, by the
-        transport's attribute name (``srp_rfdc``).
-    """
-
-    path: str
-    driver: str
-    link: str
-
 
 # The carrier core is the one device of the FPGA that is named for the board it is
 # on: `AmcCarrierCore` on the ATCA carrier (and on the RFSoC, whose firmware is the

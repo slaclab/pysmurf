@@ -27,28 +27,26 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-import atexit
-import contextlib
-import importlib
-import importlib.resources
 import logging
 import os
-from typing import Any, Callable, Dict, Mapping, Optional, Sequence
+from typing import Any, Callable, Mapping, Optional, Sequence
 
 from cryodaq import platform
 from cryodaq._errors import ConnectError
 from cryodaq.server._application_config import ApplicationConfig, EXCLUDED_FROM
 from cryodaq.server._application_status import ApplicationStatus
 from cryodaq.server._capture import CAPTURE_POINTS, add_capture_receivers
-from cryodaq.server._firmware import load_package, probe_platform, resolve_layers, top_level
+from cryodaq.server._firmware import load_package, probe_platform, resolve_layers
 from cryodaq.server._provider import OperationsProvider, attach_operations
 from cryodaq.server._root import ReadoutRoot
+from cryodaq.server._setup import PlatformSupport, Setup
 from cryodaq.server._offload_card import OffloadCard
 from cryodaq.server._transport import Transport, emulation, eth, pcie, tcp_bridge
 from cryodaq.server.operations import UMUX_OPERATIONS
 from cryodaq.server import _cli
 
 __all__ = ['compose', 'CORE_PROVIDERS', 'OperationsProvider', 'attach_operations', 'load_package',
+           'PlatformSupport', 'Setup',
            'Transport', 'eth', 'pcie', 'tcp_bridge', 'emulation', 'OffloadCard', 'ReadoutRoot',
            'ApplicationConfig', 'ApplicationStatus', 'EXCLUDED_FROM', 'UMUX_OPERATIONS',
            'add_capture_receivers', 'CAPTURE_POINTS', 'add_arguments', 'configure_logging', 'transport_from',
@@ -108,15 +106,18 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
     top_level_options : mapping, optional
         Keyword arguments for the firmware's top-level class beyond ``memBase``:
         what the deployment knows and the FPGA cannot report before its tree is
-        built, such as which bays to leave out.
+        built, such as which bays to leave out. The platform's builder
+        (`PlatformSupport.top_level`) passes them on; one whose class takes none
+        ignores them, saying so.
     capture_points, capture_type
         Size and sample type of the debug capture receivers, one per DDR
         stream; 0 points for none.
     on_start : callable, optional
         Called with the root once started, before ``Ready`` rises.
     top_level_class : class, optional
-        Build the tree with this class instead of the one the platform names;
-        for an emulated tree of a platform whose own package is not to hand.
+        Build the FPGA's tree with this class (``memBase=`` and the options)
+        instead of the platform's own builder; for an emulated tree of a
+        platform whose own package is not to hand.
     application : str, optional
         The application composing this server, published as
         ``application.name``; the readout core alone leaves it ''.
@@ -144,8 +145,7 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
         transport.card.open()
     try:
         if transport.probes_firmware:
-            pmap = probe_platform(transport.srp, transport.register_nodes,
-                                  offset=transport.register_offset)
+            pmap = probe_platform(transport)
             if platform_name is not None and platform_name != pmap.name:
                 raise ConnectError(f"the hardware reports platform {pmap.name!r}, "
                                    f"not {platform_name!r}")
@@ -159,18 +159,20 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
         # A relative file name means one in the archive's configuration
         # directory, which is where the platform's package keeps them.
         layers = resolve_layers(layers, firmware, pmap.package_config_dir)
-        # The FPGA's register window starts where the transport says; a link
-        # to the FPGA itself starts at 0, which its classes take for granted.
+        # The platform's own rogue code builds its top level for this transport
+        # and whatever it adds beside it; a class given here stands in for the
+        # top level, for an emulated tree of a platform whose package is not to hand.
+        tree = PlatformSupport.for_map(pmap)
         options = dict(top_level_options or {})
-        if transport.register_offset:
-            options['offset'] = transport.register_offset
-        fpga = _build_top_level(top_level_class or top_level(pmap), transport.srp, options)
-        extras = _platform_devices(pmap, transport)
+        if top_level_class is not None:
+            fpga = top_level_class(memBase=transport.srp, **options)
+        else:
+            fpga = tree.top_level(transport, **options)
 
         root = ReadoutRoot(fpga=fpga, transport=transport, pmap=pmap, providers=providers,
                            sinks=sinks, layers=layers, server_port=server_port, polling=polling,
                            configure=configure, variable_groups=variable_groups, on_start=on_start,
-                           application=application, **extras)
+                           application=application, devices=tree.devices(transport), setup=tree.setup())
         if capture_points:
             add_capture_receivers(root, transport, capture_points, capture_type)
     except BaseException:
@@ -182,88 +184,3 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
     return root
 
 
-def _build_top_level(cls, srp, options):
-    """Instantiate the firmware top level with the options it takes.
-
-    The options are what a deployment knows (which bays to leave out, a power
-    monitor to enable) and are the AMC carrier's: a release that predates one,
-    or another carrier's class, does not take it. A class's signature does not
-    say -- the RFMC's forwards ``**kwargs`` to its base -- so the class is
-    asked: an option it refuses by name is dropped, with a warning, and the
-    build retried without it, until it builds or refuses for another reason.
-    One command line thereby serves every platform and release.
-    """
-    options = dict(options)
-    # The register window's offset is the transport's fact, not a deployment
-    # option: a class that cannot take it must not be built without it.
-    required = {k for k in options if k == 'offset'}
-    while True:
-        try:
-            return cls(memBase=srp, **options)
-        except TypeError as e:
-            unknown = [k for k in options
-                       if f"unexpected keyword argument '{k}'" in str(e) and k not in required]
-            if not unknown:
-                raise
-            _log.warning("%s does not take %s; building without it", cls.__name__, ', '.join(unknown))
-            for k in unknown:
-                del options[k]
-
-
-def _platform_devices(pmap: platform.PlatformMap, transport: Transport) -> Dict[str, Any]:
-    """What a platform's map says the server adds beside the FPGA's tree, built from its package.
-
-    A map declares the devices the server drives over register paths of their
-    own (``server_devices``: the RFMC carrier's RF data converter, over the
-    transport's second path) and the files its configuration procedure needs
-    from the firmware package (``setup_files``: that carrier's clock chip
-    register file). Both are resolved here, where the package is importable. A
-    file is read by its driver as a plain file, so one inside a release archive
-    is extracted beside the server for as long as it runs.
-
-    Parameters
-    ----------
-    pmap : PlatformMap
-        The platform identified.
-    transport : Transport
-        Where the devices' register paths come from, by attribute name.
-
-    Returns
-    -------
-    dict
-        Keyword arguments for `ReadoutRoot`: ``devices`` to add, and
-        ``setup_options`` for the platform's procedure. Empty for a platform
-        that declares nothing.
-
-    Raises
-    ------
-    ConnectError
-        If a declared device's register path is one the transport does not
-        have, or the package ships no file the procedure needs.
-    """
-    if not pmap.server_devices and not pmap.setup_files:
-        return {}
-    devices = []
-    for declared in pmap.server_devices:
-        srp = getattr(transport, declared.link, None)
-        if srp is None:
-            raise ConnectError(f"platform {pmap.name} drives {declared.path} over a register path "
-                               f"({declared.link}) which the {transport.name} transport does not have")
-        module_name, _, attribute = declared.driver.partition(':')
-        driver = getattr(importlib.import_module(module_name), attribute)
-        devices.append(driver(name=declared.path.rsplit('.', 1)[1], memBase=srp))
-    package = pmap.top_level.partition(':')[0]
-    files = {}
-    for option, relative in pmap.setup_files.items():
-        resource = importlib.resources.files(package).joinpath(relative)
-        if not resource.is_file():
-            raise ConnectError(f"the {package} package ships no {relative}, which the {pmap.name} "
-                               f"configuration procedure needs ({option})")
-        files[option] = str(_EXTRACTED.enter_context(importlib.resources.as_file(resource)))
-    return dict(devices=devices, setup_options=files)
-
-
-# Files taken out of a release archive for a driver that reads plain files; kept
-# for the life of the process, since a server composes once and runs.
-_EXTRACTED = contextlib.ExitStack()
-atexit.register(_EXTRACTED.close)
