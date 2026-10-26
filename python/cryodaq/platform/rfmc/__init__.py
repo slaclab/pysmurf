@@ -35,10 +35,11 @@ __all__ = ['NAME', 'TAGS', 'PACKAGE_CONFIG_DIR', 'CARRIER', 'REGISTERS', 'LEGACY
 
 NAME = 'umux-rfmc'
 
-# The firmware image name this platform runs, as the build stamp reports it. Read
-# off a board running v1.1.0:
+# The firmware image name this platform runs, as the build stamp reports it.
+# First derived from the release asset's name (rogue_MicrowaveMuxRfmcCarrier_v1.1.0),
+# then read off a board running that release, through the TCP bridge:
 #
-#   MicrowaveMuxRfmcCarrier: Vivado v2026.1, rdsrv403 (Ubuntu 22.04.5 LTS), ...
+#   MicrowaveMuxRfmcCarrier: Vivado v2026.1, rdsrv403 (Ubuntu 22.04.5 LTS), Built Fri Oct 16 ... 2026 by ruckman
 #
 # which is the one build target of the rfmc-cryo-det firmware, as the carrier's
 # image reports its target.

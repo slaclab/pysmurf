@@ -176,6 +176,8 @@ SESSION = None
 ROOT = None
 ENDPOINT = None
 PLATFORM = 'atca'
+# Whether the RFMC firmware package was put on the path (--rfmc); its builder is asked only then.
+RFMC_ON_PATH = False
 
 
 def stamp_for(image):
@@ -883,6 +885,50 @@ def check_the_bridge_transport_has_the_shape_the_rfmc_needs():
             assert 'addr' in str(e), e
         else:
             raise AssertionError(f'{argv} built a bridge transport')
+
+
+def check_every_builder_answers_for_the_transports_register_window():
+    """A top level is built where the transport puts the FPGA's registers, or the platform refuses the transport.
+
+    The window is the transport's fact: 0 over a link to the FPGA itself, the
+    processor system's window over the bridge. A builder that silently built
+    at 0 over a transport with a window elsewhere would address a tree the
+    probe had identified somewhere else. So each platform's builder is asked,
+    bare (nothing composed), over a transport with the bridge's offset: the
+    RFMC's class takes the offset and its tree must start there; the carrier
+    classes have no such argument (a rogue device's offset is fixed when it is
+    built), so theirs must refuse, naming the platform and the window. The
+    RFSoC's builder is asked as `firmware_support` stands it in, and the
+    stand-in top level is asked too, since every check over `standin_root`
+    relies on it. The RFMC's package is on the path only in the run given it
+    (``--rfmc``); the other runs ask the two carrier builders.
+    """
+    from cryodaq.server import _transport
+    saved = PLATFORM
+    try:
+        for key, name in EXPECTED_PLATFORM.items():
+            globals()['PLATFORM'] = key
+            supports = [StandInSupport()]
+            if key != 'rfmc' or RFMC_ON_PATH:
+                supports.append(firmware_support())
+            for support in supports:
+                transport = cryodaq.server.emulation()
+                transport.register_offset = _transport.BRIDGE_REGISTER_OFFSET
+                try:
+                    fpga = support.top_level(transport)
+                except cryodaq.ConnectError as e:
+                    assert isinstance(support, StandInSupport) is False and key != 'rfmc', \
+                        f"{name}: {type(support).__name__} refused the window: {e}"
+                    assert name in str(e) and f"{_transport.BRIDGE_REGISTER_OFFSET:#x}" in str(e), e
+                    continue
+                assert key == 'rfmc' or isinstance(support, StandInSupport), \
+                    f"{name}'s builder built a tree over a transport with a window at " \
+                    f"{transport.register_offset:#x} without refusing it"
+                assert fpga.offset == _transport.BRIDGE_REGISTER_OFFSET, \
+                    f"{name}: {type(support).__name__} starts the tree at {fpga.offset:#x}, " \
+                    f"not the transport's {_transport.BRIDGE_REGISTER_OFFSET:#x}"
+    finally:
+        globals()['PLATFORM'] = saved
 
 
 def check_the_rfmc_composition_carries_its_converter_and_clock_file():
@@ -1611,9 +1657,14 @@ def firmware_support():
     flag, and the RFSoC tree is the carrier package without its bays, not the
     RFSoC firmware's. The procedure and the devices are the platform's own.
     """
-    support = cryodaq.server.PlatformSupport.for_map(platform.by_name(EXPECTED_PLATFORM[PLATFORM]))
+    support = cryodaq.server.PlatformSupport.for_map(this_platform_map())
     if PLATFORM == 'rfsoc':
+        real = support.top_level
+
         def top_level(transport, **options):
+            if transport.register_offset:
+                # Refused as the real builder refuses it, for the same reason.
+                real(transport, **options)
             from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
             return FpgaTopLevel(memBase=transport.srp, isRFSOC=True, **options)
         support.top_level = top_level
@@ -1840,7 +1891,7 @@ def run(checks):
 
 
 def main():
-    global SESSION, ROOT, ENDPOINT, PLATFORM, BAND, FIRMWARE_ARGS, SMURF_PCIE
+    global SESSION, ROOT, ENDPOINT, PLATFORM, BAND, FIRMWARE_ARGS, SMURF_PCIE, RFMC_ON_PATH
     ap = argparse.ArgumentParser(
         description='Drive a cryodaq session against an emulated firmware tree.')
     source = ap.add_mutually_exclusive_group(required=True)
@@ -1874,6 +1925,7 @@ def main():
                          'started only if one of them is named')
     args = ap.parse_args()
     PLATFORM = args.platform
+    RFMC_ON_PATH = bool(args.rfmc)
     if (args.platform == 'rfmc') != bool(args.rfmc):
         ap.error('--platform rfmc and --rfmc go together')
     FIRMWARE_ARGS = ['--firmware', args.zip] if args.zip else []

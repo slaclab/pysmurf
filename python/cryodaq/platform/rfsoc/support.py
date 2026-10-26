@@ -22,6 +22,8 @@
 #-----------------------------------------------------------------------------
 from typing import Any, Callable, Sequence, Tuple
 
+from cryodaq._errors import ConnectError
+from cryodaq.platform import rfsoc
 from cryodaq.server._setup import PlatformSupport, Setup, load_layers
 
 __all__ = ['RfsocSupport', 'RfsocSetup']
@@ -47,6 +49,15 @@ class RfsocSupport(PlatformSupport):
         ``options`` are the class's own keyword arguments (the bay and
         power-monitor flags it shares with the carrier), as a deployment gives
         them; the RFSoC build has no bays to leave out.
+
+        The class takes the FPGA's registers at 0 -- its constructor has no
+        ``offset`` and a rogue device's is fixed when it is built -- so a
+        transport that puts them elsewhere (a processor system's window) is
+        refused: a tree built at 0 over it would address nothing the probe
+        identified. Passing the window on is a change to the firmware's class.
         """
+        if transport.register_offset:
+            raise ConnectError(f"platform {rfsoc.NAME}'s top level takes the FPGA's registers at 0, and cannot "
+                               f"be placed at the {transport.name} transport's window {transport.register_offset:#x}")
         from CryoDet._MicrowaveMuxZcu208 import FpgaTopLevel
         return FpgaTopLevel(memBase=transport.srp, **options)

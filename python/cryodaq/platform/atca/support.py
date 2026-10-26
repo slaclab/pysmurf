@@ -24,6 +24,7 @@
 import logging
 from typing import Any, Callable, Dict, List, Sequence, Tuple
 
+from cryodaq._errors import ConnectError
 from cryodaq.platform import atca
 from cryodaq.server._setup import PlatformSupport, Setup, StepError, load_layers
 
@@ -138,6 +139,15 @@ class AtcaSupport(PlatformSupport):
         ``disableBay1``, ``enablePwrI2C`` -- as a deployment gives them. The
         class is the firmware package's, importable once the package is on the
         path, which it is by the time a platform has been identified.
+
+        The class takes the FPGA's registers at 0 -- its constructor has no
+        ``offset`` and a rogue device's is fixed when it is built -- so a
+        transport that puts them elsewhere (a processor system's window) is
+        refused: a tree built at 0 over it would address nothing the probe
+        identified. Passing the window on is a change to the firmware's class.
         """
+        if transport.register_offset:
+            raise ConnectError(f"platform {atca.NAME}'s top level takes the FPGA's registers at 0, and cannot "
+                               f"be placed at the {transport.name} transport's window {transport.register_offset:#x}")
         from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
         return FpgaTopLevel(memBase=transport.srp, **options)
