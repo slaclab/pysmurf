@@ -188,7 +188,11 @@ converter up, synchronises the converter's tiles and then loads the layers, in
 the order the firmware's own start-up uses, with polling held off throughout. A
 layer whose top-level key is not the server root's name is refused rather than
 credited: rogue would log it as not found and still end the load well. The
-procedure has run on one board in emulation and on a bench.
+procedure has run to ``Done`` on one board on a bench, over the bridge, with the
+converter tiles synchronised and the register layer applied -- not with cold
+resonators, so what it leaves tuned is unverified -- and runs in emulation with
+the clock, reset and converter steps stood in, since an emulated memory has
+none of that hardware.
 
 What a platform contributes to the tree -- its top level, the devices beside
 it, its procedure -- is the platform's own rogue code, in
