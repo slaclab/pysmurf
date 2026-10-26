@@ -26,9 +26,7 @@
 #
 # The top level is built by the platform's own support code, over an emulated
 # transport, exactly as a server builds it -- the same class with the same
-# arguments. The RFMC carrier's release declares a rogue newer than the server
-# image's for its RF data converter alone; the declaration is stood in for here,
-# since nothing it guards is used (the device is not built).
+# arguments, under the rogue the package declares it needs.
 #-----------------------------------------------------------------------------
 # This file is part of the pysmurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -75,13 +73,6 @@ def main():
     import cryodaq.server
 
     pmap = platform.by_name(args.platform)
-    if pmap.name == 'umux-rfmc':
-        # This platform's release declares a rogue newer than the server image
-        # that runs this (6.15.0, for its RF data converter class); the dump
-        # builds the FPGA's tree, not the converter, so the declaration is
-        # stood in rather than failing a check that does not need it.
-        import rogue
-        rogue.Version.minVersion = lambda *a, **k: None
     # The platform's own builder over an emulated register path, with no
     # deployment option: every bay in, as the release's own defaults have it.
     fpga = cryodaq.server.PlatformSupport.for_map(pmap).top_level(cryodaq.server.emulation())

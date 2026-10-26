@@ -251,10 +251,9 @@ jobs:
       # - The same, for the RFMC carrier's firmware (slaclab/rfmc-cryo-det). Its
       #   release carries the carrier's and the application's packages as submodules;
       #   the dump builds its own top level, and the RFMC map is what is resolved
-      #   against it. The release declares a rogue newer than this container's for its
-      #   RF data converter alone, which the dump does not build, so the dump stands
-      #   the declaration in. A private repository like cryo-det: the same token, the
-      #   same skip-and-say-so on a fork pull request.
+      #   against it. The release declares rogue >= 6.15.0, which the server image
+      #   carries. A private repository like cryo-det: the same token, the same
+      #   skip-and-say-so on a fork pull request.
       - name: Resolve the RFMC names against a released firmware package
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}

@@ -129,6 +129,9 @@ class SmurfBase:
                 raise cryodaq.ConnectError(
                     f"the server at {server_addr}:{server_port} {what}; SmurfControl needs "
                     f"a server started by pysmurf.core.server")
+            # Kept for callers outside this package; nothing here reads it --
+            # what a step needs is whether the platform has the hardware the
+            # step writes, which is `platform_has`.
             self.is_rfsoc = self._session.pmap.name == 'umux-rfsoc'
             if atca_monitor:
                 # The shelf manager's monitor is a second rogue server with its
@@ -179,6 +182,28 @@ class SmurfBase:
 
         # LUT table length for arbitrary waveform generation
         self._lut_table_array_length = 2048
+
+    def platform_has(self, pattern):
+        """Whether the connected platform has the hardware a name pattern reaches.
+
+        The platform map declares a name only for hardware the platform
+        carries: ``bay[*].attenuator[*].uc`` on a carrier with an RF front
+        end, ``bay[*].clock.enable`` where the converters are timed from the
+        AMC's clock chip, ``rtm.cpld_reset`` where there is an RTM. A step
+        that writes such hardware asks this first, with the pattern as the
+        map spells it, and does nothing where the platform has none of it.
+        Offline there is no platform, and nothing is written anyway.
+
+        Parameters
+        ----------
+        pattern : str
+            A name pattern, indices as ``[*]``.
+
+        Returns
+        -------
+        bool
+        """
+        return self._session is not None and pattern in self._session.pmap.registers
 
     @property
     def _client(self):
