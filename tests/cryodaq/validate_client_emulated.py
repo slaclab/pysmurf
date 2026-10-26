@@ -1575,6 +1575,8 @@ def add_library_paths(args):
         # operations the server attaches, which the composition would refuse.
         pr.addLibraryPath(f"{args.rfmc}/python")
     if args.zip:
+        # Never with --rfmc (main() refuses it): the archive would bring its own
+        # surf ahead of the RFMC release's.
         pr.addLibraryPath(f"{args.zip}/python")
         return
     if not args.rfmc:
@@ -1913,6 +1915,13 @@ def main():
     RFMC_ON_PATH = bool(args.rfmc)
     if (args.platform == 'rfmc') != bool(args.rfmc):
         ap.error('--platform rfmc and --rfmc go together')
+    if args.rfmc and args.zip:
+        # A CryoDet archive carries its own surf/amc-carrier-core, older than
+        # the RFMC release's; put whole in front of it, the RFMC's classes
+        # fail on an argument that older surf lacks (`zynq`). The checkout
+        # form adds CryoDet alone, which is what the RFMC run needs.
+        ap.error('--rfmc goes with --cryo-det, not --zip: a CryoDet archive would '
+                 "put its older surf ahead of the RFMC release's")
     FIRMWARE_ARGS = ['--firmware', args.zip] if args.zip else []
     if args.smurf_pcie:
         SMURF_PCIE = f"{args.smurf_pcie}/python" if zipfile.is_zipfile(args.smurf_pcie) else args.smurf_pcie
