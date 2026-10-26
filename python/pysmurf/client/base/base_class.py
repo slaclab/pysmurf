@@ -129,10 +129,6 @@ class SmurfBase:
                 raise cryodaq.ConnectError(
                     f"the server at {server_addr}:{server_port} {what}; SmurfControl needs "
                     f"a server started by pysmurf.core.server")
-            # Kept for callers outside this package; nothing here reads it --
-            # what a step needs is whether the platform has the hardware the
-            # step writes, which is `platform_has`.
-            self.is_rfsoc = self._session.pmap.name == 'umux-rfsoc'
             if atca_monitor:
                 # The shelf manager's monitor is a second rogue server with its
                 # own tree, outside the platform map; it is reached directly.
@@ -147,7 +143,6 @@ class SmurfBase:
         else:
             # Offline there is no firmware to ask, and no register is reached.
             self._session = None
-            self.is_rfsoc = False
             self._atca = _DummyClient("OFFLINE: ATCA monitor client")
 
         self.offline = offline
