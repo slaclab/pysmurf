@@ -122,15 +122,23 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caput(name, val, **kwargs)
 
-    def _skipifrfsoc(func):
-        def skipper(self, *args,**kwargs):
-            result = None
-            if not self.is_rfsoc:
-                result  = func(self, *args,**kwargs)
-            else:
-                print(f'Function {func.__name__} called, but not implemented on RFSoC.  Skipping call and returning None!')
-            return result
-        return skipper
+    def _needs(pattern):
+        """Skip the method, returning None, on a platform without the hardware ``pattern`` reaches.
+
+        The attenuators are an RF front end's; a platform whose map does not
+        declare them has none, and a caller asking for one is told so once
+        per call rather than failing on a name the tree lacks.
+        """
+        def mark(func):
+            def skipper(self, *args, **kwargs):
+                if self.platform_has(pattern):
+                    return func(self, *args, **kwargs)
+                print(f'Function {func.__name__} called, but this platform has no {pattern}. '
+                      'Skipping call and returning None!')
+                return None
+            skipper.__name__, skipper.__doc__ = func.__name__, func.__doc__
+            return skipper
+        return mark
 
     def _caput(self, pvname, val, index=-1, cast_type=True, write_log=False, log_level=None,
                execute=True, wait_before=None, wait_after=None, wait_done=True, **kwargs):
@@ -4994,7 +5002,7 @@ class SmurfCommandMixin(SmurfBase):
                 'integer in [0,1,2,3,4,5,6,7] ...'
         return bay
 
-    @_skipifrfsoc
+    @_needs('bay[*].attenuator[*].uc')
     def set_att_uc(self, b, val, **kwargs):
         """Set the up-converter (UC) RF attenuator for a 500 MHz band.
 
@@ -5030,7 +5038,7 @@ class SmurfCommandMixin(SmurfBase):
         bay = self.band_to_bay(b)
         self._set_by_name(f'bay[{bay}].attenuator[{att}].uc', val, **kwargs)
 
-    @_skipifrfsoc
+    @_needs('bay[*].attenuator[*].uc')
     def get_att_uc(self, b, **kwargs):
         """Get the current up-converter (UC) RF attenuator setting for a band.
 
@@ -5061,7 +5069,7 @@ class SmurfCommandMixin(SmurfBase):
         return self._get_by_name(f'bay[{bay}].attenuator[{att}].uc', **kwargs)
 
 
-    @_skipifrfsoc
+    @_needs('bay[*].attenuator[*].dc')
     def set_att_dc(self, b, val, **kwargs):
         """Set the down-converter (DC) RF attenuator for a 500 MHz band.
 
@@ -5097,7 +5105,7 @@ class SmurfCommandMixin(SmurfBase):
         bay = self.band_to_bay(b)
         self._set_by_name(f'bay[{bay}].attenuator[{att}].dc', val, **kwargs)
 
-    @_skipifrfsoc
+    @_needs('bay[*].attenuator[*].dc')
     def get_att_dc(self, b, **kwargs):
         """Get the current down-converter (DC) RF attenuator setting for a band.
 

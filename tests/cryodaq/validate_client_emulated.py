@@ -30,8 +30,10 @@
 # platform has no RF front end and no serial links to one. The RFMC carrier has a
 # package of its own (--rfmc, a release ZIP), which carries this one as a submodule
 # *with* the tuning operations still in it: the operation-less checkout given here
-# goes ahead of it on the path, so the tree is the RFMC's over this CryoDet. All
-# three are bay-indexed, because the acquisition mux is; what differs is what sits
+# goes ahead of it on the path, so the tree is the RFMC's over this CryoDet, and
+# that release declares rogue >= 6.15.0 (the server image's), so the RFMC run
+# needs an interpreter with it. All three are bay-indexed, because the
+# acquisition mux is; what differs is what sits
 # inside a bay. The scope check names what each platform is expected to have and
 # fails if any changes.
 #
@@ -1468,17 +1470,7 @@ class _EntryPointChild:
         self.platform = EXPECTED_PLATFORM['rfmc' if PLATFORM == 'rfmc' else 'atca']
         args = ['--transport', 'emulation', '--platform', self.platform, '--server-port', str(port),
                 '--nopoll', '--capture-points', '0', '--log-level', 'WARNING'] + FIRMWARE_ARGS
-        if PLATFORM == 'rfmc':
-            # The RFMC release declares a rogue newer than this one (see
-            # add_library_paths); the child is the entry point run under the
-            # same stand-in, through runpy so that its own main() is what runs.
-            cmd = [sys.executable, '-c',
-                   'import runpy, sys, rogue\n'
-                   'rogue.Version.minVersion = lambda *a, **k: None\n'
-                   f'sys.argv = [{module!r}] + sys.argv[1:]\n'
-                   f'runpy.run_module({module!r}, run_name="__main__", alter_sys=True)'] + args
-        else:
-            cmd = [sys.executable, '-m', module] + args
+        cmd = [sys.executable, '-m', module] + args
         # The child inherits this run's import path: the firmware packages in
         # the order add_library_paths() put them.
         env = dict(os.environ, PYTHONPATH=os.pathsep.join(p for p in sys.path if p))
@@ -1582,13 +1574,6 @@ def add_library_paths(args):
         # Behind CryoDet: the RFMC release carries its own CryoDet, with the
         # operations the server attaches, which the composition would refuse.
         pr.addLibraryPath(f"{args.rfmc}/python")
-        # The release declares rogue >= 6.15.0, for its RF data converter class
-        # alone; what that version adds (RoCEv2, build files) nothing here uses,
-        # and a server image with 6.15.0 exists. This interpreter has not
-        # moved, so the declaration is stood in -- here, and in the entry-point
-        # child, which runs under the same interpreter.
-        import rogue
-        rogue.Version.minVersion = lambda *a, **k: None
     if args.zip:
         pr.addLibraryPath(f"{args.zip}/python")
         return

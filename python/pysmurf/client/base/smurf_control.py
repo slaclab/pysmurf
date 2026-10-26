@@ -481,12 +481,12 @@ class SmurfControl(SmurfCommandMixin,
                 band, self.eta_scan_del_f[band],
                 write_log=write_log, **kwargs)
 
-        # `is_rfsoc` guards the writes to hardware the RFSoC does not have
-        # (attenuators, AMC trigger arming, the RTM CPLD, the cryostat card).
-        # The map already knows each as a name the platform lacks; the flag
-        # stays until these blocks move to the platform layer with the rest of
-        # the carrier bring-up.
-        if not self.is_rfsoc:
+        # Each block below writes hardware some platforms do not have -- an RF
+        # front end's attenuators, the AMC's trigger arming, the RTM's CPLD --
+        # and asks the platform map whether this one does, by the name it would
+        # write. These blocks go to the platform layer with the rest of the
+        # carrier bring-up.
+        if self.platform_has('bay[*].attenuator[*].uc'):
             # Set UC and DC attenuators
             for band in self._bands:
                 self.set_att_uc(
@@ -496,7 +496,7 @@ class SmurfControl(SmurfCommandMixin,
                     band, self.att_dc[band],
                     write_log=write_log)
 
-        if not self.is_rfsoc:
+        if self.platform_has('bay[*].daq.trigger_hw_arm'):
             # Things that have to be done for both AMC bays, regardless of whether or not an AMC
             # is plugged in there.
             for bay in [0, 1]:
@@ -515,7 +515,7 @@ class SmurfControl(SmurfCommandMixin,
 
         self.set_enable_ramp_trigger(1, write_log=write_log)
 
-        if not self.is_rfsoc:
+        if self.platform_has('rtm.cpld_reset'):
             self.set_cpld_reset(0, write_log=write_log)
             self.cpld_toggle(write_log=write_log)
 
@@ -535,7 +535,7 @@ class SmurfControl(SmurfCommandMixin,
         self.set_channel_mask([0])
 
         try:
-            if not self.is_rfsoc:
+            if self.platform_has('rtm.cryocard.write'):
                 ## Removed this because better error handling for cc
                 ## communication in
                 ## https://github.com/slaclab/pysmurf/pull/794 Causes this

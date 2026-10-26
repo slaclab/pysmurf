@@ -4937,9 +4937,12 @@ class SmurfUtilMixin(SmurfBase):
         etdt = self.get_evr_trigger_dest_type(0, as_string=True)
         te = self.get_trigger_enable(0)
 
-        # LMKs
+        # LMKs: the AMC's clock chips, where the platform has them. On a
+        # carrier whose converters are clocked from the board itself, the
+        # timing mode is the crossbar's and the triggers' alone.
+        lmk_bays = self.bays if self.platform_has('bay[*].clock_input.enable') else []
         lmks={}
-        for bay in self.bays:
+        for bay in lmk_bays:
             lmks[bay]={}
             for reg in [0x146,0x147]:
                 lmks[bay][reg]=self.get_lmk_reg(bay,reg)
@@ -4950,17 +4953,17 @@ class SmurfUtilMixin(SmurfBase):
         # External reference timing mode configuration
         if ( cbar == [0x0, 0x0, 0x1, 0x1] and
              rsm == 0 and
-             (len(self.bays) == 0 or
-              (all([lmks[bay][0x146]==0x10 for bay in self.bays]) and
-               all([lmks[bay][0x147]==0x1a for bay in self.bays]))) ):
+             (len(lmk_bays) == 0 or
+              (all([lmks[bay][0x146]==0x10 for bay in lmk_bays]) and
+               all([lmks[bay][0x147]==0x1a for bay in lmk_bays]))) ):
             return 'ext_ref'
 
         # Fiber or backplane timing mode configurations
         if ( rsm == 1 and
              ( ecre == 1 and etdt == "All" and te == 1 ) and
-             (len(self.bays) == 0 or
-              (all([lmks[bay][0x146]==0x8 for bay in self.bays]) and
-               all([lmks[bay][0x147]==0xa for bay in self.bays]))) ):
+             (len(lmk_bays) == 0 or
+              (all([lmks[bay][0x146]==0x8 for bay in lmk_bays]) and
+               all([lmks[bay][0x147]==0xa for bay in lmk_bays]))) ):
 
             # Fiber timing mode configuration
             if ( cbar == [0x0, 0x0, 0x0, 0x0] ):
@@ -5046,8 +5049,10 @@ class SmurfUtilMixin(SmurfBase):
 
         self.log(f'System configured for {current_timing_mode} timing.  Reconfiguring slot {self.slot_number} for {mode} timing.',self.LOG_USER)
 
+        # The AMC's clock chips, where the platform has them (see get_timing_mode).
+        lmk_bays = self.bays if self.platform_has('bay[*].clock_input.enable') else []
         # Make sure we can write to the LMK regs
-        for bay in self.bays:
+        for bay in lmk_bays:
             self.set_lmk_enable(bay, 1, write_log=write_log)
 
         if mode == 'backplane' and self.slot_number == 2:
@@ -5068,10 +5073,10 @@ class SmurfUtilMixin(SmurfBase):
             self.set_crossbar_output_config(3, 0x1, write_log=write_log)
 
             # Configure LMK
-            for bay in self.bays:
+            for bay in lmk_bays:
                 self.log(f'Select external reference for bay {bay}' +
                          ' or free running if there is no reference.')
-                for bay in self.bays:
+                for bay in lmk_bays:
                     self.set_lmk_reg(bay, 0x146, 0x10, write_log=write_log)
                     self.set_lmk_reg(bay, 0x147, 0x1a, write_log=write_log)
 
@@ -5132,7 +5137,7 @@ class SmurfUtilMixin(SmurfBase):
             self.set_ramp_start_mode(1, write_log=write_log)
 
             # Configure LMK
-            for bay in self.bays:
+            for bay in lmk_bays:
                 self.set_lmk_reg(bay, 0x146, 0x08, write_log=write_log)
                 self.set_lmk_reg(bay, 0x147, 0x0A, write_log=write_log)
 
