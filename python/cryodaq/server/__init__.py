@@ -73,7 +73,7 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
             top_level_options: Optional[Mapping[str, Any]] = None,
             capture_points: int = 0, capture_type: str = 'Int16',
             on_start: Optional[Callable[[ReadoutRoot], None]] = None,
-            top_level_class: Any = None, application: str = '') -> ReadoutRoot:
+            support: Optional[PlatformSupport] = None, application: str = '') -> ReadoutRoot:
     """Build a readout server.
 
     Parameters
@@ -107,17 +107,19 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
         Keyword arguments for the firmware's top-level class beyond ``memBase``:
         what the deployment knows and the FPGA cannot report before its tree is
         built, such as which bays to leave out. The platform's builder
-        (`PlatformSupport.top_level`) passes them on; one whose class takes none
-        ignores them, saying so.
+        (`PlatformSupport.top_level`) passes them on; one its class does not
+        take is refused, by name.
     capture_points, capture_type
         Size and sample type of the debug capture receivers, one per DDR
         stream; 0 points for none.
     on_start : callable, optional
         Called with the root once started, before ``Ready`` rises.
-    top_level_class : class, optional
-        Build the FPGA's tree with this class (``memBase=`` and the options)
-        instead of the platform's own builder; for an emulated tree of a
-        platform whose own package is not to hand.
+    support : PlatformSupport, optional
+        Stands in for the platform's own support code, which is otherwise found
+        beside its map; for an emulated tree of a platform whose firmware
+        package is not to hand. It builds the top level over the transport as
+        the platform's would, so what the transport says about its register
+        path -- where the FPGA's window starts -- reaches the tree either way.
     application : str, optional
         The application composing this server, published as
         ``application.name``; the readout core alone leaves it ''.
@@ -160,19 +162,17 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
         # directory, which is where the platform's package keeps them.
         layers = resolve_layers(layers, firmware, pmap.package_config_dir)
         # The platform's own rogue code builds its top level for this transport
-        # and whatever it adds beside it; a class given here stands in for the
-        # top level, for an emulated tree of a platform whose package is not to hand.
-        tree = PlatformSupport.for_map(pmap)
-        options = dict(top_level_options or {})
-        if top_level_class is not None:
-            fpga = top_level_class(memBase=transport.srp, **options)
-        else:
-            fpga = tree.top_level(transport, **options)
+        # and whatever it adds beside it; there is no other way to build one,
+        # so a stand-in is a PlatformSupport too.
+        if support is None:
+            support = PlatformSupport.for_map(pmap)
+        fpga = support.top_level(transport, **(top_level_options or {}))
 
         root = ReadoutRoot(fpga=fpga, transport=transport, pmap=pmap, providers=providers,
                            sinks=sinks, layers=layers, server_port=server_port, polling=polling,
                            configure=configure, variable_groups=variable_groups, on_start=on_start,
-                           application=application, devices=tree.devices(transport), setup=tree.setup())
+                           application=application, devices=support.devices(transport),
+                           setup=support.setup())
         if capture_points:
             add_capture_receivers(root, transport, capture_points, capture_type)
     except BaseException:

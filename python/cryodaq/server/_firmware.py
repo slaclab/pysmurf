@@ -25,7 +25,6 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-import importlib
 import logging
 import os
 import sys
@@ -37,7 +36,7 @@ import pyrogue
 from cryodaq import platform
 from cryodaq._errors import ConnectError
 
-__all__ = ['load_package', 'resolve_layers', 'probe_platform', 'top_level', 'ROOT_NAME']
+__all__ = ['load_package', 'resolve_layers', 'probe_platform', 'ROOT_NAME']
 
 _log = logging.getLogger(__name__)
 
@@ -191,14 +190,3 @@ def probe_platform(transport: Any) -> platform.PlatformMap:
                            f"reachable over this transport? ({e})") from e
     _log.info("firmware %s identified as platform %s", pmap.tags, pmap.name)
     return pmap
-
-
-def top_level(pmap: platform.PlatformMap) -> Any:
-    """Import the class that builds ``pmap``'s register tree."""
-    module_name, _, attribute = pmap.top_level.partition(':')
-    try:
-        module = importlib.import_module(module_name)
-    except ImportError as e:
-        raise ConnectError(f"platform {pmap.name} needs {module_name}, which is not "
-                           f"importable: {e}. Load the firmware package first.") from e
-    return getattr(module, attribute)

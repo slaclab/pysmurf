@@ -27,7 +27,7 @@ from typing import Any, Dict, Optional
 from cryodaq import platform
 from cryodaq.server._capture import CAPTURE_POINTS
 
-__all__ = ['add_arguments', 'configure_logging', 'transport_from', 'composition_kwargs',
+__all__ = ['add_arguments', 'configure_logging', 'transport_from', 'composition_kwargs', 'top_level_options',
            'server_port_for', 'run']
 
 # The ZMQ port convention: a base, three ports per server, chosen by the slot.
@@ -193,5 +193,16 @@ def composition_kwargs(args: argparse.Namespace) -> Dict[str, Any]:
                 server_port=server_port_for(args), polling=args.polling,
                 configure=args.configure, capture_points=args.capture_points,
                 capture_type=args.capture_type,
-                top_level_options=dict(disableBay0=args.disable_bay0, disableBay1=args.disable_bay1,
-                                       enablePwrI2C=args.enable_pwri2c))
+                top_level_options=top_level_options(args))
+
+
+def top_level_options(args: argparse.Namespace) -> Dict[str, Any]:
+    """The top-level class's keyword arguments for the flags that were given.
+
+    Only a flag that was set is passed on: a platform whose class does not
+    take it refuses it by name, which is right when it was asked for and
+    wrong when it was the default.
+    """
+    flags = {'disableBay0': args.disable_bay0, 'disableBay1': args.disable_bay1,
+             'enablePwrI2C': args.enable_pwri2c}
+    return {name: True for name, given in flags.items() if given}

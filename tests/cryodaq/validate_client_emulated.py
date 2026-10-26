@@ -122,10 +122,6 @@ EXPECTED_PLATFORM = {'atca': 'umux-atca', 'rfsoc': 'umux-rfsoc', 'rfmc': 'umux-r
 EXPECTED_IMAGE = {'atca': 'MicrowaveMuxBpEthGen2',
                   'rfsoc': 'MicrowaveMuxZcu208_BaseBand',
                   'rfmc': 'MicrowaveMuxRfmcCarrier'}
-# What the firmware's top-level class is told beyond its memory base, per
-# platform: the CryoDet package builds either AMC generation, by this flag; the
-# RFMC's own class takes nothing.
-TOP_LEVEL_OPTIONS = {'atca': dict(isRFSOC=False), 'rfsoc': dict(isRFSOC=True), 'rfmc': {}}
 
 # What each is expected to have, so that the difference between them is asserted by
 # name rather than noticed. Both platforms have bays: the acquisition mux is indexed
@@ -925,8 +921,7 @@ def check_the_rfmc_composition_carries_its_converter_and_clock_file():
     transport = cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource(), rfdc=False)
     try:
         pysmurf.core.server.compose(transport=transport, platform_name='umux-rfmc',
-                                    server_port=free_port(), polling=False,
-                                    top_level_class=StandInTopLevel)
+                                    server_port=free_port(), polling=False)
     except cryodaq.ConnectError as e:
         assert 'srp_rfdc' in str(e) and 'emulation' in str(e), e
     else:
@@ -1006,11 +1001,10 @@ def check_the_server_reports_the_bays_it_was_built_with():
         reported = list(ROOT.getNode(f'{platform.STATUS_DEVICE_PATH}.EnabledBays').get())
         assert reported == [0, 1], f"both quads are on the tree; reported {reported}"
         return
-    from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
     root = pysmurf.core.server.compose(
         transport=cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource()),
         platform_name=EXPECTED_PLATFORM[PLATFORM], server_port=free_port(), polling=False,
-        top_level_class=FpgaTopLevel, top_level_options=dict(disableBay1=True, **TOP_LEVEL_OPTIONS[PLATFORM]))
+        support=firmware_support(), top_level_options=dict(disableBay1=True))
     expected = [0] if EXPECTED_FRONT_END[PLATFORM] else []
     with root:
         reported = list(root.getNode(f'{platform.STATUS_DEVICE_PATH}.EnabledBays').get())
@@ -1608,6 +1602,46 @@ def free_port():
     return base
 
 
+def firmware_support():
+    """The platform's own support code, building the firmware's tree -- the RFSoC's stood in.
+
+    The RFSoC firmware's own package is not to hand here. Its top-level class
+    is the AMC carrier's with ``isRFSOC`` defaulted on -- all that does is leave
+    out the JESD lanes and signal generators -- so that class is built with the
+    flag, and the RFSoC tree is the carrier package without its bays, not the
+    RFSoC firmware's. The procedure and the devices are the platform's own.
+    """
+    support = cryodaq.server.PlatformSupport.for_map(platform.by_name(EXPECTED_PLATFORM[PLATFORM]))
+    if PLATFORM == 'rfsoc':
+        def top_level(transport, **options):
+            from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+            return FpgaTopLevel(memBase=transport.srp, isRFSOC=True, **options)
+        support.top_level = top_level
+    return support
+
+
+def this_platform_map():
+    """The map under test, off the table -- not through `by_name`, which a check watches for the composition's own call."""
+    return next(m for m in platform.MAPS if m.name == EXPECTED_PLATFORM[PLATFORM])
+
+
+class StandInSupport(cryodaq.server.PlatformSupport):
+    """A platform's support code with a stand-in top level and nothing beside it.
+
+    The procedure is the platform's own, so a check that runs it over the
+    stand-in tree runs the real one.
+    """
+
+    def __init__(self):
+        self.setup = cryodaq.server.PlatformSupport.for_map(this_platform_map()).setup
+
+    def top_level(self, transport, **options):
+        # Over the transport, as the platform's builder is: the offset of the
+        # FPGA's register window is the transport's fact and goes in here.
+        assert not options, f"the stand-in takes no option; given {sorted(options)}"
+        return StandInTopLevel(memBase=transport.srp, offset=transport.register_offset)
+
+
 class StandInTopLevel(pr.Device):
     """A firmware top level with only what the composition itself needs.
 
@@ -1628,9 +1662,9 @@ class StandInTopLevel(pr.Device):
     them would fail the checks built over it.
     """
 
-    def __init__(self, memBase=None, **_):
+    def __init__(self, memBase=None, offset=0):
         import surf.axi
-        pr.Device.__init__(self, name='FpgaTopLevel', memBase=memBase)
+        pr.Device.__init__(self, name='FpgaTopLevel', memBase=memBase, offset=offset)
         app_top = pr.Device(name='AppTop')
         app_core = pr.Device(name='AppCore')
         sysgen = pr.Device(name='SysgenCryo')
@@ -1651,10 +1685,13 @@ class StandInTopLevel(pr.Device):
         rtm.add(spi)
         for name in ('read', 'write'):
             spi.add(pr.LocalVariable(name=name, value=0, mode='RW'))
-        carrier = pr.Device(name='AmcCarrierCore')
+        # The carrier core and its board-support device are named for the
+        # board; the map says what this platform's are called.
+        paths = this_platform_map()
+        carrier = pr.Device(name=paths.path('firmware.build_stamp').split('.')[-3])
         self.add(carrier)
         carrier.add(surf.axi.AxiVersion(offset=0))
-        bsi = pr.Device(name='AmcCarrierBsi')
+        bsi = pr.Device(name=paths.path('carrier.crate_id').split('.')[-2])
         carrier.add(bsi)
         for name in ('CrateId', 'SlotNumber'):
             bsi.add(pr.LocalVariable(name=name, value=0, mode='RO'))
@@ -1692,7 +1729,7 @@ def standin_root(reduced=False, **kwargs):
     kwargs.setdefault('transport',
                       cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource()))
     return compose(platform_name=EXPECTED_PLATFORM[PLATFORM], server_port=free_port(),
-                   polling=False, top_level_class=StandInTopLevel, **kwargs)
+                   polling=False, support=StandInSupport(), **kwargs)
 
 
 def write_build_stamp(root, stamp):
@@ -1742,23 +1779,14 @@ def emulation_root(args, port):
     add_library_paths(args)
     import pysmurf.core.emulators
     import pysmurf.core.server
-    # The tree is what the SMuRF server composes over an emulated transport. An
-    # emulated memory holds no build stamp, so the platform is named here; the
-    # stamp the checks expect is written in afterwards. The RFSoC firmware's own
-    # top-level class is this one with isRFSOC defaulted on, and that package is
-    # not to hand, so the flag is passed here and this class stands in: all it
-    # does is leave out the JESD lanes and signal generators, so the RFSoC tree
-    # is this package without its bays, not the RFSoC firmware's. The RFMC's
-    # class is its own package's, imported as the composition would. See the header.
-    if args.platform == 'rfmc':
-        # The RFMC's own class, as the platform's support module builds it.
-        kwargs = {}
-    else:
-        from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
-        kwargs = dict(top_level_class=FpgaTopLevel, top_level_options=TOP_LEVEL_OPTIONS[args.platform])
+    # The tree is what the SMuRF server composes over an emulated transport,
+    # built by the platform's own support code (the RFSoC's stood in, see
+    # `firmware_support`). An emulated memory holds no build stamp, so the
+    # platform is named here; the stamp the checks expect is written in afterwards.
     root = pysmurf.core.server.compose(
         transport=cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource()),
-        platform_name=EXPECTED_PLATFORM[args.platform], server_port=port, polling=False, **kwargs)
+        platform_name=EXPECTED_PLATFORM[args.platform], server_port=port, polling=False,
+        support=firmware_support())
     try:
         root.start()
     except Exception:

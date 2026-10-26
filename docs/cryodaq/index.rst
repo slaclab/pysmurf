@@ -106,9 +106,6 @@ a server imports. The map module declares:
     The firmware image names this platform runs, as the build stamp reports
     them before its first colon. Read one off a board rather than deriving it:
     an image not listed is refused by name, which is the safe failure.
-``TOP_LEVEL``
-    ``module:attribute`` of the class in the firmware's Python package that
-    builds the FPGA's tree.
 ``PACKAGE_CONFIG_DIR``
     Where the firmware's release archive keeps its configuration files, so a
     relative layer name a server is given means a file there.
@@ -135,7 +132,9 @@ by the composition beside the map, with plain rogue code in it:
 ``top_level(transport, **options)``
     Builds the firmware's top-level device over the transport's register path
     (``transport.srp``, at ``transport.register_offset`` where the FPGA sits in
-    a processor system's window), with the deployment's options for the class.
+    a processor system's window), with the deployment's options for the class;
+    an option the class does not take is refused by name. This is the one
+    place the top level is built -- a released-package dump builds through it too.
 ``devices(transport)``
     Devices the server adds beside the FPGA's tree -- hardware a class of the
     firmware package drives over a register path of its own, such as the RFMC

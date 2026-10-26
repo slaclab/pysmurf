@@ -348,12 +348,7 @@ def JESD_BAY(bay):
 # --------------------------------------------------------------------------
 
 def check_every_platform_has_a_procedure():
-    """Each map has a support module beside it with one PlatformSupport whose setup is a Setup.
-
-    The top level that module builds is the class the map names, spelled once
-    in each: the map's ``TOP_LEVEL`` (what a dump of the released package
-    imports) and the module's own import of it must agree.
-    """
+    """Each map has a support module beside it with one PlatformSupport whose setup is a Setup."""
     _setup = setup_module()
     for pmap in platform.MAPS:
         stem = pmap.module.rsplit('.', 1)[1]
@@ -362,10 +357,6 @@ def check_every_platform_has_a_procedure():
                  if isinstance(v, type) and issubclass(v, _setup.PlatformSupport) and v is not _setup.PlatformSupport]
         assert len(trees) == 1, f"{pmap.name}: {len(trees)} PlatformSupport subclasses"
         assert issubclass(trees[0].setup, _setup.Setup) and trees[0].setup is not _setup.Setup, pmap.name
-        top_module, _, attribute = pmap.top_level.partition(':')
-        source = pathlib.Path(module.__file__).read_text()
-        assert f"from {top_module} import {attribute}" in source, \
-            f"{pmap.name}: the support module does not build {pmap.top_level}"
     try:
         _setup.PlatformSupport.for_map(platform.by_name('umux-atca').__class__(
             name='no-such', tags=(), registers={}, witness=(), scopes={}, module='cryodaq.platform.no_such'))
