@@ -24,10 +24,11 @@
 # Usage:
 #     dump_released_tree.py --zip <package.zip> --out <varlist.txt> [--platform umux-rfmc]
 #
-# The top-level class is the one the platform's map names, imported from the
-# package as the server imports it. The RFMC carrier's release declares a rogue
-# newer than the server image's for its RF data converter alone; the declaration
-# is stood in for here, since nothing it guards is used (the device is not built).
+# The top level is built by the platform's own support code, over an emulated
+# transport, exactly as a server builds it -- the same class with the same
+# arguments. The RFMC carrier's release declares a rogue newer than the server
+# image's for its RF data converter alone; the declaration is stood in for here,
+# since nothing it guards is used (the device is not built).
 #-----------------------------------------------------------------------------
 # This file is part of the pysmurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -39,7 +40,6 @@
 #-----------------------------------------------------------------------------
 
 import argparse
-import importlib
 import os
 import sys
 import zipfile
@@ -52,7 +52,7 @@ def main():
     ap.add_argument('--zip', required=True, help='released firmware package')
     ap.add_argument('--out', required=True, help='where to write the node listing')
     ap.add_argument('--platform', default='umux-atca',
-                    help='whose top-level class to build the tree with (its map names it)')
+                    help='whose support code to build the tree with')
     args = ap.parse_args()
 
     source = os.path.abspath(args.zip)
@@ -72,7 +72,7 @@ def main():
             sys.path.insert(0, os.path.join(root, 'python'))
             break
     from cryodaq import platform
-    import pyrogue.interfaces.simulation
+    import cryodaq.server
 
     pmap = platform.by_name(args.platform)
     if pmap.name == 'umux-rfmc':
@@ -82,25 +82,9 @@ def main():
         # stood in rather than failing a check that does not need it.
         import rogue
         rogue.Version.minVersion = lambda *a, **k: None
-    module_name, _, attribute = pmap.top_level.partition(':')
-    FpgaTopLevel = getattr(importlib.import_module(module_name), attribute)
-
-    kwargs = dict(memBase=pyrogue.interfaces.simulation.MemEmulate())
-    # The AMC carrier's class takes which bays to build and which generation;
-    # isRFSOC/isPreSpectra are recent additions a release predating them rejects, so
-    # ask in decreasing order of specificity rather than assuming. The RFMC's takes
-    # nothing of the kind.
-    for extra in ({'disableBay0': False, 'disableBay1': False, 'isRFSOC': False, 'isPreSpectra': False},
-                  {'disableBay0': False, 'disableBay1': False, 'isRFSOC': False},
-                  {'disableBay0': False, 'disableBay1': False}, {}):
-        try:
-            fpga = FpgaTopLevel(**kwargs, **extra)
-            break
-        except TypeError as exc:
-            if 'unexpected keyword argument' not in str(exc):
-                raise
-    else:
-        raise SystemExit('FATAL: could not construct FpgaTopLevel from this package')
+    # The platform's own builder over an emulated register path, with no
+    # deployment option: every bay in, as the release's own defaults have it.
+    fpga = cryodaq.server.PlatformSupport.for_map(pmap).top_level(cryodaq.server.emulation())
 
     # add() before start(): a started tree refuses new nodes, so the context-manager
     # form cannot be used here -- it starts on entry.

@@ -24,7 +24,6 @@
 import atexit
 import contextlib
 import importlib.resources
-import logging
 from typing import Any, Callable, List, Sequence, Tuple
 
 from cryodaq._errors import ConnectError
@@ -33,11 +32,9 @@ from cryodaq.server._setup import PlatformSupport, Setup, StepError, load_layers
 
 __all__ = ['RfmcSupport', 'RfmcSetup']
 
-_log = logging.getLogger(__name__)
-
-# The firmware's Python package: the top level, and the clock chips' register
-# file shipped beside it.
-FIRMWARE_PACKAGE = rfmc.TOP_LEVEL.partition(':')[0]
+# The firmware's Python package, which ships the clock chips' register file
+# beside its top level.
+FIRMWARE_PACKAGE = 'rfmc_cryo_det'
 
 # A file taken out of a release archive for a driver that reads plain files; kept
 # for the life of the process, since a server composes once and runs.
@@ -153,10 +150,11 @@ class RfmcSupport(PlatformSupport):
         """The carrier's top level, at the FPGA's window in the processor system's address space.
 
         This class takes no deployment option -- the board has no bays to leave
-        out -- so any given are ignored, and said so.
+        out -- and its own constructor would pass one on to rogue's `Device`
+        rather than refuse it, so it is refused here.
         """
         if options:
-            _log.info("the RFMC top level takes no option; ignoring %s", ', '.join(sorted(options)))
+            raise TypeError(f"the RFMC top level takes no option; given {', '.join(sorted(options))}")
         from rfmc_cryo_det import FpgaTopLevel
         return FpgaTopLevel(memBase=transport.srp, offset=transport.register_offset)
 

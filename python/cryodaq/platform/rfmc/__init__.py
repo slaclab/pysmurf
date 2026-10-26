@@ -29,7 +29,7 @@
 
 from cryodaq.platform import _umux
 
-__all__ = ['NAME', 'TAGS', 'TOP_LEVEL', 'PACKAGE_CONFIG_DIR', 'CARRIER', 'REGISTERS', 'LEGACY',
+__all__ = ['NAME', 'TAGS', 'PACKAGE_CONFIG_DIR', 'CARRIER', 'REGISTERS', 'LEGACY',
            'WITNESS', 'SCOPES', 'QUAD', 'RFDC', 'LMK_CONFIG', 'STARTUP_TIMING_SOURCE',
            'TIMING_RECEIVER_CROSSBAR_OUTPUT']
 
@@ -44,10 +44,6 @@ NAME = 'umux-rfmc'
 # image reports its target.
 TAGS = ('MicrowaveMuxRfmcCarrier',)
 
-# The class in the firmware's Python package that builds this platform's register
-# tree, as `module:attribute`. The RFMC firmware has a package of its own, which
-# carries the carrier's and the uMux application's packages as submodules.
-TOP_LEVEL = 'rfmc_cryo_det:FpgaTopLevel'
 # Where the firmware's release archive keeps its configuration files -- the register
 # defaults, and the clock chip's register file under lmk/ -- so a relative name a
 # server is given means a file there.

@@ -176,10 +176,6 @@ class PlatformMap:
     module : str
         The platform's own module, ``cryodaq.platform.<name>``; the server
         finds the platform's rogue code beside it (``<module>.support``).
-    top_level : str
-        ``module:attribute`` of the class in the firmware package that builds
-        this platform's register tree; what a dump of the released package
-        imports, and what the platform's own code builds the tree from.
     tag_path : str
         The build stamp register, by which a tree is recognised as this
         platform's: inside the carrier core, which is named for the board, so
@@ -195,7 +191,6 @@ class PlatformMap:
     witness: Tuple[str, ...]
     scopes: Mapping[str, Tuple[Tuple[str, ...], Tuple[str, ...]]]
     module: str = ''
-    top_level: str = ''
     tag_path: str = ''
     package_config_dir: str = ''
 
@@ -255,7 +250,7 @@ def _from_module(module: Any) -> PlatformMap:
                        registers={**module.REGISTERS, **module.LEGACY},
                        witness=tuple(module.WITNESS),
                        scopes=dict(module.SCOPES), module=module.__name__,
-                       top_level=module.TOP_LEVEL, tag_path=module.CARRIER.BUILD_STAMP,
+                       tag_path=module.CARRIER.BUILD_STAMP,
                        package_config_dir=module.PACKAGE_CONFIG_DIR)
 
 

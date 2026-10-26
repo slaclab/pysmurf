@@ -30,7 +30,7 @@
 
 from cryodaq.platform import _umux, atca
 
-__all__ = ['NAME', 'TAGS', 'TOP_LEVEL', 'PACKAGE_CONFIG_DIR', 'CARRIER', 'REGISTERS', 'LEGACY',
+__all__ = ['NAME', 'TAGS', 'PACKAGE_CONFIG_DIR', 'CARRIER', 'REGISTERS', 'LEGACY',
            'WITNESS', 'SCOPES']
 
 # The carrier core is the AMC carrier's: this firmware is the carrier's package built
@@ -71,14 +71,6 @@ TAGS = (
     'MicrowaveMuxZcu208_PreSpectra',
 )
 
-# The class in the firmware's Python package that builds this platform's register
-# tree, as `module:attribute`. A server composition imports it once the package
-# is on the path and the platform has been identified from the build stamp.
-# This class is a subclass of the carrier's that builds the tree without bays or
-# converter links; it lives in the RFSoC firmware repository, which carries the
-# carrier's package as a submodule -- so keeping the two firmware lines in step
-# is a matter of that submodule's pin.
-TOP_LEVEL = 'CryoDet._MicrowaveMuxZcu208:FpgaTopLevel'
 # Where the firmware's release archive keeps its configuration files, so a relative
 # name a server is given means a file there.
 PACKAGE_CONFIG_DIR = 'python/CryoDet/config'
