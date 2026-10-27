@@ -862,6 +862,9 @@ def check_the_bridge_transport_has_the_shape_the_rfmc_needs():
             assert len(t.nodes) == 2, f"the RSSI link and the UDP receiver: {t.nodes}"
             assert (t.nodes[0]._host, t.nodes[0]._port) == (PL, _transport.RSSI_PORT), \
                 'the data path is not pointed at the FPGA'
+        # No root takes this transport, so its clients' threads are ended here.
+        for client in t.interfaces:
+            client._stop()
     try:
         _transport.tcp_bridge(PS, PL, data='rdma')
     except ValueError as e:
@@ -887,6 +890,62 @@ def check_the_bridge_transport_has_the_shape_the_rfmc_needs():
             assert 'addr' in str(e), e
         else:
             raise AssertionError(f'{argv} built a bridge transport')
+
+
+def check_the_root_owns_the_transports_threads():
+    """A transport's threaded interfaces stop when the root does, when it is released unstarted, and when composition fails.
+
+    The bridge's TCP clients run from construction (each is three threads and
+    the sockets behind them, measured on rogue 6.15.0) and nothing but a
+    ``_stop()`` ends them; the root takes them as its interfaces, so the tree's
+    stop is theirs, and `release` -- the path for a root that never started --
+    and a composition that raises stop them too. The clients here point at a
+    documentation address nothing answers, as the bridge check's do, and a
+    stand-in records each ``_stop()``; the emulated memory keeps the tree
+    buildable without a board.
+    """
+    import pysmurf.core.emulators
+
+    class Client:
+        stopped = 0
+
+        def _start(self):
+            pass
+
+        def _stop(self):
+            self.stopped += 1
+
+    def transport_with(*clients):
+        transport = cryodaq.server.emulation(pysmurf.core.emulators.StreamDataSource())
+        transport.interfaces = list(clients)
+        return transport
+
+    a, b = Client(), Client()
+    root = standin_root(reduced=True, transport=transport_with(a, b), providers=())
+    with root:
+        assert (a.stopped, b.stopped) == (0, 0), 'a client was stopped while the tree ran'
+    assert a.stopped >= 1 and b.stopped >= 1, f"stopping the root left a client running: {a.stopped}, {b.stopped}"
+
+    c = Client()
+    root = standin_root(reduced=True, transport=transport_with(c), providers=())
+    root.release()
+    root.release()
+    assert c.stopped >= 1, 'a root released without starting left its client running'
+
+    d = Client()
+    try:
+        cryodaq.server.compose(transport=transport_with(d), platform_name='no-such', providers=(), server_port=0)
+    except cryodaq.ConnectError:
+        pass
+    else:
+        raise AssertionError('an unknown platform composed')
+    assert d.stopped >= 1, 'a failed composition left its client running'
+    # And the real bridge declares both clients, so a bridge root owns them.
+    from cryodaq.server import _transport
+    t = _transport.tcp_bridge('192.0.2.203', '192.0.2.103', data='udp', offload_card=False)
+    assert t.interfaces == [t.srp, t.srp_rfdc], f"the bridge declares {t.interfaces}"
+    for client in t.interfaces:
+        client._stop()
 
 
 def check_every_builder_answers_for_the_transports_register_window():

@@ -103,6 +103,9 @@ class ReadoutRoot(pyrogue.Root):
 
         self.zmqServer = pyrogue.interfaces.ZmqServer(root=self, addr='*', port=server_port)
         self.addInterface(self.zmqServer)
+        # The transport's threaded interfaces that are not nodes (the bridge's
+        # TCP clients) stop with the tree, as the ZMQ server does.
+        self.addInterface(*transport.interfaces)
 
         # The metadata stream: every variable in the 'stream' group, as it changes.
         self.stream = pyrogue.interfaces.stream.Variable(root=self, incGroups='stream')
@@ -290,13 +293,16 @@ class ReadoutRoot(pyrogue.Root):
             self.release()
 
     def release(self) -> None:
-        """Give the transport's offload card back: close the lane compose() opened.
+        """Give the transport back: close the card's lane, stop the link's threads.
 
         The card was opened by `compose`, before the firmware was probed
-        through it, and the server's end is the lane's end; `stop` calls
-        this, and so does anything that ends a composed root without
-        starting it. Safe to call more than once.
+        through it, and the server's end is the lane's end; the transport's
+        own threaded interfaces (the bridge's TCP clients) run from the moment
+        they are built. `stop` calls this, and so does anything that ends a
+        composed root without starting it. Safe to call more than once.
         """
+        for interface in self._transport.interfaces:
+            interface._stop()
         if self._transport.card is not None:
             self._transport.card.close()
 

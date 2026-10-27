@@ -131,7 +131,8 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
         and stops it on exit; ``root.pmap`` is the platform it was identified as.
         A transport's offload card is configured here, since the firmware is
         probed through it, and released when the root stops -- so a root that
-        is composed must be stopped.
+        is composed must be stopped (or released, if never started); the
+        transport's own threads (the bridge's TCP clients) end the same way.
 
     Raises
     ------
@@ -176,6 +177,9 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
         if capture_points:
             add_capture_receivers(root, transport, capture_points, capture_type)
     except BaseException:
+        # What a root would have released, released here: no root took it.
+        for interface in transport.interfaces:
+            interface._stop()
         if transport.card is not None:
             transport.card.close()
         raise
