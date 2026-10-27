@@ -893,7 +893,7 @@ def check_the_bridge_transport_has_the_shape_the_rfmc_needs():
 
 
 def check_the_root_owns_the_transports_threads():
-    """A transport's threaded interfaces stop when the root does, when it is released unstarted, and when composition fails.
+    """A transport's threaded interfaces stop when the root does, when it is released unstarted, and when composition fails -- at any point.
 
     The bridge's TCP clients run from construction (each is three threads and
     the sockets behind them, measured on rogue 6.15.0) and nothing but a
@@ -940,6 +940,15 @@ def check_the_root_owns_the_transports_threads():
     else:
         raise AssertionError('an unknown platform composed')
     assert d.stopped >= 1, 'a failed composition left its client running'
+    e = Client()
+    try:
+        cryodaq.server.compose(transport=transport_with(e), firmware='/no/such/package.zip',
+                               platform_name=EXPECTED_PLATFORM[PLATFORM], providers=(), server_port=0)
+    except FileNotFoundError:
+        pass
+    else:
+        raise AssertionError('a firmware path that does not exist composed')
+    assert e.stopped >= 1, 'a composition that failed before the probe left its client running'
     # And the real bridge declares both clients, so a bridge root owns them.
     from cryodaq.server import _transport
     t = _transport.tcp_bridge('192.0.2.203', '192.0.2.103', data='udp', offload_card=False)
