@@ -49,7 +49,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--zip', required=True, help='released firmware package')
     ap.add_argument('--out', required=True, help='where to write the node listing')
-    ap.add_argument('--platform', default='umux-atca',
+    ap.add_argument('--platform', default='umux-amc',
                     help='whose support code to build the tree with')
     args = ap.parse_args()
 

@@ -44,7 +44,7 @@ sys.path.insert(0, os.path.join(
 from cryodaq import platform                                    # noqa: E402
 from cryodaq._errors import ConnectError, UnresolvedName         # noqa: E402
 
-# A build stamp as an ATCA carrier running v2.5.1 reports it, verbatim from
+# A build stamp as an AMC carrier running v2.5.1 reports it, verbatim from
 # artifacts of a live read, so the parsing below is checked against the real
 # shape of the string rather than a tidied one.
 LIVE_STAMP = ('MicrowaveMuxBpEthGen2: Vivado v2020.2, rdsrv403 '
@@ -120,7 +120,7 @@ def check_a_stamp_alone_names_the_platform():
             stamp = f"{tag}: Vivado v2020.2, host (os), Built today by someone"
             assert platform.from_stamp(stamp) is pmap
             assert platform.identify(tree(stamp)) is pmap
-    assert platform.from_stamp(LIVE_STAMP).name == 'umux-atca'
+    assert platform.from_stamp(LIVE_STAMP).name == 'umux-amc'
     for stamp in (EMPTY_STAMP, '', None, '   '):
         try:
             platform.from_stamp(stamp)
@@ -185,7 +185,7 @@ def check_each_map_is_identified_by_its_own_firmware():
 
 def check_the_live_carrier_stamp_identifies_the_carrier():
     assert platform.tag_of(LIVE_STAMP) == 'MicrowaveMuxBpEthGen2'
-    assert platform.identify(tree(LIVE_STAMP)).name == 'umux-atca'
+    assert platform.identify(tree(LIVE_STAMP)).name == 'umux-amc'
 
 
 def check_a_tree_with_no_firmware_is_refused():
@@ -233,7 +233,7 @@ def check_a_declared_platform_that_does_not_exist_is_refused():
     try:
         platform.by_name('no-such-platform')
     except ConnectError as e:
-        assert 'umux-atca' in str(e), f"the error does not list what is known: {e}"
+        assert 'umux-amc' in str(e), f"the error does not list what is known: {e}"
     else:
         raise AssertionError('an unknown platform name was accepted')
 
@@ -252,18 +252,18 @@ def enumerated(platform_name, scope, present, expected, **fixed):
 
 
 def check_a_contiguous_scope_is_enumerated():
-    enumerated('umux-atca', 'band', (0, 1), (0, 1))
+    enumerated('umux-amc', 'band', (0, 1), (0, 1))
 
 
 def check_a_gap_does_not_end_a_scope():
     # A firmware band mask that omits a band below one it keeps: stopping at the
     # first gap reports (1,) and loses band 3 entirely.
-    enumerated('umux-atca', 'band', (1, 3), (1, 3))
+    enumerated('umux-amc', 'band', (1, 3), (1, 3))
 
 
 def check_a_missing_first_index_does_not_empty_a_scope():
     # Bay 0 disabled with bay 1 populated -- a state this hardware runs in.
-    enumerated('umux-atca', 'bay', (1,), (1,))
+    enumerated('umux-amc', 'bay', (1,), (1,))
 
 
 def check_an_absent_scope_is_empty_rather_than_an_error():
@@ -272,7 +272,7 @@ def check_an_absent_scope_is_empty_rather_than_an_error():
 
 def check_a_full_window_is_enumerated():
     every = tuple(range(platform.MAX_SCOPE_INDEX))
-    enumerated('umux-atca', 'band', every, every)
+    enumerated('umux-amc', 'band', every, every)
 
 
 def check_a_scope_is_enumerated_past_the_window():
@@ -286,7 +286,7 @@ def check_a_scope_is_enumerated_past_the_window():
         # own [0] would match every probe; only the channel segment counts here.
         return any(p in path + '.' for p in present)
 
-    for name in ('umux-atca', 'umux-rfsoc'):
+    for name in ('umux-amc', 'umux-rfsoc'):
         got = platform.indices(platform.by_name(name), has, 'channel', band=0)
         assert got == wanted, \
             f"{name} channel enumerated {len(got)} indices, last {got[-1:]}, expected 512"
@@ -302,7 +302,7 @@ def check_a_sampled_scope_expands_to_its_ends_and_middle():
     tree lacks is a register missing at one of those three indices; a register
     missing at channel 100 alone is not seen.
     """
-    pmap = platform.by_name('umux-atca')
+    pmap = platform.by_name('umux-amc')
     pattern = 'band[*].channel[*].tone.amplitude'
 
     def has_channels(n):
@@ -329,11 +329,11 @@ def check_a_scope_ends_after_an_empty_window():
     # Indices 0 and 40 are present: 40 is in the second window, so it is found; the
     # third window (64-95) is empty, so nothing past it is probed. A gap wider than a
     # window ends the scope -- that is the definition of its end.
-    enumerated('umux-atca', 'band', (0, 40, 100), (0, 40))
+    enumerated('umux-amc', 'band', (0, 40, 100), (0, 40))
 
 
 def check_a_nested_scope_needs_its_parent():
-    pmap = platform.by_name('umux-atca')
+    pmap = platform.by_name('umux-amc')
     try:
         platform.indices(pmap, presence(0), 'attenuator')
     except KeyError as e:
@@ -343,7 +343,7 @@ def check_a_nested_scope_needs_its_parent():
 
 
 def check_an_unknown_scope_is_an_error():
-    pmap = platform.by_name('umux-atca')
+    pmap = platform.by_name('umux-amc')
     try:
         platform.indices(pmap, presence(0), 'no_such_scope')
     except KeyError:
@@ -424,17 +424,17 @@ def check_the_generation_shares_every_register_it_can():
     tables pretending to be one -- and no name may be offered by the platform with
     *fewer* devices and not by the other, which would mean the sharing is backwards.
     """
-    atca = platform.by_name('umux-atca')
+    amc = platform.by_name('umux-amc')
     rfsoc = platform.by_name('umux-rfsoc')
-    shared = set(atca.patterns) & set(rfsoc.patterns)
+    shared = set(amc.patterns) & set(rfsoc.patterns)
     assert len(shared) > 100, \
         f"only {len(shared)} names are shared; the maps have diverged"
     for pattern in sorted(shared):
-        assert atca.registers[pattern] == rfsoc.registers[pattern], \
+        assert amc.registers[pattern] == rfsoc.registers[pattern], \
             f"{pattern} differs between the two platforms"
-    assert set(rfsoc.witness) <= set(atca.witness), \
+    assert set(rfsoc.witness) <= set(amc.witness), \
         "the platform with fewer devices witnesses something the carrier does not"
-    extra = sorted(set(rfsoc.patterns) - set(atca.patterns))
+    extra = sorted(set(rfsoc.patterns) - set(amc.patterns))
     assert not extra, (f"{rfsoc.name} offers name(s) the carrier does not: "
                        f"{', '.join(extra[:6])}")
 

@@ -553,7 +553,7 @@ class Session:
         scope : str
             A scope this platform's map declares: ``band`` and ``bay`` on every
             microwave-multiplexed readout; ``attenuator`` only where the
-            platform has an RF front end (the ATCA carrier does, the RFSoC
+            platform has an RF front end (the AMC carrier does, the RFSoC
             does not).
         ``**fixed``
             Indices of the scope's parents, where it has any: an attenuator is

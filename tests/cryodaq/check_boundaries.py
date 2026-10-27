@@ -218,7 +218,7 @@ def violations(package):
                 if name.split('.')[0] in MAP_FORBIDDEN_IMPORTS:
                     found.append(('rogue', f"{rel}:{lineno} imports {name} at module level"))
         for module, name, level in imported_from(tree):
-            # `from cryodaq.platform import atca`. A function out of the package
+            # `from cryodaq.platform import amc`. A function out of the package
             # is how the client is meant to reach the maps; a map module itself,
             # whatever its name, is a violation -- so what counts is whether the
             # name is a submodule, read off the package, not how it is spelled.
@@ -370,7 +370,7 @@ def check_the_dependency_free_surface_works():
         cryodaq.endpoint_of('a-server:9099')
     paths = cryodaq.Paths.under('/tmp/nowhere', name='boundaries')
     assert paths.tune.is_relative_to('/tmp/nowhere'), paths.tune
-    assert cryodaq.platform.by_name('umux-atca').patterns, 'the map is empty'
+    assert cryodaq.platform.by_name('umux-amc').patterns, 'the map is empty'
 
 
 def check_connect_judges_its_arguments_before_needing_rogue():
@@ -574,9 +574,9 @@ def check_rules_fire_on_a_bad_package():
         "import pysmurf\n"
         "from .platform._umux import REGISTERS\n"
         # The same reach written so that the module name alone looks public.
-        "from cryodaq.platform import _atca\n"
+        "from cryodaq.platform import _amc\n"
         # A map module under a public name is still a map module.
-        "from cryodaq.platform import atca\n"
+        "from cryodaq.platform import amc\n"
         # Legal, and must stay legal: the public lookup is how the client is
         # meant to reach a map.
         "from cryodaq.platform import parse\n"
@@ -620,9 +620,9 @@ def check_rules_fire_on_a_bad_package():
         (pkg / 'platform' / '_x.py').write_text(bad_map)
         # A platform's own rogue code, where it belongs: exempt from the rogue
         # rule, as the server is. The same file name elsewhere is not.
-        (pkg / 'platform' / 'atca').mkdir()
-        (pkg / 'platform' / 'atca' / '__init__.py').write_text('')
-        (pkg / 'platform' / 'atca' / 'support.py').write_text(server_side + 'import rogue\n')
+        (pkg / 'platform' / 'amc').mkdir()
+        (pkg / 'platform' / 'amc' / '__init__.py').write_text('')
+        (pkg / 'platform' / 'amc' / 'support.py').write_text(server_side + 'import rogue\n')
         (pkg / 'other' / 'support.py').write_text(server_side)
         # A map shipped as data outside the platform package, which the source
         # rules cannot see; the same thing in its legitimate home, which may not be
@@ -657,7 +657,7 @@ def check_rules_fire_on_a_bad_package():
     assert rules == expected, f"rules fired: {sorted(rules)}, expected {sorted(expected)}"
     details = '\n'.join(d for _, d in found)
     for needle in ('imports pysmurf', 'reaches into platform._umux',
-                   'reaches into cryodaq.platform._atca', 'reaches into cryodaq.platform.atca',
+                   'reaches into cryodaq.platform._amc', 'reaches into cryodaq.platform.amc',
                    'imports sodetlib',
                    'imports pyrogue inside cryodaq.platform',
                    "identifier 'is_rfsoc'", "identifier 'bias_group'",
@@ -668,7 +668,7 @@ def check_rules_fire_on_a_bad_package():
                    'other/support.py:1 imports pyrogue at module level',
                    'server/_bad.py: imports pysmurf'):
         assert needle in details, f"rule for {needle!r} did not fire:\n{details}"
-    assert 'atca/support.py' not in details, \
+    assert 'amc/support.py' not in details, \
         f"a platform's own rogue code was reported as a violation:\n{details}"
     assert 'platform.parse' not in details, \
         f"the public map lookup was reported as a violation:\n{details}"

@@ -424,7 +424,7 @@ class _Client:
 def system(*, configured, with_node=True, status_dir):
     """A Session on a stand-in tree with the firmware, application, config-node and witness registers."""
     from cryodaq import _session
-    pmap = cryodaq.platform.by_name('umux-atca')
+    pmap = cryodaq.platform.by_name('umux-amc')
     values = {'firmware.version': 0x2050000, 'firmware.build_stamp': 'MicrowaveMuxBpEthGen2: x',
               'firmware.git_hash': 'abc', 'application.configured': configured,
               'application.jesd_status': 1, 'timing.rx_link_up': 0,

@@ -59,7 +59,7 @@ sys.path.insert(0, os.path.join(
     'python'))
 
 from cryodaq import platform                                         # noqa: E402
-from cryodaq.platform import _umux, atca, rfmc, rfsoc                # noqa: E402
+from cryodaq.platform import _umux, amc, rfmc, rfsoc                # noqa: E402
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent.parent
@@ -72,7 +72,7 @@ COMMAND = (REPO / 'python' / 'pysmurf' / 'client' / 'command' / 'smurf_command.p
 CLIENT = COMMAND.parent.parent
 
 # Which platform map each committed dump belongs to.
-PLATFORM_OF = {'atca': 'umux-atca', 'rfsoc': 'umux-rfsoc', 'rfmc': 'umux-rfmc'}
+PLATFORM_OF = {'amc': 'umux-amc', 'rfsoc': 'umux-rfsoc', 'rfmc': 'umux-rfmc'}
 
 # Fewer names resolving than this means the dump or the map has stopped being the real
 # one, not that the firmware shrank. The selftest lowers it: its fake maps are small.
@@ -81,7 +81,7 @@ MIN_RESOLVED = 100
 # Each platform module's two tables, core and legacy. The map itself holds their union
 # and does not tell them apart -- a name resolves the same way from either -- so the
 # split is checked here, against the modules that declare it.
-TABLES = ((atca.NAME, atca.REGISTERS, atca.LEGACY),
+TABLES = ((amc.NAME, amc.REGISTERS, amc.LEGACY),
           (rfsoc.NAME, rfsoc.REGISTERS, rfsoc.LEGACY),
           (rfmc.NAME, rfmc.REGISTERS, rfmc.LEGACY))
 
@@ -105,7 +105,7 @@ SERVER_ADDED_PREFIXES = tuple(n.split('{')[0]
 CARRIER_ONLY_DEVICES = ('MicrowaveMuxCore', 'AppTopJesd', 'SmurfApplication.JesdStatus',
                         'SmurfApplication.CheckJesd', 'AppTop.JesdHealth')
 
-# What the ATCA carrier and the RFMC carrier differ by: the AMC carrier core against
+# What the AMC carrier and the RFMC carrier differ by: the AMC carrier core against
 # the RFMC's (each named for its board, with the same leaves inside), the AMC's
 # converter cards and their JESD links against the RFMC's quads with their synthesiser
 # PLLs, and the regulator the server attaches on the AMC carrier. The two share the
@@ -539,83 +539,83 @@ def check_the_platforms_differ_by_the_hardware_one_lacks():
     name were missing for any other reason, the maps would disagree about the
     generation rather than about the hardware.
     """
-    atca = platform.by_name(PLATFORM_OF['atca'])
+    amc = platform.by_name(PLATFORM_OF['amc'])
     rfsoc = platform.by_name(PLATFORM_OF['rfsoc'])
-    carrier_only = set(atca.registers) - set(rfsoc.registers)
+    carrier_only = set(amc.registers) - set(rfsoc.registers)
     assert carrier_only, ('the two maps offer the same names, so nothing here shows '
                           'that resolution does not depend on a device existing')
     stray = sorted(n for n in carrier_only
-                   if not any(d in template_of(atca, n) for d in CARRIER_ONLY_DEVICES))
+                   if not any(d in template_of(amc, n) for d in CARRIER_ONLY_DEVICES))
     assert not stray, ('name(s) the carrier has and the other lacks that are not its '
                        'front end or data links: ' + ', '.join(stray[:6]))
-    other_way = sorted(set(rfsoc.registers) - set(atca.registers))
+    other_way = sorted(set(rfsoc.registers) - set(amc.registers))
     assert not other_way, ('name(s) offered by the platform with fewer devices and not '
                            'by the carrier: ' + ', '.join(other_way[:6]))
     # And the firmware has to agree: every carrier-only name must resolve there and
     # not on the other, or the maps are describing trees these dumps are not.
-    atca_paths, rfsoc_paths = load_dump('atca'), load_dump('rfsoc')
+    amc_paths, rfsoc_paths = load_dump('amc'), load_dump('rfsoc')
     for name in sorted(carrier_only):
-        template = template_of(atca, name)
-        assert expand(atca_paths, template), \
+        template = template_of(amc, name)
+        assert expand(amc_paths, template), \
             f'{name} is declared carrier-only and does not resolve on the carrier'
         assert not expand(rfsoc_paths, template), \
             f'{name} is declared carrier-only and resolves on the other platform too'
 
 
 def check_the_two_carriers_differ_by_their_boards_alone():
-    """The ATCA and RFMC maps differ by the carrier core, the front end and the regulator -- and by nothing else.
+    """The AMC and RFMC maps differ by the carrier core, the front end and the regulator -- and by nothing else.
 
     Both carry the whole uMux application, so every name that is not the board's
-    must be in both maps and reach the same register. What is only the ATCA's is its
+    must be in both maps and reach the same register. What is only the AMC carrier's is its
     converter cards' devices, the JESD verdict and health, the AMC carrier core and the
     regulator the server attaches to it; what is only the RFMC's is its quads'
     synthesisers. The carrier-core names are in both maps and reach different
     devices, named for the board -- so the same name resolves on both dumps, at
     different paths, and that is asserted here as well.
     """
-    atca = platform.by_name(PLATFORM_OF['atca'])
+    amc = platform.by_name(PLATFORM_OF['amc'])
     rfmc = platform.by_name(PLATFORM_OF['rfmc'])
-    atca_only = sorted(set(atca.registers) - set(rfmc.registers))
-    rfmc_only = sorted(set(rfmc.registers) - set(atca.registers))
-    assert atca_only and rfmc_only, 'the two carrier maps do not differ in both directions'
-    stray = [n for n in atca_only
-             if not any(d in template_of(atca, n) for d in AMC_CARRIER_ONLY_DEVICES)]
-    assert not stray, 'ATCA-only name(s) that are not its board\'s: ' + ', '.join(stray[:6])
+    amc_only = sorted(set(amc.registers) - set(rfmc.registers))
+    rfmc_only = sorted(set(rfmc.registers) - set(amc.registers))
+    assert amc_only and rfmc_only, 'the two carrier maps do not differ in both directions'
+    stray = [n for n in amc_only
+             if not any(d in template_of(amc, n) for d in AMC_CARRIER_ONLY_DEVICES)]
+    assert not stray, 'AMC-only name(s) that are not its board\'s: ' + ', '.join(stray[:6])
     stray = [n for n in rfmc_only
              if not any(d in template_of(rfmc, n) for d in RFMC_CARRIER_ONLY_DEVICES)]
     assert not stray, 'RFMC-only name(s) that are not its board\'s: ' + ', '.join(stray[:6])
     # A shared name that reaches a different device on the two is the carrier core's
     # (AmcCarrierCore / RfmcCarrierCore) or the front end's (MicrowaveMuxCore / RfmcQuad
     # carry the same attenuator block); any other difference is two tables drifting.
-    shared = set(atca.registers) & set(rfmc.registers)
-    differ = sorted(n for n in shared if atca.registers[n] != rfmc.registers[n])
+    shared = set(amc.registers) & set(rfmc.registers)
+    differ = sorted(n for n in shared if amc.registers[n] != rfmc.registers[n])
     assert differ, 'no shared name reaches a different device on the two carriers; the ' \
                    'carrier core is not being told apart'
     boards = (('AmcCarrierCore', 'RfmcCarrierCore'), ('MicrowaveMuxCore', 'RfmcQuad'))
     stray = [n for n in differ
-             if not any(a in template_of(atca, n) and r in template_of(rfmc, n) for a, r in boards)]
+             if not any(a in template_of(amc, n) and r in template_of(rfmc, n) for a, r in boards)]
     assert not stray, \
         f"shared name(s) differing other than by the board's devices: {', '.join(stray[:6])}"
     core_names = [n for n in differ if 'RfmcCarrierCore' in template_of(rfmc, n)]
     assert len(core_names) >= 20, f'only {len(core_names)} carrier-core names are told apart'
-    assert all(atca.registers[n][1] == rfmc.registers[n][1] for n in shared), \
+    assert all(amc.registers[n][1] == rfmc.registers[n][1] for n in shared), \
         'a shared name has a different kind on the two carriers'
     # And the dumps agree with the maps: every carrier-core name reaches its own
     # device on each, and the board-only names reach nothing on the other board.
-    atca_paths, rfmc_paths = load_dump('atca'), load_dump('rfmc')
+    amc_paths, rfmc_paths = load_dump('amc'), load_dump('rfmc')
     for name in differ:
-        assert expand(atca_paths, template_of(atca, name)), f'{name} does not resolve on the ATCA'
+        assert expand(amc_paths, template_of(amc, name)), f'{name} does not resolve on the AMC carrier'
         assert expand(rfmc_paths, template_of(rfmc, name)), f'{name} does not resolve on the RFMC'
-        assert not expand(rfmc_paths, template_of(atca, name)), \
-            f"{name}: the ATCA's path resolves on the RFMC too"
+        assert not expand(rfmc_paths, template_of(amc, name)), \
+            f"{name}: the AMC carrier's path resolves on the RFMC too"
     for name in rfmc_only:
-        assert not expand(atca_paths, template_of(rfmc, name)), \
-            f'{name} is declared RFMC-only and resolves on the ATCA too'
-    for name in atca_only:
+        assert not expand(amc_paths, template_of(rfmc, name)), \
+            f'{name} is declared RFMC-only and resolves on the AMC carrier too'
+    for name in amc_only:
         if name in SERVER_ATTACHED:
             continue
-        assert not expand(rfmc_paths, template_of(atca, name)), \
-            f'{name} is declared ATCA-only and resolves on the RFMC too'
+        assert not expand(rfmc_paths, template_of(amc, name)), \
+            f'{name} is declared AMC-only and resolves on the RFMC too'
 
 
 def check_both_generations_are_really_different_trees():
@@ -625,18 +625,18 @@ def check_both_generations_are_really_different_trees():
     prove nothing, so the difference is asserted directly, and asserted to be
     the bay axis rather than merely non-empty.
     """
-    atca, rfsoc = load_dump('atca'), load_dump('rfsoc')
-    assert atca != rfsoc, 'the two dumps hold identical paths'
-    only_atca = atca - rfsoc
-    assert only_atca, 'the carrier dump has nothing the other lacks'
-    stray = [p for p in only_atca
+    amc, rfsoc = load_dump('amc'), load_dump('rfsoc')
+    assert amc != rfsoc, 'the two dumps hold identical paths'
+    only_amc = amc - rfsoc
+    assert only_amc, 'the carrier dump has nothing the other lacks'
+    stray = [p for p in only_amc
              if not any(d in p for d in CARRIER_ONLY_DEVICES)]
     assert not stray, ('the carrier has paths the other lacks that are not the per-bay '
                        'front end or data links: ' + ', '.join(sorted(stray)[:4]))
     # "Differ by exactly" is a claim in both directions: measured against the two full
     # dumps, every RFSoC node is a carrier node, so anything here means the trees have
     # diverged somewhere this check was not written to expect.
-    only_rfsoc = rfsoc - atca
+    only_rfsoc = rfsoc - amc
     assert not only_rfsoc, ('the RFSoC dump has paths the carrier lacks; the trees no '
                             'longer differ by omission alone: ' +
                             ', '.join(sorted(only_rfsoc)[:4]))
@@ -653,7 +653,7 @@ def check_the_client_reaches_only_names_the_map_resolves():
     The map deliberately carries names no accessor reaches -- the operations use those
     directly -- so only this direction is a failure.
     """
-    resolved, _absent = resolution('atca')
+    resolved, _absent = resolution('amc')
     reached = load_client_names()
     # A name the server attaches rather than the firmware declaring it cannot be
     # verified against a package dump, so it is excluded here for the same reason it is
@@ -724,9 +724,9 @@ def check_the_map_declares_the_kind_the_firmware_declares():
     what caught the four entries this check was added beside. Two checks, and each asserts
     only what its evidence supports.
     """
-    pmap = platform.by_name(PLATFORM_OF['atca'])
-    nodes = load_nodes('atca')
-    paths = load_dump('atca')
+    pmap = platform.by_name(PLATFORM_OF['amc'])
+    nodes = load_nodes('amc')
+    paths = load_dump('amc')
     wrong = []
     for name in sorted(pmap.registers):
         if name in SERVER_ATTACHED:
@@ -749,9 +749,9 @@ def check_the_client_writes_no_register_the_firmware_makes_read_only():
     A write to a read-only node is refused at run time by the tree -- on a good day; the
     point of checking here is the day it is not.
     """
-    pmap = platform.by_name(PLATFORM_OF['atca'])
-    nodes = load_nodes('atca')
-    paths = load_dump('atca')
+    pmap = platform.by_name(PLATFORM_OF['amc'])
+    nodes = load_nodes('amc')
+    paths = load_dump('amc')
     wrong = []
     for call in load_client_names():
         if call['direction'] != 'set' or call['name'] not in pmap:
@@ -853,7 +853,7 @@ def selftest():
         with tempfile.TemporaryDirectory() as tmp:
             tree = pathlib.Path(tmp)
             FIXTURES = tree
-            PLATFORM_OF = {'atca': 'fake', 'rfsoc': 'fake_rfsoc'}
+            PLATFORM_OF = {'amc': 'fake', 'rfsoc': 'fake_rfsoc'}
             MIN_RESOLVED = 2                # the fake maps offer two names
             platform.MAPS = (fake, fake_bayless)
 
@@ -885,15 +885,15 @@ def selftest():
                 ('_set_by_name', "f'bay[{bay}].attenuator[{att}].uc'", ', val'),
             ))
 
-            good_atca = [base + f'SysgenCryo.Base[{b}].bandDelayUs' for b in range(8)]
+            good_amc = [base + f'SysgenCryo.Base[{b}].bandDelayUs' for b in range(8)]
             # Indexed from one, as the real attenuators are: an inner scope that does
             # not start at zero is what the probe used to get wrong.
-            good_atca += [base + f'MicrowaveMuxCore[{y}].ATT.UC[{u}]'
-                          for y in range(2) for u in (1, 2, 3, 4)]
+            good_amc += [base + f'MicrowaveMuxCore[{y}].ATT.UC[{u}]'
+                         for y in range(2) for u in (1, 2, 3, 4)]
             good_rfsoc = [base + f'SysgenCryo.Base[{b}].bandDelayUs' for b in range(8)]
 
             # A name the firmware does not have must fail, on either platform.
-            write('atca', [p for p in good_atca if 'bandDelayUs' not in p])
+            write('amc', [p for p in good_amc if 'bandDelayUs' not in p])
             write('rfsoc', good_rfsoc)
             expect_failure('a name the carrier lacks is caught',
                            check_each_platform_offers_only_names_its_firmware_has,
@@ -905,7 +905,7 @@ def selftest():
             # was expected to be absent and its absence proved nothing. The dump keeps
             # a node no name reaches, so it is a tree without the register rather than
             # an empty file, which load_dump() refuses on its own.
-            write('atca', good_atca)
+            write('amc', good_amc)
             write('rfsoc', [base + 'SysgenCryo.Base[0].unrelated'])
             expect_failure('a name the bayless platform lacks is caught',
                            check_each_platform_offers_only_names_its_firmware_has,
@@ -914,13 +914,13 @@ def selftest():
 
             # A front-end name that resolves on a platform whose map does not offer it
             # means the dumps are not the trees the maps describe.
-            write('rfsoc', good_atca)
+            write('rfsoc', good_amc)
             expect_failure('a front-end register present without a front end is caught',
                            check_the_platforms_differ_by_the_hardware_one_lacks,
                            'resolves on the other platform too')
 
             # Two maps offering the same names make every comparison vacuous.
-            write('atca', good_atca)
+            write('amc', good_amc)
             write('rfsoc', good_rfsoc)
             platform.MAPS = (fake, replace(fake, name='fake_rfsoc'))
             expect_failure('two maps that offer the same names are caught',
@@ -936,12 +936,12 @@ def selftest():
                                **{'unrelated': (base + 'Something.Else', 'value')}),
                 witness=(), scopes=scopes)
             platform.MAPS = (odd, fake_bayless)
-            write('atca', good_atca + [base + 'Something.Else'])
+            write('amc', good_amc + [base + 'Something.Else'])
             expect_failure('a carrier-only name that is not the front end is caught',
                            check_the_platforms_differ_by_the_hardware_one_lacks,
                            'not its front end or data links: unrelated')
             platform.MAPS = (fake, fake_bayless)
-            write('atca', good_atca)
+            write('amc', good_amc)
 
             # The package-dump exclusion must be narrow: it may drop a name because the
             # *server* owns its subtree, and must not drop one under the firmware's own
@@ -968,26 +968,26 @@ def selftest():
                       'and nothing under FpgaTopLevel')
 
             # The same tree under two names must fail.
-            write('rfsoc', good_atca)
+            write('rfsoc', good_amc)
             expect_failure('the same tree under two names is caught',
                            check_both_generations_are_really_different_trees,
                            'the two dumps hold identical paths')
 
             # A tree differing by something other than the bay axis must fail.
-            write('rfsoc', good_atca + [base + 'Extra.Register'])
-            write('atca', good_atca + [base + 'Something.Unrelated'])
+            write('rfsoc', good_amc + [base + 'Extra.Register'])
+            write('amc', good_amc + [base + 'Something.Unrelated'])
             expect_failure('a difference that is not the bay axis is caught',
                            check_both_generations_are_really_different_trees,
                            'not the per-bay front end or data links')
             # A tree the RFSoC has and the carrier lacks must fail even when the carrier's
             # own surplus is exactly the front end: the difference is asserted in both
             # directions, or an RFSoC-only path could pass unseen.
-            write('atca', good_atca)
+            write('amc', good_amc)
             write('rfsoc', good_rfsoc + [base + 'OnlyOnRfsoc.Register'])
             expect_failure('a path only the RFSoC has is caught',
                            check_both_generations_are_really_different_trees,
                            'the RFSoC dump has paths the carrier lacks')
-            write('atca', good_atca)
+            write('amc', good_amc)
             write('rfsoc', good_rfsoc)
 
             # A name the map calls a command whose node the firmware lets you read must
@@ -1019,7 +1019,7 @@ def selftest():
 
             # A client writing a register the firmware declares read-only must fail.
             # The mode comes from the dump, so the dump is what states it here.
-            write('atca', good_atca, ro=lambda path: 'bandDelayUs' in path)
+            write('amc', good_amc, ro=lambda path: 'bandDelayUs' in path)
             write_client(client_source(
                 ('_set_by_name', "f'band[{band}].delay_us'", ', val'),
             ))
@@ -1028,11 +1028,11 @@ def selftest():
                            'read-only: band[*].delay_us')
             # A read-only node at a later index must be caught: the mode is per node,
             # and a check that stopped at the first concrete path would miss it.
-            write('atca', good_atca, ro=lambda path: path.endswith('Base[5].bandDelayUs'))
+            write('amc', good_amc, ro=lambda path: path.endswith('Base[5].bandDelayUs'))
             expect_failure('a read-only register at a later index is caught',
                            check_the_client_writes_no_register_the_firmware_makes_read_only,
                            'Base[5].bandDelayUs')
-            write('atca', good_atca, ro=lambda path: 'bandDelayUs' in path)
+            write('amc', good_amc, ro=lambda path: 'bandDelayUs' in path)
 
             # The same write through a name table must be caught too: the table serves a
             # setter as well as a getter, and recording it as a read alone would let a
@@ -1166,7 +1166,7 @@ def main():
                          'rather than the committed fixtures. Such a dump has no '
                          'server-added subtrees, so those names are excluded; every '
                          'name under the firmware tree still has to resolve.')
-    ap.add_argument('--platform', default='umux-atca',
+    ap.add_argument('--platform', default='umux-amc',
                     help='which map to resolve with --package-dump')
     args = ap.parse_args()
 
@@ -1211,7 +1211,7 @@ def main():
     if failed:
         print(f'FAILED ({len(failed)}): {", ".join(failed)}')
         return 1
-    resolved, _ = resolution('atca')
+    resolved, _ = resolution('amc')
     print(f'All checks passed ({len(resolved)} names resolved on the carrier, '
           f'{len(set(c["name"] for c in load_client_names()))} names the client reaches).')
     return 0

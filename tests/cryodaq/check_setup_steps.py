@@ -39,11 +39,11 @@ sys.path.insert(0, os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'python'))
 
 from cryodaq import platform                                        # noqa: E402
-from cryodaq.platform import atca, rfmc                             # noqa: E402
+from cryodaq.platform import amc, rfmc                             # noqa: E402
 
 HERE = pathlib.Path(__file__).resolve().parent
 FIXTURES = HERE / 'fixtures'
-PLATFORM_OF = {'atca': 'umux-atca', 'rfsoc': 'umux-rfsoc', 'rfmc': 'umux-rfmc'}
+PLATFORM_OF = {'amc': 'umux-amc', 'rfsoc': 'umux-rfsoc', 'rfmc': 'umux-rfmc'}
 _INDEXED = re.compile(r'^(\w+)\[(\d+)\]$')
 
 
@@ -56,7 +56,7 @@ def setup_module():
     file so that the server package's own import of the rest of rogue is not
     triggered. Each platform's procedure lives in its `support` module beside its
     map; those are loaded the same way, and the base module gets them as
-    attributes (``_setup.atca``, …) for the checks to reach.
+    attributes (``_setup.amc``, …) for the checks to reach.
     """
     if 'cryodaq.server._setup' in sys.modules:
         return sys.modules['cryodaq.server._setup']
@@ -342,7 +342,7 @@ def aligned_lanes(values):
 
 
 def JESD_BAY(bay):
-    return atca.JESD_BAY.format(bay=bay)
+    return amc.JESD_BAY.format(bay=bay)
 
 
 # --------------------------------------------------------------------------
@@ -358,7 +358,7 @@ def check_every_platform_has_a_procedure():
         assert len(trees) == 1, f"{pmap.name}: {len(trees)} PlatformSupport subclasses"
         assert issubclass(trees[0].setup, _setup.Setup) and trees[0].setup is not _setup.Setup, pmap.name
     try:
-        _setup.PlatformSupport.for_map(platform.by_name('umux-atca').__class__(
+        _setup.PlatformSupport.for_map(platform.by_name('umux-amc').__class__(
             name='no-such', tags=(), registers={}, witness=(), scopes={}, module='cryodaq.platform.no_such'))
     except ImportError as e:
         assert 'no_such' in str(e), e
@@ -369,7 +369,7 @@ def check_every_platform_has_a_procedure():
 def check_every_procedure_reaches_only_nodes_its_platform_has():
     """Run on each platform's dump, no procedure asks for a node the tree lacks."""
     for stem in PLATFORM_OF:
-        values = aligned_lanes({}) if stem == 'atca' else None
+        values = aligned_lanes({}) if stem == 'amc' else None
         log, loads = run_procedure(stem, values=values)
         assert log, f"{stem}: the procedure touched nothing"
         assert loads == [('a.yml',)], loads
@@ -444,7 +444,7 @@ def check_the_rfmc_sequence_is_the_firmwares_own():
 
 def check_the_carrier_sequence_is_the_witnessed_one():
     """The carrier's steps, in order: read, converters reset, layers loaded, links checked."""
-    log, loads = run_procedure('atca', layers=('d.yml', 's.yml'), values=aligned_lanes({}))
+    log, loads = run_procedure('amc', layers=('d.yml', 's.yml'), values=aligned_lanes({}))
     calls = [e[1] for e in log if e[0] == 'call']
     assert calls[0] == 'AMCc.ReadAll', calls[:1]
     # Converter cards reset: the debug block on, then every DAC's reset 1 then 0.
@@ -467,11 +467,11 @@ def check_the_carrier_sequence_is_the_witnessed_one():
 
 def check_the_carrier_skips_an_unpopulated_bay():
     """A tree the composition built with one bay's front end left out is reset and checked on the other."""
-    paths = {p for p in load_dump('atca') if 'MicrowaveMuxCore[1]' not in p and 'AppTopJesd[1]' not in p}
-    _setup, root = tree('atca')
+    paths = {p for p in load_dump('amc') if 'MicrowaveMuxCore[1]' not in p and 'AppTopJesd[1]' not in p}
+    _setup, root = tree('amc')
     root = StandInRoot(paths, aligned_lanes({}))
     with StoodInLoad(_setup) as load:
-        run_on(procedure(_setup, 'atca'), root)
+        run_on(procedure(_setup, 'amc'), root)
     touched = {e[1] for e in root.log if e[0] in ('set', 'call')}
     # Bay 1's devices are MicrowaveMuxCore[1] and AppTopJesd[1]; DAC 1 of bay 0 is not.
     assert not [p for p in touched if '[1].' in p], touched
@@ -489,15 +489,15 @@ def check_the_platform_without_links_loads_the_layers_alone():
 
 def check_the_link_check_judges_lanes_as_witnessed():
     """A lane outside its values reloads and, still bad, fails; aligned lanes pass without a reload."""
-    _setup, root = tree('atca', aligned_lanes({}))
-    expected = _setup.atca.AtcaSetup.ELASTIC_BUFFER_LATENCY
+    _setup, root = tree('amc', aligned_lanes({}))
+    expected = _setup.amc.AmcSetup.ELASTIC_BUFFER_LATENCY
     assert set(expected) == set(range(10))
     assert expected[2] == expected[3] == (255,)
     assert all(expected[lane] == (13, 14) for lane in (0, 1, 4, 5, 6, 7, 8, 9))
     root.values[f'{JESD_BAY(0)}.JesdRx.ElBuffLatency[5]'] = 7
-    setup = attach(procedure(_setup, 'atca'), root)
-    saved_retries = _setup.atca.AtcaSetup.ELASTIC_BUFFER_RETRIES
-    _setup.atca.AtcaSetup.ELASTIC_BUFFER_RETRIES = 2
+    setup = attach(procedure(_setup, 'amc'), root)
+    saved_retries = _setup.amc.AmcSetup.ELASTIC_BUFFER_RETRIES
+    _setup.amc.AmcSetup.ELASTIC_BUFFER_RETRIES = 2
     try:
         with StoodInLoad(_setup) as load:
             try:
@@ -510,8 +510,8 @@ def check_the_link_check_judges_lanes_as_witnessed():
         reads = [e for e in root.log if e[0] == 'call' and e[1].endswith('ReadDevice')]
         assert len(reads) == 4, f"{len(reads)} device reads for two bays over two tries"
     finally:
-        _setup.atca.AtcaSetup.ELASTIC_BUFFER_RETRIES = saved_retries
-    _setup, root = tree('atca', aligned_lanes({}))
+        _setup.amc.AmcSetup.ELASTIC_BUFFER_RETRIES = saved_retries
+    _setup, root = tree('amc', aligned_lanes({}))
     attach(setup, root)
     with StoodInLoad(_setup) as load:
         setup.check_elastic_buffers()
@@ -556,7 +556,7 @@ def check_a_layer_written_for_another_root_is_refused():
         assert root.LoadConfigProcess.started == [], 'the loader was started for a refused layer'
         # And the whole procedure refuses before touching the hardware, on every platform.
         for stem in PLATFORM_OF:
-            _setup, root = tree(stem, aligned_lanes({}) if stem == 'atca' else None)
+            _setup, root = tree(stem, aligned_lanes({}) if stem == 'amc' else None)
             try:
                 run_on(procedure(_setup, stem, layers=(str(theirs),)), root)
             except _setup.StepError as e:
@@ -568,7 +568,7 @@ def check_a_layer_written_for_another_root_is_refused():
 
 def check_a_load_with_no_layers_is_refused():
     """No layers: the load step refuses, and the whole procedure refuses before touching the hardware."""
-    _setup, root = tree('atca')
+    _setup, root = tree('amc')
     try:
         _setup.load_layers(root, ())
     except _setup.StepError as e:
@@ -576,7 +576,7 @@ def check_a_load_with_no_layers_is_refused():
     else:
         raise AssertionError('a load with no layers ran')
     for stem in PLATFORM_OF:
-        _setup, root = tree(stem, aligned_lanes({}) if stem == 'atca' else None)
+        _setup, root = tree(stem, aligned_lanes({}) if stem == 'amc' else None)
         try:
             with StoodInLoad(_setup):
                 run_on(procedure(_setup, stem, layers=()), root)
@@ -619,7 +619,7 @@ class StoodInLoader:
 def check_a_load_that_keeps_failing_reports_the_loaders_last_message():
     """Every try judged by the message the loader leaves; the failure carries the last one, a Done returns."""
     import tempfile
-    _setup, root = tree('atca')
+    _setup, root = tree('amc')
     with tempfile.TemporaryDirectory() as tmp:
         d, s_ = (str(pathlib.Path(tmp, n)) for n in ('d.yml', 's.yml'))
         for f in (d, s_):
@@ -640,7 +640,7 @@ def check_a_load_that_keeps_failing_reports_the_loaders_last_message():
 
 def check_a_failing_step_ends_the_procedure_unconfigured():
     """A step that raises leaves SystemConfigured false and its message in Message; the links' verdict follows."""
-    _setup, root = tree('atca', aligned_lanes({}))
+    _setup, root = tree('amc', aligned_lanes({}))
 
     order = []
 
@@ -652,7 +652,7 @@ def check_a_failing_step_ends_the_procedure_unconfigured():
             if v.startswith('Error') or v == 'Done':
                 order.append('message')
 
-    setup = attach(procedure(_setup, 'atca'), root)
+    setup = attach(procedure(_setup, 'amc'), root)
     status = setup.status
     status.ConfiguringInProgress.set = lambda v: (status.ConfiguringInProgress.values.append(v),
                                                   order.append('in_progress_false') if v is False else None)
@@ -663,7 +663,7 @@ def check_a_failing_step_ends_the_procedure_unconfigured():
     assert status.SystemConfigured.values == [False, False], status.SystemConfigured.values
     assert status.ConfiguringInProgress.values == [True, False]
     # The carrier reports its links unlocked when a step fails, locked when the run ends well.
-    assert status.JesdStatus.values == [_setup.atca.AtcaSetup.JESD_UNLOCKED], status.JesdStatus.values
+    assert status.JesdStatus.values == [_setup.amc.AmcSetup.JESD_UNLOCKED], status.JesdStatus.values
     # The message names the step that failed as well as why.
     assert Message.text == 'Error: load layers: stood-in load failed', Message.text
     # The message is published before the in-progress flag drops, which is what
@@ -672,14 +672,14 @@ def check_a_failing_step_ends_the_procedure_unconfigured():
     with StoodInLoad(_setup):
         setup._process()
     assert status.SystemConfigured.values[-1] is True
-    assert status.JesdStatus.values == [_setup.atca.AtcaSetup.JESD_UNLOCKED, _setup.atca.AtcaSetup.JESD_LOCKED], status.JesdStatus.values
+    assert status.JesdStatus.values == [_setup.amc.AmcSetup.JESD_UNLOCKED, _setup.amc.AmcSetup.JESD_LOCKED], status.JesdStatus.values
     assert Message.text == 'Done', Message.text
     # A read that fails on a rerun after a good one reports the links unlocked, not the earlier Locked.
-    again = procedure(_setup, 'atca')
-    good = tree('atca', aligned_lanes({}))[1]
+    again = procedure(_setup, 'amc')
+    good = tree('amc', aligned_lanes({}))[1]
     with StoodInLoad(_setup):
         run_on(again, good)
-    bad = tree('atca', aligned_lanes({}))[1]
+    bad = tree('amc', aligned_lanes({}))[1]
     bad.ReadAll = lambda: (_ for _ in ()).throw(TimeoutError('register transaction timed out'))
     try:
         with StoodInLoad(_setup):
@@ -688,17 +688,17 @@ def check_a_failing_step_ends_the_procedure_unconfigured():
         assert str(e) == 'read all: register transaction timed out', e
     else:
         raise AssertionError('a failing read was not reported')
-    assert again.status.JesdStatus.values == [_setup.atca.AtcaSetup.JESD_LOCKED, _setup.atca.AtcaSetup.JESD_UNLOCKED], again.status.JesdStatus.values
+    assert again.status.JesdStatus.values == [_setup.amc.AmcSetup.JESD_LOCKED, _setup.amc.AmcSetup.JESD_UNLOCKED], again.status.JesdStatus.values
     # Four steps declared each run; the good run stepped through all four, the bad one through none.
     assert again.progress == [('total', 4)] + ['step'] * 4 + [('total', 4)], again.progress
     # A firmware without the health check has a status of 'Not found', which the outcome leaves alone.
-    old = procedure(_setup, 'atca')
-    old.given_status.JesdStatus = Flag(_setup.atca.AtcaSetup.JESD_NOT_FOUND)
+    old = procedure(_setup, 'amc')
+    old.given_status.JesdStatus = Flag(_setup.amc.AmcSetup.JESD_NOT_FOUND)
     with StoodInLoad(_setup):
-        run_on(old, tree('atca', aligned_lanes({}))[1])
+        run_on(old, tree('amc', aligned_lanes({}))[1])
     with StoodInLoad(_setup, fail=True):
         try:
-            run_on(old, tree('atca', aligned_lanes({}))[1])
+            run_on(old, tree('amc', aligned_lanes({}))[1])
         except _setup.StepError:
             pass
     assert old.status.JesdStatus.values == [], f"a 'Not found' verdict was overwritten: {old.status.JesdStatus.values}"

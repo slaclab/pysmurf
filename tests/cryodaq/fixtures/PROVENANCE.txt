@@ -17,7 +17,7 @@ answer differently.
 
 Built at pysmurf 12dd067c-dirty.
 
-atca.varlist.txt
+amc.varlist.txt
   built from      cryo-det MicrowaveMuxBpEthGen2_v2.5.1-6-gfe6a0f50
   built by        pysmurf.core.server.compose over an emulated transport
   rows            3701 of 63595

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 #-----------------------------------------------------------------------------
-# Title      : Cryodaq Platform Support: microwave-multiplexed readout on an ATCA carrier
+# Title      : Cryodaq Platform Support: microwave-multiplexed readout on the AMC carrier
 #-----------------------------------------------------------------------------
-# File       : atca/support.py
+# File       : amc/support.py
 # Created    : 2026-10-24
 #-----------------------------------------------------------------------------
 # Description:
@@ -25,16 +25,16 @@ import logging
 from typing import Any, Callable, Dict, List, Sequence, Tuple
 
 from cryodaq._errors import ConnectError
-from cryodaq.platform import atca
+from cryodaq.platform import amc
 from cryodaq.server._setup import PlatformSupport, Setup, StepError, load_layers
 
-__all__ = ['AtcaSupport', 'AtcaSetup']
+__all__ = ['AmcSupport', 'AmcSetup']
 
 _log = logging.getLogger(__name__)
 
 
-class AtcaSetup(Setup):
-    """The ATCA carrier's procedure: converters reset, layers loaded, links checked.
+class AmcSetup(Setup):
+    """The AMC carrier's procedure: converters reset, layers loaded, links checked.
 
     The carrier's converters sit on AMC cards behind JESD links. A bay is
     populated when its front end (``MicrowaveMuxCore[bay]``) is on the tree;
@@ -81,9 +81,9 @@ class AtcaSetup(Setup):
         """``(bay, front end, JESD block)`` for each bay with a front end on the tree."""
         bays = []
         for bay in range(2):
-            core = self.root.getNode(atca.MUX_CORE.format(bay=bay))
+            core = self.root.getNode(amc.MUX_CORE.format(bay=bay))
             if core is not None:
-                bays.append((bay, core, self.root.getNode(atca.JESD_BAY.format(bay=bay))))
+                bays.append((bay, core, self.root.getNode(amc.JESD_BAY.format(bay=bay))))
         return bays
 
     def reset_dacs(self) -> None:
@@ -127,10 +127,10 @@ class AtcaSetup(Setup):
         raise StepError(f"the elastic buffer check failed {self.ELASTIC_BUFFER_RETRIES} times")
 
 
-class AtcaSupport(PlatformSupport):
-    """The ATCA carrier's tree: the carrier's top level, and the procedure above."""
+class AmcSupport(PlatformSupport):
+    """The AMC carrier's tree: the carrier's top level, and the procedure above."""
 
-    setup = AtcaSetup
+    setup = AmcSetup
 
     def top_level(self, transport: Any, **options: Any) -> Any:
         """The carrier's top level over the transport's register path.
@@ -147,7 +147,7 @@ class AtcaSupport(PlatformSupport):
         identified. Passing the window on is a change to the firmware's class.
         """
         if transport.register_offset:
-            raise ConnectError(f"platform {atca.NAME}'s top level takes the FPGA's registers at 0, and cannot "
+            raise ConnectError(f"platform {amc.NAME}'s top level takes the FPGA's registers at 0, and cannot "
                                f"be placed at the {transport.name} transport's window {transport.register_offset:#x}")
         from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
         return FpgaTopLevel(memBase=transport.srp, **options)

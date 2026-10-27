@@ -331,7 +331,7 @@ The session the checks use finds a configured server, and the flag that says so 
 directly rather than through the client — the server owns that value and a client is refused it, the
 same reason the build stamp goes in underneath the register too.
 
-Run it once per platform, named with `--platform` (the ATCA carrier by default). The RFSoC firmware's
+Run it once per platform, named with `--platform` (the AMC carrier by default). The RFSoC firmware's
 own package is a subclass of this one that does nothing but default `isRFSOC` on, so `--platform rfsoc`
 builds that tree from the same package without needing its repository on the path; what the flag changes is the JESD and
 signal-generator configuration, which is why that platform has no RF front end and no serial links to

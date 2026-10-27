@@ -76,7 +76,7 @@ class _Session:
     """What the glue asks of a session: ``pmap``, ``node``, ``root``."""
 
     def __init__(self, nodes):
-        self.pmap = platform.by_name('umux-atca')
+        self.pmap = platform.by_name('umux-amc')
         self.root = _Tree(nodes)
 
     def node(self, name):
@@ -160,7 +160,7 @@ def handler_class():
 # --------------------------------------------------------------------------
 
 NAME = 'band[4].delay_us'
-PATH = platform.by_name('umux-atca').path(NAME)
+PATH = platform.by_name('umux-amc').path(NAME)
 
 
 def check_a_name_resolves_through_the_session():

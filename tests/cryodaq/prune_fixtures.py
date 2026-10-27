@@ -23,10 +23,10 @@
 # The full dumps come from validate_client_emulated.py, which builds each tree in a
 # container that has rogue and writes it out with --dump-tree:
 #
-#     validate_client_emulated.py --cryo-det <checkout>                  --dump-tree atca.txt
+#     validate_client_emulated.py --cryo-det <checkout>                  --dump-tree amc.txt
 #     validate_client_emulated.py --cryo-det <checkout> --platform rfsoc --dump-tree rfsoc.txt
 #     validate_client_emulated.py --cryo-det <checkout> --platform rfmc --rfmc <zip> --dump-tree rfmc.txt
-#     prune_fixtures.py --atca atca.txt --rfsoc rfsoc.txt --rfmc rfmc.txt
+#     prune_fixtures.py --amc amc.txt --rfsoc rfsoc.txt --rfmc rfmc.txt
 #
 # Each dump comes with a `.source` file naming the checkout revision or ZIP it was
 # built from; that is copied into the provenance rather than asserted here.
@@ -69,14 +69,14 @@ FIXTURES = HERE / 'fixtures'
 # each dump it writes (a `.source` file naming the checkout's revision or the ZIP),
 # and it is copied through, so a fixture rebuilt from another checkout says so.
 BUILT_BY = {
-    'atca': 'pysmurf.core.server.compose over an emulated transport',
+    'amc': 'pysmurf.core.server.compose over an emulated transport',
     'rfsoc': 'pysmurf.core.server.compose over an emulated transport, isRFSOC=True',
     'rfmc': 'pysmurf.core.server.compose over an emulated transport, the RFMC release '
             'package behind the operation-less CryoDet',
 }
 # The device that is a bay's RF front end on each platform that has one; the RFSoC
 # has none, which is the difference the catalog check turns on.
-FRONT_END_DEVICE = {'atca': 'MicrowaveMuxCore', 'rfsoc': 'MicrowaveMuxCore', 'rfmc': 'RfmcQuad'}
+FRONT_END_DEVICE = {'amc': 'MicrowaveMuxCore', 'rfsoc': 'MicrowaveMuxCore', 'rfmc': 'RfmcQuad'}
 
 # How many per-channel entries to keep. Two rather than one so that a check which
 # enumerated a channel scope would still see more than a single index.
@@ -169,7 +169,7 @@ def short_head():
 def main():
     ap = argparse.ArgumentParser(
         description='Prune full tree dumps into the committed fixtures.')
-    ap.add_argument('--atca', required=True, type=pathlib.Path,
+    ap.add_argument('--amc', required=True, type=pathlib.Path,
                     help='full dump of the carrier tree (validate_client_emulated.py '
                          '--dump-tree)')
     ap.add_argument('--rfsoc', required=True, type=pathlib.Path,
@@ -180,7 +180,7 @@ def main():
     ap.add_argument('--check', action='store_true',
                     help='report what would be written without writing it')
     args = ap.parse_args()
-    sources = {'atca': args.atca, 'rfsoc': args.rfsoc, 'rfmc': args.rfmc}
+    sources = {'amc': args.amc, 'rfsoc': args.rfsoc, 'rfmc': args.rfmc}
 
     templates = path_templates()
     devices = wanted_devices(templates)
@@ -228,7 +228,7 @@ def main():
     # The property the catalog check turns on: the two carriers have a per-bay front
     # end, the RFSoC does not. If pruning ever flattened that, every comparison built
     # on it would pass while proving nothing.
-    for stem in ('atca', 'rfmc'):
+    for stem in ('amc', 'rfmc'):
         if not summary[stem]['front_end_bays']:
             sys.exit(f'the {stem} fixture kept no front-end bays')
     if summary['rfsoc']['front_end_bays']:

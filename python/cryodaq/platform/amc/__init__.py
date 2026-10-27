@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 #-----------------------------------------------------------------------------
-# Title      : Cryodaq Platform Map: microwave-multiplexed readout on an ATCA carrier
+# Title      : Cryodaq Platform Map: microwave-multiplexed readout on the AMC carrier
 #-----------------------------------------------------------------------------
-# File       : atca/__init__.py
+# File       : amc/__init__.py
 # Created    : 2026-09-14
 #-----------------------------------------------------------------------------
 # Description:
-#    The platform map for microwave-multiplexed readout carried on an ATCA
-#    board: two AMC bays behind JESD data links, an RTM, and the per-band signal
+#    The platform map for microwave-multiplexed readout carried on the AMC carrier: an ATCA
+#    carrier with two AMC bays behind JESD data links, an RTM, and the per-band signal
 #    processing of the generation.
 #
 #    Most of the registers come from _umux, which this platform shares with the
@@ -34,7 +34,7 @@ __all__ = ['NAME', 'TAGS', 'PACKAGE_CONFIG_DIR', 'CARRIER', 'REGISTERS', 'LEGACY
            'WITNESS', 'SCOPES', 'MUX_CORE', 'JESD_BAY', 'AMC_CARRIER_REGISTERS', 'AMC_CARRIER_LEGACY',
            'AMC_CARRIER_SCOPES']
 
-NAME = 'umux-atca'
+NAME = 'umux-amc'
 
 # The firmware image names this platform runs, as the build stamp reports them.
 # Read off a slot-4 carrier running v2.5.1:

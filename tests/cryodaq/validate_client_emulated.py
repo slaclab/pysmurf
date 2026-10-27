@@ -22,7 +22,7 @@
 # There is one route in and it is the real one: no in-process shortcut, so what
 # is exercised here is the code that talks to a crate.
 #
-# Run it once per platform, named with --platform (the ATCA carrier by default).
+# Run it once per platform, named with --platform (the AMC carrier by default).
 # The RFSoC firmware's own package is a subclass of this one that does nothing but
 # default isRFSOC on, so that platform's tree is built from the same package with
 # the flag set, without needing its repository on the path -- and what the flag
@@ -120,8 +120,8 @@ CONTRACT_NAMES = (
 # says so -- both keyed by the --platform argument. The image is one that
 # platform really has; a name no map claims would be refused, which is the point
 # of the check.
-EXPECTED_PLATFORM = {'atca': 'umux-atca', 'rfsoc': 'umux-rfsoc', 'rfmc': 'umux-rfmc'}
-EXPECTED_IMAGE = {'atca': 'MicrowaveMuxBpEthGen2',
+EXPECTED_PLATFORM = {'amc': 'umux-amc', 'rfsoc': 'umux-rfsoc', 'rfmc': 'umux-rfmc'}
+EXPECTED_IMAGE = {'amc': 'MicrowaveMuxBpEthGen2',
                   'rfsoc': 'MicrowaveMuxZcu208_BaseBand',
                   'rfmc': 'MicrowaveMuxRfmcCarrier'}
 
@@ -130,7 +130,7 @@ EXPECTED_IMAGE = {'atca': 'MicrowaveMuxBpEthGen2',
 # by bay on either, which is why the scope is shared. What only the carrier has is
 # what sits inside a bay -- the RF front end carrying the attenuators, and the serial
 # links back from it -- so the difference is asserted there rather than on the scope.
-EXPECTED_FRONT_END = {'atca': True, 'rfsoc': False, 'rfmc': True}      # keyed by --platform
+EXPECTED_FRONT_END = {'amc': True, 'rfsoc': False, 'rfmc': True}      # keyed by --platform
 
 # The bands both trees have: the two are built from one firmware package, which
 # defines eight either way. Asserted rather than derived, so a package that
@@ -177,7 +177,7 @@ CONFIGURED_PATH = 'AMCc.SmurfApplication.SystemConfigured'
 SESSION = None
 ROOT = None
 ENDPOINT = None
-PLATFORM = 'atca'
+PLATFORM = 'amc'
 # Whether the RFMC firmware package was put on the path (--rfmc); its builder is asked only then.
 RFMC_ON_PATH = False
 
@@ -1245,11 +1245,11 @@ def stood_in_procedure(_setup, fail_load=False):
     """
     # Each platform's procedure lives in its own support module, which bound the
     # loader by name at import; the stand-in goes into every one of them.
-    import cryodaq.platform.atca.support as atca_support
+    import cryodaq.platform.amc.support as amc_support
     import cryodaq.platform.rfmc.support as rfmc_support
     import cryodaq.platform.rfsoc.support as rfsoc_support
-    trees = (atca_support, rfsoc_support, rfmc_support)
-    saved = (_setup.load_layers, atca_support.AtcaSetup.check_elastic_buffers, ROOT.ReadAll._function,
+    trees = (amc_support, rfsoc_support, rfmc_support)
+    saved = (_setup.load_layers, amc_support.AmcSetup.check_elastic_buffers, ROOT.ReadAll._function,
              ROOT.layers, rfmc_support.RfmcSetup.steps, _setup.check_layer_names_this_root)
 
     def load(root, layers):
@@ -1272,13 +1272,13 @@ def stood_in_procedure(_setup, fail_load=False):
         # The stand-in layer is a name, not a file; the key check that reads
         # one is stood in with the load, and has a check of its own.
         _setup.check_layer_names_this_root = lambda root, layer: None
-        atca_support.AtcaSetup.check_elastic_buffers = lambda self: None
+        amc_support.AmcSetup.check_elastic_buffers = lambda self: None
         rfmc_support.RfmcSetup.steps = rfmc_steps
         ROOT.ReadAll.replaceFunction(lambda: None)
         ROOT.layers = ['<stand-in layer>']
         yield
     finally:
-        (_setup.load_layers, atca_support.AtcaSetup.check_elastic_buffers, _, ROOT.layers,
+        (_setup.load_layers, amc_support.AmcSetup.check_elastic_buffers, _, ROOT.layers,
          rfmc_support.RfmcSetup.steps, _setup.check_layer_names_this_root) = saved
         for module in trees:
             module.load_layers = saved[0]
@@ -1457,7 +1457,7 @@ def check_the_configuration_procedure_ends_on_this_platform():
     assert ('JesdStatus' in status.nodes) == has_links, \
         f"the status device offers a JESD verdict ({'JesdStatus' in status.nodes}) " \
         f"where the map {'names' if has_links else 'does not name'} one"
-    expected_setup = {'atca': 'AtcaSetup', 'rfsoc': 'RfsocSetup', 'rfmc': 'RfmcSetup'}[PLATFORM]
+    expected_setup = {'amc': 'AmcSetup', 'rfsoc': 'RfsocSetup', 'rfmc': 'RfmcSetup'}[PLATFORM]
     assert type(root.setup).__name__ == expected_setup, type(root.setup)
     with stood_in_procedure(_setup):
         if has_links:
@@ -1535,7 +1535,7 @@ class _EntryPointChild:
         # the RFMC for its own. What is under test is main() with the command
         # line a launcher would give it, not the platform.
         self.module, self.port = module, port
-        self.platform = EXPECTED_PLATFORM['rfmc' if PLATFORM == 'rfmc' else 'atca']
+        self.platform = EXPECTED_PLATFORM['rfmc' if PLATFORM == 'rfmc' else 'amc']
         args = ['--transport', 'emulation', '--platform', self.platform, '--server-port', str(port),
                 '--nopoll', '--capture-points', '0', '--log-level', 'WARNING'] + FIRMWARE_ARGS
         cmd = [sys.executable, '-m', module] + args
@@ -1671,7 +1671,7 @@ def describe_source(args):
                               capture_output=True, text=True, check=True).stdout.strip()
     except (subprocess.CalledProcessError, OSError):
         head = 'unknown revision'
-    source = f"cryo-det {head}" + ('' if args.platform == 'atca' else f" ({args.platform})")
+    source = f"cryo-det {head}" + ('' if args.platform == 'amc' else f" ({args.platform})")
     if args.rfmc:
         source += f" over {os.path.basename(args.rfmc)}"
     return source
@@ -1955,8 +1955,8 @@ def main():
     source.add_argument('--zip', help='a pyrogue ZIP built from such a checkout; a '
                                       'released ZIP still defines the operations '
                                       'and is refused before a tree is built')
-    ap.add_argument('--platform', choices=sorted(EXPECTED_PLATFORM), default='atca',
-                    help='which platform\'s tree to build and check (the ATCA carrier '
+    ap.add_argument('--platform', choices=sorted(EXPECTED_PLATFORM), default='amc',
+                    help='which platform\'s tree to build and check (the AMC carrier '
                          'by default); the RFSoC\'s own firmware package is this one '
                          'with isRFSOC defaulted on, so that tree is built from the '
                          'same package without needing it; rfmc needs --rfmc too')
