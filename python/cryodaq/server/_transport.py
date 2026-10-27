@@ -105,6 +105,11 @@ class Transport:
         What to add to every address of the register tree: the FPGA's window in
         a processor system's address space, for a transport that goes through
         one. 0 for a link to the FPGA itself.
+    interfaces : list
+        rogue interfaces with a thread of their own that are not nodes -- the
+        bridge's TCP clients, which connect and retry from construction. The
+        root takes them as its own interfaces, so they stop with the tree, and
+        stops them when it is released without having started.
     """
 
     name: str
@@ -117,6 +122,7 @@ class Transport:
     card: Optional[OffloadCard] = None
     srp_rfdc: Any = None
     register_offset: int = 0
+    interfaces: List[Any] = field(default_factory=list)
 
 
 def _udp_data_path(ip_addr: str):
@@ -235,7 +241,8 @@ def tcp_bridge(ip_ps: str, ip_pl: str, *, data: str = 'udp', lane: int = 0,
         nodes = []
         card = OffloadCard(lane, ip_pl, dev_rssi=dev_rssi, dev_data=dev_data) if offload_card else None
     return Transport('tcp-bridge', srp, ddr, streaming, nodes, card=card,
-                     srp_rfdc=srp_rfdc, register_offset=BRIDGE_REGISTER_OFFSET)
+                     srp_rfdc=srp_rfdc, register_offset=BRIDGE_REGISTER_OFFSET,
+                     interfaces=[srp, srp_rfdc])
 
 
 def emulation(streaming_source: Any = None, rfdc: bool = True) -> Transport:
