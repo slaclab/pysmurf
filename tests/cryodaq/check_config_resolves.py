@@ -379,9 +379,11 @@ def check_a_corrupt_record_is_refused_naming_the_file():
     refused(lambda: config.read_record(d / 'z.json'), 'z.json', 'hash')
     (d / 'w.json').write_text(json.dumps({'resolved': 'not a mapping'}))
     refused(lambda: config.read_record(d / 'w.json'), 'w.json', 'not a resolution')
-    # Malformed provenance -- a line that is not a number, an entry too short.
+    # Malformed provenance -- a second element that is neither a line nor a
+    # time, an entry too short or too long, a source that is not a name.
     good = resolve().to_dict()
-    for bad in ({'a': ['f', 'x']}, {'a': ['f']}, {'a': 'f'}, 'f'):
+    for bad in ({'a': ['f', 1.5]}, {'a': ['f', None]}, {'a': ['f', True]}, {'a': ['f']},
+                {'a': ['f', 'x', 'y']}, {'a': [1, 2]}, {'a': 'f'}, 'f'):
         (d / 'v.json').write_text(json.dumps({'resolved': dict(good, provenance=bad)}))
         refused(lambda: config.read_record(d / 'v.json'), 'v.json', 'not a resolution')
 
@@ -584,6 +586,58 @@ def check_clearing_the_record_leaves_a_configured_server_answering_none():
 
 
 # --------------------------------------------------------------------------
+
+def check_a_measured_value_replaces_the_configured_one_and_setup_clears_it():
+    """record_measured(): the proposal's pass, over the stand-in server.
+
+    A measurement replaces the configured value in the record with provenance
+    (operation, time); a reattaching session reads it from the server; the
+    record's measured keys, laid over the user's files, resolve to the record
+    key for key; the user's files are byte-identical before and after; the
+    previous value is in the record's dated history; and the configuring
+    operation recording the files' resolution again clears it.
+    """
+    d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_measured_'))
+    before = {p.name: p.read_bytes() for p in FIXTURES.iterdir()}
+    resolved = resolve()
+    sess = system(configured=True, status_dir=d)
+    refused(lambda: sess.record_measured('scalar', 1, operation='op'), 'no configuration record')
+    path = sess.record_config(resolved)
+    configured = resolved.get('scalar')
+    updated = sess.record_measured('scalar', configured + 1, operation='measure_scalar')
+    assert updated.get('scalar') == configured + 1 and updated.hash != resolved.hash
+    where = updated.provenance['scalar']
+    assert where[0] == 'measure_scalar' and isinstance(where[1], str) and len(where) == 2, where
+    # Every other key keeps its file-and-line provenance.
+    assert all(v == resolved.provenance[k] for k, v in updated.provenance.items() if k != 'scalar')
+    # A reattaching session reads the measurement from the server.
+    again = system(configured=True, status_dir=d)
+    for n in ('application_config.resolved', 'application_config.hash'):
+        again._client.root.nodes[again.pmap.path(n)].value = sess.get(n)
+    back = again.resolved_config()
+    assert back is not None and back.hash == updated.hash, 'the reattaching session did not get the measurement'
+    assert back.get('scalar') == configured + 1 and back.provenance['scalar'] == where
+    # The record's measured part is a layer: the user's files plus it resolve to the record.
+    layer = config.measured_layer(config.read_record(path))
+    assert layer == {'scalar': configured + 1}, f'the measured layer is not the measured keys: {layer}'
+    over = config.load(layer, default=FIXTURES / TOP, name='<record>')
+    assert config._plain(over.values) == config._plain(updated.values), 'files + measured layer != the record'
+    assert over.hash == updated.hash and over.provenance['scalar'] == ('<record>', 0)
+    # The previous value is history: one dated copy per write, so both states are there.
+    copies = [p for p in path.parent.iterdir() if p.name != path.name and p.suffix == '.json']
+    held = sorted(config.read_record(c)['resolved']['values']['scalar'] for c in copies)
+    assert held == [configured, configured + 1], \
+        f'the record history does not hold the configured value: {held} in {[c.name for c in copies]}'
+    # A key the configuration does not have is refused by name.
+    refused(lambda: sess.record_measured('no.such.key', 1, operation='op'), 'no.such.key')
+    # setup() from the files records their resolution: nothing measured any more.
+    sess.record_config(resolved)
+    cleared = sess.resolved_config()
+    assert cleared.hash == resolved.hash and config.measured_layer(config.read_record(path)) == {}, \
+        'recording the files again did not clear the measurement'
+    after = {p.name: p.read_bytes() for p in FIXTURES.iterdir()}
+    assert after == before, 'the user\'s files changed'
+
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
@@ -819,6 +873,41 @@ def selftest():
         finally:
             config.record_path = real_record_path
     finally:
+        real_measured = cryodaq.Resolved.measured
+
+        def file_provenance(self, key, value, **kw):
+            out = real_measured(self, key, value, **kw)
+            prov = dict(out.provenance)
+            prov[key] = (kw['operation'], 0)
+            return cryodaq.Resolved(out.values, prov, out.hash, out.layers)
+        cryodaq.Resolved.measured = file_provenance
+        try:
+            expect_failure('a measurement recorded with a file-shaped provenance is caught',
+                           check_a_measured_value_replaces_the_configured_one_and_setup_clears_it, 'measure_scalar')
+        finally:
+            cryodaq.Resolved.measured = real_measured
+        real_layer = config.measured_layer
+
+        def every_key(record):
+            return dict(config.Resolved.from_dict(record['resolved']).values)
+        config.measured_layer = every_key
+        try:
+            expect_failure('a measured layer that carries configured keys too is caught',
+                           check_a_measured_value_replaces_the_configured_one_and_setup_clears_it, 'measured layer')
+        finally:
+            config.measured_layer = real_layer
+        real_write = config.write_record
+
+        def writes_the_file(resolved, path, **kw):
+            (FIXTURES / TOP).write_text((FIXTURES / TOP).read_text() + '\n# measured\n')
+            return real_write(resolved, path, **kw)
+        config.write_record = writes_the_file
+        FIXTURES = variant()
+        try:
+            expect_failure('a measurement that writes into the user\'s file is caught',
+                           check_a_measured_value_replaces_the_configured_one_and_setup_clears_it, 'files changed')
+        finally:
+            config.write_record = real_write
         FIXTURES = saved
 
     print("")

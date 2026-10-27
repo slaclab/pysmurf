@@ -23,7 +23,8 @@
 #    about its own state. Connecting reads what it says it is, and the registers
 #    that record how it was left, and reports them; it changes nothing. The
 #    configuration an operation applied is written to the server, and to a
-#    record on disk, by `record_config()`, and a later session reads it back
+#    record on disk, by `record_config()` -- and `record_measured()` layers what an
+#    operation measured over it -- and a later session reads it back
 #    from the server with `resolved_config()`. A server that has restarted
 #    has none and is configured again; the file is a record, not a fallback.
 #-----------------------------------------------------------------------------
@@ -729,6 +730,50 @@ class Session:
                              "configuration is recorded on disk only", self.endpoint)
         self.log.log(LOG_INFO, "recorded configuration %s to %s", resolved.hash[:12], path)
         return path
+
+    def record_measured(self, key: str, value: Any, *, operation: str) -> config.Resolved:
+        """Record a value an operation measured, over the configuration this system has.
+
+        The server's record is read back, the measurement put in place of the
+        configured value with provenance ``(operation, time)``, and the result
+        recorded as :meth:`record_config` records a configuration -- on disk
+        first, then on the server. The user's files are not touched; what the
+        value was before is in the record's dated history; a reattaching client
+        sees the measured value and which operation set it when; and the
+        configuring operation, run again from the files, records the files'
+        resolution and so clears every measurement.
+
+        Parameters
+        ----------
+        key : str
+            Dotted configuration key the measurement stands in for, e.g.
+            ``'bands.0.band_delay_us'``.
+        value : object
+            What was measured.
+        operation : str
+            The operation that measured it.
+
+        Returns
+        -------
+        Resolved
+            The record as it now stands.
+
+        Raises
+        ------
+        ConfigError
+            If the server holds no configuration record -- nothing to measure
+            over; the configuring operation has to run first -- or ``key`` is
+            not one the configuration has.
+        """
+        current = self.resolved_config()
+        if current is None:
+            raise config.ConfigError('<measured>', key=key,
+                                     reason=f"{self.endpoint} holds no configuration record to "
+                                            f"record a measurement over; configure it first")
+        updated = current.measured(key, value, operation=operation)
+        self.record_config(updated)
+        self.log.log(LOG_INFO, "recorded %s = %r measured by %s", key, value, operation)
+        return updated
 
     def clear_config(self) -> None:
         """Empty the server's ``ApplicationConfig`` nodes.

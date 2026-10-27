@@ -58,6 +58,11 @@ class SmurfControl(SmurfCommandMixin,
        configuration is then read back from the server. A system the server
        does not hold as configured -- never set up, or restarted since -- is
        refused with a request to run ``setup()``.
+    cfg : cryodaq.Resolved, optional, default None
+       An already resolved configuration, in place of ``cfg_file``: what
+       :func:`pysmurf.client.config.load` returns, for instance with a
+       record's measured values laid over the file (``measured_from=``).
+       One of the two, not both.
     data_dir : str, optional, default None
        Path to the data directory.
     name : str, optional, default None
@@ -100,7 +105,7 @@ class SmurfControl(SmurfCommandMixin,
     def __init__(self, cfg_file=None, data_dir=None, name=None, make_logfile=True,
                  setup=False, offline=False, smurf_cmd_mode=False,
                  shelf_manager='shm-smrf-sp01', no_dir=False,
-                 data_path_id=None, **kwargs):
+                 data_path_id=None, cfg=None, **kwargs):
         """Constructor for the SmurfControl class.
 
         See the SmurfControl class docstring for more details.
@@ -119,7 +124,13 @@ class SmurfControl(SmurfCommandMixin,
         self._outputs = {}
 
         SmurfConfigPropertiesMixin.__init__(self)
-        if cfg_file is not None:
+        if cfg is not None and cfg_file is not None:
+            raise ValueError('give cfg_file or cfg, not both')
+        if cfg is not None:
+            self.copy_config_to_properties(cfg)
+            # The record names where the configuration came from.
+            self._cfg_file = ' <- '.join(cfg.layers[-2:])
+        elif cfg_file is not None:
             self.copy_config_to_properties(smurf_config.load(cfg_file))
 
         # Save shelf manager - Should this be in the config?
@@ -129,7 +140,7 @@ class SmurfControl(SmurfCommandMixin,
 
         # Online with no file: the system may already be configured, and
         # then what it was configured with is the configuration.
-        if cfg_file is None and not offline:
+        if cfg_file is None and cfg is None and not offline:
             self._reattach()
 
         # A reattached instance has a configuration too, and gets its directories.

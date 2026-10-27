@@ -178,6 +178,21 @@ class SmurfBase:
         # LUT table length for arbitrary waveform generation
         self._lut_table_array_length = 2048
 
+    def _record_measured(self, key, value, *, operation):
+        """Record a measured value over the server's configuration record, if there is one.
+
+        Offline, or against a server that holds no record (configured by an
+        older client, or never), there is nothing to record over; the
+        measurement still stands in the registers, and the log says why it
+        was not recorded.
+        """
+        if self._session is None:
+            return
+        try:
+            self._session.record_measured(key, value, operation=operation)
+        except cryodaq.ConfigError as e:
+            self.log(f'Measured {key} = {value} not recorded: {e}', self.LOG_INFO)
+
     def platform_has(self, pattern):
         """Whether the connected platform has the hardware a name pattern reaches.
 
