@@ -194,7 +194,7 @@ FPGA = f'{ROOT}.FpgaTopLevel'
 _V, _C, _P, _D = 'value', 'command', 'process', 'device'
 
 # The carrier core is the one device of the FPGA that is named for the board it is
-# on: `AmcCarrierCore` on the ATCA carrier (and on the RFSoC, whose firmware is the
+# on: `AmcCarrierCore` on the AMC carrier (and on the RFSoC, whose firmware is the
 # carrier's with the bays left out), `RfmcCarrierCore` on the RFMC carrier. What is
 # inside it -- the version block, the system monitor, the crate-slot identity, the
 # timing receiver and event receiver, the clock crossbar, the acquisition engines --

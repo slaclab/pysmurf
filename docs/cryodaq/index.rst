@@ -74,7 +74,7 @@ platform
 Which registers a system has, and where. A platform is identified by the
 firmware image its FPGA reports, so a session resolves names against the map for
 the hardware in front of it rather than against a configured guess. Three are
-mapped: the ATCA carrier with its AMC converter cards (``umux-atca``), the RFSoC
+mapped: the AMC carrier -- an ATCA carrier with AMC converter cards (``umux-amc``), the RFSoC
 built from the same firmware without them (``umux-rfsoc``), and the RFMC
 carrier, an RFSoC on a board of its own (``umux-rfmc``). The carrier core is the
 one device named for the board, so where the build stamp sits is a property of
@@ -100,7 +100,7 @@ its devices instantiated and its initialisation sequence, in rogue -- which only
 a server imports. The map module declares:
 
 ``NAME``
-    The platform's short name (``umux-atca``), what ``--platform`` and
+    The platform's short name (``umux-amc``), what ``--platform`` and
     :func:`by_name` take.
 ``TAGS``
     The firmware image names this platform runs, as the build stamp reports

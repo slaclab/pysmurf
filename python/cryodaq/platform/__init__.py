@@ -46,7 +46,7 @@ from dataclasses import dataclass, field
 from typing import (Any, Callable, Dict, List, Mapping, Sequence, Tuple)
 
 from cryodaq._errors import ConnectError, UnresolvedName
-from cryodaq.platform import _umux, atca, rfmc, rfsoc
+from cryodaq.platform import _umux, amc, rfmc, rfsoc
 
 __all__ = ['PlatformMap', 'MAPS', 'identify', 'from_stamp', 'by_name',
            'tag_of', 'parse', 'expand', 'indices', 'witness_names', 'VALUE', 'COMMAND',
@@ -160,7 +160,7 @@ class PlatformMap:
     Parameters
     ----------
     name : str
-        Short identifier, e.g. ``umux-atca``.
+        Short identifier, e.g. ``umux-amc``.
     tags : tuple of str
         The firmware image names this platform runs; how a tree is recognised as
         belonging to this map. More than one where several firmware lines share
@@ -258,7 +258,7 @@ def _from_module(module: Any) -> PlatformMap:
 # firmware that shares both a register map and a bring-up procedure -- so two
 # that read the same registers but have to be configured differently are two
 # entries here, however much of their table they share.
-MAPS = (_from_module(atca), _from_module(rfsoc), _from_module(rfmc))
+MAPS = (_from_module(amc), _from_module(rfsoc), _from_module(rfmc))
 
 
 def tag_of(stamp: Any) -> str:

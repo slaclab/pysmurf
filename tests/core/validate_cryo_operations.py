@@ -118,7 +118,7 @@ def attach_all(fpga):
     """
     root = pr.Root(name='AMCc', initRead=False, pollEn=False)
     root.add(fpga)
-    attached = _provider.attach_operations(root, platform.by_name('umux-atca'), [UMUX_OPERATIONS])
+    attached = _provider.attach_operations(root, platform.by_name('umux-amc'), [UMUX_OPERATIONS])
     return [int(n[len('band['):-len('].ops')]) for n in attached[UMUX_OPERATIONS.name]]
 
 
@@ -339,7 +339,7 @@ def check_the_provider_declares_exactly_what_the_map_names():
     step. A node added and not named is unreachable by name; a name without a
     node resolves to nothing on a live tree.
     """
-    pmap = platform.by_name('umux-atca')
+    pmap = platform.by_name('umux-amc')
     anchor = pmap.registers[UMUX_OPERATIONS.anchor][0]
     named = {pmap.registers[n][0][len(anchor) + 1:]
              for n in pmap.registers if n.startswith(UMUX_OPERATIONS.anchor + '.')}
