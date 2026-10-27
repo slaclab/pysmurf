@@ -139,14 +139,16 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
     ConnectError
         If the platform cannot be identified, or disagrees with ``platform_name``.
     """
-    load_package(firmware)
-
-    # The offload card's lane is the register path's first link: it is opened
-    # here, before the firmware is probed through it, and the root closes it
-    # when it stops.
-    if transport.card is not None:
-        transport.card.open()
+    # Everything from here raises into one handler, so a transport whose threads
+    # are already running (the bridge's TCP clients) is released however the
+    # composition fails -- a firmware path that does not exist included.
     try:
+        load_package(firmware)
+        # The offload card's lane is the register path's first link: it is
+        # opened here, before the firmware is probed through it, and the root
+        # closes it when it stops.
+        if transport.card is not None:
+            transport.card.open()
         if transport.probes_firmware:
             pmap = probe_platform(transport)
             if platform_name is not None and platform_name != pmap.name:
