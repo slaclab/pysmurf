@@ -56,9 +56,20 @@ the server. A server that has restarted carries nothing and is configured
 again -- the file is a record of what the system was given, with the firmware
 identity and witness registers of the moment, not a fallback.
 
+Some of what a configuration names is measured on the system rather than
+chosen: a band's delay, a tracking frequency. An operation that measures one
+records it with ``Session.record_measured``: the value replaces the configured
+one in the record and its provenance is ``(operation, time)`` where a
+configured value's is ``(file, line)``; a reattaching client sees the measured
+value and which operation set it, and the record's dated history holds what it
+was before. The user's files are never written. ``measured_layer`` takes a
+record -- today's or a dated copy -- and returns its measured keys as a layer,
+so a system is configured again with yesterday's measurements over today's
+files; configuring from the files alone clears every measurement.
+
 .. automodule:: cryodaq.config
     :members: load, Resolved, merge, flatten, record_path, write_record,
-              read_record
+              read_record, measured_layer
     :undoc-members:
 
 Errors

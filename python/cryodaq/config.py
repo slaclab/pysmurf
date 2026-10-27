@@ -28,11 +28,14 @@
 #    registers. It is written atomically -- to a temporary file in the same
 #    directory, synced, then renamed over the old one -- so a reader finds the
 #    previous record or the new one and never half of either, and a dated copy
-#    is kept beside it. The configuring operation writes it; nothing reads it
-#    back into a session yet. It is the on-disk record that persisting values
-#    an operation measures will build on, and it is a record, not a source of
-#    truth: the server carries what it was given, and deleting the file costs
-#    nothing but history.
+#    is kept beside it. The configuring operation writes it, and an operation
+#    that measures a value the configuration names records the measurement
+#    through the same record: the value replaces the configured one and its
+#    provenance is the operation and the time rather than a file and a line.
+#    `measured_layer()` reads those keys back out of a record -- today's or a
+#    dated copy -- as a layer a later resolution takes on top of the user's
+#    files. It is a record, not a source of truth: the server carries what it
+#    was given, and deleting the file costs nothing but history.
 #
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
@@ -45,6 +48,7 @@
 #-----------------------------------------------------------------------------
 
 import hashlib
+import itertools
 import json
 import os
 import re
@@ -59,7 +63,8 @@ import yaml
 from cryodaq._errors import ConfigError
 
 __all__ = ['Resolved', 'load', 'merge', 'flatten', 'INHERIT_KEY', 'DEFAULT_LAYER',
-           'VALIDATED_LAYER', 'write_record', 'read_record', 'record_path', 'RECORD_DIR']
+           'VALIDATED_LAYER', 'write_record', 'read_record', 'record_path', 'RECORD_DIR',
+           'measured_layer']
 
 # The key a layer names its parents with. Consumed by the resolution; it is not
 # a value and does not appear in the result.
@@ -76,6 +81,8 @@ VALIDATED_LAYER = '<validated>'
 # Where configuration records live under a status directory, and the dated-copy format.
 RECORD_DIR = 'resolved'
 _HISTORY_STAMP = '%Y%m%dT%H%M%SZ'
+# How the record writes a time: a measured value's provenance carries one.
+_RECORD_TIME = '%Y-%m-%dT%H:%M:%SZ'
 # A hostname's own characters stay; ':' becomes '_'; anything else is %XX. The
 # three alphabets are disjoint, so two endpoints never share a file name.
 _SLUG_KEEP = re.compile(r'[A-Za-z0-9.-]')
@@ -97,10 +104,12 @@ class Resolved:
     values : mapping
         The merged values, ``inherit`` removed.
     provenance : mapping
-        Dotted key to ``(layer, line)``: which layer set the value that
-        survived, and the line in it; ``(VALIDATED_LAYER, 0)`` for a value the
-        validator filled in. Every leaf of ``values`` has an entry and nothing
-        else does; a mapping's provenance is that of its keys.
+        Dotted key to ``(source, where)``: for a value a layer set, the layer
+        and the line in it (``(VALIDATED_LAYER, 0)`` for one the validator
+        filled in); for a value an operation measured, the operation and the
+        UTC time as text (``'2026-10-27T21:55:53Z'``) -- an ``int`` second
+        element means a line, a ``str`` a time. Every leaf of ``values`` has an
+        entry and nothing else does; a mapping's provenance is that of its keys.
     hash : str
         SHA-256 of the canonical JSON of ``values``, so two resolutions that
         agree on every value agree here, whatever their layering.
@@ -109,7 +118,7 @@ class Resolved:
     """
 
     values: Mapping[str, Any]
-    provenance: Mapping[str, Tuple[str, int]]
+    provenance: Mapping[str, Tuple[str, Union[int, str]]]
     hash: str
     layers: Tuple[str, ...]
 
@@ -135,6 +144,42 @@ class Resolved:
                 part = int(part)  # type: ignore[assignment]
             node = node[part]
         return node
+
+    def measured(self, key: str, value: Any, *, operation: str,
+                 time_utc: Optional[str] = None) -> 'Resolved':
+        """This resolution with one value replaced by what an operation measured.
+
+        Parameters
+        ----------
+        key : str
+            Dotted key of a value the configuration holds, e.g.
+            ``'bands.0.band_delay_us'``. A key the configuration does not have
+            is refused: a measurement persists only what the user could have
+            configured.
+        value : object
+            What was measured; it replaces the configured value in ``values``.
+        operation : str
+            The operation that measured it.
+        time_utc : str, optional
+            When; now, formatted as the record formats times, if not given.
+
+        Returns
+        -------
+        Resolved
+            A new resolution: ``values`` with the measurement in place, its
+            provenance ``(operation, time)``, the hash recomputed. What the
+            value was before is in the record's history, not here.
+        """
+        # Every leaf the configuration has is in the provenance table.
+        if key not in self.provenance:
+            raise ConfigError('<measured>', key=key,
+                              reason='the configuration has no such key; a measurement '
+                                     'can only replace a configured value')
+        when = time_utc or time.strftime(_RECORD_TIME, time.gmtime())
+        values = _with_leaf(self.values, key.split('.'), value)
+        provenance = dict(self.provenance)
+        provenance[key] = (operation, when)
+        return Resolved(values=values, provenance=provenance, hash=hash_of(values), layers=self.layers)
 
     def to_dict(self) -> Dict[str, Any]:
         """A plain, JSON-serialisable form; ``from_dict`` reverses it."""
@@ -167,10 +212,38 @@ class Resolved:
         if recorded is not None and recorded != computed:
             raise ConfigError('<record>', reason=f"hash {recorded} does not match "
                               f"the values it records ({computed})")
-        return cls(values=values,
-                   provenance={k: (v[0], int(v[1])) for k, v in data.get('provenance', {}).items()},
-                   hash=computed,
+        # A configured value's provenance is (layer, line); a measured one's is
+        # (operation, time). Both travel as two-element lists; a line is an
+        # int, a time a string, and anything else is not a provenance.
+        provenance: Dict[str, Tuple[str, Union[int, str]]] = {}
+        for k, v in data.get('provenance', {}).items():
+            if len(v) != 2 or not isinstance(v[0], str) or isinstance(v[1], bool) \
+                    or not isinstance(v[1], (int, str)):
+                raise ConfigError('<record>', key=k,
+                                  reason=f"provenance is (layer, line) or (operation, time), not {v!r}")
+            provenance[k] = (v[0], v[1])
+        return cls(values=values, provenance=provenance, hash=computed,
                    layers=tuple(data.get('layers', ())))
+
+
+
+def _with_leaf(values: Mapping[str, Any], parts: List[str], value: Any, *,
+               create: bool = False) -> Dict[str, Any]:
+    """A copy of ``values`` with the leaf at ``parts`` replaced; numeric keys are matched as ``get`` does.
+
+    With ``create``, mappings missing along the way are made, a key of digits
+    becoming an ``int`` as YAML would read it (``bands: {0: ...}``), so the
+    result merges with a file's values rather than beside them; without it the
+    path must exist, as ``get`` found it.
+    """
+    out = dict(values)
+    head = parts[0]
+    key: Any = head if head in out else int(head) if head.isdigit() and (create or int(head) in out) else head
+    if len(parts) == 1:
+        out[key] = value
+    else:
+        out[key] = _with_leaf(out.get(key, {}) if create else out[key], parts[1:], value, create=create)
+    return out
 
 
 def hash_of(values: Mapping[str, Any]) -> str:
@@ -506,9 +579,47 @@ def write_record(resolved: Resolved, path: Union[str, Path], *,
     path.parent.mkdir(parents=True, exist_ok=True)
     _replace_atomically(path, text)
     if history:
+        # Two records written within one second -- a configuration and the
+        # measurement right after it -- are two states, so the second never
+        # overwrites the first's dated copy.
         stamp = time.strftime(_HISTORY_STAMP, now)
-        _replace_atomically(path.with_name(f"{path.stem}.{stamp}{path.suffix}"), text)
+        dated = path.with_name(f"{path.stem}.{stamp}{path.suffix}")
+        for n in itertools.count(1):
+            if not dated.exists():
+                break
+            dated = path.with_name(f"{path.stem}.{stamp}-{n}{path.suffix}")
+        _replace_atomically(dated, text)
     return path
+
+
+def measured_layer(record: Mapping[str, Any]) -> Dict[str, Any]:
+    """The values an operation measured, out of a record, as a layer.
+
+    A record -- today's or a dated copy, as ``read_record`` returns it --
+    carries every key's provenance; the keys whose provenance is an operation
+    rather than a file are returned nested as the configuration nests them, so
+    that ``load`` can take them on top of the user's files and the result has
+    the measured values with this layer's name as their provenance. That is
+    how a measurement outlives a server restart: the files are resolved again
+    with the record's measured part over them, and the configuring operation
+    applies the result. Nothing is written here.
+
+    Parameters
+    ----------
+    record : mapping
+        What ``read_record`` returned.
+
+    Returns
+    -------
+    dict
+        Nested values for the measured keys only; empty when none was.
+    """
+    resolved = Resolved.from_dict(record['resolved'])
+    out: Dict[str, Any] = {}
+    for key, (_source, where) in resolved.provenance.items():
+        if isinstance(where, str):
+            out = _with_leaf(out, key.split('.'), resolved.get(key), create=True)
+    return out
 
 
 def _replace_atomically(path: Path, text: str) -> None:

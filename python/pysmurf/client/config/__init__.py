@@ -28,7 +28,7 @@
 #-----------------------------------------------------------------------------
 
 from pathlib import Path
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 
 from cryodaq import config as _config
 
@@ -43,13 +43,22 @@ DEFAULT = Path(__file__).with_name('default.yaml')
 LEGACY_SUFFIXES = ('.cfg', '.json')
 
 
-def load(path: Union[str, Path]) -> _config.Resolved:
+def load(path: Union[str, Path], *,
+         measured_from: Optional[Union[str, Path]] = None) -> _config.Resolved:
     """Resolve a pysmurf configuration file over the packaged default.
 
     Parameters
     ----------
     path : str or Path
         A YAML file, possibly inheriting others, or a legacy ``.cfg``.
+    measured_from : str or Path, optional
+        A configuration record -- the one ``setup()`` and the measuring
+        operations keep under the status directory, or a dated copy beside
+        it. The values operations measured are taken out of it and laid over
+        the file, so a system is configured again with yesterday's measured
+        delays over today's files; every such key names the record as its
+        provenance. The file itself is not changed. A record with nothing
+        measured adds nothing.
 
     Returns
     -------
@@ -60,11 +69,24 @@ def load(path: Union[str, Path]) -> _config.Resolved:
     Raises
     ------
     cryodaq.ConfigError
-        For a fault in the layering.
+        For a fault in the layering, or a record that will not read.
     pysmurf.client.config.schema.ConfigInvalid
         For a value pysmurf cannot use, naming its key.
     """
     path = Path(path)
+    if measured_from is not None:
+        record = Path(measured_from)
+        layer = _config.measured_layer(_config.read_record(record))
+        if path.suffix in LEGACY_SUFFIXES:
+            below = legacy.convert(path)
+            name = str(path.resolve())
+        else:
+            below, name = path, None
+        # The record's measured keys are the top layer; the file (or its
+        # converted mapping) is what they inherit, under the packaged default.
+        chain = _config.load(below, default=DEFAULT, name=name)
+        return _attribute(_config.load(layer, default=chain.values, validate=schema.validate,
+                                       name=str(record.resolve())))
     if path.suffix in LEGACY_SUFFIXES:
         # The converter warns once, naming the file and what it dropped.
         return load_mapping(legacy.convert(path), name=str(path.resolve()))

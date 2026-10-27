@@ -516,6 +516,12 @@ class SmurfUtilMixin(SmurfBase):
 
         #### start measuring total (DSP + cable) delay with estimated correction applied
         self.set_band_delay_us(band, dsp_delay_us)
+        # The delay is a value the configuration names (bands.N.band_delay_us):
+        # record what was measured over the configured value, on the server and
+        # on disk, so a client that reattaches sees both and which operation
+        # set it. The configuration file itself is not written.
+        self._record_measured(f'bands.{band}.band_delay_us', float(dsp_delay_us),
+                              operation='estimate_phase_delay')
 
         self.log('Running find_freq')
         freq_dsp_corr,resp_dsp_corr=self.find_freq(band,subband=dsp_subbands)
@@ -5076,9 +5082,8 @@ class SmurfUtilMixin(SmurfBase):
             for bay in lmk_bays:
                 self.log(f'Select external reference for bay {bay}' +
                          ' or free running if there is no reference.')
-                for bay in lmk_bays:
-                    self.set_lmk_reg(bay, 0x146, 0x10, write_log=write_log)
-                    self.set_lmk_reg(bay, 0x147, 0x1a, write_log=write_log)
+                self.set_lmk_reg(bay, 0x146, 0x10, write_log=write_log)
+                self.set_lmk_reg(bay, 0x147, 0x1a, write_log=write_log)
 
             # Select internal flux ramp trigger source
             self.set_ramp_start_mode(0, write_log=write_log)

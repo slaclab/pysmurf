@@ -1355,6 +1355,81 @@ def check_the_application_client_configures_through_the_server():
     set_configured(ROOT, True)
 
 
+def check_a_measured_value_reaches_a_reattaching_client_and_setup_clears_it():
+    """A measured value replaces the configured one for a client with no file, until setup() runs again.
+
+    The first client configures and then records a band delay as
+    ``estimate_phase_delay`` does, through ``_record_measured``; a second
+    client with no cfg_file reattaches and finds the measured value in its
+    configuration with the operation that set it; the record's measured part
+    laid over the first client's file (``config.load(measured_from=)``) is the
+    published record, and a client built from that resolution carries the
+    measured value as configuration; the cfg file is byte-identical
+    throughout; and a setup() from the file alone leaves nothing measured.
+    Built in a child, as the configuring check is.
+    """
+    import json
+    from cryodaq.server import _setup
+    probe = subprocess.run([sys.executable, '-c', 'import pysmurf.client'], capture_output=True, text=True)
+    if probe.returncode != 0:
+        raise Skipped("pysmurf.client does not import in this interpreter")
+    cfg = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'cfg_files', 'b33',
+                       'experiment_2xLB_testing_Feb2021.cfg')
+    port = ENDPOINT.rsplit(':', 1)[1]
+    source = (
+        "import matplotlib; matplotlib.use('Agg')\n"
+        "import os, sys, tempfile, json, hashlib\n"
+        "import cryodaq, pysmurf.client\n"
+        "from cryodaq import config\n"
+        "tmp = tempfile.mkdtemp()\n"
+        f"text = open({cfg!r}).read().replace('/data', tmp + '/data')\n"
+        "cfg = os.path.join(tmp, 'experiment.cfg'); open(cfg, 'w').write(text)\n"
+        "digest = lambda: hashlib.sha256(open(cfg, 'rb').read()).hexdigest()\n"
+        "before = digest()\n"
+        f"S = pysmurf.client.SmurfControl(cfg_file=cfg, server_port={port}, setup=False,\n"
+        "                                atca_monitor=False, make_logfile=False, offline=False,\n"
+        "                                data_dir=tmp + '/data/smurf_data')\n"
+        "print('SETUP', S.setup(force_configure=True))\n"
+        "b = S._bands[0]; key = f'bands.{b}.band_delay_us'\n"
+        "configured = S.config.get(key)\n"
+        "S._record_measured(key, 2.448, operation='estimate_phase_delay')\n"
+        f"R = pysmurf.client.SmurfControl(server_port={port}, setup=False, atca_monitor=False,\n"
+        "                                make_logfile=False, offline=False)\n"
+        "print('MEASURED', json.dumps([R.config.get(key), list(R.config.provenance[key]), configured]))\n"
+        "rec = config.record_path(S._session.paths.status, S._session.endpoint)\n"
+        "layered = pysmurf.client.config.load(cfg, measured_from=rec)\n"
+        "print('LAYERED', json.dumps([layered.get(key), layered.provenance[key][0] == str(rec),\n"
+        "                            layered.hash == R.config.hash]))\n"
+        f"L = pysmurf.client.SmurfControl(cfg=layered, server_port={port}, setup=False, atca_monitor=False,\n"
+        "                                make_logfile=False, offline=False, data_dir=tmp + '/data/smurf_data')\n"
+        "print('FROMCFG', json.dumps([L.band_delay_us[b], L.config.get(key)]))\n"
+        "print('FILE', before == digest())\n"
+        "print('CLEARED', json.dumps([S.setup(force_configure=True),\n"
+        "      config.measured_layer(config.read_record(rec)), S._session.resolved_config().get(key) == configured]))\n")
+    with stood_in_procedure(_setup):
+        done = subprocess.run([sys.executable, '-c', source], text=True,
+                              timeout=CLIENT_CHILD_DEADLINE_S, capture_output=True)
+    lines = {l.split(' ', 1)[0]: l.split(' ', 1)[1] for l in done.stdout.splitlines()
+             if l.split(' ', 1)[0] in ('SETUP', 'MEASURED', 'LAYERED', 'FROMCFG', 'FILE', 'CLEARED')}
+    assert done.returncode == 0 and len(lines) == 6, \
+        f"the client child exited {done.returncode}: {done.stdout[-600:]!r} {done.stderr[-1200:]!r}"
+    assert lines['SETUP'] == 'True', lines['SETUP']
+    value, where, configured = json.loads(lines['MEASURED'])
+    assert value == 2.448 and value != configured, f"the reattaching client did not get the measurement: {lines['MEASURED']}"
+    assert where[0] == 'estimate_phase_delay' and isinstance(where[1], str) and len(where) == 2, where
+    layered_value, from_record, same_hash = json.loads(lines['LAYERED'])
+    assert layered_value == 2.448 and from_record and same_hash, \
+        f"the file plus the record's measured part is not the published record: {lines['LAYERED']}"
+    assert json.loads(lines['FROMCFG']) == [2.448, 2.448], f"a client built from cfg= did not carry it: {lines['FROMCFG']}"
+    assert lines['FILE'] == 'True', "the user's cfg file changed"
+    ok, layer, restored = json.loads(lines['CLEARED'])
+    assert ok and layer == {} and restored, f"setup() did not clear the measurement: {lines['CLEARED']}"
+    # The shared server carries this check's record; the checks after it start
+    # from the unconfigured record they expect.
+    SESSION.clear_config()
+    set_configured(ROOT, True)
+
+
 def check_a_start_that_fails_in_the_tree_leaves_no_thread_behind():
     """A server whose tree does not come up is stopped, not left half-running.
 
