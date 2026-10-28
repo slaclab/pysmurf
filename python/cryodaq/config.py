@@ -155,8 +155,10 @@ class Resolved:
             Dotted key to measured value, e.g. ``{'bands.0.band_delay_us':
             2.4}``; the three registers one operation set go together, so
             the record never holds half of them. A key the configuration does
-            not have is refused: a measurement persists only what the user
-            could have configured.
+            not have is refused, and so is a value that is a non-empty mapping
+            -- it would add leaves no file set, with no provenance of their
+            own: a measurement persists only what the user could have
+            configured, one leaf per key.
         operation : str
             The operation that measured them.
         time_utc : str, optional
@@ -170,11 +172,15 @@ class Resolved:
             values were before is in the record's history, not here.
         """
         # Every leaf the configuration has is in the provenance table.
-        for key in measured:
+        for key, value in measured.items():
             if key not in self.provenance:
                 raise ConfigError('<measured>', key=key,
                                   reason='the configuration has no such key; a measurement '
                                          'can only replace a configured value')
+            if isinstance(value, Mapping) and value:
+                raise ConfigError('<measured>', key=key,
+                                  reason=f"a measured value is a leaf, not a mapping ({value!r}); "
+                                         "it would add keys the configuration does not have")
         when = time_utc or time.strftime(_RECORD_TIME, time.gmtime())
         values: Dict[str, Any] = dict(self.values)
         provenance = dict(self.provenance)
