@@ -687,6 +687,9 @@ def check_a_measured_value_replaces_the_configured_one_and_setup_clears_it():
     fresh.record_measured({'scalar': configured + 1}, operation='measure_scalar')
     assert config.read_record(path)['extra'] == {'application': 'kept'}, \
         f"a fresh session's measurement dropped the record's extra: {config.read_record(path)['extra']}"
+    # The server now holds the fresh session's measurement: same value, its own time.
+    updated = fresh.resolved_config()
+    where = updated.provenance['scalar']
     for n in ('application_config.resolved', 'application_config.hash'):
         sess._client.root.nodes[sess.pmap.path(n)].value = fresh.get(n)
     # A reattaching session reads the measurement from the server.
