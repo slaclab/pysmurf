@@ -433,17 +433,13 @@ class SmurfControl(SmurfCommandMixin,
             self.set_iq_swap_out(band, self.iq_swap_out[band],
                                  write_log=write_log, **kwargs)
 
-            # The band delay, either as the three firmware registers
-            # the configuration names directly or as a total the
-            # firmware derives them from; delay_writes decides which
-            # from the live per-band properties, like every other write
-            # here. The lmsDelay register matches the system latency for
-            # LMS feedback -- actuator (DSP -> DAC -> RF) plus sensor (RF
-            # -> ADC -> demod) -- and in production firmware equals
-            # refPhaseDelay unless the configuration says otherwise.
-            for register, value in self.delay_writes(band):
-                getattr(self, f'set_{register}')(band, value,
-                                                 write_log=write_log, **kwargs)
+            # The band delay as a total; the firmware derives its three
+            # delay registers from it, lmsDelay -- the LMS feedback
+            # latency, actuator (DSP -> DAC -> RF) plus sensor (RF ->
+            # ADC -> demod) -- equal to refPhaseDelay. A site that needs
+            # lmsDelay apart sets it explicitly after setup().
+            self.set_band_delay_us(band, self.band_delay_us[band],
+                                   write_log=write_log, **kwargs)
 
             self.set_lms_gain(
                 band, self.lms_gain[band],

@@ -145,40 +145,42 @@ class Resolved:
             node = node[part]
         return node
 
-    def measured(self, key: str, value: Any, *, operation: str,
-                 time_utc: Optional[str] = None) -> 'Resolved':
-        """This resolution with one value replaced by what an operation measured.
+    def with_measured(self, measured: Mapping[str, Any], *, operation: str,
+                      time_utc: Optional[str] = None) -> 'Resolved':
+        """This resolution with values replaced by what one operation measured.
 
         Parameters
         ----------
-        key : str
-            Dotted key of a value the configuration holds, e.g.
-            ``'bands.0.band_delay_us'``. A key the configuration does not have
-            is refused: a measurement persists only what the user could have
-            configured.
-        value : object
-            What was measured; it replaces the configured value in ``values``.
+        measured : mapping
+            Dotted key to measured value, e.g. ``{'bands.0.band_delay_us':
+            2.4}``; the three registers one operation set go together, so
+            the record never holds half of them. A key the configuration does
+            not have is refused: a measurement persists only what the user
+            could have configured.
         operation : str
-            The operation that measured it.
+            The operation that measured them.
         time_utc : str, optional
             When; now, formatted as the record formats times, if not given.
 
         Returns
         -------
         Resolved
-            A new resolution: ``values`` with the measurement in place, its
+            A new resolution: ``values`` with the measurements in place, their
             provenance ``(operation, time)``, the hash recomputed. What the
-            value was before is in the record's history, not here.
+            values were before is in the record's history, not here.
         """
         # Every leaf the configuration has is in the provenance table.
-        if key not in self.provenance:
-            raise ConfigError('<measured>', key=key,
-                              reason='the configuration has no such key; a measurement '
-                                     'can only replace a configured value')
+        for key in measured:
+            if key not in self.provenance:
+                raise ConfigError('<measured>', key=key,
+                                  reason='the configuration has no such key; a measurement '
+                                         'can only replace a configured value')
         when = time_utc or time.strftime(_RECORD_TIME, time.gmtime())
-        values = _with_leaf(self.values, key.split('.'), value)
+        values: Dict[str, Any] = dict(self.values)
         provenance = dict(self.provenance)
-        provenance[key] = (operation, when)
+        for key, value in measured.items():
+            values = _with_leaf(values, key.split('.'), value)
+            provenance[key] = (operation, when)
         return Resolved(values=values, provenance=provenance, hash=hash_of(values), layers=self.layers)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -440,7 +442,7 @@ def _chain(layer: Layer, base: Optional[Path], seen: List[str],
     return out
 
 
-def load(path: Layer, *, default: Optional[Layer] = None,
+def load(path: Layer, *, default: Optional[Union[Layer, Resolved]] = None,
          validate: Optional[Validator] = None, name: Optional[str] = None) -> Resolved:
     """Resolve the configuration file at ``path`` over what it inherits.
 
@@ -455,9 +457,12 @@ def load(path: Layer, *, default: Optional[Layer] = None,
         called by its path. Required for a mapping. An absolute path here --
         the converted file's own -- is also where the mapping's ``inherit``
         path is relative to; any other name, the working directory.
-    default : str, Path or mapping, optional
+    default : str, Path, mapping or Resolved, optional
         A layer under everything: the application's shipped defaults, as a
-        file or as a mapping.
+        file or as a mapping. A ``Resolved`` is a resolution already made --
+        the user's files -- for ``path`` to stand on: its values are the
+        floor, every key it resolved keeps its provenance, and its layers
+        head the result's.
     validate : callable, optional
         ``validate(values) -> values``, the application's judgement of what the
         merged values mean. It may fill in or coerce; whatever it returns is the
@@ -478,12 +483,15 @@ def load(path: Layer, *, default: Optional[Layer] = None,
     if isinstance(path, Mapping) and not name:
         raise ConfigError('<mapping>', reason='a mapping given as the top layer needs a name')
     chain: List[Tuple[str, Dict[str, Any], Dict[str, int]]] = []
-    if default is not None:
+    values: Dict[str, Any] = {}
+    provenance: Dict[str, Tuple[str, Union[int, str]]] = {}
+    below: Tuple[str, ...] = ()
+    if isinstance(default, Resolved):
+        values, provenance, below = dict(default.values), dict(default.provenance), default.layers
+    elif default is not None:
         chain.extend(_chain(default, None, []))
     chain.extend(_chain(path, Path.cwd(), [], name or DEFAULT_LAYER))
 
-    values: Dict[str, Any] = {}
-    provenance: Dict[str, Tuple[str, int]] = {}
     for name, data, lines in chain:
         values = merge(values, data)
         for dotted in flatten(data):
@@ -495,7 +503,7 @@ def load(path: Layer, *, default: Optional[Layer] = None,
     # keeps no stale line; one the validator filled in is the validator's.
     provenance = {k: provenance.get(k, (VALIDATED_LAYER, 0)) for k in flatten(values)}
     return Resolved(values=values, provenance=provenance, hash=hash_of(values),
-                    layers=tuple(name for name, _, _ in chain))
+                    layers=below + tuple(name for name, _, _ in chain))
 
 
 # --------------------------------------------------------------------------

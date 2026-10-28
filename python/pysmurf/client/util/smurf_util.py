@@ -520,7 +520,7 @@ class SmurfUtilMixin(SmurfBase):
         # record what was measured over the configured value, on the server and
         # on disk, so a client that reattaches sees both and which operation
         # set it. The configuration file itself is not written.
-        self._record_measured(f'bands.{band}.band_delay_us', float(dsp_delay_us),
+        self._record_measured({f'bands.{band}.band_delay_us': float(dsp_delay_us)},
                               operation='estimate_phase_delay')
 
         self.log('Running find_freq')

@@ -1361,11 +1361,13 @@ def check_a_measured_value_reaches_a_reattaching_client_and_setup_clears_it():
     The first client configures and then records a band delay as
     ``estimate_phase_delay`` does, through ``_record_measured``; a second
     client with no cfg_file reattaches and finds the measured value in its
-    configuration with the operation that set it; the record's measured part
-    laid over the first client's file (``config.load(measured_from=)``) is the
-    published record, and a client built from that resolution carries the
-    measured value as configuration; the cfg file is byte-identical
-    throughout; and a setup() from the file alone leaves nothing measured.
+    configuration with the operation that set it; the record keeps what
+    setup() stored beside it; the record's measured part laid over the first
+    client's file (``config.load(measured_from=)``) is the published record
+    with every other key's file provenance kept, and a client built from that
+    resolution carries the measured value as configuration; the cfg file is
+    byte-identical throughout; and a setup() from the file alone leaves
+    nothing measured.
     Built in a child, as the configuring check is.
     """
     import json
@@ -1392,14 +1394,19 @@ def check_a_measured_value_reaches_a_reattaching_client_and_setup_clears_it():
         "print('SETUP', S.setup(force_configure=True))\n"
         "b = S._bands[0]; key = f'bands.{b}.band_delay_us'\n"
         "configured = S.config.get(key)\n"
-        "S._record_measured(key, 2.448, operation='estimate_phase_delay')\n"
+        "extra = config.read_record(config.record_path(S._session.paths.status, S._session.endpoint))['extra']\n"
+        "S._record_measured({key: 2.448}, operation='estimate_phase_delay')\n"
         f"R = pysmurf.client.SmurfControl(server_port={port}, setup=False, atca_monitor=False,\n"
         "                                make_logfile=False, offline=False)\n"
         "print('MEASURED', json.dumps([R.config.get(key), list(R.config.provenance[key]), configured]))\n"
         "rec = config.record_path(S._session.paths.status, S._session.endpoint)\n"
+        "print('EXTRA', json.dumps([extra, config.read_record(rec)['extra']]))\n"
         "layered = pysmurf.client.config.load(cfg, measured_from=rec)\n"
+        "plain = pysmurf.client.config.load(cfg)\n"
+        "other = f'bands.{b}.att_uc'\n"
         "print('LAYERED', json.dumps([layered.get(key), layered.provenance[key][0] == str(rec),\n"
-        "                            layered.hash == R.config.hash]))\n"
+        "      layered.hash == R.config.hash, layered.provenance[other] == plain.provenance[other],\n"
+        "      list(layered.layers) == list(plain.layers) + [str(rec)]]))\n"
         f"L = pysmurf.client.SmurfControl(cfg=layered, server_port={port}, setup=False, atca_monitor=False,\n"
         "                                make_logfile=False, offline=False, data_dir=tmp + '/data/smurf_data')\n"
         "print('FROMCFG', json.dumps([L.band_delay_us[b], L.config.get(key)]))\n"
@@ -1410,16 +1417,20 @@ def check_a_measured_value_reaches_a_reattaching_client_and_setup_clears_it():
         done = subprocess.run([sys.executable, '-c', source], text=True,
                               timeout=CLIENT_CHILD_DEADLINE_S, capture_output=True)
     lines = {l.split(' ', 1)[0]: l.split(' ', 1)[1] for l in done.stdout.splitlines()
-             if l.split(' ', 1)[0] in ('SETUP', 'MEASURED', 'LAYERED', 'FROMCFG', 'FILE', 'CLEARED')}
-    assert done.returncode == 0 and len(lines) == 6, \
+             if l.split(' ', 1)[0] in ('SETUP', 'MEASURED', 'EXTRA', 'LAYERED', 'FROMCFG', 'FILE', 'CLEARED')}
+    assert done.returncode == 0 and len(lines) == 7, \
         f"the client child exited {done.returncode}: {done.stdout[-600:]!r} {done.stderr[-1200:]!r}"
     assert lines['SETUP'] == 'True', lines['SETUP']
     value, where, configured = json.loads(lines['MEASURED'])
     assert value == 2.448 and value != configured, f"the reattaching client did not get the measurement: {lines['MEASURED']}"
     assert where[0] == 'estimate_phase_delay' and isinstance(where[1], str) and len(where) == 2, where
-    layered_value, from_record, same_hash = json.loads(lines['LAYERED'])
+    before_extra, after_extra = json.loads(lines['EXTRA'])
+    assert before_extra and after_extra == before_extra, \
+        f"the measurement dropped what setup() stored with the record: {lines['EXTRA']}"
+    layered_value, from_record, same_hash, other_kept, layers = json.loads(lines['LAYERED'])
     assert layered_value == 2.448 and from_record and same_hash, \
         f"the file plus the record's measured part is not the published record: {lines['LAYERED']}"
+    assert other_kept and layers, f"an unmeasured key or the file's layers lost their provenance: {lines['LAYERED']}"
     assert json.loads(lines['FROMCFG']) == [2.448, 2.448], f"a client built from cfg= did not carry it: {lines['FROMCFG']}"
     assert lines['FILE'] == 'True', "the user's cfg file changed"
     ok, layer, restored = json.loads(lines['CLEARED'])

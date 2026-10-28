@@ -8,10 +8,11 @@
 # Description:
 #    Reads the JSON-with-comments `.cfg` files pysmurf used before the YAML
 #    schema and produces the equivalent YAML mapping. Every value a site set
-#    is carried across under its new key; the per-band firmware delay triple
-#    (refPhaseDelay, refPhaseDelayFine, lmsDelay) becomes the band's `delay`
-#    block verbatim, so what setup() writes does not change. Keys nothing
-#    read any more are dropped and named in a warning.
+#    is carried across under its new key; the per-band firmware delay registers
+#    (refPhaseDelay, refPhaseDelayFine) become the band's `band_delay_us`, the
+#    total they encode, from which the firmware derives them again; lmsDelay is
+#    dropped, the firmware setting it from the same total. Keys nothing read
+#    any more are dropped and named in a warning.
 #
 #    Used in two ways: `convert()` in memory when SmurfControl is handed a
 #    `.cfg`, and `python -m pysmurf.client.config convert` to write the YAML
@@ -46,7 +47,7 @@ DROPPED_KEYS = ('epics_root', 'chip_to_freq', 'smurf_to_mce', 'band_to_chip',
                 'tune_band.n_samples', 'tune_band.grad_cut', 'tune_band.amp_cut',
                 'tune_band.freq_max', 'tune_band.freq_min', 'tune_band.eta_scan_amplitude')
 
-# Old per-band key -> new one. The delay triple is handled apart.
+# Old per-band key -> new one. The delay registers are handled apart.
 _BAND_RENAMES = {
     'iq_swap_in': 'iq_swap_in', 'iq_swap_out': 'iq_swap_out',
     'feedbackEnable': 'feedback_enable', 'feedbackPolarity': 'feedback_polarity',
@@ -55,8 +56,12 @@ _BAND_RENAMES = {
     'trigRstDly': 'trigger_reset_delay',
     'lmsGain': 'lms_gain', 'bandDelayUs': 'band_delay_us',
 }
-_DELAY_KEYS = {'refPhaseDelay': 'ref_phase', 'refPhaseDelayFine': 'ref_phase_fine',
-               'lmsDelay': 'lms'}
+_DELAY_KEYS = ('refPhaseDelay', 'refPhaseDelayFine', 'lmsDelay')
+# The firmware's own reading of its delay registers as microseconds: refPhaseDelay
+# counts 2.4 MHz ticks of delay, refPhaseDelayFine 307.2 MHz ticks of lag taken
+# off it. Its setter inverts this exactly for every value a shipped file holds.
+_REF_PHASE_TICKS_PER_US = 2.4
+_REF_PHASE_FINE_TICKS_PER_US = 307.2
 # Old tune_band per-band table -> new per-band key.
 _TUNING_RENAMES = {
     'lms_freq': 'lms_freq_hz', 'delta_freq': 'delta_freq',
@@ -154,20 +159,21 @@ def convert(path: Union[str, Path], *, warn: bool = True) -> Dict[str, Any]:
             dropped.append(f"init.{key}")
             continue
         band = bands.setdefault(int(m.group(1)), {})
-        delay = {}
         for old_key, value in block.items():
             if old_key in _BAND_RENAMES:
                 band[_BAND_RENAMES[old_key]] = value
-            elif old_key in _DELAY_KEYS:
-                delay[_DELAY_KEYS[old_key]] = value
-            else:
+            elif old_key not in _DELAY_KEYS:
                 dropped.append(f"init.{key}.{old_key}")
-        # The old setup() wrote the triple only when refPhaseDelay was set and
-        # nonzero, and bandDelayUs otherwise; a triple it never wrote is dropped.
-        if delay.get('ref_phase'):
-            band['delay'] = delay
+        # The old setup() wrote the three registers when refPhaseDelay was set
+        # and nonzero, and bandDelayUs otherwise. The registers it wrote are
+        # carried as the total they encode; lmsDelay, which the firmware now
+        # sets from that total, and a bandDelayUs it passed over are dropped.
+        if block.get('refPhaseDelay'):
+            coarse = block['refPhaseDelay'] / _REF_PHASE_TICKS_PER_US
+            band['band_delay_us'] = coarse - block.get('refPhaseDelayFine', 0) / _REF_PHASE_FINE_TICKS_PER_US
+            dropped.extend(f"init.{key}.{old}" for old in ('lmsDelay', 'bandDelayUs') if old in block)
         else:
-            dropped.extend(f"init.{key}.{old}" for old, new in _DELAY_KEYS.items() if new in delay)
+            dropped.extend(f"init.{key}.{old}" for old in _DELAY_KEYS if old in block)
 
     tune_band = old.get('tune_band', {})
     for key in ('fraction_full_scale', 'reset_rate_khz', 'default_tune'):

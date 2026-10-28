@@ -135,10 +135,7 @@ band_default:
   iq_swap_out: 0
   feedback_enable: 1
   feedback_polarity: 1
-  band_delay_us: null                 # total band delay, microseconds; or set `delay`
-  # delay: {ref_phase: 6, ref_phase_fine: 0, lms: 24}
-  #   sets the three firmware delay registers directly, in their own ticks,
-  #   and wins over band_delay_us when present.
+  band_delay_us: null                 # total band delay, microseconds; each band sets it
 
 # One block per band, keyed by band number. Empty here: the bands are the
 # site's to declare.
