@@ -34,6 +34,8 @@ from typing import Any, Dict
 
 from schema import And, Optional, Or, Schema, SchemaError, Use
 
+import cryodaq
+
 __all__ = ['validate', 'ConfigInvalid', 'BAND_KEYS', 'TUNING_KEYS']
 
 # Every key a band block takes, and the tuning parameters among them.
@@ -131,8 +133,10 @@ def _schema():
     return Schema({
         # A directory is named, not checked: whether it exists is decided where
         # it is used. An empty name is no directory at all.
-        'paths': {'data': And(str, len), 'smurf_cmd': And(str, len), 'tune': And(str, len),
-                  'status': And(str, len)},
+        # The directories are the readout core's section (cryodaq.Paths names
+        # the key and its leaves); the application adds its own under it.
+        cryodaq.Paths.CONFIG_KEY: {**{k: And(str, len) for k in cryodaq.Paths.CONFIG_KEYS},
+                                   'smurf_cmd': And(str, len)},
         'wiring': {
             'R_sh': positive,
             'bias_line_resistance': positive,

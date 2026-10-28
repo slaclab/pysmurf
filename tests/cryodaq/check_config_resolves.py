@@ -563,6 +563,54 @@ def check_a_server_that_has_restarted_or_has_no_config_node_answers_none():
     assert sess.configured and sess.resolved_config() is not None, 'the flag rose on the server and was not seen'
 
 
+def check_a_session_reattaches_from_the_server_and_adopts_the_record_s_directories_and_extra():
+    """reattach(): the server's resolution, refused by state when there is none; its paths and extra become the session's."""
+    d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_reattach_'))
+    elsewhere = d / 'elsewhere'
+    values = dict(resolve().values)
+    values['paths'] = {'data': str(d), 'status': str(elsewhere / 'status'), 'tune': str(elsewhere / 'tune')}
+    resolved = cryodaq.Resolved(values, {k: ('<here>', 0) for k in config.flatten(values)},
+                                config.hash_of(values), ('<here>',))
+    # The configuring session writes under the configuration's status directory.
+    first = system(configured=True, status_dir=d)
+    first.paths = cryodaq.Paths.from_config(resolved.values, first.paths)
+    assert first.paths.status == elsewhere / 'status' and first.paths.tune == elsewhere / 'tune'
+    assert first.paths.data == d and first.paths.output.is_relative_to(d), first.paths
+    path = first.record_config(resolved, extra={'application': 'kept'})
+    assert path.parent.parent == elsewhere / 'status', path
+    # A session opened with no configuration points at the default's directories.
+    again = system(configured=True, status_dir=d / 'default')
+    for n in ('application_config.resolved', 'application_config.hash'):
+        again._client.root.nodes[again.pmap.path(n)].value = first.get(n)
+    back = again.reattach()
+    assert back.hash == resolved.hash
+    assert again.paths.status == elsewhere / 'status', f"the session did not adopt the record's directories: {again.paths}"
+    assert again._extra == {'application': 'kept'}, f"the session did not take the record's extra: {again._extra}"
+    # ... so what it records next lands beside the first session's record, with the extra.
+    again.record_measured({'scalar': resolved.get('scalar') + 1}, operation='measure_scalar')
+    assert config.read_record(path)['extra'] == {'application': 'kept'}
+    assert config.read_record(path)['resolved']['hash'] != resolved.hash, 'the measurement was not written there'
+    # A record on disk that is not the server's resolution lends nothing.
+    third = system(configured=True, status_dir=d / 'default')
+    for n in ('application_config.resolved', 'application_config.hash'):
+        third._client.root.nodes[third.pmap.path(n)].value = first.get(n)   # the first, now stale, resolution
+    third.reattach()
+    assert third._extra == {}, f"a stale record lent its extra: {third._extra}"
+    # Refused by state, naming which.
+    for configured, said in ((False, 'not configured'), (True, 'no configuration record')):
+        empty = system(configured=configured, status_dir=d)
+        try:
+            empty.reattach()
+        except RuntimeError as e:
+            assert said in str(e) and 'stand-in:9012' in str(e), str(e)
+        else:
+            raise AssertionError(f"reattached to a server that {said}")
+    # A configuration that names no paths leaves the session's where they were.
+    plain = system(configured=True, status_dir=d / 'plain')
+    plain.record_config(resolve())
+    assert plain.reattach().hash == resolve().hash and plain.paths.status == d / 'plain'
+
+
 def check_clearing_the_record_leaves_a_configured_server_answering_none():
     """The configuring operation clears the record first; a failure part-way leaves none to reattach to."""
     d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_reattach_'))
@@ -617,11 +665,11 @@ def check_a_measured_value_replaces_the_configured_one_and_setup_clears_it():
     again = system(configured=True, status_dir=d)
     for n in ('application_config.resolved', 'application_config.hash'):
         again._client.root.nodes[again.pmap.path(n)].value = sess.get(n)
-    back = again.resolved_config()
-    assert back is not None and back.hash == updated.hash, 'the reattaching session did not get the measurement'
+    back = again.reattach()
+    assert back.hash == updated.hash, 'the reattaching session did not get the measurement'
     assert back.get('scalar') == configured + 1 and back.provenance['scalar'] == where
     # A measurement through the reattached session -- which wrote no record of
-    # its own -- keeps the extra too, from the file.
+    # its own -- keeps the extra too, taken from the record at reattach.
     again.record_measured({'scalar': configured + 2}, operation='measure_scalar')
     assert config.read_record(path)['extra'] == {'application': 'kept'}, \
         f"a reattached session's measurement dropped the record's extra: {config.read_record(path)['extra']}"

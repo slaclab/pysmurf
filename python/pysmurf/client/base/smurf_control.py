@@ -677,33 +677,20 @@ class SmurfControl(SmurfCommandMixin,
     def _reattach(self):
         """Adopt the configuration a running system was given, when there is no file.
 
-        The server carries it while it stays up. A restarted server has
-        forgotten, and nothing is guessed from a record on disk: a system the
-        server does not hold as configured is refused. Whatever the refusal --
-        no record, or one that will not read back -- the session is closed with
+        The session does the reattaching -- reads the server's record, refuses a
+        system the server does not hold as configured, takes the record's
+        directories as its own -- and what comes back is re-validated into the
+        shape ``load`` gives before it becomes this client's configuration.
+        Whatever the refusal -- no record (run ``SmurfControl(cfg_file=...).setup()``
+        first), or one that will not read back -- the session is closed with
         it: no instance comes back that could close it later.
         """
         try:
-            resolved = self._session.resolved_config()
-            if resolved is None:
-                # None covers a server that is not configured and a configured
-                # one holding no record -- a setup() that failed after clearing
-                # it, or an image without the node it is kept in. Say which of
-                # the two states; the cause of the second is not known here.
-                why = ('is configured but holds no configuration record (a setup() '
-                       'that did not finish, or an image without one)'
-                       if self._session.configured else 'is not configured')
-                raise RuntimeError(
-                    f"{self._session.endpoint} {why} and no cfg_file was given; "
-                    f"run SmurfControl(cfg_file=...).setup() first")
-            resolved = smurf_config.adopt(resolved)
+            resolved = smurf_config.adopt(self._session.reattach())
         except BaseException:
             self._session.close()
             raise
         self.copy_config_to_properties(resolved)
-        # The session was opened before there was a configuration, on the
-        # default's directories; the adopted one says where they are.
-        self._session.paths = self._session_paths()
         self.log(f'Reattached to the recorded configuration {resolved.hash[:12]} '
                  f'({" <- ".join(os.path.basename(p) for p in resolved.layers)})',
                  self.LOG_USER)
