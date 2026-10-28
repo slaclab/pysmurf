@@ -674,6 +674,21 @@ def check_a_measured_value_replaces_the_configured_one_and_setup_clears_it():
     assert all(v == resolved.provenance[k] for k, v in updated.provenance.items() if k != 'scalar')
     assert config.read_record(path)['extra'] == {'application': 'kept'}, \
         f"a measurement dropped the record's extra: {config.read_record(path)['extra']}"
+    # A measured value is a leaf: a mapping would add keys no file set.
+    refused(lambda: sess.record_measured({'scalar': {'new_key': 2}}, operation='op'), 'scalar', 'not a mapping')
+    assert sess.resolved_config().get('scalar.new_key') is None, 'a refused mapping landed anyway'
+    # A session that neither recorded nor reattached -- a client opened with
+    # its own configuration on a server somebody else configured -- takes the
+    # record's extra at its first measurement rather than writing none.
+    fresh = system(configured=True, status_dir=d)
+    for n in ('application_config.resolved', 'application_config.hash'):
+        fresh._client.root.nodes[fresh.pmap.path(n)].value = sess.get(n)
+    assert fresh._extra is None
+    fresh.record_measured({'scalar': configured + 1}, operation='measure_scalar')
+    assert config.read_record(path)['extra'] == {'application': 'kept'}, \
+        f"a fresh session's measurement dropped the record's extra: {config.read_record(path)['extra']}"
+    for n in ('application_config.resolved', 'application_config.hash'):
+        sess._client.root.nodes[sess.pmap.path(n)].value = fresh.get(n)
     # A reattaching session reads the measurement from the server.
     again = system(configured=True, status_dir=d)
     for n in ('application_config.resolved', 'application_config.hash'):
@@ -704,10 +719,11 @@ def check_a_measured_value_replaces_the_configured_one_and_setup_clears_it():
     assert over.layers == resolved.layers + ('<record>',), over.layers
     # Two keys one operation measured land in one record, both refused if one is unknown.
     refused(lambda: sess.record_measured({'scalar': 1, 'no.such.key': 1}, operation='op'), 'no.such.key')
-    # The previous value is history: one dated copy per write, so both states are there.
+    # The previous value is history: one dated copy per write, so every state is there
+    # (configured; the first measurement; the fresh session's, same value; the reattached session's).
     copies = [p for p in path.parent.iterdir() if p.name != path.name and p.suffix == '.json']
     held = sorted(config.read_record(c)['resolved']['values']['scalar'] for c in copies)
-    assert held == [configured, configured + 1, configured + 2], \
+    assert held == [configured, configured + 1, configured + 1, configured + 2], \
         f'the record history does not hold the configured value: {held} in {[c.name for c in copies]}'
     # A key the configuration does not have is refused by name.
     refused(lambda: sess.record_measured({'no.such.key': 1}, operation='op'), 'no.such.key')
@@ -978,6 +994,31 @@ def selftest():
                            check_a_measured_value_replaces_the_configured_one_and_setup_clears_it, "record's extra")
         finally:
             config.write_record = real_record
+        real_from_record = _session.Session._extra_from_record
+        _session.Session._extra_from_record = lambda self, resolved: {}
+        try:
+            expect_failure("a fresh session's measurement that writes no extra is caught",
+                           check_a_measured_value_replaces_the_configured_one_and_setup_clears_it,
+                           "fresh session's measurement dropped")
+        finally:
+            _session.Session._extra_from_record = real_from_record
+
+        def mapping_lands(self, measured, **kw):
+            # Lets a mapping through as a value, which adds leaves with no provenance.
+            leaves = {k: v for k, v in measured.items() if not isinstance(v, dict)}
+            out = real_measured(self, leaves, **kw)
+            values = out.values
+            for k, v in measured.items():
+                if isinstance(v, dict):
+                    values = config._with_leaf(values, k.split('.'), v)
+            return cryodaq.Resolved(values, out.provenance, config.hash_of(values), out.layers)
+        cryodaq.Resolved.with_measured = mapping_lands
+        try:
+            expect_failure('a measurement that takes a mapping as a value is caught',
+                           check_a_measured_value_replaces_the_configured_one_and_setup_clears_it,
+                           'accepted what should have been refused')
+        finally:
+            cryodaq.Resolved.with_measured = real_measured
         real_layer = config.measured_layer
 
         def every_key(record):

@@ -202,7 +202,15 @@ class Paths:
 
     @classmethod
     def from_config(cls, values: Mapping[str, Any], current: Optional['Paths'] = None) -> 'Paths':
-        """The paths a configuration names, over ``current`` for what it leaves out.
+        """The paths a configuration names.
+
+        A ``data`` root names the usual layout under it, ``tune`` and
+        ``status`` each replace one directory of that layout, and ``current``
+        is the layout when no root is named. A root the configuration names
+        decides the whole layout, not just the root: that is what the session
+        that applied the configuration computed from it, so a session that
+        reattaches to the same configuration arrives at the same directories
+        and records where the first one did.
 
         Parameters
         ----------
@@ -211,8 +219,8 @@ class Paths:
             ``data`` the root of the data tree and ``tune``/``status`` the
             two directories that are not under a dated session.
         current : Paths, optional
-            What to keep where the configuration says nothing; the usual
-            layout under the default root when not given.
+            The layout when the configuration names no ``data`` root; the
+            usual layout under the default root when not given.
         """
         section = values.get(cls.CONFIG_KEY) or {}
         base = cls.under(section['data']) if section.get('data') else (current or cls.under())
@@ -802,6 +810,13 @@ class Session:
 
         Notes
         -----
+        What the configuring operation stored beside the record (``extra``)
+        is carried forward: from what this session recorded or adopted at
+        :meth:`reattach`, or -- for a session that did neither, a client
+        opened with a configuration of its own on a server somebody else
+        configured -- from the record at this session's status directory,
+        read once, when it holds the resolution the server holds.
+
         One client measures on a system at a time, as one client configures
         it. The read-back and the recording are not made atomic against a
         second process measuring on the same server: it would be sharing the
@@ -813,7 +828,9 @@ class Session:
                                      reason=f"{self.endpoint} holds no configuration record to "
                                             f"record a measurement over; configure it first")
         updated = current.with_measured(measured, operation=operation)
-        self.record_config(updated, extra=self._extra or {})
+        if self._extra is None:
+            self._extra = self._extra_from_record(current)
+        self.record_config(updated, extra=self._extra)
         self.log.log(LOG_INFO, "recorded %s measured by %s", dict(measured), operation)
         return updated
 
@@ -889,22 +906,31 @@ class Session:
                    if self.configured else 'is not configured')
             raise RuntimeError(f"{self.endpoint} {why}; nothing to reattach to -- configure it first")
         self.paths = Paths.from_config(resolved.values, self.paths)
-        self._extra = {}
-        path = self.config_record_path()
-        if path.exists():
-            # The record lends only `extra`; one that will not read is logged
-            # and lends nothing, since the server's resolution is what counts.
-            try:
-                record = config.read_record(path)
-            except config.ConfigError as e:
-                self.log.warning("%s: the record at %s does not read back (%s); its extra is "
-                                 "not carried forward", self.endpoint, path, e.reason)
-            else:
-                if record['resolved'].get('hash') == resolved.hash:
-                    self._extra = record.get('extra', {})
+        self._extra = self._extra_from_record(resolved)
         self.log.log(LOG_INFO, "%s: reattached to configuration %s; recording under %s",
                      self.endpoint, resolved.hash[:12], self.paths.status)
         return resolved
+
+    def _extra_from_record(self, resolved: config.Resolved) -> Dict[str, Any]:
+        """What the record at this session's status directory stored beside ``resolved``.
+
+        The record lends only its ``extra``, and only when it holds the
+        resolution the server holds; one that is missing or will not read
+        back is logged and lends nothing, since the server's resolution is
+        what counts and ``extra`` is the application's note beside it.
+        """
+        path = self.config_record_path()
+        if not path.exists():
+            return {}
+        try:
+            record = config.read_record(path)
+        except config.ConfigError as e:
+            self.log.warning("%s: the record at %s does not read back (%s); its extra is "
+                             "not carried forward", self.endpoint, path, e.reason)
+            return {}
+        if record['resolved'].get('hash') != resolved.hash:
+            return {}
+        return dict(record.get('extra', {}))
 
     # ------------------------------------------------------------------
 

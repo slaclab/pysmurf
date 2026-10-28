@@ -1362,7 +1362,9 @@ def check_a_measured_value_reaches_a_reattaching_client_and_setup_clears_it():
     ``estimate_phase_delay`` does, through ``_record_measured``; a second
     client with no cfg_file reattaches and finds the measured value in its
     configuration with the operation that set it; the record keeps what
-    setup() stored beside it; the record's measured part laid over the first
+    setup() stored beside it, through the first client's measurement and
+    through one by a client opened with the same file that did not run
+    setup(); the record's measured part laid over the first
     client's file (``config.load(measured_from=)``) is the published record
     with every other key's file provenance kept, and a client built from that
     resolution carries the measured value as configuration; the cfg file is
@@ -1400,7 +1402,12 @@ def check_a_measured_value_reaches_a_reattaching_client_and_setup_clears_it():
         "                                make_logfile=False, offline=False)\n"
         "print('MEASURED', json.dumps([R.config.get(key), list(R.config.provenance[key]), configured]))\n"
         "rec = config.record_path(S._session.paths.status, S._session.endpoint)\n"
-        "print('EXTRA', json.dumps([extra, config.read_record(rec)['extra']]))\n"
+        "between = config.read_record(rec)['extra']\n"
+        f"F = pysmurf.client.SmurfControl(cfg_file=cfg, server_port={port}, setup=False,\n"
+        "                                atca_monitor=False, make_logfile=False, offline=False,\n"
+        "                                data_dir=tmp + '/data/smurf_data')\n"
+        "F._record_measured({key: 2.448}, operation='estimate_phase_delay')\n"
+        "print('EXTRA', json.dumps([extra, between, config.read_record(rec)['extra']]))\n"
         "layered = pysmurf.client.config.load(cfg, measured_from=rec)\n"
         "plain = pysmurf.client.config.load(cfg)\n"
         "other = f'bands.{b}.att_uc'\n"
@@ -1424,9 +1431,11 @@ def check_a_measured_value_reaches_a_reattaching_client_and_setup_clears_it():
     value, where, configured = json.loads(lines['MEASURED'])
     assert value == 2.448 and value != configured, f"the reattaching client did not get the measurement: {lines['MEASURED']}"
     assert where[0] == 'estimate_phase_delay' and isinstance(where[1], str) and len(where) == 2, where
-    before_extra, after_extra = json.loads(lines['EXTRA'])
-    assert before_extra and after_extra == before_extra, \
+    before_extra, between_extra, after_extra = json.loads(lines['EXTRA'])
+    assert before_extra and between_extra == before_extra, \
         f"the measurement dropped what setup() stored with the record: {lines['EXTRA']}"
+    assert after_extra == before_extra, \
+        f"a measurement by a client with its own file and no setup() dropped the record's extra: {lines['EXTRA']}"
     layered_value, from_record, same_hash, other_kept, layers = json.loads(lines['LAYERED'])
     assert layered_value == 2.448 and from_record and same_hash, \
         f"the file plus the record's measured part is not the published record: {lines['LAYERED']}"
