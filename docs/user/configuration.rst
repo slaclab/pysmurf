@@ -137,7 +137,9 @@ resolved: the same thing a client constructed from that file holds before it
 calls ``setup()``. A value changed on the instance afterwards -- ``S.feedback_gain[4]
 = 512`` before ``setup()``, or a tuning that writes ``S.lms_freq_hz[band]`` --
 is applied to the hardware but is not configuration and is not in the record.
-Values an operation measures will be kept separately.
+A value an operation *measures* -- ``estimate_phase_delay``'s ``band_delay_us``
+-- is the exception: it replaces the configured value in the record, with the
+operation and time as its provenance (see the key's entry below).
 
 ``setup()`` also writes the resolution to a record under ``paths.status``
 (``resolved/<host>_<port>.json``, one file per endpoint, with a dated copy),

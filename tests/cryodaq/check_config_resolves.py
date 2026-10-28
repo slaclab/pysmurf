@@ -34,6 +34,7 @@
 """Check that cryodaq resolves layered configurations and records them faithfully."""
 import argparse
 import json
+import logging
 import os
 import pathlib
 import re
@@ -383,7 +384,7 @@ def check_a_corrupt_record_is_refused_naming_the_file():
     # time, an entry too short or too long, a source that is not a name.
     good = resolve().to_dict()
     for bad in ({'a': ['f', 1.5]}, {'a': ['f', None]}, {'a': ['f', True]}, {'a': ['f']},
-                {'a': ['f', 'x', 'y']}, {'a': [1, 2]}, {'a': 'f'}, 'f'):
+                {'a': ['f', 'x', 'y']}, {'a': [1, 2]}, {'a': 'f'}, {'a': 'op'}, 'f'):
         (d / 'v.json').write_text(json.dumps({'resolved': dict(good, provenance=bad)}))
         refused(lambda: config.read_record(d / 'v.json'), 'v.json', 'not a resolution')
 
@@ -596,6 +597,18 @@ def check_a_session_reattaches_from_the_server_and_adopts_the_record_s_directori
         third._client.root.nodes[third.pmap.path(n)].value = first.get(n)   # the first, now stale, resolution
     third.reattach()
     assert third._extra == {}, f"a stale record lent its extra: {third._extra}"
+    # A record that will not read back lends nothing either, and does not stop
+    # the reattach: the server's resolution is what counts, extra is optional.
+    path.write_text('{not json')
+    fourth = system(configured=True, status_dir=d / 'default')
+    for n in ('application_config.resolved', 'application_config.hash'):
+        fourth._client.root.nodes[fourth.pmap.path(n)].value = again.get(n)
+    said = []
+    fourth.log = logging.getLogger('cryodaq.check_reattach')
+    fourth.log.addHandler(type('Keep', (logging.Handler,), {'emit': lambda self, rec: said.append(rec.getMessage())})())
+    assert fourth.reattach().hash == again.resolved_config().hash, 'a corrupt record stopped the reattach'
+    assert fourth._extra == {} and any('does not read back' in m for m in said), said
+    assert fourth.paths.status == elsewhere / 'status', fourth.paths
     # Refused by state, naming which.
     for configured, said in ((False, 'not configured'), (True, 'no configuration record')):
         empty = system(configured=configured, status_dir=d)
