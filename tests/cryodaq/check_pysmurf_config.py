@@ -48,7 +48,7 @@ REPO = HERE.parents[1]
 sys.path.insert(0, str(REPO / 'python'))
 
 from cryodaq import ConfigError  # noqa: E402
-from cryodaq.config import VALIDATED_LAYER, flatten  # noqa: E402
+from cryodaq.config import flatten  # noqa: E402
 from pysmurf.client.config import DEFAULT, legacy, load, load_mapping, schema  # noqa: E402
 
 # The legacy loader and property mixin, at the last revision that had them.
@@ -80,8 +80,8 @@ COMPARED = (
     'gradient_descent_step_hz', 'gradient_descent_momentum', 'gradient_descent_beta',
     'feedback_start_frac', 'feedback_end_frac', 'eta_scan_del_f', 'eta_scan_averages',
     'delta_freq', 'lms_freq_hz', 'amplitude_scale', 'iq_swap_in',
-    'iq_swap_out', 'ref_phase_delay', 'ref_phase_delay_fine', 'band_delay_us', 'att_uc',
-    'att_dc', 'trigger_reset_delay', 'lms_gain', 'lms_delay', 'feedback_enable',
+    'iq_swap_out', 'band_delay_us', 'att_uc',
+    'att_dc', 'trigger_reset_delay', 'lms_gain', 'feedback_enable',
     'feedback_gain', 'feedback_limit_khz', 'feedback_polarity',
 )
 # Properties the legacy mixin exposed that are no longer configuration: every
@@ -134,7 +134,10 @@ def legacy_properties(cfg_path):
     config.config = SmurfConfig.validate_config(config.config)
     holder = Mixin()
     holder.copy_config_to_properties(config)
-    return {name: getattr(holder, name) for name in COMPARED + tuple(SERVER_DEFAULTS)}, config.config
+    # The three register properties the old mixin had are read for the delay
+    # comparison only; the new mixin has the total alone.
+    names = COMPARED + tuple(SERVER_DEFAULTS) + ('ref_phase_delay', 'ref_phase_delay_fine')
+    return {name: getattr(holder, name) for name in names}, config.config
 
 
 _DIRS = None
@@ -280,12 +283,11 @@ def check_the_schema_refuses_bad_content_naming_the_key():
     refused(v, 'bands.9', '0-7')
     v = minimal()
     v['bands'][4]['band_delay_us'] = None
-    refused(v, 'bands.4', 'band_delay_us or a delay block')
-    # A zero ref_phase is a triple setup() never wrote: the block is refused
-    # rather than accepted and then passed over for band_delay_us.
+    refused(v, 'bands.4', 'band_delay_us')
+    # The firmware delay registers are not configuration: the total is.
     v = minimal()
-    v['bands'][4]['delay'] = {'ref_phase': 0, 'ref_phase_fine': 0, 'lms': 0}
-    refused(v, 'bands.4.delay.ref_phase')
+    v['bands'][4]['delay'] = {'ref_phase': 6, 'ref_phase_fine': 0, 'lms': 24}
+    refused(v, 'bands.4.delay', 'not a per-band key')
     # The directories are names, not checked -- but an empty name is none.
     for key in ('data', 'smurf_cmd', 'tune', 'status'):
         v = minimal()
@@ -366,17 +368,39 @@ def check_the_schema_refuses_bad_content_naming_the_key():
     refused(v, 'flux_ramp.num_flux_ramp_counter_bits')
 
 
-def check_a_delay_block_is_accepted_and_wins_over_band_delay_us():
-    v = minimal()
-    v['bands'][4]['delay'] = {'ref_phase': 6, 'lms': 24}
-    band = load_mapping(v).values['bands'][4]
-    assert band['delay'] == {'ref_phase': 6, 'ref_phase_fine': 0, 'lms': 24}
-    assert band['band_delay_us'] == 2.4, 'both are kept; setup() prefers delay'
+def check_the_legacy_delay_registers_convert_to_the_total_the_firmware_derives_them_from():
+    """refPhaseDelay/refPhaseDelayFine -> band_delay_us, exactly invertible by the firmware for every shipped value.
+
+    The firmware's ``bandDelayUs`` setter (``_CryoFreqBand.setBandDelay``) takes
+    ``ceil(us * 2.4)`` coarse ticks and ``round(128 * overcorrection)`` fine
+    ticks, and its getter reads ``coarse / 2.4 - fine / 307.2``; the converter
+    applies the getter, so a converted file makes ``setup()`` write the same
+    two registers the triple named. ``lmsDelay`` the firmware sets equal to
+    the coarse delay; a file that set it apart is told so.
+    """
+    import math
+
+    def firmware_registers(us):
+        coarse = int(math.ceil(us * 2.4))
+        return coarse, int(round((307.2 / 2.4) * (coarse - us * 2.4)))
+    seen = set()
+    for cfg in CFG_FILES:
+        old = legacy.read_json_with_comments(cfg)
+        converted = legacy.convert(cfg, warn=False)
+        for key, block in old.get('init', {}).items():
+            if not key.startswith('band_') or not isinstance(block, dict) or not block.get('refPhaseDelay'):
+                continue
+            band = converted['bands'][int(key.split('_')[1])]
+            assert 'delay' not in band and 'band_delay_us' in band, f"{cfg.name} {key}: {band}"
+            triple = (block['refPhaseDelay'], block.get('refPhaseDelayFine', 0))
+            assert firmware_registers(band['band_delay_us']) == triple, \
+                f"{cfg.name} {key}: {triple} -> {band['band_delay_us']} us -> {firmware_registers(band['band_delay_us'])}"
+            seen.add(triple)
+    assert len(seen) >= 10, f"the shipped files exercise only {sorted(seen)}"
+    # A block with no delay at all is refused, not defaulted.
     v = minimal()
     v['bands'][4]['band_delay_us'] = None
-    v['bands'][4]['delay'] = {'ref_phase': 6}
-    band = load_mapping(v).values['bands'][4]
-    assert band['delay']['lms'] is None, 'lms defaults to none, meaning "same as ref_phase"'
+    refused(v, 'bands.4', 'band_delay_us')
 
 
 def check_a_layered_site_file_resolves_over_the_default():
@@ -398,23 +422,14 @@ def check_a_layered_site_file_resolves_over_the_default():
     assert set(resolved.provenance) == set(flatten(resolved.values))
     assert resolved.provenance['bands.5.lms_gain'] == resolved.provenance['band_default.lms_gain']
     assert resolved.provenance['bands.5.lms_gain'][0].endswith('site.yaml')
-    # A band's own delay block replaces the default's whole; what the schema
-    # fills in under it is the schema's, not the line of a default the band
-    # did not take -- a provenance that pointed at `ref_phase_fine: 9` for a 0
-    # would be a wrong answer to the one question provenance answers.
-    (d / 'site.yaml').write_text(legacy.to_yaml(
-        {**site, 'band_default': {**site['band_default'], 'band_delay_us': None,
-                                  'delay': {'ref_phase': 3, 'ref_phase_fine': 9, 'lms': 3}}}))
-    (d / 'own.yaml').write_text('inherit: site.yaml\nbands:\n  4: {att_uc: 12, att_dc: 0, delay: {ref_phase: 6}}\n'
+    # A band's own value replaces the default's and is credited to its own line;
+    # a band that took the default is credited to the default's.
+    (d / 'own.yaml').write_text('inherit: site.yaml\nbands:\n  4: {att_uc: 12, att_dc: 0, band_delay_us: 6.5}\n'
                                 '  5: {att_uc: 14, att_dc: 2}\n')
     resolved = load(d / 'own.yaml')
-    assert resolved.values['bands'][4]['delay'] == {'ref_phase': 6, 'ref_phase_fine': 0, 'lms': None}
-    assert resolved.provenance['bands.4.delay.ref_phase'][0].endswith('own.yaml')
-    assert resolved.provenance['bands.4.delay.ref_phase_fine'] == (VALIDATED_LAYER, 0), \
-        resolved.provenance['bands.4.delay.ref_phase_fine']
-    assert resolved.provenance['bands.4.delay.lms'] == (VALIDATED_LAYER, 0)
-    # Band 5 took the whole default block, and is credited to it.
-    assert resolved.provenance['bands.5.delay.ref_phase_fine'] == resolved.provenance['band_default.delay.ref_phase_fine']
+    assert resolved.values['bands'][4]['band_delay_us'] == 6.5
+    assert resolved.provenance['bands.4.band_delay_us'][0].endswith('own.yaml')
+    assert resolved.provenance['bands.5.band_delay_us'] == resolved.provenance['band_default.band_delay_us']
     # A layering fault is cryodaq's to refuse, unchanged by the schema.
     (d / 'loop.yaml').write_text('inherit: loop.yaml\n')
     try:
@@ -423,6 +438,33 @@ def check_a_layered_site_file_resolves_over_the_default():
         assert 'loops' in str(e)
     else:
         raise AssertionError('a loop was accepted')
+
+
+def check_a_record_s_measured_keys_lay_over_a_file_with_a_digit_string_band_key():
+    """``load(measured_from=)``: the file's `'4':` and the record's `4` are one band, and nothing else moves."""
+    from cryodaq import config
+    d = pathlib.Path(tempfile.mkdtemp(prefix='cryodaq_pysmurf_cfg_'))
+    v = minimal()
+    v['bands']['4'] = v['bands'].pop(4)
+    (d / 'site.yaml').write_text(legacy.to_yaml(v))
+    plain = load(d / 'site.yaml')
+    # A record with nothing measured: the same resolution, file provenance and all, the record last.
+    record = d / 'record.json'
+    config.write_record(plain, record, history=False)
+    nothing = load(d / 'site.yaml', measured_from=record)
+    assert nothing.hash == plain.hash and nothing.provenance == plain.provenance, \
+        'a record with nothing measured changed the resolution or its provenance'
+    assert nothing.layers == plain.layers + (str(record.resolve()),), nothing.layers
+    # One measured: that key is the record's, every other key is the file's.
+    measured = plain.with_measured({'bands.4.band_delay_us': 2.448}, operation='estimate_phase_delay')
+    config.write_record(measured, record, history=False)
+    layered = load(d / 'site.yaml', measured_from=record)
+    assert list(layered.values['bands']) == [4], f"the bands came out {list(layered.values['bands'])}"
+    assert layered.values['bands'][4]['band_delay_us'] == 2.448 and layered.hash == measured.hash
+    assert layered.provenance['bands.4.band_delay_us'] == (str(record.resolve()), 0)
+    assert all(layered.provenance[k] == w for k, w in plain.provenance.items() if k != 'bands.4.band_delay_us'), \
+        'an unmeasured key lost its file provenance'
+    assert layered.provenance['bands.4.att_uc'][0].endswith('site.yaml')
 
 
 # --------------------------------------------------------------------------
@@ -450,37 +492,41 @@ def check_every_legacy_file_converts_to_what_the_old_code_read():
             continue
         new, resolved = new_properties(cfg, raw)
         for name in COMPARED:
-            if not same(old[name], new[name]):
+            # The delay is compared below, as the total the firmware holds: the
+            # old side had it only where the file gave bandDelayUs.
+            if name != 'band_delay_us' and not same(old[name], new[name]):
                 failures.append(f"{cfg.relative_to(REPO)}: {name}: old {old[name]!r} new {new[name]!r}")
         for name, default in SERVER_DEFAULTS.items():
             expected = default(old['bands']) if callable(default) else default
             if not same(old[name], expected):
                 failures.append(f"{cfg.relative_to(REPO)}: {name}: old {old[name]!r} is not the "
                                 f"server default {expected!r}; the key cannot be dropped")
-        # Every band block resolves to the same delay decision setup() takes.
+        # The one representation change: the old setup() wrote the three
+        # registers where refPhaseDelay was set; the new one writes the total
+        # they encode, and the firmware derives the same two back (checked
+        # per value in the converter check). lmsDelay is no longer written
+        # by setup(): the firmware sets it equal to refPhaseDelay.
         for band in old['bands']:
-            assert _delay_writes_old(old, band) == _delay_writes_new(resolved, band), \
-                f"{cfg.name} band {band}: delay writes differ"
+            assert _total_delay_old(old, band) == _total_delay_new(resolved, band), \
+                f"{cfg.name} band {band}: delay differs"
     assert not failures, f"{len(failures)} value(s) differ:\n  " + '\n  '.join(failures[:20])
     assert len(unloadable) == EXPECTED_UNLOADABLE, \
         f"{len(unloadable)} files the legacy loader refuses, expected {EXPECTED_UNLOADABLE}: {unloadable}"
 
 
-def _delay_writes_old(old, band):
-    """The registers setup() wrote from the legacy properties, as (name, value) pairs."""
-    if old['ref_phase_delay'][band]:
-        lms = old['lms_delay'][band]
-        return (('ref_phase_delay', old['ref_phase_delay'][band]),
-                ('ref_phase_delay_fine', old['ref_phase_delay_fine'][band]),
-                ('lms_delay', int(old['ref_phase_delay'][band]) if lms is None else lms))
-    return (('band_delay_us', old['band_delay_us'][band]),)
+def _total_delay_old(old, band):
+    """The delay the legacy setup() left the firmware holding, as the firmware reads it back in microseconds."""
+    coarse = old['ref_phase_delay'][band]
+    if coarse:
+        return round(coarse / 2.4 - old['ref_phase_delay_fine'][band] / 307.2, 9)
+    return round(old['band_delay_us'][band], 9)
 
 
-def _delay_writes_new(resolved, band):
+def _total_delay_new(resolved, band):
     from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin
     holder = SmurfConfigPropertiesMixin()
     holder.copy_config_to_properties(resolved)
-    return holder.delay_writes(band)
+    return round(holder.band_delay_us[band], 9)
 
 
 def check_a_record_read_back_through_json_gives_the_same_properties():
@@ -676,7 +722,7 @@ def check_a_write_into_a_per_band_property_persists():
         return (not n.startswith('_') and isinstance(getattr(type(holder), n, None), property) and
                 isinstance(getattr(holder, n), dict) and 4 in getattr(holder, n))
     per_band = [n for n in dir(holder) if is_per_band(n)]
-    assert len(per_band) >= 25, f"only {len(per_band)} per-band properties found: {per_band}"
+    assert len(per_band) >= 24, f"only {len(per_band)} per-band properties found: {per_band}"
     lost = []
     for name in per_band:
         table = getattr(holder, name)
@@ -694,23 +740,17 @@ def check_a_write_into_a_per_band_property_persists():
 def check_setup_writes_the_live_delay_a_caller_set():
     # The old setup() read the delay from the mutable properties, as it reads
     # every other per-band value; `S.band_delay_us[0] = 8.8` before setup()
-    # wrote 8.8. The delay writes are decided from the same tables, so a value
-    # changed on the instance is what reaches the firmware -- and switching
-    # representation works the way it did: a nonzero ref_phase_delay selects the
-    # triple, zero selects band_delay_us.
+    # wrote 8.8. The table setup() reads is the one the property hands out, so
+    # a value changed on the instance is what reaches the firmware; the three
+    # register views are gone with the key that fed them.
     from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin
     holder = SmurfConfigPropertiesMixin()
     holder.copy_config_to_properties(load_mapping(minimal()))
-    before = holder.delay_writes(4)
-    assert before[0][0] == 'band_delay_us', before
+    assert holder.band_delay_us[4] == 2.4
     holder.band_delay_us[4] = 8.8
-    assert holder.delay_writes(4) == (('band_delay_us', 8.8),), 'the live edit was not written'
-    holder.ref_phase_delay[4] = 6
-    holder.ref_phase_delay_fine[4] = 1
-    assert holder.delay_writes(4) == (('ref_phase_delay', 6), ('ref_phase_delay_fine', 1), ('lms_delay', 6)), \
-        'a ref_phase_delay set on the instance did not select the triple'
-    holder.lms_delay[4] = 24
-    assert holder.delay_writes(4)[2] == ('lms_delay', 24)
+    assert holder._per_band_tables['band_delay_us'][4] == 8.8, 'the live edit was not kept'
+    for gone in ('ref_phase_delay', 'ref_phase_delay_fine', 'lms_delay'):
+        assert not hasattr(holder, gone), f"{gone} is still a configuration property"
 
 
 def check_the_converter_drops_only_what_nothing_read():
@@ -743,15 +783,17 @@ def check_the_converter_keeps_the_old_delay_decision_for_a_zero_ref_phase_delay(
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter('always')
         converted = legacy.convert(d / 'zero.cfg')
-    assert 'delay' not in converted['bands'][0], 'a triple the old setup() never wrote was kept'
-    assert converted['bands'][0]['band_delay_us'] == 8.8
+    assert converted['bands'][0]['band_delay_us'] == 8.8, 'a zero refPhaseDelay did not select bandDelayUs'
     assert 'init.band_0.refPhaseDelay' in str(caught[0].message), 'the drop was not named'
-    assert _delay_writes_new(load_mapping(converted), 0) == (('band_delay_us', 8.8),)
-    # Nonzero stays the direct triple, as the shipped files are checked for above.
-    block.update(refPhaseDelay=6)
+    # Nonzero: the registers' total wins, and the bandDelayUs it passed over is named as dropped.
+    block.update(refPhaseDelay=6, refPhaseDelayFine=16, lmsDelay=24)
     (d / 'six.cfg').write_text(json.dumps(base))
-    converted = legacy.convert(d / 'six.cfg', warn=False)
-    assert converted['bands'][0]['delay'] == {'ref_phase': 6, 'ref_phase_fine': 0, 'lms': 0}
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always')
+        converted = legacy.convert(d / 'six.cfg')
+    assert abs(converted['bands'][0]['band_delay_us'] - (6 / 2.4 - 16 / 307.2)) < 1e-12, converted['bands'][0]
+    text = str(caught[0].message)
+    assert 'init.band_0.bandDelayUs' in text and 'init.band_0.lmsDelay' in text, text
 
 
 def check_the_converter_reads_a_hash_inside_a_string():

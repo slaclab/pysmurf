@@ -601,15 +601,18 @@ def check_a_measured_value_replaces_the_configured_one_and_setup_clears_it():
     before = {p.name: p.read_bytes() for p in FIXTURES.iterdir()}
     resolved = resolve()
     sess = system(configured=True, status_dir=d)
-    refused(lambda: sess.record_measured('scalar', 1, operation='op'), 'no configuration record')
-    path = sess.record_config(resolved)
+    refused(lambda: sess.record_measured({'scalar': 1}, operation='op'), 'no configuration record')
+    path = sess.record_config(resolved, extra={'application': 'kept'})
     configured = resolved.get('scalar')
-    updated = sess.record_measured('scalar', configured + 1, operation='measure_scalar')
+    updated = sess.record_measured({'scalar': configured + 1}, operation='measure_scalar')
     assert updated.get('scalar') == configured + 1 and updated.hash != resolved.hash
     where = updated.provenance['scalar']
     assert where[0] == 'measure_scalar' and isinstance(where[1], str) and len(where) == 2, where
-    # Every other key keeps its file-and-line provenance.
+    # Every other key keeps its file-and-line provenance, and the record keeps
+    # what the configuring operation stored beside it.
     assert all(v == resolved.provenance[k] for k, v in updated.provenance.items() if k != 'scalar')
+    assert config.read_record(path)['extra'] == {'application': 'kept'}, \
+        f"a measurement dropped the record's extra: {config.read_record(path)['extra']}"
     # A reattaching session reads the measurement from the server.
     again = system(configured=True, status_dir=d)
     for n in ('application_config.resolved', 'application_config.hash'):
@@ -617,19 +620,36 @@ def check_a_measured_value_replaces_the_configured_one_and_setup_clears_it():
     back = again.resolved_config()
     assert back is not None and back.hash == updated.hash, 'the reattaching session did not get the measurement'
     assert back.get('scalar') == configured + 1 and back.provenance['scalar'] == where
+    # A measurement through the reattached session -- which wrote no record of
+    # its own -- keeps the extra too, from the file.
+    again.record_measured({'scalar': configured + 2}, operation='measure_scalar')
+    assert config.read_record(path)['extra'] == {'application': 'kept'}, \
+        f"a reattached session's measurement dropped the record's extra: {config.read_record(path)['extra']}"
+    updated = again.resolved_config()
+    for n in ('application_config.resolved', 'application_config.hash'):
+        sess._client.root.nodes[sess.pmap.path(n)].value = again.get(n)
     # The record's measured part is a layer: the user's files plus it resolve to the record.
     layer = config.measured_layer(config.read_record(path))
-    assert layer == {'scalar': configured + 1}, f'the measured layer is not the measured keys: {layer}'
+    assert layer == {'scalar': configured + 2}, f'the measured layer is not the measured keys: {layer}'
     over = config.load(layer, default=FIXTURES / TOP, name='<record>')
     assert config._plain(over.values) == config._plain(updated.values), 'files + measured layer != the record'
     assert over.hash == updated.hash and over.provenance['scalar'] == ('<record>', 0)
+    # Over the files' resolution itself, the unmeasured keys keep their file
+    # and line and the files stay in the chain, the record last.
+    over = config.load(layer, default=resolved, name='<record>')
+    assert over.hash == updated.hash and over.provenance['scalar'] == ('<record>', 0)
+    assert all(over.provenance[k] == v for k, v in resolved.provenance.items() if k != 'scalar'), \
+        'laying the measured keys over a resolution lost the files\' provenance'
+    assert over.layers == resolved.layers + ('<record>',), over.layers
+    # Two keys one operation measured land in one record, both refused if one is unknown.
+    refused(lambda: sess.record_measured({'scalar': 1, 'no.such.key': 1}, operation='op'), 'no.such.key')
     # The previous value is history: one dated copy per write, so both states are there.
     copies = [p for p in path.parent.iterdir() if p.name != path.name and p.suffix == '.json']
     held = sorted(config.read_record(c)['resolved']['values']['scalar'] for c in copies)
-    assert held == [configured, configured + 1], \
+    assert held == [configured, configured + 1, configured + 2], \
         f'the record history does not hold the configured value: {held} in {[c.name for c in copies]}'
     # A key the configuration does not have is refused by name.
-    refused(lambda: sess.record_measured('no.such.key', 1, operation='op'), 'no.such.key')
+    refused(lambda: sess.record_measured({'no.such.key': 1}, operation='op'), 'no.such.key')
     # setup() from the files records their resolution: nothing measured any more.
     sess.record_config(resolved)
     cleared = sess.resolved_config()
@@ -873,19 +893,30 @@ def selftest():
         finally:
             config.record_path = real_record_path
     finally:
-        real_measured = cryodaq.Resolved.measured
+        real_measured = cryodaq.Resolved.with_measured
 
-        def file_provenance(self, key, value, **kw):
-            out = real_measured(self, key, value, **kw)
+        def file_provenance(self, measured, **kw):
+            out = real_measured(self, measured, **kw)
             prov = dict(out.provenance)
-            prov[key] = (kw['operation'], 0)
+            prov.update({key: (kw['operation'], 0) for key in measured})
             return cryodaq.Resolved(out.values, prov, out.hash, out.layers)
-        cryodaq.Resolved.measured = file_provenance
+        cryodaq.Resolved.with_measured = file_provenance
         try:
             expect_failure('a measurement recorded with a file-shaped provenance is caught',
                            check_a_measured_value_replaces_the_configured_one_and_setup_clears_it, 'measure_scalar')
         finally:
-            cryodaq.Resolved.measured = real_measured
+            cryodaq.Resolved.with_measured = real_measured
+        real_record = config.write_record
+
+        def drops_extra(resolved, path, **kw):
+            kw['extra'] = {} if kw.get('extra') else kw.get('extra')
+            return real_record(resolved, path, **kw)
+        config.write_record = drops_extra
+        try:
+            expect_failure("a measurement that drops the record's extra is caught",
+                           check_a_measured_value_replaces_the_configured_one_and_setup_clears_it, "record's extra")
+        finally:
+            config.write_record = real_record
         real_layer = config.measured_layer
 
         def every_key(record):

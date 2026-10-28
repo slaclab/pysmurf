@@ -44,7 +44,7 @@ TUNING_KEYS = ('lms_freq_hz', 'delta_freq', 'feedback_start_frac', 'feedback_end
                'eta_scan_averages', 'eta_scan_del_f')
 BAND_KEYS = ('iq_swap_in', 'iq_swap_out', 'feedback_enable', 'feedback_polarity',
              'feedback_gain', 'feedback_limit_khz', 'att_uc', 'att_dc', 'amplitude_scale',
-             'trigger_reset_delay', 'lms_gain', 'band_delay_us', 'delay') + TUNING_KEYS
+             'trigger_reset_delay', 'lms_gain', 'band_delay_us') + TUNING_KEYS
 
 
 class ConfigInvalid(ValueError):
@@ -112,17 +112,9 @@ def _schema():
         'amplitude_scale': _in_range(0, 2**4),
         'trigger_reset_delay': _in_range(0, 2**7),
         'lms_gain': _in_range(0, 2**3),
-        # Either the total delay in microseconds, or the three firmware
-        # registers directly. `delay` wins when both are given.
+        # The total round-trip delay in microseconds; the firmware derives its
+        # delay registers from it. Null in band_default means "each band says".
         'band_delay_us': Or(None, And(number, lambda f: 0 <= f < 30)),
-        # A triple with ref_phase 0 was never written -- setup() has always read
-        # a zero as "use band_delay_us" -- so a block that gives one is refused
-        # rather than silently ignored.
-        Optional('delay'): {
-            'ref_phase': _in_range(1, 2**5),
-            Optional('ref_phase_fine', default=0): _in_range(0, 2**8),
-            Optional('lms', default=None): Or(None, _in_range(0, 2**6)),
-        },
         'lms_freq_hz': positive,
         'delta_freq': positive,
         'feedback_start_frac': unit,
@@ -239,14 +231,14 @@ def validate(values: Dict[str, Any]) -> Dict[str, Any]:
         raise ConfigInvalid(_key_of(e), said[-1]) from None
 
     for number, block in checked['bands'].items():
-        if block.get('band_delay_us') is None and 'delay' not in block:
-            raise ConfigInvalid(f"bands.{number}", 'set band_delay_us or a delay block')
+        if block.get('band_delay_us') is None:
+            raise ConfigInvalid(f"bands.{number}", 'set band_delay_us')
     _refuse_shared_dacs(checked)
     return checked
 
 
 # Keys that may stay null: they mean "none" rather than "unset".
-_MAY_BE_NULL = ('tune.default_tune', 'band_delay_us', 'delay.lms')
+_MAY_BE_NULL = ('tune.default_tune', 'band_delay_us')
 
 
 def _numbered(table: Dict[Any, Any], where: str, what: str, hi: int) -> Dict[int, Any]:

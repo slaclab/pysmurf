@@ -295,6 +295,9 @@ class Session:
         # a scope asks repeatedly, and each mode costs a request of its own.
         self._present: Dict[str, bool] = {}
         self._modes: Dict[str, str] = {}
+        # What the application stored beside the record it last wrote through
+        # this session; a measurement carries it forward.
+        self._extra: Optional[Mapping[str, Any]] = None
         self.description = self._read_description()
         self.log.log(LOG_INFO, "session on %s: %s platform, bands %s, %s",
                      endpoint, pmap.name, list(self.indices('band')),
@@ -721,6 +724,7 @@ class Session:
         firmware = {k: self.description.get(k) for k in FIRMWARE_FIELDS}
         path = config.write_record(resolved, self.config_record_path(), endpoint=self.endpoint,
                                    firmware=firmware, witness=self.witness(), extra=extra)
+        self._extra = dict(extra or {})
         try:
             self.set(RESOLVED_HASH, resolved.hash)
             self.set(RESOLVED_WRITTEN_AT, written_at)
@@ -731,27 +735,28 @@ class Session:
         self.log.log(LOG_INFO, "recorded configuration %s to %s", resolved.hash[:12], path)
         return path
 
-    def record_measured(self, key: str, value: Any, *, operation: str) -> config.Resolved:
-        """Record a value an operation measured, over the configuration this system has.
+    def record_measured(self, measured: Mapping[str, Any], *, operation: str) -> config.Resolved:
+        """Record values an operation measured, over the configuration this system has.
 
-        The server's record is read back, the measurement put in place of the
-        configured value with provenance ``(operation, time)``, and the result
+        The server's record is read back, the measurements put in place of the
+        configured values with provenance ``(operation, time)``, and the result
         recorded as :meth:`record_config` records a configuration -- on disk
-        first, then on the server. The user's files are not touched; what the
-        value was before is in the record's dated history; a reattaching client
-        sees the measured value and which operation set it when; and the
-        configuring operation, run again from the files, records the files'
-        resolution and so clears every measurement.
+        first, then on the server -- keeping what the configuring operation
+        stored beside the record (``extra``: where the configuration came
+        from, which a measurement does not change). The user's files are not touched;
+        what the values were before is in the record's dated history; a
+        reattaching client sees the measured values and which operation set
+        them when; and the configuring operation, run again from the files,
+        records the files' resolution and so clears every measurement.
 
         Parameters
         ----------
-        key : str
-            Dotted configuration key the measurement stands in for, e.g.
-            ``'bands.0.band_delay_us'``.
-        value : object
-            What was measured.
+        measured : mapping
+            Dotted configuration key to the value measured for it, e.g.
+            ``{'bands.0.band_delay_us': 2.4}``; everything one operation
+            measured, in one record.
         operation : str
-            The operation that measured it.
+            The operation that measured them.
 
         Returns
         -------
@@ -762,17 +767,28 @@ class Session:
         ------
         ConfigError
             If the server holds no configuration record -- nothing to measure
-            over; the configuring operation has to run first -- or ``key`` is
+            over; the configuring operation has to run first -- or a key is
             not one the configuration has.
         """
         current = self.resolved_config()
         if current is None:
-            raise config.ConfigError('<measured>', key=key,
+            raise config.ConfigError('<measured>', key=next(iter(measured), None),
                                      reason=f"{self.endpoint} holds no configuration record to "
                                             f"record a measurement over; configure it first")
-        updated = current.measured(key, value, operation=operation)
-        self.record_config(updated)
-        self.log.log(LOG_INFO, "recorded %s = %r measured by %s", key, value, operation)
+        updated = current.with_measured(measured, operation=operation)
+        # The application's entries are kept from the record this session last
+        # wrote; a session that reattached wrote none and takes the file's,
+        # when the file holds the resolution the server holds.
+        extra = self._extra
+        if extra is None:
+            extra = {}
+            path = self.config_record_path()
+            if path.exists():
+                record = config.read_record(path)
+                if record['resolved'].get('hash') == current.hash:
+                    extra = record.get('extra', {})
+        self.record_config(updated, extra=extra)
+        self.log.log(LOG_INFO, "recorded %s measured by %s", dict(measured), operation)
         return updated
 
     def clear_config(self) -> None:

@@ -57,7 +57,8 @@ def load(path: Union[str, Path], *,
         it. The values operations measured are taken out of it and laid over
         the file, so a system is configured again with yesterday's measured
         delays over today's files; every such key names the record as its
-        provenance. The file itself is not changed. A record with nothing
+        provenance, every other keeps the file's, and the record is the last
+        of ``layers``. The file itself is not changed. A record with nothing
         measured adds nothing.
 
     Returns
@@ -83,10 +84,11 @@ def load(path: Union[str, Path], *,
         else:
             below, name = path, None
         # The record's measured keys are the top layer; the file (or its
-        # converted mapping) is what they inherit, under the packaged default.
-        chain = _config.load(below, default=DEFAULT, name=name)
-        return _attribute(_config.load(layer, default=chain.values, validate=schema.validate,
-                                       name=str(record.resolve())))
+        # converted mapping) is what they stand on, resolved and validated
+        # first so its numbered tables are keyed as the measured layer's are
+        # and every key it set keeps its file and line.
+        files = _attribute(_config.load(below, default=DEFAULT, validate=schema.validate, name=name))
+        return _config.load(layer, default=files, validate=schema.validate, name=str(record.resolve()))
     if path.suffix in LEGACY_SUFFIXES:
         # The converter warns once, naming the file and what it dropped.
         return load_mapping(legacy.convert(path), name=str(path.resolve()))
@@ -100,7 +102,7 @@ def _attribute(resolved: _config.Resolved) -> _config.Resolved:
     for pysmurf most of that is ``band_default`` applied under each band, and
     the file and line that set the default is the better answer. Only when the
     band gave no part of that key, though: ``band_default`` applies key by key,
-    so a band's own ``delay`` block replaces the default's whole, and what the
+    so a band's own block for a key replaces the default's whole, and what the
     schema then fills in under it is the schema's, not the default's line.
     """
     provenance = dict(resolved.provenance)

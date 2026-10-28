@@ -97,12 +97,6 @@ class SmurfConfigPropertiesMixin:
         # a copy would take the write and lose it.
         self._per_band_tables = {key: {band: block.get(key) for band, block in v['bands'].items()}
                                  for key in PER_BAND_KEYS}
-        # The three deprecated delay views read the `delay` block, 0 / None where a
-        # band gives band_delay_us instead, as the legacy properties did.
-        delays = {band: block.get('delay') or {} for band, block in v['bands'].items()}
-        self._per_band_tables['ref_phase_delay'] = {b: d.get('ref_phase', 0) for b, d in delays.items()}
-        self._per_band_tables['ref_phase_delay_fine'] = {b: d.get('ref_phase_fine', 0) for b, d in delays.items()}
-        self._per_band_tables['lms_delay'] = {b: d.get('lms') for b, d in delays.items()}
         self._amplitude_scale = self._per_band_tables['amplitude_scale']
 
         att = v['attenuator']
@@ -139,35 +133,6 @@ class SmurfConfigPropertiesMixin:
         if self.config is None:
             return None
         return self._per_band_tables[key]
-
-    def delay_writes(self, band):
-        """The band-delay registers ``setup()`` writes for one band, from the live properties.
-
-        A band names its delay one of two ways: ``delay`` gives the three
-        firmware registers directly and wins when present -- ``lms`` left unset
-        means the same value as ``ref_phase``, as the firmware's own linked
-        variable does -- and otherwise ``band_delay_us`` gives the total and
-        the firmware derives the three. Read from the per-band tables, so a
-        value changed on the instance is what is written, as for every other
-        per-band register; ``ref_phase_delay`` is 0 where the configuration
-        gave ``band_delay_us``, which is how the two are told apart.
-
-        Parameters
-        ----------
-        band : int
-
-        Returns
-        -------
-        tuple of (str, value)
-            Setter names without their ``set_`` prefix, in the order they are called.
-        """
-        ref_phase = self.ref_phase_delay[band]
-        if ref_phase:
-            lms = self.lms_delay[band]
-            return (('ref_phase_delay', ref_phase),
-                    ('ref_phase_delay_fine', self.ref_phase_delay_fine[band]),
-                    ('lms_delay', int(ref_phase) if lms is None else lms))
-        return (('band_delay_us', self.band_delay_us[band]),)
 
     # ------------------------------------------------------------------
     # paths and scalars
@@ -331,23 +296,8 @@ class SmurfConfigPropertiesMixin:
 
     @property
     def band_delay_us(self):
-        """Total band delay in microseconds, per band; None where ``delay`` is given instead."""
+        """Total band delay in microseconds, per band."""
         return self._per_band('band_delay_us')
-
-    @property
-    def ref_phase_delay(self):
-        """``delay.ref_phase`` per band, or 0 where the band gives ``band_delay_us``."""
-        return self._per_band('ref_phase_delay')
-
-    @property
-    def ref_phase_delay_fine(self):
-        """``delay.ref_phase_fine`` per band, or 0."""
-        return self._per_band('ref_phase_delay_fine')
-
-    @property
-    def lms_delay(self):
-        """``delay.lms`` per band, or None meaning the same as ``ref_phase``."""
-        return self._per_band('lms_delay')
 
     @property
     def trigger_reset_delay(self):

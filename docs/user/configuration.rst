@@ -68,9 +68,8 @@ in it (the old format had none) would resolve beside it.
 
 ``band_default`` is applied to every band listed under ``bands`` before the
 band's own block, so the two files above resolve to two fully specified bands.
-It is applied key by key: a band's ``delay`` block replaces the default's
-whole, not field by field, since a delay triple is one fact about one band.
-A key nobody sets and the default leaves ``null`` is refused, naming it. A key
+It is applied key by key: a nested block a band gives replaces the default's
+whole, not field by field. A key nobody sets and the default leaves ``null`` is refused, naming it. A key
 may not contain a ``.``: the dot is how a value is addressed (``bands.4.att_uc``
 below), so ``a.b: 1`` is refused -- nest it as ``a: {b: 1}``.
 
@@ -88,8 +87,8 @@ Usage
    S.config.hash                             # the same for any layering with the same values
 
 Every value has provenance. One a band took from ``band_default`` is credited
-to the line that set the default; one the schema filled in, such as a ``delay``
-field a band's own block left out, is ``('<validated>', 0)``.
+to the line that set the default; one the schema filled in is
+``('<validated>', 0)``.
 
 What ``setup()`` does
 ^^^^^^^^^^^^^^^^^^^^^
@@ -354,28 +353,20 @@ for some, writes into. Legacy: ``init:band_#`` for the firmware settings and
 ``eta_scan_averages``, ``eta_scan_del_f`` (count; Hz)
     For ``run_serial_eta_scan``: frequency-error samples averaged per point,
     and the offset about each resonator at which the error is sampled.
-``band_delay_us`` (microseconds) or ``delay``
-    The round-trip delay compensation, one of two ways; see below.
+``band_delay_us`` (microseconds)
+    The round-trip delay compensation, as ``S.estimate_phase_delay(band)``
+    measures it; see below.
 
-The band delay is given one of two ways. ``band_delay_us`` is the total in
-microseconds, from ``S.estimate_phase_delay(band)``, and the firmware derives
-its registers from it. A ``delay`` block sets those registers directly and
-wins when present::
-
-   bands:
-     4:
-       delay: {ref_phase: 6, ref_phase_fine: 0, lms: 24}
-
-``ref_phase`` is the coarse round-trip delay (``refPhaseDelay``) in
-processing-clock ticks -- 2.4 MHz ticks on current firmware, so 6 is 2.5 µs;
-``ref_phase_fine`` (``refPhaseDelayFine``) adds a lag to the DAC output in
-307.2 MHz ticks and so *subtracts* from the total; ``lms`` (``lmsDelay``)
-aligns the feedback with the flux ramp phase and is typically equal to
-``ref_phase``. ``lms`` left out means the same value as ``ref_phase``;
-``ref_phase`` itself is at least 1 -- a zero triple was never written, a
-band with no delay gives ``band_delay_us``. Converted legacy files carry their ``refPhaseDelay``/``refPhaseDelayFine``/
-``lmsDelay`` as a ``delay`` block, so what ``setup()`` writes does not
-change. Both include the digital delay, so they vary with firmware version.
+``band_delay_us`` is the total round-trip delay in microseconds. The firmware
+derives its three delay registers from it: ``refPhaseDelay``, the coarse delay
+in 2.4 MHz ticks; ``refPhaseDelayFine``, a lag on the DAC output in 307.2 MHz
+ticks that trims the coarse step; and ``lmsDelay``, the feedback latency,
+equal to ``refPhaseDelay``. A site that needs ``lmsDelay`` apart from the
+coarse delay sets it explicitly after ``setup()`` (``S.set_lms_delay``).
+Converted legacy files carry ``refPhaseDelay``/``refPhaseDelayFine`` as the
+total they encode -- the firmware gives the same two registers back from it --
+and drop ``lmsDelay``, which the firmware now sets from that total. The delay
+includes the digital path, so it varies with firmware version.
 
 Firmware Defaults
 -----------------
