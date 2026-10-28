@@ -25,8 +25,9 @@
 #    configuration an operation applied is written to the server, and to a
 #    record on disk, by `record_config()` -- and `record_measured()` layers what an
 #    operation measured over it -- and a later session reads it back
-#    from the server with `resolved_config()`. A server that has restarted
-#    has none and is configured again; the file is a record, not a fallback.
+#    from the server with `reattach()`, which also adopts the directories that
+#    configuration names. A server that has restarted has none and is
+#    configured again; the file is a record, not a fallback.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -44,6 +45,7 @@ import os
 import re
 import threading
 import time
+import dataclasses
 from dataclasses import dataclass
 from pathlib import Path
 from typing import (Any, Dict, Iterable, Iterator, List, Mapping, Optional, Sequence, Tuple, Union)
@@ -159,13 +161,22 @@ def _stop_when_the_interpreter_does(client: Any, endpoint: str,
 
 @dataclass(frozen=True)
 class Paths:
-    """Where the client writes what it captures. Never sent to the server."""
+    """Where the client writes what it captures. Never sent to the server.
+
+    A configuration names these under ``paths:`` -- the key is this class's
+    ``CONFIG_KEY``, its leaves ``CONFIG_KEYS`` -- and an application's schema
+    includes that section rather than defining its own; ``from_config`` reads
+    it, and a session that reattaches adopts what it says.
+    """
 
     data: Path
     output: Path
     tune: Path
     plot: Path
     status: Path
+
+    CONFIG_KEY = 'paths'
+    CONFIG_KEYS = ('data', 'tune', 'status')
 
     @classmethod
     def under(cls, base: Union[str, Path, None] = None, *, name: Optional[str] = None,
@@ -188,6 +199,24 @@ class Paths:
         session = root / date / name
         return cls(data=root, output=session / 'outputs', tune=root / 'tune',
                    plot=session / 'plots', status=root / 'status')
+
+    @classmethod
+    def from_config(cls, values: Mapping[str, Any], current: Optional['Paths'] = None) -> 'Paths':
+        """The paths a configuration names, over ``current`` for what it leaves out.
+
+        Parameters
+        ----------
+        values : mapping
+            Resolved configuration values; ``values['paths']`` is read, with
+            ``data`` the root of the data tree and ``tune``/``status`` the
+            two directories that are not under a dated session.
+        current : Paths, optional
+            What to keep where the configuration says nothing; the usual
+            layout under the default root when not given.
+        """
+        section = values.get(cls.CONFIG_KEY) or {}
+        base = cls.under(section['data']) if section.get('data') else (current or cls.under())
+        return dataclasses.replace(base, **{k: Path(section[k]) for k in ('tune', 'status') if section.get(k)})
 
     def create(self) -> None:
         """Create the directories. Nothing in a session does this for you."""
@@ -743,7 +772,8 @@ class Session:
         recorded as :meth:`record_config` records a configuration -- on disk
         first, then on the server -- keeping what the configuring operation
         stored beside the record (``extra``: where the configuration came
-        from, which a measurement does not change). The user's files are not touched;
+        from, which a measurement does not change; a session that reattached
+        took it from the record). The user's files are not touched;
         what the values were before is in the record's dated history; a
         reattaching client sees the measured values and which operation set
         them when; and the configuring operation, run again from the files,
@@ -776,18 +806,7 @@ class Session:
                                      reason=f"{self.endpoint} holds no configuration record to "
                                             f"record a measurement over; configure it first")
         updated = current.with_measured(measured, operation=operation)
-        # The application's entries are kept from the record this session last
-        # wrote; a session that reattached wrote none and takes the file's,
-        # when the file holds the resolution the server holds.
-        extra = self._extra
-        if extra is None:
-            extra = {}
-            path = self.config_record_path()
-            if path.exists():
-                record = config.read_record(path)
-                if record['resolved'].get('hash') == current.hash:
-                    extra = record.get('extra', {})
-        self.record_config(updated, extra=extra)
+        self.record_config(updated, extra=self._extra or {})
         self.log.log(LOG_INFO, "recorded %s measured by %s", dict(measured), operation)
         return updated
 
@@ -828,6 +847,49 @@ class Session:
         resolved = config.Resolved.from_dict(json.loads(text))
         self.log.log(LOG_INFO, "%s: configuration %s read from the server",
                      self.endpoint, resolved.hash[:12])
+        return resolved
+
+    def reattach(self) -> config.Resolved:
+        """Adopt the configuration this server was given, for a session opened without one.
+
+        The server's record is read back and is the configuration from here
+        on: the directories it names (``paths``) become this session's, so
+        what the session records next goes where the configuring session put
+        it, and what the configuring operation stored beside the record
+        (``extra``) is taken from the record there, when it holds the
+        resolution the server holds, so a measurement carries it forward.
+        Nothing is guessed from a record on disk alone: a server that has
+        restarted has forgotten and is configured again.
+
+        Returns
+        -------
+        Resolved
+            As :meth:`resolved_config` returns it; the application may
+            re-validate it into its own shape.
+
+        Raises
+        ------
+        RuntimeError
+            If the server is not configured, or is configured but holds no
+            record -- a configuration that did not finish, or an image
+            without the node it is kept in. Either way the configuring
+            operation has to run first.
+        """
+        resolved = self.resolved_config()
+        if resolved is None:
+            why = ('is configured but holds no configuration record (a configuration '
+                   'that did not finish, or an image without one)'
+                   if self.configured else 'is not configured')
+            raise RuntimeError(f"{self.endpoint} {why}; nothing to reattach to -- configure it first")
+        self.paths = Paths.from_config(resolved.values, self.paths)
+        self._extra = {}
+        path = self.config_record_path()
+        if path.exists():
+            record = config.read_record(path)
+            if record['resolved'].get('hash') == resolved.hash:
+                self._extra = record.get('extra', {})
+        self.log.log(LOG_INFO, "%s: reattached to configuration %s; recording under %s",
+                     self.endpoint, resolved.hash[:12], self.paths.status)
         return resolved
 
     # ------------------------------------------------------------------

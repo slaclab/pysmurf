@@ -560,47 +560,14 @@ def check_a_record_read_back_through_json_gives_the_same_properties():
     assert list(adopted.values['bands']) == [4] and isinstance(list(adopted.values['bands'])[0], int)
 
 
-def check_a_reattached_client_records_under_the_adopted_status_directory():
-    # A no-file client opens its session before it has a configuration, so the
-    # session's paths are the packaged default's; the configuration it adopts
-    # from the server may put `paths.status` elsewhere, and the record its own
-    # later setup() writes has to go there. Driven on a stand-in session: the
-    # resolution is what matters, not the transport.
-    import cryodaq
-    from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin
-    from pysmurf.client.base.smurf_control import SmurfControl
-    site = minimal()
-    site['paths'] = {'status': '/elsewhere/status'}
-    adopted = load_mapping(site)
-    default_status = load_mapping(minimal()).values['paths']['status']
-    assert default_status != '/elsewhere/status', 'the case needs the site to move the directory'
-
-    class _Session:
-        endpoint = 'stand-in:9012'
-
-        def __init__(self):
-            self.paths = cryodaq.Paths.under('/data')
-
-        def resolved_config(self):
-            return adopted
-
-    S = SmurfControl.__new__(SmurfControl)
-    S._session = _Session()
-    S.log = lambda *a, **k: None
-    SmurfConfigPropertiesMixin.__init__(S)               # the None tables, no connection
-    assert str(S._session_paths().status) == default_status, 'before: the default'
-    S._reattach()
-    assert S.status_dir == '/elsewhere/status'
-    assert str(S._session.paths.status) == '/elsewhere/status', \
-        f"the session still records under {S._session.paths.status}"
-
-
 def check_a_refused_reattach_closes_the_session_it_opened():
     # The constructor opens the session before it knows whether the server is
-    # configured. When the reattach fails -- no record, a record the server
-    # cannot hand back, or one that does not re-validate -- no instance is
+    # configured. When the reattach fails -- the session refuses, a record the
+    # server cannot hand back, or one that does not re-validate -- no instance is
     # returned, so nothing could close that session later: the refusal has to,
-    # or the client stays in the process's open-client table until exit.
+    # or the client stays in the process's open-client table until exit. The
+    # reattach itself (read the server, refuse by state, adopt the directories)
+    # is the session's and is checked in check_config_resolves.
     import json
     import cryodaq
     from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin
@@ -612,13 +579,10 @@ def check_a_refused_reattach_closes_the_session_it_opened():
     class _Session:
         endpoint = 'stand-in:9012'
 
-        configured = False
-
         def __init__(self, answer):
-            self.paths = cryodaq.Paths.under('/data')
             self.answer, self.closed = answer, 0
 
-        def resolved_config(self):
+        def reattach(self):
             if isinstance(self.answer, Exception):
                 raise self.answer
             return self.answer
@@ -627,7 +591,7 @@ def check_a_refused_reattach_closes_the_session_it_opened():
             self.closed += 1
 
     cases = (
-        ('no record', None, RuntimeError, 'not configured'),
+        ('the session refuses', RuntimeError('stand-in:9012 is not configured'), RuntimeError, 'not configured'),
         ('a record the server cannot hand back', json.JSONDecodeError('truncated', '{', 1),
          ValueError, 'truncated'),
         ('a record that does not re-validate', tampered, cryodaq.ConfigError, 'changed the hash'),
@@ -646,28 +610,16 @@ def check_a_refused_reattach_closes_the_session_it_opened():
         assert S._session.closed == 1, f"{label}: close() called {S._session.closed} times"
         assert S.config is None, f"{label}: a refusal left a configuration behind"
 
-    # A configured server whose image has no record node also answers None;
-    # the refusal must not call it unconfigured.
+    # And the happy path does not close what it is about to use, and the
+    # adopted configuration is in the shape load() gives (int band keys).
+    travelled = cryodaq.Resolved.from_dict(json.loads(json.dumps(good.to_dict(), sort_keys=True)))
     S = SmurfControl.__new__(SmurfControl)
-    S._session = _Session(None)
-    S._session.configured = True
-    S.log = lambda *a, **k: None
-    SmurfConfigPropertiesMixin.__init__(S)
-    try:
-        S._reattach()
-    except RuntimeError as e:
-        assert 'not configured' not in str(e) and 'no configuration record' in str(e), str(e)
-    else:
-        raise AssertionError('adopted with no record')
-    assert S._session.closed == 1
-
-    # And the happy path does not close what it is about to use.
-    S = SmurfControl.__new__(SmurfControl)
-    S._session = _Session(good)
+    S._session = _Session(travelled)
     S.log = lambda *a, **k: None
     SmurfConfigPropertiesMixin.__init__(S)
     S._reattach()
     assert S._session.closed == 0 and S.config is not None, 'a successful reattach closed its session'
+    assert list(S.config.values['bands']) == [4] and S.status_dir == good.values['paths']['status']
 
 
 def check_setup_resumes_hardware_logging_whatever_happens():

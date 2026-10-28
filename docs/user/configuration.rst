@@ -143,8 +143,9 @@ Values an operation measures will be kept separately.
 (``resolved/<host>_<port>.json``, one file per endpoint, with a dated copy),
 together with the firmware identity and the witness registers as they read
 at that moment. It is a record of what the system was given and when -- the
-answer to "what was slot 4 running yesterday" -- and nothing reads it back
-into a client.
+answer to "what was slot 4 running yesterday". A client reattaching with no
+file takes its configuration from the server, not from this record; the
+record's measured values can be laid over a file with ``load(measured_from=)``.
 
 Reference
 ---------
@@ -157,6 +158,10 @@ values ``setup()`` writes to the firmware for each band it configures.
 
 paths
 ^^^^^
+
+The directories are the readout core's section: ``cryodaq.Paths`` names the
+key and its ``data``/``tune``/``status`` leaves, and a session that reattaches
+to a configured server adopts them from the record; pysmurf adds ``smurf_cmd``.
 
 ``data``
     Root of the data tree, ``/data/smurf_data`` by default. Each client

@@ -15,7 +15,6 @@
 #-----------------------------------------------------------------------------
 import atexit
 import logging
-import pathlib
 
 import cryodaq
 import pysmurf
@@ -107,10 +106,12 @@ class SmurfBase:
             # claims is refused here rather than at the first register a method
             # reaches. What the session logs arrives through the handler below,
             # since its level numbering runs the other way from SmurfLogger's.
+            # Where the session records: the configuration's directories when
+            # there is a configuration; a client with none reattaches and adopts them.
             self._session = cryodaq.connect(
                 f'{server_addr}:{server_port}', timeout=30.0, monitor=False,
                 publisher=self.pub, logger=self._cryodaq_logger(),
-                paths=self._session_paths())
+                paths=cryodaq.Paths.from_config(self.config.values) if self.config is not None else None)
             # A readout server says which application composed it. This client
             # is the SMuRF application's: on the readout core alone, or on
             # another application's server, every method past this point would
@@ -228,20 +229,6 @@ class SmurfBase:
         if self._session is None:
             return _DummyClient("OFFLINE: Server client")
         return self._session._client
-
-    def _session_paths(self):
-        """Where the session writes its configuration record: the configuration's status directory.
-
-        With no file, the packaged default's ``paths.status`` is used -- the
-        same place a file that does not override it resolves to.
-        """
-        import dataclasses
-        status = getattr(self, 'status_dir', None)
-        if status is None:
-            from pysmurf.client.config import DEFAULT
-            status = cryodaq.config.load(DEFAULT).values['paths']['status']
-        data = getattr(self, 'default_data_dir', None) or status
-        return dataclasses.replace(cryodaq.Paths.under(data), status=pathlib.Path(status))
 
     def _cryodaq_logger(self):
         """A ``logging`` logger whose records land in this object's log.
