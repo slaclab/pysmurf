@@ -219,8 +219,8 @@ class Resolved:
         # int, a time a string, and anything else is not a provenance.
         provenance: Dict[str, Tuple[str, Union[int, str]]] = {}
         for k, v in data.get('provenance', {}).items():
-            if len(v) != 2 or not isinstance(v[0], str) or isinstance(v[1], bool) \
-                    or not isinstance(v[1], (int, str)):
+            if not isinstance(v, (list, tuple)) or len(v) != 2 or not isinstance(v[0], str) \
+                    or isinstance(v[1], bool) or not isinstance(v[1], (int, str)):
                 raise ConfigError('<record>', key=k,
                                   reason=f"provenance is (layer, line) or (operation, time), not {v!r}")
             provenance[k] = (v[0], v[1])

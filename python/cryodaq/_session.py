@@ -799,6 +799,13 @@ class Session:
             If the server holds no configuration record -- nothing to measure
             over; the configuring operation has to run first -- or a key is
             not one the configuration has.
+
+        Notes
+        -----
+        One client measures on a system at a time, as one client configures
+        it. The read-back and the recording are not made atomic against a
+        second process measuring on the same server: it would be sharing the
+        hardware it measures with, which no lock here could make sound.
         """
         current = self.resolved_config()
         if current is None:
@@ -885,9 +892,16 @@ class Session:
         self._extra = {}
         path = self.config_record_path()
         if path.exists():
-            record = config.read_record(path)
-            if record['resolved'].get('hash') == resolved.hash:
-                self._extra = record.get('extra', {})
+            # The record lends only `extra`; one that will not read is logged
+            # and lends nothing, since the server's resolution is what counts.
+            try:
+                record = config.read_record(path)
+            except config.ConfigError as e:
+                self.log.warning("%s: the record at %s does not read back (%s); its extra is "
+                                 "not carried forward", self.endpoint, path, e.reason)
+            else:
+                if record['resolved'].get('hash') == resolved.hash:
+                    self._extra = record.get('extra', {})
         self.log.log(LOG_INFO, "%s: reattached to configuration %s; recording under %s",
                      self.endpoint, resolved.hash[:12], self.paths.status)
         return resolved
