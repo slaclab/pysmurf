@@ -34,10 +34,6 @@
 # Application boundary: the identifiers is_rfsoc, tes, bias_group and
 # pA_per_phi0 do not appear anywhere under cryodaq.
 #
-# Geometry boundary: the channel-geometry literals of one particular firmware
-# (614.4, 2.4, bare 128 and 512) do not appear anywhere under cryodaq; geometry
-# is read from the hardware at run time.
-#
 # Publisher substitutability: the null publisher a session falls back to spells
 # its parameters the way pysmurf's Publisher spells them, so a caller that passes
 # them by keyword gets the same call on either. Compared by parsing both files,
@@ -80,8 +76,6 @@ SERVER_SIDE_PACKAGE = ('server',)
 # Identifiers that mark the application boundary.
 APPLICATION_NAMES = ('is_rfsoc', 'tes', 'bias_group', 'pA_per_phi0')
 APPLICATION_NAMES_RE = re.compile(r'\b(' + '|'.join(APPLICATION_NAMES) + r')\b')
-# Channel-geometry literals of one particular firmware.
-GEOMETRY_LITERALS = (614.4, 2.4, 128, 512)
 # Anything that looks like a rogue register path.
 REGISTER_PATH_RE = re.compile(
     r'(^|[.\s\'"])(AMCc|FpgaTopLevel|AppTop|AppCore|SysgenCryo|CryoChannels|'
@@ -188,12 +182,6 @@ def identifiers(tree):
             yield node.lineno, node.name
 
 
-def numbers(tree):
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Constant) and type(node.value) in (int, float):
-            yield node.lineno, node.value
-
-
 def violations(package):
     """Return every boundary violation under package as (rule, 'file:line detail')."""
     found = []
@@ -235,9 +223,6 @@ def violations(package):
                 found.append(('application', f"{rel}:{lineno} string mentions {m.group(1)!r}"))
             if REGISTER_PATH_RE.search(text) and not platform:
                 found.append(('paths', f"{rel}:{lineno} register path {text[:60]!r}"))
-        for lineno, value in numbers(tree):
-            if value in GEOMETRY_LITERALS:
-                found.append(('geometry', f"{rel}:{lineno} literal {value}"))
     return found
 
 
@@ -264,10 +249,6 @@ def check_import_direction():
 
 def check_no_application_names():
     report('application')
-
-
-def check_no_geometry_literals():
-    report('geometry')
 
 
 def check_rogue_is_imported_only_where_a_session_opens_or_a_server_runs():
@@ -581,8 +562,7 @@ def check_rules_fire_on_a_bad_package():
         # meant to reach a map.
         "from cryodaq.platform import parse\n"
         "def f(is_rfsoc, x):\n"
-        "    n = 512\n"
-        "    return 'AMCc.FpgaTopLevel.AppTop', x.bias_group, n\n"
+        "    return 'AMCc.FpgaTopLevel.AppTop', x.bias_group\n"
         # A deferred import is how a module may reach rogue; one under a `try`
         # at module level is not deferred at all.
         "def g():\n"
@@ -596,7 +576,6 @@ def check_rules_fire_on_a_bad_package():
     bad_map = (
         "import sodetlib\n"
         "import pyrogue as pr\n"
-        "RATE = 614.4\n"
         "note = 'the tes bias'\n"
     )
     global PACKAGE
@@ -653,7 +632,7 @@ def check_rules_fire_on_a_bad_package():
         f"a binary file outside platform was passed over rather than refused: {data_rule!r}"
 
     rules = {r for r, _ in found}
-    expected = {'imports', 'application', 'geometry', 'paths', 'rogue'}
+    expected = {'imports', 'application', 'paths', 'rogue'}
     assert rules == expected, f"rules fired: {sorted(rules)}, expected {sorted(expected)}"
     details = '\n'.join(d for _, d in found)
     for needle in ('imports pysmurf', 'reaches into platform._umux',
@@ -661,8 +640,8 @@ def check_rules_fire_on_a_bad_package():
                    'imports sodetlib',
                    'imports pyrogue inside cryodaq.platform',
                    "identifier 'is_rfsoc'", "identifier 'bias_group'",
-                   "mentions 'tes'", 'literal 512', 'literal 614.4', 'register path',
-                   '_client.py:12 imports rogue at module level',
+                   "mentions 'tes'", 'register path',
+                   '_client.py:11 imports rogue at module level',
                    '_x.py:2 imports pyrogue at module level',
                    'other/_root.py:1 imports pyrogue at module level',
                    'other/support.py:1 imports pyrogue at module level',

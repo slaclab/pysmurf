@@ -995,8 +995,7 @@ class SmurfTuneMixin(SmurfBase):
 
         # Make plot per subband
         if make_subband_plot:
-            subbands, subband_freq = self.get_subband_centers(band,
-                hardcode=True)  # remove hardcode mode
+            subbands, subband_freq = self.get_subband_centers(band)
             plot_freq_mhz = freq
             plot_width = 5.5  # width of plotting in MHz
             width = (subband_freq[1] - subband_freq[0])

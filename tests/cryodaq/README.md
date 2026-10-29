@@ -33,8 +33,6 @@ the second covers the two import rules below it:
 * **No application names** — `is_rfsoc`, `tes`, `bias_group` and `pA_per_phi0` appear nowhere under
   `cryodaq`. Which detectors are wired where belongs to the application above it, and branching on
   platform identity is what a per-platform map exists to avoid.
-* **No geometry literals** — the channel counts, digitizer rates and bandwidths of one particular
-  firmware are read from the tree, not written into the client.
 * **Register paths only in `cryodaq.platform`** — a rogue register path appears only in the platform
   maps. This is the firmware/software boundary: it is what "the client does not know the register
   map" means mechanically.

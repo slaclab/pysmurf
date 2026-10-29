@@ -2670,8 +2670,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return int(subband)
 
-    def get_subband_centers(self, band, as_offset=True, hardcode=False,
-            yml=None):
+    def get_subband_centers(self, band, as_offset=True, yml=None):
         """ returns frequency in MHz of subband centers
 
         Args
@@ -2682,14 +2681,9 @@ class SmurfUtilMixin(SmurfBase):
             Whether to return as offset from band center.
         """
 
-        if hardcode:
-            #bandCenterMHz = 3.75 + 0.5*(band + 1)
-            digitizer_frequency_mhz = 614.4
-            n_subbands = 128
-        else:
-            digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band,
-                yml=yml)
-            n_subbands = self.get_number_sub_bands(band, yml=yml)
+        digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band,
+            yml=yml)
+        n_subbands = self.get_number_sub_bands(band, yml=yml)
 
         subband_width_MHz = 2 * digitizer_frequency_mhz / n_subbands
 
