@@ -646,9 +646,6 @@ class SmurfCommandMixin(SmurfBase):
         int
             The number of subbands in the band.
         """
-        if self.offline:
-            return 128
-
         if band is None:
             # assume all bands have the same number of channels, and
             # pull the number of channels from the first band in the
@@ -675,9 +672,6 @@ class SmurfCommandMixin(SmurfBase):
         int
             The number of channels in the band.
         """
-        if self.offline:
-            return 512  # Hard coded offline mode 512
-
         if band is None:
             # assume all bands have the same number of channels, and
             # pull the number of channels from the first band in the
@@ -4447,11 +4441,7 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_band_center_mhz` : Sets the band center frequency.
         :func:`get_tone_frequency_offset_mhz` : Gets subband offsets.
         """
-        if self.offline:
-            bc = (4250 + band*500)
-            return bc
-        else:
-            return self._get_by_name(f'band[{band}].center_mhz', **kwargs)
+        return self._get_by_name(f'band[{band}].center_mhz', **kwargs)
 
 
     def get_channel_frequency_mhz(self, band=None, **kwargs):
@@ -4479,13 +4469,10 @@ class SmurfCommandMixin(SmurfBase):
             # list of bands specified in experiment.cfg.
             band = self._bands[0]
 
-        if self.offline:
-            return 2.4
-        else:
-            return self._get_by_name(
-                f'band[{band}].channel_bandwidth_mhz',
-                **kwargs
-            )
+        return self._get_by_name(
+            f'band[{band}].channel_bandwidth_mhz',
+            **kwargs
+        )
 
     def get_digitizer_frequency_mhz(self, band=None, **kwargs):
         """
@@ -4504,9 +4491,6 @@ class SmurfCommandMixin(SmurfBase):
         float
             The digitizer frequency for this band in MHz.
         """
-        if self.offline:
-            return 614.4
-
         if band is None:
             # assume all bands have the same number of channels, and
             # pull the number of channels from the first band in the
