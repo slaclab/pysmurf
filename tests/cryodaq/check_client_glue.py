@@ -117,7 +117,7 @@ class _Absent:
 
 
 def glue():
-    """The three accessors, on an object that has just what they read."""
+    """The accessors under test, on an object that has just what they read."""
     import functools
     import typing
     ns = {'np': _Absent('numpy'), 'functools': functools, 'time': time,
@@ -135,6 +135,14 @@ def glue():
         _caget = Mixin._caget
         _caput = Mixin._caput
         _wait_for = Mixin._wait_for
+        # The per-band accessors that fall back to the first configured band,
+        # and the two steps they go through to a read.
+        _get_by_name = Mixin._get_by_name
+        _default_band = Mixin._default_band
+        get_number_sub_bands = Mixin.get_number_sub_bands
+        get_number_channels = Mixin.get_number_channels
+        get_channel_frequency_mhz = Mixin.get_channel_frequency_mhz
+        get_digitizer_frequency_mhz = Mixin.get_digitizer_frequency_mhz
 
         def __init__(self, nodes):
             self._session = _Session(nodes)
@@ -196,6 +204,27 @@ def check_offline_reaches_no_register_and_says_so():
         assert 'OFFLINE' in str(e), f"an offline wait should say so: {e}"
     else:
         raise AssertionError('an offline wait returned as if a register had answered')
+
+
+def check_a_per_band_read_with_no_band_configured_answers_none():
+    """An accessor that falls back to the first configured band has none to fall back to.
+
+    A client built offline with no configuration has ``_bands`` unset. Asking it a
+    per-band question with no band named used to index ``None`` and raise before
+    the read could decline; it declines now, the way an offline read does.
+    """
+    client = glue()({})
+    client._session = None
+    client.offline = True
+    client._bands = None
+    for accessor in ('get_number_sub_bands', 'get_number_channels',
+                     'get_channel_frequency_mhz', 'get_digitizer_frequency_mhz'):
+        assert getattr(client, accessor)() is None, f"{accessor}() with no band configured"
+    client._bands = [3]
+    seen = []
+    client._get_by_name = lambda name, **kw: seen.append(name)
+    client.get_number_sub_bands()
+    assert seen == ['band[3].n_subbands'], f"the first configured band was not used: {seen}"
 
 
 def check_wait_for_reads_fresh_and_returns_when_the_condition_holds():

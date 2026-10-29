@@ -108,6 +108,25 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(name, **kwargs)
 
+    def _default_band(self):
+        """The band a per-band read falls back to when none is named.
+
+        Every band is assumed to share the geometry of the first configured
+        one. With no configured bands -- an offline client built without a
+        configuration -- there is nothing to read, so this answers None and
+        says so, the way an offline read does.
+
+        Returns
+        -------
+        int or None
+            The first configured band, or None when none is configured.
+        """
+        if self._bands:
+            return self._bands[0]
+        self.log('No band named and none configured; nothing to read',
+                 self.LOG_INFO)
+        return None
+
     def _set_by_name(self, name, val, **kwargs):
         """Write the register a semantic name reaches.
 
@@ -647,10 +666,9 @@ class SmurfCommandMixin(SmurfBase):
             The number of subbands in the band.
         """
         if band is None:
-            # assume all bands have the same number of channels, and
-            # pull the number of channels from the first band in the
-            # list of bands specified in experiment.cfg.
-            band = self._bands[0]
+            band = self._default_band()
+            if band is None:
+                return None
 
         return self._get_by_name(f'band[{band}].n_subbands', **kwargs)
 
@@ -673,10 +691,9 @@ class SmurfCommandMixin(SmurfBase):
             The number of channels in the band.
         """
         if band is None:
-            # assume all bands have the same number of channels, and
-            # pull the number of channels from the first band in the
-            # list of bands specified in experiment.cfg.
-            band = self._bands[0]
+            band = self._default_band()
+            if band is None:
+                return None
 
         return self._get_by_name(f'band[{band}].n_channels', **kwargs)
 
@@ -4464,10 +4481,9 @@ class SmurfCommandMixin(SmurfBase):
         """
 
         if band is None:
-            # assume all bands have the same number of channels, and
-            # pull the number of channels from the first band in the
-            # list of bands specified in experiment.cfg.
-            band = self._bands[0]
+            band = self._default_band()
+            if band is None:
+                return None
 
         return self._get_by_name(
             f'band[{band}].channel_bandwidth_mhz',
@@ -4492,10 +4508,9 @@ class SmurfCommandMixin(SmurfBase):
             The digitizer frequency for this band in MHz.
         """
         if band is None:
-            # assume all bands have the same number of channels, and
-            # pull the number of channels from the first band in the
-            # list of bands specified in experiment.cfg.
-            band = self._bands[0]
+            band = self._default_band()
+            if band is None:
+                return None
 
         return self._get_by_name(f'band[{band}].digitizer_rate_mhz', **kwargs)
 
