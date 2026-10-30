@@ -99,8 +99,14 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     group.add_argument('--gui', '-g', action='store_true',
                        help="Open rogue's GUI on the server, and stop when it closes.")
     group.add_argument('--windows-title', '-w', default=None, help="GUI window title.")
-    group.add_argument('--log-level', type=str.upper, default='WARNING',
-                       choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'])
+    group.add_argument('--log-level', type=str.upper, default='INFO',
+                       choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+                       help="Level of the server's own log: what the launcher decided, how the "
+                            "platform was identified, what was composed.")
+    group.add_argument('--rogue-log-level', type=str.upper, default='WARNING',
+                       choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+                       help="Level of rogue's log, kept apart because at INFO it narrates the "
+                            "whole tree build, tens of thousands of lines on a carrier.")
 
     # Naming a crate slot instead of an address: the launcher reads the rest
     # from the crate's shelf manager, and every value it reads is a default
@@ -171,9 +177,17 @@ def _run_gui(root: Any, title: Optional[str]) -> None:
 
 
 def configure_logging(args: argparse.Namespace) -> None:
-    """Root logger at the level the command line asked for."""
+    """The server's log at one level and rogue's at another.
+
+    One level for both hid the server's own few lines -- the launcher's decisions,
+    the platform identification, the composition -- behind rogue's narration of
+    the tree build, so the deployment ran at WARNING and saw neither. The
+    server's loggers follow ``--log-level``; ``pyrogue``, the parent of every
+    rogue logger, follows ``--rogue-log-level``.
+    """
     logging.basicConfig(level=args.log_level,
                         format="[%(asctime)s] %(levelname)s:%(name)s: %(message)s")
+    logging.getLogger('pyrogue').setLevel(args.rogue_log_level)
 
 
 def server_port_for(args: argparse.Namespace) -> int:

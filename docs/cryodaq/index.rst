@@ -231,6 +231,11 @@ refused, naming the read that failed, when they are not. The shelf-manager
 tools are wrapped behind one ``run`` seam in ``cryodaq.platform._atca``, so the
 launcher is checked against recorded crate answers with no crate.
 
+The server's own log and rogue's are set apart: ``--log-level`` (default
+``INFO``) governs what the server says about its decisions, identification and
+composition, a few lines; ``--rogue-log-level`` (default ``WARNING``) governs
+rogue's, which at ``INFO`` narrates the whole tree build.
+
 .. automodule:: cryodaq.server
     :members: compose, OperationsProvider, attach_operations, PlatformSupport, Setup,
               Transport, eth, pcie, tcp_bridge, emulation, ReadoutRoot, CORE_PROVIDERS,
