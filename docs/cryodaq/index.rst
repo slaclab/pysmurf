@@ -120,6 +120,16 @@ a server imports. The map module declares:
 ``PACKAGE_CONFIG_DIR``
     Where the firmware's release archive keeps its configuration files, so a
     relative layer name a server is given means a file there.
+``BRING_UP``
+    What defines this platform's carrier to the launcher before there is a
+    tree (a ``_umux.BringUp``): the image name the release's files carry, the
+    carrier part numbers a shelf manager reports for it, and where a processor
+    system sits. A platform whose records imply more -- the AMC carrier's bays
+    choose its defaults file -- subclasses it and overrides ``options()``,
+    which turns the shelf manager's record of the slot into server options by
+    name; the launcher applies them and knows nothing of bays. An empty
+    part-number tuple means a shelf manager cannot recognise this platform and
+    the launcher takes the addresses it is given.
 ``CARRIER``
     The carrier core's paths, bound from the shared template
     (``_umux.Carrier(core, bsi=, timing=)``) to the core device this board
@@ -212,8 +222,97 @@ composition asks it for each and adds what it is given. This subpackage and
 those modules are the parts of cryodaq that import rogue at module level; the
 package does not import it.
 
+Starting a server
+^^^^^^^^^^^^^^^^^
+
+``python -m cryodaq.server`` starts a register server and ``python -m
+pysmurf.core.server`` the SMuRF server; both take the same options
+(``--help`` lists them) and both pass what they parsed through
+:func:`cryodaq.server.launch` before choosing a transport. The launcher fills
+in what the command line left out, and every value it fills in is a default:
+an option given explicitly is used as given, and the log says which of the
+launcher's answers went unused. There are two ways in.
+
+The firmware directory (``--firmware-dir``, default ``/tmp/fw``) is the one
+place a deployment keeps its firmware, and the one option that names it. The
+server finds the firmware's Python package there: the one release archive
+(``rogue_<image>_v*.zip``), or else the one checkout (a directory with
+``firmware/python``, or the firmware directory being one itself). Two of a
+kind is a refusal naming them, since guessing between releases is how a server
+comes up on the wrong register map; none is allowed, for a package already
+importable. The same directory holds the FPGA image the firmware check
+compares against and the register defaults (``smurf_cfg/defaults/``) a
+population calls for. A relative ``--layer`` name is a file in the package's
+own configuration directory, inside the archive or under the checkout.
+
+**Told an address** (``--addr``, or ``--transport emulation``), nothing is read
+from a crate. The address, the bays and the register layers are as given, the
+PCIe lane is 0 unless ``--pcie-rssi-lane`` says otherwise, and the package is
+found in the firmware directory as above. ``--hard-boot`` needs the crate and is
+refused. This is how a bench board without a management controller, or an
+emulated server (``--transport emulation --platform <name>``), is started.
+
+**Told a crate slot** (``--shelfmanager <host>`` with ``--slot <2..7>``), the
+launcher reads the slot through the crate's shelf manager, in this order:
+
+1. The inventory: the crate id, the carrier's and the rear module's FRU
+   records and each AMC bay's, every read attempted and a read the controller
+   does not answer recorded as missing with its error. The record is
+   published on the status device as the hardware inventory, beside the
+   startup arguments, so a client sees what the launcher saw. A board whose
+   controller does not answer at all is tolerated when ``--addr`` (and
+   ``--ps-addr`` for a board with a processor system) is given and refused,
+   naming the read that failed, when it is not; nothing further is read.
+2. The FPGA's address, by SLAC's convention from the crate id:
+   ``10.<crate id high byte>.<crate id low byte>.<100 + slot>``. The PCIe
+   RSSI lane is ``slot - 2``.
+3. The platform's bring-up, from the carrier's FRU part number
+   (:func:`cryodaq.platform.bring_up_for`): which image and package the board
+   takes, and whether a processor system sits beside the FPGA, at
+   ``<200 + slot>``. A part number no platform declares is logged, and the
+   addresses are taken as given; the platform proper is identified later,
+   from the build stamp, once there is a tree. ``--platform`` takes no part.
+4. What else the platform makes of the records (``BringUp.options``; skipped
+   with ``--no-hw-detect``). For the AMC carrier: a bay without a board is
+   left out of the tree (``--disable-bay0/1``), the carrier version and the
+   board types choose the defaults file, ``defaults_<version>_<bay 0>_<bay 1>.yml``
+   under ``<firmware-dir>/smurf_cfg/defaults/`` with ``lb``, ``hb``, ``tkid``
+   or ``none`` per bay, and a Gen2 carrier of version C03 or later has its
+   power monitor enabled (``--enable-em22xx``). The platform's defaults file
+   goes before any ``--layer`` given, so the user's overrides it.
+5. A hard boot, when asked (``--hard-boot``): the shelf manager power-cycles
+   the FPGA and waits for it to answer at its address. The register
+   configuration is then applied at start-up (``--configure``).
+6. The firmware check (skipped with ``--no-check-firmware``): the short git
+   hash the FPGA reports is compared with the one in the FPGA image's file
+   name (``*-<short githash>.mcs[.gz]``). When they differ the image is
+   loaded, which reboots the FPGA into it, and ``--configure`` is set as after
+   a hard boot. A hard boot on a stale image is therefore two reboots.
+7. The firmware package, from the firmware directory as above, the archives
+   narrowed to those carrying the platform's image name.
+
+The shelf manager is driven through SLAC's crate tools (``ipmitool``,
+``cba_amc_init``, ``ProgramFPGA.bash``) from ``cryodaq.platform._atca``, the
+one module that starts a subprocess; nothing writes to a carrier -- no power
+cycle, no image load -- except at steps 5 and 6, and the launcher's checks
+replay recorded crate answers with no crate.
+
+Options
+^^^^^^^
+
+The command line both entry points take, generated from the parser itself
+(``cryodaq.server.add_arguments``); ``python -m pysmurf.core.server`` shows the
+same options under its own name. The *readout server* group is what the server
+is built from; the *crate slot* group is what the launcher reads the rest from.
+
+.. argparse::
+   :module: cryodaq.server.__main__
+   :func: parser
+   :prog: python -m cryodaq.server
+   :nodescription:
+
 .. automodule:: cryodaq.server
     :members: compose, OperationsProvider, attach_operations, PlatformSupport, Setup,
               Transport, eth, pcie, tcp_bridge, emulation, ReadoutRoot, CORE_PROVIDERS,
-              add_capture_receivers, OffloadCard
+              add_capture_receivers, OffloadCard, launch
     :undoc-members:

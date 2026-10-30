@@ -21,6 +21,9 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
+import json
+from typing import Any, Mapping, Optional
+
 import pyrogue
 
 from cryodaq import platform
@@ -31,7 +34,8 @@ __all__ = ['ApplicationStatus']
 class ApplicationStatus(pyrogue.Device):
     """Where a readout server reports its own state."""
 
-    def __init__(self, pmap: platform.PlatformMap, application: str = '', **kwargs):
+    def __init__(self, pmap: platform.PlatformMap, application: str = '',
+                 hardware_inventory: Optional[Mapping[str, Any]] = None, **kwargs):
         pyrogue.Device.__init__(self, name=platform.STATUS_DEVICE_PATH.rsplit('.', 1)[1],
                                 description='SMuRF Application Container', **kwargs)
 
@@ -43,6 +47,16 @@ class ApplicationStatus(pyrogue.Device):
             description='The application this server was composed with; empty for the readout core alone',
             mode='RO',
             value=application))
+
+        # What the launcher read off the crate before this tree existed -- the
+        # carrier's, bays' and rear module's FRU records, the crate id, the
+        # firmware hash -- as one JSON record, so a client sees what the launcher
+        # saw. Empty when the server was addressed directly and nothing was read.
+        self.add(pyrogue.LocalVariable(
+            name=pmap.path('application.hardware_inventory').rsplit('.', 1)[1],
+            description='What the launcher read from the crate, as JSON; empty when nothing was read',
+            mode='RO',
+            value=json.dumps(hardware_inventory, sort_keys=True, default=str) if hardware_inventory else ''))
 
         # A list of two so its size is fixed whether one or two bays are enabled,
         # filled in with the real list once the root has started: a published

@@ -199,6 +199,16 @@ jobs:
           docker container exec server \
             /bin/bash -c "cd /usr/local/src/pysmurf && python3 tests/cryodaq/check_setup_steps.py"
 
+      # - Check what the server launcher decides from a crate slot -- address,
+      #   lane, bays, defaults, firmware, reboot -- replayed from recorded
+      #   shelf-manager answers and compared with what the bash launcher it
+      #   replaced produced for the same slot. Server code, so it runs where the
+      #   server's imports are; no crate.
+      - name: Check the server launcher against recorded crate answers
+        run: |
+          docker container exec server \
+            /bin/bash -c "cd /usr/local/src/pysmurf && python3 tests/cryodaq/check_launch.py"
+
       # - Resolve the register names against a RELEASED firmware package, not the
       #   committed fixtures. The fixtures are pruned dumps built from this
       #   repository's own cryo-det, so they answer "do the names match the tree we

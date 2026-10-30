@@ -90,7 +90,8 @@ class ReadoutRoot(pyrogue.Root):
                  layers: Sequence[Any] = (), server_port: int = 0, polling: bool = True,
                  configure: bool = False, variable_groups: Optional[Mapping] = None,
                  on_start: Optional[Callable] = None, application: str = '',
-                 devices: Sequence[Any] = (), setup: Optional[Any] = None, **kwargs):
+                 devices: Sequence[Any] = (), setup: Optional[Any] = None,
+                 hardware_inventory: Optional[Mapping[str, Any]] = None, **kwargs):
         pyrogue.Root.__init__(self, name=ROOT_NAME, initRead=True, pollEn=polling,
                               timeout=5.0, **kwargs)
         self.pmap = pmap
@@ -110,7 +111,8 @@ class ReadoutRoot(pyrogue.Root):
         # The metadata stream: every variable in the 'stream' group, as it changes.
         self.stream = pyrogue.interfaces.stream.Variable(root=self, incGroups='stream')
 
-        self.status = ApplicationStatus(pmap, application=application)
+        self.status = ApplicationStatus(pmap, application=application,
+                                        hardware_inventory=hardware_inventory)
         self.add(self.status)
         # Where the configuration a client applies is published, so a later
         # client can read it back without the file.

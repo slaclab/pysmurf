@@ -53,6 +53,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx_copybutton',
     'sphinx_design',
+    'sphinxarg.ext',
 ]
 
 # Intersphinx settings
@@ -154,6 +155,16 @@ latex_documents = [
 
 # Modules to mock up
 autodoc_mock_imports = ['pyrogue','smurf','rogue','CryoDet']
+
+
+def setup(app):
+    # The argparse directive imports the server's entry point itself, outside
+    # autodoc, so the same stand-ins are installed for the whole build.
+    from sphinx.ext.autodoc.mock import mock
+
+    app.connect('builder-inited', lambda app: app._cryodaq_mock.__enter__())
+    app.connect('build-finished', lambda app, exc: app._cryodaq_mock.__exit__(None, None, None))
+    app._cryodaq_mock = mock(autodoc_mock_imports)
 
 
 # Source code links

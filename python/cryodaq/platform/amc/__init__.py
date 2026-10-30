@@ -28,9 +28,13 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-from cryodaq.platform import _umux
+import re
+from dataclasses import dataclass
+from typing import Any, Dict, Mapping
 
-__all__ = ['NAME', 'TAGS', 'PACKAGE_CONFIG_DIR', 'CARRIER', 'REGISTERS', 'LEGACY',
+from cryodaq.platform import _atca, _umux
+
+__all__ = ['NAME', 'TAGS', 'PACKAGE_CONFIG_DIR', 'BRING_UP', 'CARRIER', 'REGISTERS', 'LEGACY',
            'WITNESS', 'SCOPES', 'MUX_CORE', 'JESD_BAY', 'AMC_CARRIER_REGISTERS', 'AMC_CARRIER_LEGACY',
            'AMC_CARRIER_SCOPES']
 
@@ -53,6 +57,73 @@ TAGS = ('MicrowaveMuxBpEthGen2',)
 # Where the firmware's release archive keeps its configuration files, so a relative
 # name a server is given means a file there.
 PACKAGE_CONFIG_DIR = 'python/CryoDet/config'
+
+# What the launcher decides on for this board before there is a tree. Part numbers
+# as the FRU records carry them: carrier PC_379_396_01 (Gen1) or _38 (Gen2, with the
+# EM22xx power monitor from version C03 on); AMC daughter boards PC_379_396_30,
+# typed A01 low band, A02 high band, A03 TKID.
+AMC_PART_NUMBER = 'PC_379_396_30'
+AMC_TYPES = {'A01': 'lb', 'A02': 'hb', 'A03': 'tkid'}
+POWER_MONITOR_FROM = ('PC_379_396_38', 3)
+# A daughter board's part number ends in its version and type, the version two
+# digits and the type A plus two; a carrier's ends in its version and revision.
+_AMC_PART_RE = r'_C(\d{2})_(A\d{2})$'
+_CARRIER_VERSION_RE = r'_C(\d{2})'
+
+
+@dataclass(frozen=True)
+class AmcBringUp(_umux.BringUp):
+    """The AMC carrier's bring-up: what its bays and version imply for the server's options."""
+
+    def options(self, inventory: Mapping[str, Any]) -> Dict[str, Any]:
+        """Which bays hold a board, which defaults file they call for, whether the power monitor is fitted.
+
+        A bay without a board is left out of the tree (``disable_bay<n>``, the
+        bays numbered 0 and 1 as the options are, 0 and 2 as the carrier counts
+        them). The defaults file is named for the carrier version and the board
+        type in each bay, ``defaults_c03_lb_none.yml`` for a low-band board in
+        the first bay only. The EM22xx power monitor (``enable_pwri2c``) is
+        fitted from carrier version C03 of the Gen2 board on.
+
+        Raises
+        ------
+        ValueError
+            If a bay holds a board this platform does not know, or boards of
+            two versions, for which there is no one defaults file.
+        """
+        options: Dict[str, Any] = {}
+        words, versions = [], []
+        for index, bay in enumerate(_atca.AMC_BAYS):
+            record = inventory.get(f'amc{bay}')
+            if not record:
+                words.append('none')
+                options[f'disable_bay{index}'] = True
+                continue
+            part = record.get('Board Part Number', '')
+            m = re.match(re.escape(AMC_PART_NUMBER) + _AMC_PART_RE, part)
+            if not m:
+                raise ValueError(f"AMC bay {bay}: part number {part!r} is not a "
+                                 f"{AMC_PART_NUMBER}_C<version>_<type> board")
+            version, kind = m.groups()
+            if kind not in AMC_TYPES:
+                raise ValueError(f"AMC bay {bay}: board type {kind!r} is not one of {sorted(AMC_TYPES)}")
+            words.append(AMC_TYPES[kind])
+            versions.append(version)
+        if len(set(versions)) > 1:
+            raise ValueError(f"the AMC boards are of different versions ({', '.join(versions)}); "
+                             f"no one defaults file serves both")
+        if versions:
+            options['layers'] = f"defaults_c{versions[0]}_{'_'.join(words)}.yml"
+        prefix, since = POWER_MONITOR_FROM
+        carrier = (inventory.get('carrier') or {}).get('Board Part Number', '')
+        m = re.match(re.escape(prefix) + _CARRIER_VERSION_RE, carrier)
+        if m and int(m.group(1)) >= since:
+            options['enable_pwri2c'] = True
+        return options
+
+
+BRING_UP = AmcBringUp(firmware_image='MicrowaveMuxBpEthGen2',
+                      carrier_part_numbers=('PC_379_396_01', 'PC_379_396_38'))
 
 _V, _C = 'value', 'command'
 
