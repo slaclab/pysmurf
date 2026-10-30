@@ -274,7 +274,7 @@ jobs:
                  "the RFMC released-package resolution is skipped, the fixture still runs"
             exit 0
           fi
-          tag=MicrowaveMuxRfmcCarrier_v1.1.0
+          tag=MicrowaveMuxRfmcCarrier_v2.0.0
           zip=rogue_${tag}.zip
           id=$(curl --fail --silent --show-error --location \
                  --header "Authorization: token ${GITHUB_TOKEN}" \

@@ -858,9 +858,6 @@ AMCc.FpgaTopLevel.AppTop.AppCore.BUILD_DSP_G_4	int	RO	None	0	['Hidden']	Indicate
 AMCc.FpgaTopLevel.AppTop.AppCore.BUILD_DSP_G_5	int	RO	None	0	['Hidden']	Indicates which DSP cores are built
 AMCc.FpgaTopLevel.AppTop.AppCore.BUILD_DSP_G_6	int	RO	None	0	['Hidden']	Indicates which DSP cores are built
 AMCc.FpgaTopLevel.AppTop.AppCore.BUILD_DSP_G_7	int	RO	None	0	['Hidden']	Indicates which DSP cores are built
-AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[0].enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
-AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[0].ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
-AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[0].WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
 AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[0].ATT.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
 AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[0].ATT.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
 AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[0].ATT.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
@@ -872,13 +869,6 @@ AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[0].ATT.UC[1]	UInt5	RW	None	0	[]	Hmc305
 AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[0].ATT.UC[2]	UInt5	RW	None	0	[]	Hmc305 Device: Note that firmware does an invert and bit order swap to make the software interface with a LSB of 0.5dB
 AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[0].ATT.UC[3]	UInt5	RW	None	0	[]	Hmc305 Device: Note that firmware does an invert and bit order swap to make the software interface with a LSB of 0.5dB
 AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[0].ATT.UC[4]	UInt5	RW	None	0	[]	Hmc305 Device: Note that firmware does an invert and bit order swap to make the software interface with a LSB of 0.5dB
-AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[0].PllLocked[0]	Bool	RO	{False: 'False', True: 'True'}	1	[]	ADF5356 MUXOUT digital lock detect for PLL[0], synchronized to axilClk
-AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[0].PllLocked[1]	Bool	RO	{False: 'False', True: 'True'}	1	[]	ADF5356 MUXOUT digital lock detect for PLL[1], synchronized to axilClk
-AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[0].PllLocked[2]	Bool	RO	{False: 'False', True: 'True'}	1	[]	ADF5356 MUXOUT digital lock detect for PLL[2], synchronized to axilClk
-AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[0].PllLocked[3]	Bool	RO	{False: 'False', True: 'True'}	1	[]	ADF5356 MUXOUT digital lock detect for PLL[3], synchronized to axilClk
-AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[1].enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
-AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[1].ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
-AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[1].WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
 AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[1].ATT.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
 AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[1].ATT.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
 AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[1].ATT.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
@@ -890,10 +880,6 @@ AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[1].ATT.UC[1]	UInt5	RW	None	0	[]	Hmc305
 AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[1].ATT.UC[2]	UInt5	RW	None	0	[]	Hmc305 Device: Note that firmware does an invert and bit order swap to make the software interface with a LSB of 0.5dB
 AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[1].ATT.UC[3]	UInt5	RW	None	0	[]	Hmc305 Device: Note that firmware does an invert and bit order swap to make the software interface with a LSB of 0.5dB
 AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[1].ATT.UC[4]	UInt5	RW	None	0	[]	Hmc305 Device: Note that firmware does an invert and bit order swap to make the software interface with a LSB of 0.5dB
-AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[1].PllLocked[0]	Bool	RO	{False: 'False', True: 'True'}	1	[]	ADF5356 MUXOUT digital lock detect for PLL[0], synchronized to axilClk
-AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[1].PllLocked[1]	Bool	RO	{False: 'False', True: 'True'}	1	[]	ADF5356 MUXOUT digital lock detect for PLL[1], synchronized to axilClk
-AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[1].PllLocked[2]	Bool	RO	{False: 'False', True: 'True'}	1	[]	ADF5356 MUXOUT digital lock detect for PLL[2], synchronized to axilClk
-AMCc.FpgaTopLevel.AppTop.AppCore.RfmcQuad[1].PllLocked[3]	Bool	RO	{False: 'False', True: 'True'}	1	[]	ADF5356 MUXOUT digital lock detect for PLL[3], synchronized to axilClk
 AMCc.FpgaTopLevel.AppTop.AppCore.SysgenCryo.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
 AMCc.FpgaTopLevel.AppTop.AppCore.SysgenCryo.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
 AMCc.FpgaTopLevel.AppTop.AppCore.SysgenCryo.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
