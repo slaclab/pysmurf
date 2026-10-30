@@ -63,11 +63,13 @@ class RfmcSetup(Setup):
     # The clock crossbar output feeding the timing receiver, and the source
     # routed to it: the backplane, as the firmware's own start-up routes.
     TIMING_SOURCE = 'backplane'
-    # The multi-tile synchronisation groups and their reference tiles: every
-    # tile of each converter, with the tile that distributes the clock as the
-    # reference (DAC228 for the DACs, ADC226 for the ADCs).
+    # The multi-tile synchronisation groups and their reference tiles, as the
+    # firmware's own start-up (v2.0.0) sets them: every DAC tile, with DAC228 as
+    # the reference; of the ADCs only ADC224 and ADC226, since the converter IP
+    # disables synchronisation on the two 6x-decimation tiles (ADC225, ADC227),
+    # with ADC226 as the reference.
     MTS_DAC_TILES, MTS_DAC_REF_TILE = 0xF, 0x0
-    MTS_ADC_TILES, MTS_ADC_REF_TILE = 0xF, 0x2
+    MTS_ADC_TILES, MTS_ADC_REF_TILE = 0x5, 0x2
     # How long the logic is given to come out of a reset before the step gives
     # up; the firmware's own helpers wait for ever by default.
     RESET_RECOVERY_TIMEOUT_S = 10.0
