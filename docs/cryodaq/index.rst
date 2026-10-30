@@ -297,6 +297,11 @@ one module that starts a subprocess; nothing writes to a carrier -- no power
 cycle, no image load -- except at steps 5 and 6, and the launcher's checks
 replay recorded crate answers with no crate.
 
+The server's own log and rogue's are set apart: ``--log-level`` (default
+``INFO``) governs what the server says about its decisions, identification and
+composition, a few lines; ``--rogue-log-level`` (default ``WARNING``) governs
+rogue's, which at ``INFO`` narrates the whole tree build.
+
 Options
 ^^^^^^^
 
