@@ -1,0 +1,35 @@
+# Slot 4 of shm-smrf-sp01, 2026-10-29: a bench board with no management controller;
+# every IPMI read fails and the inventory tools report the board absent.
+# Format: `$ <command>` (or `$[tag] <command>` for a variant), the lines it printed, `= <exit status>`.
+
+$ ipmitool -I lan -H shm-smrf-sp01 -t 0x88 -b 0 -A NONE raw 0x34 0x04 0xFD 0x02
+Unable to send RAW command (channel=0x0 netfn=0x34 lun=0x0 cmd=0x4)
+= 1
+
+$ ipmitool -I lan -H shm-smrf-sp01 -t 0x88 -b 0 -A NONE raw 0x34 0x04 0xe0 0x04
+Unable to send RAW command (channel=0x0 netfn=0x34 lun=0x0 cmd=0x4)
+= 1
+
+$ ipmitool -I lan -H shm-smrf-sp01 -t 0x88 -b 0 -A NONE raw 0x34 0xF4
+Unable to send RAW command (channel=0x0 netfn=0x34 lun=0x0 cmd=0xf4)
+= 1
+
+$ ipmitool -I lan -H shm-smrf-sp01 -t 0x88 -b 0 -A NONE fru print 0
+ Device not present (No Response)
+= 1
+
+$ ipmitool -I lan -H shm-smrf-sp01 -t 0x88 -b 0 -A NONE fru print 1
+ Device not present (No Response)
+= 1
+
+$ cba_fru_init --dump shm-smrf-sp01/4
+shm-smrf-sp01/4: Board not present in slot
+= 0
+
+$ cba_amc_init --dump shm-smrf-sp01/4/0
+shm-smrf-sp01/4: Board not present in slot
+= 0
+
+$ cba_amc_init --dump shm-smrf-sp01/4/2
+shm-smrf-sp01/4: Board not present in slot
+= 0

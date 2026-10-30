@@ -30,7 +30,7 @@
 
 from cryodaq.platform import _umux
 
-__all__ = ['NAME', 'TAGS', 'PACKAGE_CONFIG_DIR', 'CARRIER', 'REGISTERS', 'LEGACY',
+__all__ = ['NAME', 'TAGS', 'PACKAGE_CONFIG_DIR', 'BRING_UP', 'CARRIER', 'REGISTERS', 'LEGACY',
            'WITNESS', 'SCOPES', 'MUX_CORE', 'JESD_BAY', 'AMC_CARRIER_REGISTERS', 'AMC_CARRIER_LEGACY',
            'AMC_CARRIER_SCOPES']
 
@@ -53,6 +53,16 @@ TAGS = ('MicrowaveMuxBpEthGen2',)
 # Where the firmware's release archive keeps its configuration files, so a relative
 # name a server is given means a file there.
 PACKAGE_CONFIG_DIR = 'python/CryoDet/config'
+
+# What the launcher decides on for this board before there is a tree. Part numbers
+# as the FRU records carry them: carrier PC_379_396_01 (Gen1) or _38 (Gen2, with the
+# EM22xx from C03 on); AMC daughter boards PC_379_396_30, typed A01 low band, A02
+# high band, A03 TKID. The population names the defaults layer.
+BRING_UP = _umux.BringUp(firmware_image='MicrowaveMuxBpEthGen2',
+                         carrier_part_numbers=('PC_379_396_01', 'PC_379_396_38'),
+                         amc_part_number='PC_379_396_30',
+                         amc_types={'A01': 'lb', 'A02': 'hb', 'A03': 'tkid'},
+                         power_i2c_from=('PC_379_396_38', 3))
 
 _V, _C = 'value', 'command'
 

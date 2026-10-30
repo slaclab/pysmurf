@@ -33,6 +33,7 @@ def main(argv=None) -> int:
         prog='python -m cryodaq.server', description='Start a reduced readout server.'))
     args = parser.parse_args(argv)
     _cli.configure_logging(args)
+    _cli.launch(args)
     with cryodaq.server.compose(transport=_cli.transport_from(args),
                                 **_cli.composition_kwargs(args)) as root:
         logging.getLogger(__name__).info("server on %s; platform %s; Ctrl-C to stop",

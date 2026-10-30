@@ -120,6 +120,13 @@ a server imports. The map module declares:
 ``PACKAGE_CONFIG_DIR``
     Where the firmware's release archive keeps its configuration files, so a
     relative layer name a server is given means a file there.
+``BRING_UP``
+    What the launcher decides on before there is a tree (a ``_umux.BringUp``):
+    the image name the release's files carry, the carrier and daughter-board
+    part numbers a shelf manager reports for this platform and what the board
+    types mean for the defaults layer, and where a processor system sits.
+    Data only; an empty part-number tuple means a shelf manager cannot
+    recognise this platform and the launcher takes the addresses it is given.
 ``CARRIER``
     The carrier core's paths, bound from the shared template
     (``_umux.Carrier(core, bsi=, timing=)``) to the core device this board
@@ -212,8 +219,20 @@ composition asks it for each and adds what it is given. This subpackage and
 those modules are the parts of cryodaq that import rogue at module level; the
 package does not import it.
 
+Given a crate slot rather than an address (``--shelfmanager``/``--slot``), the
+server works out the rest through the crate's shelf manager before it has a
+tree: the FPGA's address from the crate id, the PCIe lane from the slot, which
+bays are populated and the register defaults that population calls for, the
+firmware package on disk and whether the FPGA runs it, and a reboot when asked.
+Every value worked out is a default an explicit option overrides, what was read
+is published on the status device as the hardware inventory, and a board whose
+controller does not answer is tolerated when the addresses are given and
+refused, naming the read that failed, when they are not. The shelf-manager
+tools are wrapped behind one ``run`` seam in ``cryodaq.platform._atca``, so the
+launcher is checked against recorded crate answers with no crate.
+
 .. automodule:: cryodaq.server
     :members: compose, OperationsProvider, attach_operations, PlatformSupport, Setup,
               Transport, eth, pcie, tcp_bridge, emulation, ReadoutRoot, CORE_PROVIDERS,
-              add_capture_receivers, OffloadCard
+              add_capture_receivers, OffloadCard, launch
     :undoc-members:

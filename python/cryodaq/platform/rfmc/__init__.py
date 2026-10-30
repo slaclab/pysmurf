@@ -29,7 +29,7 @@
 
 from cryodaq.platform import _umux
 
-__all__ = ['NAME', 'TAGS', 'PACKAGE_CONFIG_DIR', 'CARRIER', 'REGISTERS', 'LEGACY',
+__all__ = ['NAME', 'TAGS', 'PACKAGE_CONFIG_DIR', 'BRING_UP', 'CARRIER', 'REGISTERS', 'LEGACY',
            'WITNESS', 'SCOPES', 'QUAD', 'RFDC', 'LMK_CONFIG', 'STARTUP_TIMING_SOURCE',
            'TIMING_RECEIVER_CROSSBAR_OUTPUT']
 
@@ -49,6 +49,12 @@ TAGS = ('MicrowaveMuxRfmcCarrier',)
 # defaults, and the clock chip's register file under lmk/ -- so a relative name a
 # server is given means a file there.
 PACKAGE_CONFIG_DIR = 'python/rfmc_cryo_det/config'
+
+# An ATCA carrier with a processor system beside the FPGA (+200) and its converters on
+# the board, so no bays and no population. No board with a management controller has
+# been read yet, so no carrier part number is listed: a shelf manager cannot recognise
+# this platform, and the launcher takes the addresses it is given.
+BRING_UP = _umux.BringUp(firmware_image='MicrowaveMuxRfmcCarrier', processor_offset=200)
 
 # --------------------------------------------------------------------------
 # the carrier core

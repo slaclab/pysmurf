@@ -59,7 +59,9 @@
 
 import argparse
 import contextlib
+import json
 import os
+import pathlib
 import socket
 import subprocess
 import sys
@@ -1603,21 +1605,45 @@ def check_the_reduced_entry_point_runs_to_ready_and_exits_on_sigterm():
 # both children as soon as the session's own tree is up, and each check judges
 # its own when its turn comes.
 ENTRY_POINT_MODULES = ('pysmurf.core.server', 'cryodaq.server')
+# The third child names a crate slot instead of an address, with the shelf-manager
+# tools replayed from the recorded crate (fixtures/ipmi/replay.py on PATH). On the carrier
+# runs it is slot 2, whose carrier answers and is an AMC carrier; on the RFMC run it
+# is slot 4, whose bench board has no controller, so the addresses are given and the
+# launcher has to tolerate it. Both paths are covered across the three runs.
+SLOT_CHILD = 'pysmurf.core.server (--slot)'
+IPMI_REPLAY = pathlib.Path(__file__).resolve().parent / 'fixtures' / 'ipmi' / 'replay.py'
+IPMI_TOOLS = ('ipmitool', 'cba_fru_init', 'cba_amc_init', 'ping', 'ProgramFPGA.bash')
 ENTRY_POINT_CHILDREN = {}
 
 
 def start_entry_point_children():
-    # Both ports before either child, so one cannot be handed the other's.
-    ports = {name: free_port() for name in ENTRY_POINT_MODULES}
+    # Every port before any child, so one cannot be handed another's.
+    names = ENTRY_POINT_MODULES + (SLOT_CHILD,)
+    ports = {name: free_port() for name in names}
     for name in ENTRY_POINT_MODULES:
         ENTRY_POINT_CHILDREN[name] = _EntryPointChild(name, ports[name])
+    ENTRY_POINT_CHILDREN[SLOT_CHILD] = _SlotChild(ports[SLOT_CHILD])
 
 
 def _entry_point_child(module):
     # A check run on its own, outside main(), starts just the child it judges.
     if module not in ENTRY_POINT_CHILDREN:
-        ENTRY_POINT_CHILDREN[module] = _EntryPointChild(module, free_port())
+        ENTRY_POINT_CHILDREN[module] = (_SlotChild(free_port()) if module == SLOT_CHILD
+                                        else _EntryPointChild(module, free_port()))
     return ENTRY_POINT_CHILDREN.pop(module)
+
+
+def check_the_entry_point_given_a_crate_slot_launches_from_the_recorded_crate():
+    """``python -m pysmurf.core.server -S <shelf manager> -N <slot>``: the launcher, end to end.
+
+    The slot's shelf-manager answers are replayed from the recorded crate. On the
+    carrier runs the slot answers, so the launcher derives the address and the
+    population and publishes what it read; on the RFMC run the slot's board has
+    no controller, so the given addresses are taken and the record says so.
+    Ready must rise either way, and the inventory on the status device must be
+    what the recorded crate said.
+    """
+    _entry_point_child(SLOT_CHILD).verdict(identity=True)
 
 
 class _EntryPointChild:
@@ -1645,7 +1671,8 @@ class _EntryPointChild:
     def verdict(self, identity):
         child, module = self.child, self.module
         try:
-            _wait_for_ready(child, self.port, identity, self.log, self.platform)
+            _wait_for_ready(child, self.port, identity, self.log, self.platform,
+                            judge=getattr(self, 'judge_inventory', None))
             child.terminate()
             try:
                 child.wait(timeout=ENTRY_POINT_EXIT_S)
@@ -1665,6 +1692,67 @@ class _EntryPointChild:
             f"{out.strip()[-600:]!r}")
 
 
+class _SlotChild(_EntryPointChild):
+    """The application entry point given a crate slot, over emulation, against the replayed crate."""
+
+    def __init__(self, port):
+        self.module, self.port = SLOT_CHILD, port
+        self.platform = EXPECTED_PLATFORM['rfmc' if PLATFORM == 'rfmc' else 'amc']
+        self.firmware_dir = tempfile.TemporaryDirectory()
+        fw = pathlib.Path(self.firmware_dir.name)
+        (fw / 'smurf_cfg' / 'defaults').mkdir(parents=True)
+        # The shelf-manager tools, first on PATH: each a link to the replay, which
+        # answers under the tool's name from the recorded transcripts.
+        tools = fw / 'bin'
+        tools.mkdir()
+        for tool in IPMI_TOOLS:
+            (tools / tool).symlink_to(IPMI_REPLAY)
+        # What the launcher looks for, by name: the carrier's image and the
+        # population's defaults. No package archive -- the firmware is on this
+        # run's import path (--cryo-det) or named by --zip -- and the launcher
+        # leaves a package it does not find to the import path.
+        (fw / 'MicrowaveMuxBpEthGen2-0x02050000-20260616105622-ruckman-af249f83.mcs').touch()
+        (fw / 'smurf_cfg' / 'defaults' / 'defaults_c03_lb_lb.yml').write_text('AMCc: {}\n')
+        if PLATFORM == 'rfmc':
+            self.slot = 4
+            slot_args = ['-S', 'shm-smrf-sp01', '-N', '4', '--addr', '10.0.1.104', '--ps-addr', '10.0.1.204']
+        else:
+            self.slot = 2
+            slot_args = ['-S', 'shm-smrf-sp01', '-N', '2']
+        args = slot_args + ['--firmware-dir', str(fw), '--transport', 'emulation', '--platform', self.platform,
+                            '--server-port', str(port), '--nopoll', '--capture-points', '0',
+                            '--log-level', 'WARNING'] + FIRMWARE_ARGS
+        cmd = [sys.executable, '-m', 'pysmurf.core.server'] + args
+        env = dict(os.environ, PYTHONPATH=os.pathsep.join(p for p in sys.path if p),
+                   PATH=f"{tools}{os.pathsep}{os.environ.get('PATH', '')}")
+        self.log = tempfile.TemporaryFile(mode='w+', encoding='utf-8')
+        self.child = subprocess.Popen(cmd, env=env, stdout=self.log, stderr=subprocess.STDOUT)
+
+    def verdict(self, identity):
+        try:
+            super().verdict(identity)
+        finally:
+            self.firmware_dir.cleanup()
+
+    def judge_inventory(self, client):
+        """What the launcher published, against what the recorded crate said for this slot."""
+        pmap = platform.by_name(self.platform)
+        text = client.root.getNode(pmap.path('application.hardware_inventory')).get()
+        assert text, 'the launcher read the crate but published no inventory'
+        inv = json.loads(text)
+        assert inv['slot'] == self.slot and inv['shelfmanager'] == 'shm-smrf-sp01', inv
+        if self.slot == 2:
+            assert inv['crate_id'] == 1 and inv['firmware_git_hash'] == 'af249f8', inv
+            assert inv['carrier']['Board Part Number'] == 'PC_379_396_38_C03_A04', inv['carrier']
+            assert inv['rtm_present'] is False and inv['errors'] == {}, (inv['rtm_present'], inv['errors'])
+            args = client.root.getNode(pmap.path('application.startup_arguments')).get()
+            assert '--addr' not in args and '-a ' not in args, \
+                f"the address was derived, so it must not be among the arguments as given: {args}"
+        else:
+            assert inv['crate_id'] is None and 'crate_id' in inv['errors'], inv
+            assert inv['rtm_present'] is None, 'with no controller, presence is unknown'
+
+
 def stop_entry_point_children():
     """Kill any child a check never came to judge (a run that stopped early)."""
     for pending in ENTRY_POINT_CHILDREN.values():
@@ -1675,7 +1763,7 @@ def stop_entry_point_children():
     ENTRY_POINT_CHILDREN.clear()
 
 
-def _wait_for_ready(child, port, identity, log, platform_name):
+def _wait_for_ready(child, port, identity, log, platform_name, judge=None):
     """Poll the child's server until ``Ready`` is up, within ENTRY_POINT_READY_S.
 
     ``identity`` says whether the application's version must be on the status
@@ -1712,6 +1800,8 @@ def _wait_for_ready(child, port, identity, log, platform_name):
                         assert version is None, \
                             "a reduced server carries an application's identity"
                         assert name == '', f"the reduced server names an application: {name!r}"
+                    if judge is not None:
+                        judge(client)
                     return
             finally:
                 client.stop()

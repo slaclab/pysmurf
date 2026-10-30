@@ -25,10 +25,11 @@ import socket
 from typing import Any, Dict, Optional
 
 from cryodaq import platform
+from cryodaq.server import _launch
 from cryodaq.server._capture import CAPTURE_POINTS
 
-__all__ = ['add_arguments', 'configure_logging', 'transport_from', 'composition_kwargs', 'top_level_options',
-           'server_port_for', 'run']
+__all__ = ['add_arguments', 'configure_logging', 'launch', 'transport_from', 'composition_kwargs',
+           'top_level_options', 'server_port_for', 'run']
 
 # The ZMQ port convention: a base, three ports per server, chosen by the slot.
 SERVER_PORT_BASE = 9000
@@ -55,8 +56,8 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
                        help="For tcp-bridge: receive the data on the host's Ethernet port (udp), "
                             "or through the PCIe offload card's lane (pcie, with --pcie-rssi-lane "
                             "and the --pcie-dev-* nodes as for the pcie transport).")
-    group.add_argument('--pcie-rssi-lane', '-l', type=int, choices=range(6), default=0,
-                       help="PCIe RSSI lane, for pcie.")
+    group.add_argument('--pcie-rssi-lane', '-l', type=int, choices=range(6), default=None,
+                       help="PCIe RSSI lane, for pcie; from the slot when one is named, else 0.")
     group.add_argument('--pcie-dev-rssi', default='/dev/datadev_0',
                        help="PCIe device node for registers.")
     group.add_argument('--pcie-dev-data', default='/dev/datadev_1',
@@ -100,7 +101,47 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     group.add_argument('--windows-title', '-w', default=None, help="GUI window title.")
     group.add_argument('--log-level', type=str.upper, default='WARNING',
                        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'])
+
+    # Naming a crate slot instead of an address: the launcher reads the rest
+    # from the crate's shelf manager, and every value it reads is a default
+    # that an explicit option above overrides.
+    crate = parser.add_argument_group('crate slot',
+                                      "Serve the carrier in a crate slot. The FPGA's address, the PCIe lane, "
+                                      "the populated bays and their register defaults, and the firmware "
+                                      "package are worked out from the slot; any of them given explicitly "
+                                      "is used as given.")
+    crate.add_argument('--shelfmanager', '-S', default=None, metavar='HOST',
+                       help="The crate's shelf manager; with --slot.")
+    crate.add_argument('--slot', '-N', type=int, default=None,
+                       help="The carrier's slot in the crate; with --shelfmanager.")
+    crate.add_argument('--firmware-dir', default=_launch.DEFAULT_FIRMWARE_DIR, metavar='DIR',
+                       help="Where the firmware release is kept: its package archive, FPGA image "
+                            "and register defaults.")
+    crate.add_argument('--no-hw-detect', '-E', action='store_true',
+                       help="Do not read the board population; pass --disable-bay* and --layer yourself.")
+    crate.add_argument('--no-check-firmware', '-D', dest='check_firmware', action='store_false',
+                       help="Do not compare the FPGA's firmware with the image on disk.")
+    crate.add_argument('--program', action='store_true',
+                       help="Load the FPGA image on disk even if the FPGA already runs it.")
+    crate.add_argument('--hard-boot', '-H', action='store_true',
+                       help="Reboot the FPGA before starting, then apply the register configuration.")
     return parser
+
+
+def launch(args: argparse.Namespace, **kwargs: Any) -> '_launch.Launched':
+    """Fill in what a crate slot implies; a no-op without --shelfmanager.
+
+    Called by every entry point between parsing and `transport_from`. What the
+    launcher read is kept on ``args.hardware_inventory`` for `composition_kwargs`
+    to publish. A launch that cannot decide exits with the reason, the way a
+    bad option does.
+    """
+    try:
+        done = _launch.launch(args, **kwargs)
+    except _launch.LaunchError as e:
+        raise SystemExit(f"cannot start: {e}") from None
+    args.hardware_inventory = done.inventory
+    return done
 
 
 def run(root: Any, args: argparse.Namespace) -> None:
@@ -193,7 +234,8 @@ def composition_kwargs(args: argparse.Namespace) -> Dict[str, Any]:
                 server_port=server_port_for(args), polling=args.polling,
                 configure=args.configure, capture_points=args.capture_points,
                 capture_type=args.capture_type,
-                top_level_options=top_level_options(args))
+                top_level_options=top_level_options(args),
+                hardware_inventory=getattr(args, 'hardware_inventory', None))
 
 
 def top_level_options(args: argparse.Namespace) -> Dict[str, Any]:

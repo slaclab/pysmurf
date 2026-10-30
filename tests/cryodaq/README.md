@@ -33,6 +33,9 @@ the second covers the two import rules below it:
 * **No application names** — `is_rfsoc`, `tes`, `bias_group` and `pA_per_phi0` appear nowhere under
   `cryodaq`. Which detectors are wired where belongs to the application above it, and branching on
   platform identity is what a per-platform map exists to avoid.
+* **Every tool call goes through the seam** — the shelf-manager tools the server launcher wraps are
+  run by one function, the one a check replays through; a `subprocess` anywhere else in the package is a
+  tool call the replay cannot see.
 * **Register paths only in `cryodaq.platform`** — a rogue register path appears only in the platform
   maps. This is the firmware/software boundary: it is what "the client does not know the register
   map" means mechanically.
@@ -226,6 +229,29 @@ lets this run on the bare runner beside the other checks here, where the client'
 
 Selftest cases drive each check with input it must refuse, including a client whose mixins cannot be
 read at all — a contract check that passes by finding nothing is worse than none.
+
+### check_launch.py
+
+This script checks what the server launcher decides when it is given a crate slot rather than an
+address. The shelf-manager tools are replayed from one recorded transcript per slot
+(`fixtures/ipmi/slot<N>.txt`: each command, what the tool printed, its exit status; `replay.py`
+answers from them, as a `run` for the launcher here and as the tools themselves, on PATH, for the
+entry-point check in `validate_client_emulated.py`). Two slots were recorded from a live crate: a
+carrier whose controller answers everything, and a bench board with no controller. It imports the
+server package, so it runs where the server's dependencies are (CI's server job).
+
+What it guards, in nine checks: the **parsing** of each tool's output (the crate id's byte order,
+the reversed git hash, FRU fields, absent against unknown); the **rules** that turn an inventory into
+a command line (address and lane from crate id and slot, bays and defaults layer from the population,
+the power monitor from the carrier version, the one package archive or else the checkout, a given
+option and a user's layer kept); and **hardware safety** — nothing is loaded or power-cycled unless
+asked for and possible, a board whose controller does not answer is refused by name without
+addresses and tolerated with them, and a reboot or load without a slot is refused. Answers the crate
+has not given — an empty bay, a firmware mismatch — are made up and say so.
+
+What it does not do: compare the launcher with the bash script it replaced. That comparison was run
+once, while both existed, and is recorded in the stage report; a test whose expected side is a dead
+implementation's output guards nothing once that implementation is gone.
 
 ### check_client_glue.py
 

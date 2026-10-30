@@ -1,41 +1,37 @@
 #!/usr/bin/env bash
+#
+# The server container's entry point. Everything the launcher used to work out
+# here -- the FPGA's address from the crate id, the PCIe lane, the board
+# population and its register defaults, the firmware package and whether the
+# FPGA runs it, a hard boot -- is the Python server's own now: name the crate
+# slot with -S/--shelfmanager and -N/--slot and it reads the rest from the
+# shelf manager. Every option is passed through unchanged, with one
+# translation kept for the deployments that spell it: -c/--comm-type
+# <eth|pcie|emu> is the server's --transport <eth|pcie|emulation>. (The server's
+# own -c is --configure, which is why the translation has to happen here.)
 
-########################
-# Function definitions #
-########################
+args=()
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -c|--comm-type)
+            case "$2" in
+                eth)  args+=(--transport eth) ;;
+                pcie) args+=(--transport pcie) ;;
+                emu)  args+=(--transport emulation) ;;
+                *)    echo "start_server.sh: -c/--comm-type takes eth, pcie or emu, not '$2'" >&2; exit 2 ;;
+            esac
+            shift 2 ;;
+        *)
+            args+=("$1"); shift ;;
+    esac
+done
 
-# Import functions from common script
-. server_common.sh
-
-# The common functions can be override here, if needed.
-
-#############
-# Main body #
-#############
-
-# Parse the inputs arguments.
-# The list of extra arguments will be store in 'args'
-arg_parser args "$@"
-
-# Call the initialization routines.
-# The list of extra arguments will be store in 'extra_args' and it
-# will be added to the list arguments 'args'. The generated arguments go
-# first: the register configuration files are applied in the order given, so
-# the population's defaults the detection picked must precede any layer the
-# user passed, which then overrides them.
-initialize extra_args
-args="${extra_args} ${args}"
-
-echo
-
-# If the GUI flag (-g or --gui) is present, ensure a display is available.
-# Start Xvfb if DISPLAY is not set or the X server is not reachable.
-if echo "${args}" | grep -qE '(^|\s)(-g|--gui)(\s|$)'; then
+# With the GUI requested, make sure a display exists.
+if printf '%s\n' "${args[@]}" | grep -qxE '(-g|--gui)'; then
     if [ -z "${DISPLAY}" ] || ! xdpyinfo -display "${DISPLAY}" >/dev/null 2>&1; then
         echo "No working display found. Starting Xvfb..."
         Xvfb :99 -screen 0 1920x1080x24 &
         export DISPLAY=:99
-        # Wait for Xvfb to be ready
         for i in $(seq 1 10); do
             if xdpyinfo -display :99 >/dev/null 2>&1; then
                 break
@@ -46,14 +42,5 @@ if echo "${args}" | grep -qE '(^|\s)(-g|--gui)(\s|$)'; then
     fi
 fi
 
-# Start the server. The transport is the communication type; everything else in
-# 'args' is passed through to the server's own command line.
-case ${comm_type} in
-    eth) transport=eth ;;
-    emu) transport=emulation ;;
-    *)   transport=pcie ;;
-esac
-echo "Starting the server over ${transport}..."
-cmd="python3 -m pysmurf.core.server --transport ${transport} ${args}"
-echo ${cmd}
-exec ${cmd}
+echo "python3 -m pysmurf.core.server ${args[*]}"
+exec python3 -m pysmurf.core.server "${args[@]}"
