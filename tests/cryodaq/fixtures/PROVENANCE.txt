@@ -15,7 +15,7 @@ Do not edit them by hand. Regenerate them with that script (its header says
 how); a hand edit is a fixture that answers a question the firmware would
 answer differently.
 
-Built at pysmurf 54cc2c85-dirty.
+Built at pysmurf e0367589-dirty.
 
 amc.varlist.txt
   built from      cryo-det MicrowaveMuxBpEthGen2_v2.5.1-6-gfe6a0f50
@@ -34,9 +34,9 @@ rfsoc.varlist.txt
   daq mux bays    [0, 1]
 
 rfmc.varlist.txt
-  built from      cryo-det MicrowaveMuxBpEthGen2_v2.5.1-6-gfe6a0f50 (rfmc) over rogue_MicrowaveMuxRfmcCarrier_v1.1.0.zip
+  built from      cryo-det MicrowaveMuxBpEthGen2_v2.5.1-6-gfe6a0f50 (rfmc) over rogue_MicrowaveMuxRfmcCarrier_v2.0.0.zip
   built by        pysmurf.core.server.compose over an emulated transport, the RFMC release package behind the operation-less CryoDet
-  rows            2275 of 66017
+  rows            2261 of 65865
   bands           [0, 1, 2, 3, 4, 5, 6, 7]
   front-end bays  [0, 1]
   daq mux bays    [0, 1]
