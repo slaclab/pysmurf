@@ -43,173 +43,11 @@ Here, **TAG** represents the specific tagged version you want to use.
 
 ### Server application
 
-The docker image entrypoint is the [start_server.sh](docker/server/scripts/start_server.sh) script. That script receives the following arguments:
+The docker image entrypoint is the [start_server.sh](docker/server/scripts/start_server.sh) script. It passes every argument to the server's own command line, `python3 -m pysmurf.core.server`, with one translation: `-c|--comm-type <eth|pcie|emu>` becomes `--transport <eth|pcie|emulation>`, since the server's own `-c` is `--configure`. With `-g|--gui` it also starts a virtual display when none is available.
 
-```
-usage: start_server.sh [-S|--shelfmanager <shelfmanager_name> -N|--slot <slot_number>]
-                       [-a|--addr <FPGA_IP>] [-D|--no-check-fw] <pyrogue_server-args>
-    -S|--shelfmanager <shelfmanager_name> : ATCA shelfmanager node name or IP address. Must be used with -N.
-    -N|--slot         <slot_number>       : ATCA crate slot number. Must be used with -S.
-    -a|--addr         <FPGA_IP>           : FPGA IP address. If defined, -S and -N are ignored.
-    -c|--comm-type    <comm_type>         : Communication type ('eth' or 'pcie'). Default is 'eth'.
-    -D|--no-check-fw                      : Disabled FPGA version checking.
-    -E|--disable-hw-detect                : Disable hardware type auto detection.
-    -H|--hard-boot                        : Do a hard boot: reboot the FPGA and load default configuration.
-    -h|--help                             : Show this message.
-    <pyrogue_server_args> are passed to the SMuRF pyrogue server.
-```
+The server's command line -- addressing a board directly or naming its crate slot and letting the server work out the address, the lane, the bays, the register defaults and the firmware package through the shelf manager -- is documented with the `cryodaq.server` package in the Sphinx documentation (*Starting a server*); `python3 -m pysmurf.core.server --help` lists the options.
 
-The `start_server.sh` script is in change of:
-
-#### FPGA IP address calculation
-You can address the target FPGA either using the card's ATCA shelfmanager's name and slot number (using arguments `-S` and `-N`), or by directly giving its IP address (using argument `-a`). If you use the shelfmanager name and slot number, the script will automatically detect the FPGA's IP address by reading the crate's ID and using the slot number, following the SLAC's convention: `IP address = 10.<crate's ID higher byte>.<crate's ID lower byte>.<100 + slot number>`. On the other hand, if you use the IP address, then the shelfmanager name and slot number arguments are ignored. The final IP address, either passed by the user or auto-detected by the script, is passed to the next startup script using the `-a` argument.
-
-#### Pyrogue ZIP file detection
-The script looks a pyrogue `zip` file to be present in `/tmp/fw/`. If found, the location of that file will be passed to the next startup script using the argument `-z`. If no zip file is found, the script will then look for a local checked out repository in the same location; if found, the python directories under it will be added to the PYTHONPATH environmental variable. The python directories must match these patterns:
-```
-/tmp/fw/*/firmware/python/
-/tmp/fw/*/firmware/submodules/*/python/
-```
-
-The docker images contains the `zip` file file in the `/tmp/fw/` directory. However, you can use a different version by mounting a local copy from the host CPU inside the container as `/tmp/fw/`, which will replace the internal files.
-
-#### Firmware version checking
-On the other hand, the scripts also looks for a MCS file in `/tmp/fw/`. The file name must include the short githash version of the firmware and an extension `mcs` or `mcs.gz`, following this expression: `*-<short-githash>.mcs[.gz]`. The script will also read the firmware short githash from the specified FPGA. If the version from the MCS file and the FPGA don't match, then the script will automatically load the MCS file into the FPGA. This automatic version checking can be disabled either by passing the argument `-D|--no-check-fw`, or by addressing the FPGA by IP address instead of ATCA's shelfmanager_name/slot_number.
-
-The docker images contains the `mcs.gz` files in the `/tmp/fw/` directory. However, you can use a different version of these files by mounting a local copy from the host CPU inside the container as `/tmp/fw/`, which will replace the internal files.
-
-#### Hardware type auto-detection
-The script will try to auto-detect the type of carrier and AMC boards, and automatically generate server startup arguments based on the hardware type.
-
-##### Carrier board
-The script will determine the type and version of the carrier board using the `cba_fru_init` utility, and looking at the `Board Part Number` filed. These field must follow this convention: `<part_number>_C<version>`:
-- The supported part number are: `PC_379_396_01` (Gen1), and `PC_379_396_38` (Gen2).
-- The version is a 2-digit number.
-If the carrier is a Gen2, version >= C03, then the option `--enable-em22xx` will be added to the list of startup arguments.
-
-##### AMC daughter board
-The script will determine the presence, type and version of the carrier board using the `cba_amc_init` utility, and looking at the `Board Part Number` filed. These field must follow this convention: `<part_number>_C<version>_<type>`:
-- The supported part number is: `PC_379_396_30`.
-- The version is a 2-digit number.
-- The type is either `A01` (for low band boards) or `A02` (for high band boards)
-If a board is not present in one of the bays, then the corresponding `--disable-bay[0,1]` flag will be added the list of start arguments. On the other hands, depending on the presence, type, and version of the AMC daughter boards, the corresponding defaults file will be added to the list of arguments as well; the defaults file name must follow the naming convention `defaults_<version>_<bay0_type>_<bay1_type>.yml`, where:
-- **version**: is the version of the AMC daughter boards. If both boards are present, they must be of the same version.
-- **bay[0,1]_type**: if the type of the AMC daughter board in each bay. Supported types are `lb` (for low band boards) and `hb` (for high band boards). In a bay is not populated, then this filed must be set to `none`.
-
-The generated arguments are placed before the ones given on the command line, so a `--defaults`/`--layer` file passed by the user is applied after the detected population's defaults and overrides them.
-
-If the script fails to detect the type of boards, then the startup process is aborted. The reason for the detection to failed are:
-- A board with an unsupported part number was found.
-- The board type or versions can not be extracted from the part numbers.
-- The AMC daughter boards are of different versions.
-- The defaults file was not found.
-
-This hardware auto-detection feature can be disabled using the option `-E|--disable-hw-detect`, or by addressing the FPGA by IP address instead of ATCA's shelfmanager_name/slot_number. The user should provided the appropriate startup arguments based on the hardware type.
-
-#### Hard boot
-The option `-H|--hard-boot` can be used to request a hard boot. During this boot mode, the FPGA is rebooted by deactivating and activating the carrier board before starting the pyrogue server, and the default configuration file is loaded during the pyrogue server booting process.
-
-
-All other arguments are passed verbatim to the server.
-
-The server is `python -m pysmurf.core.server`, started with `--transport eth`, `pcie` or
-`emulation` according to the communication type. It composes the readout server
-(`cryodaq.server`) with pysmurf's data processing attached. The platform (ATCA carrier or
-RFSoC) is read from the firmware's build stamp, not given as a flag. Its options:
-
-```
-Rogue/pyrogue version v6.14.1. https://github.com/slaclab/rogue
-smurf package imported
-usage: python -m pysmurf.core.server [-h] [--transport {eth,pcie,emulation}]
-                                     [--addr IP_ADDR]
-                                     [--pcie-rssi-lane {0,1,2,3,4,5}]
-                                     [--pcie-dev-rssi PCIE_DEV_RSSI]
-                                     [--pcie-dev-data PCIE_DEV_DATA]
-                                     [--no-pcie-card] [--firmware FIRMWARE]
-                                     [--layer FILE]
-                                     [--platform {umux-atca,umux-rfsoc}]
-                                     [--configure] [--nopoll] [--disable-bay0]
-                                     [--disable-bay1] [--enable-em22xx]
-                                     [--capture-points N]
-                                     [--capture-type {Int16,Int8}]
-                                     [--server-port SERVER_PORT] [--gui]
-                                     [--windows-title WINDOWS_TITLE]
-                                     [--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
-
-Start the SMuRF server.
-
-options:
-  -h, --help            show this help message and exit
-
-readout server:
-  --transport {eth,pcie,emulation}, -t {eth,pcie,emulation}
-                        How the FPGA is reached.
-  --addr IP_ADDR, -a IP_ADDR
-                        FPGA IP address; required for eth. For pcie, the
-                        address the card's lane is pointed at; omitted, the
-                        lane keeps its last one.
-  --pcie-rssi-lane {0,1,2,3,4,5}, -l {0,1,2,3,4,5}
-                        PCIe RSSI lane, for pcie.
-  --pcie-dev-rssi PCIE_DEV_RSSI
-                        PCIe device node for registers.
-  --pcie-dev-data PCIE_DEV_DATA
-                        PCIe device node for data.
-  --no-pcie-card        Do not configure the PCIe offload card: for pcie, take
-                        its lane as already open; for eth, leave its lanes
-                        alone.
-  --firmware FIRMWARE, --zip FIRMWARE, -z FIRMWARE
-                        Firmware Python package: a release archive or a
-                        checkout.
-  --layer FILE, --defaults FILE, -d FILE
-                        A register configuration file, applied in order given;
-                        the population's defaults first, then overrides.
-  --platform {umux-atca,umux-rfsoc}
-                        The platform; required for emulation, otherwise read
-                        from the hardware and checked against this if given.
-  --configure, -c       Apply the register configuration at startup.
-  --nopoll, -n          Disable all polling.
-  --disable-bay0        Leave bay 0's devices out of the tree.
-  --disable-bay1        Leave bay 1's devices out of the tree.
-  --enable-em22xx       Enable the EM22xx power monitor.
-  --capture-points N, --stream-pv-size N
-                        Points buffered by each debug capture receiver; 0
-                        disables them.
-  --capture-type {Int16,Int8}, --stream-pv-type {Int16,Int8}
-                        Sample type of the debug capture receivers.
-  --server-port SERVER_PORT
-                        ZMQ port; defaults to 9000 + 3 * (slot from the
-                        address or lane).
-  --gui, -g             Open rogue's GUI on the server, and stop when it
-                        closes.
-  --windows-title WINDOWS_TITLE, -w WINDOWS_TITLE
-                        GUI window title.
-  --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
-```
-
-The old server scripts' options are accepted under their old spellings where they still
-mean something: `-z/--zip` is `--firmware`, `-d/--defaults` is `--layer` (and may be given
-more than once), `--stream-pv-size`/`--stream-pv-type` are `--capture-points`/`--capture-type`.
-`--is-rfsoc`, `--is-prespectra` and `--rfsoc-mgmt-ip` are accepted and ignored (the platform and
-firmware line are read from the hardware's build stamp; the management address is the launcher's).
-`--dump-pvs` and `--use-qt` are gone: no server read them.
-
-A relative `--defaults`/`--layer` name refers to the configuration directory inside the
-firmware zip (`python/CryoDet/config/`), and to nothing else: a file of the same name in the
-working directory is never taken for it, and a name the zip lacks is refused. A path (absolute,
-or any name when there is no zip) is used as given. More than one may be given; they are
-applied in order by rogue's own configuration loader.
-
-With `--transport pcie`, the server configures the PCIe offload card itself: the lane's RSSI
-link to the carrier is opened before the firmware is read and closed when the server stops,
-so a server started after another has exited finds nothing to re-open by hand. `--addr` names
-the carrier; without it the lane keeps the address it was last pointed at. With `--transport
-eth` and a card present, the lanes pointing at the carrier are closed so they do not intercept
-its traffic. `--no-pcie-card` skips both — also the switch for a host whose `/dev/datadev_0` is some
-other card, which the server would otherwise refuse by its DeviceId. The card's registers are the
-`SmurfPcie` package's map (slaclab/smurf-pcie, on the server image's path), bound to the device and
-written by name; no tree of the card is started.
-
-With all that in mind, the command to run the container looks something like this:
+The firmware files the image carries are under `/tmp/fw/`; mount a directory of your own there to use different ones.
 
 ```
 docker run -ti --rm \
@@ -231,10 +69,7 @@ For example, to start the server using PCIe communication, on the carrier card l
 -S shm-smrf-sp01 -N 2 -c pcie <extra_args>
 ```
 
-At this point, `python3 -m pysmurf.core.server --transport pcie` is called passing the arguments:
-- `-a <ip_address>`,
-- if a zip file is located under `/tmp/fw` the the argument `-z /tmp/fw/file_name.zip` is passed, and
-- `extra_args` are passed verbatim.
+which runs `python3 -m pysmurf.core.server -S shm-smrf-sp01 -N 2 --transport pcie <extra_args>`: the server derives the address, lane, bays, defaults and firmware package from the slot, and `extra_args` are passed verbatim.
 
 ### Client application
 

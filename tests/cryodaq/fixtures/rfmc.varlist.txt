@@ -44,6 +44,7 @@ AMCc.SmurfApplication.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'P
 AMCc.SmurfApplication.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden', 'publish', 'stream']	Force read of device without recursion
 AMCc.SmurfApplication.WriteDevice	str	WO	None	0	['Hidden', 'publish', 'stream']	Force write of device without recursion
 AMCc.SmurfApplication.Application	str	RO	None	0	['publish', 'stream']	The application this server was composed with; empty for the readout core alone
+AMCc.SmurfApplication.HardwareInventory	str	RO	None	0	['publish', 'stream']	What the launcher read from the crate, as JSON; empty when nothing was read
 AMCc.SmurfApplication.EnabledBays	list	RO	None	0	['publish', 'stream']	List of bays that are enabled
 AMCc.SmurfApplication.ConfiguringInProgress	bool	RO	{False: 'False', True: 'True'}	0	['publish', 'stream']	The system configuration sequence is in progress
 AMCc.SmurfApplication.SystemConfigured	bool	RO	{False: 'False', True: 'True'}	0	['publish', 'stream']	The system was configured correctly

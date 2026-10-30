@@ -48,7 +48,7 @@ from typing import (Any, Callable, Dict, List, Mapping, Sequence, Tuple)
 from cryodaq._errors import ConnectError, UnresolvedName
 from cryodaq.platform import _umux, amc, rfmc, rfsoc
 
-__all__ = ['PlatformMap', 'MAPS', 'identify', 'from_stamp', 'by_name',
+__all__ = ['PlatformMap', 'MAPS', 'identify', 'from_stamp', 'by_name', 'bring_up_for',
            'tag_of', 'parse', 'expand', 'indices', 'witness_names', 'VALUE', 'COMMAND',
            'PROCESS', 'DEVICE', 'KINDS', 'MAX_SCOPE_INDEX', 'ROOT_PATH', 'STATUS_DEVICE_PATH']
 
@@ -297,6 +297,31 @@ def by_name(name: str) -> PlatformMap:
             return candidate
     known = ', '.join(m.name for m in MAPS)
     raise ConnectError(f"no platform called {name!r}; cryodaq has {known}")
+
+
+def bring_up_for(carrier_part_number: str) -> Any:
+    """The bring-up declaration of the platform whose carrier carries this FRU part number.
+
+    This is how a launcher knows which image, package and defaults a board
+    takes before it has a tree to identify the platform by; identification
+    proper reads the build stamp once there is one.
+
+    Returns
+    -------
+    _umux.BringUp or None
+        None if no platform declares the part number.
+
+    Raises
+    ------
+    ConnectError
+        If more than one platform claims it.
+    """
+    claimed = [(module.NAME, module.BRING_UP) for module in (amc, rfsoc, rfmc)
+               if any(carrier_part_number.startswith(p) for p in module.BRING_UP.carrier_part_numbers)]
+    if len(claimed) > 1:
+        raise ConnectError(f"carrier part number {carrier_part_number!r} is claimed by "
+                           f"{', '.join(name for name, _ in claimed)}")
+    return claimed[0][1] if claimed else None
 
 
 def from_stamp(stamp: Any) -> PlatformMap:

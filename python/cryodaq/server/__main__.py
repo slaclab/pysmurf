@@ -28,11 +28,16 @@ import cryodaq.server
 from cryodaq.server import _cli
 
 
-def main(argv=None) -> int:
-    parser = _cli.add_arguments(argparse.ArgumentParser(
+def parser() -> argparse.ArgumentParser:
+    """The command line of ``python -m cryodaq.server``: the readout server's options."""
+    return _cli.add_arguments(argparse.ArgumentParser(
         prog='python -m cryodaq.server', description='Start a reduced readout server.'))
-    args = parser.parse_args(argv)
+
+
+def main(argv=None) -> int:
+    args = parser().parse_args(argv)
     _cli.configure_logging(args)
+    _cli.launch(args, parser())
     with cryodaq.server.compose(transport=_cli.transport_from(args),
                                 **_cli.composition_kwargs(args)) as root:
         logging.getLogger(__name__).info("server on %s; platform %s; Ctrl-C to stop",

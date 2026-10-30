@@ -36,7 +36,7 @@ import pyrogue
 from cryodaq import platform
 from cryodaq._errors import ConnectError
 
-__all__ = ['load_package', 'resolve_layers', 'probe_platform', 'ROOT_NAME']
+__all__ = ['load_package', 'checkout_python_dirs', 'resolve_layers', 'probe_platform', 'ROOT_NAME']
 
 _log = logging.getLogger(__name__)
 
@@ -51,9 +51,10 @@ def load_package(path: Optional[os.PathLike]) -> None:
     Parameters
     ----------
     path : path-like or None
-        A release archive (its ``python/`` directory is added) or a directory
-        (added as given). None leaves the path alone, for a package already
-        importable.
+        A release archive (its ``python/`` directory is added), a firmware
+        checkout (its ``firmware/python`` and each submodule's are added, the
+        top level's found first), or any other directory (added as given).
+        None leaves the path alone, for a package already importable.
 
     Raises
     ------
@@ -64,46 +65,80 @@ def load_package(path: Optional[os.PathLike]) -> None:
         return
     path = os.fspath(path)
     if zipfile.is_zipfile(path):
-        entry = f"{path}/python"
+        entries = [f"{path}/python"]
     elif os.path.isdir(path):
-        entry = path
+        entries = checkout_python_dirs(path) or [path]
     else:
         raise FileNotFoundError(f"no firmware package at {path}")
     # Idempotent: an entry point that needs the package before compose() does
     # (to open an offload card) loads it first, and compose() loads it again.
-    if entry not in sys.path:
-        pyrogue.addLibraryPath(entry)
+    # addLibraryPath puts each entry at the front, so the last one added is
+    # found first: the submodules go in before the top level.
+    for entry in reversed(entries):
+        if entry not in sys.path:
+            pyrogue.addLibraryPath(entry)
+
+
+def checkout_python_dirs(path: os.PathLike) -> List[str]:
+    """A firmware checkout's Python directories, the top level's first; empty if ``path`` is not one.
+
+    The repositories keep the package at ``firmware/python`` and each
+    submodule's at ``firmware/submodules/<sub>/python`` or
+    ``firmware/submodules/<sub>/firmware/python``.
+    """
+    fw = os.path.join(os.fspath(path), 'firmware')
+    top = os.path.join(fw, 'python')
+    if not os.path.isdir(top):
+        return []
+    found = [top]
+    subs = os.path.join(fw, 'submodules')
+    for sub in sorted(os.listdir(subs)) if os.path.isdir(subs) else []:
+        for candidate in (os.path.join(subs, sub, 'python'), os.path.join(subs, sub, 'firmware', 'python')):
+            if os.path.isdir(candidate):
+                found.append(candidate)
+    return found
 
 
 def resolve_layers(layers, firmware: Optional[os.PathLike], config_dir: str) -> List[str]:
     """Configuration files as rogue's loader will take them.
 
-    With a release archive, a relative name means a file in the archive's
-    configuration directory (``config_dir``, the platform's) -- how a
-    deployment names the defaults a package ships -- and nothing else, so a
-    file of the same name in the working directory is never taken for it. An
+    With a firmware package, a relative name means a file in the package's
+    configuration directory (``config_dir``, the platform's) -- inside a
+    release archive, or under a checkout's ``firmware/`` -- and nothing else,
+    so a file of the same name in the working directory is never taken for
+    it. That is how a deployment names the defaults a package ships. An
     absolute name is used as given, and so is any name when there is no
-    archive to look inside.
+    package to look inside.
 
     Raises
     ------
     FileNotFoundError
-        If a relative name is not in the archive.
+        If a relative name is not in the package.
     """
     resolved = []
-    archive = os.fspath(firmware) if firmware is not None and zipfile.is_zipfile(firmware) else None
+    archive = checkout = None
+    if firmware is not None:
+        if zipfile.is_zipfile(firmware):
+            archive = os.fspath(firmware)
+        elif checkout_python_dirs(firmware):
+            checkout = os.path.join(os.fspath(firmware), 'firmware')
     for layer in layers:
         layer = os.fspath(layer)
-        if os.path.isabs(layer) or archive is None:
+        if os.path.isabs(layer) or (archive is None and checkout is None):
             # As given: rogue's loader takes a path into an archive as well as
             # a file, and reports what it cannot open.
             resolved.append(layer)
-            continue
-        member = f"{config_dir}/{layer}"
-        with zipfile.ZipFile(archive) as zf:
-            if member not in zf.namelist():
-                raise FileNotFoundError(f"{archive} holds no {member}")
-        resolved.append(f"{archive}/{member}")
+        elif archive is not None:
+            member = f"{config_dir}/{layer}"
+            with zipfile.ZipFile(archive) as zf:
+                if member not in zf.namelist():
+                    raise FileNotFoundError(f"{archive} holds no {member}")
+            resolved.append(f"{archive}/{member}")
+        else:
+            path = os.path.join(checkout, config_dir, layer)
+            if not os.path.isfile(path):
+                raise FileNotFoundError(f"{checkout} holds no {config_dir}/{layer}")
+            resolved.append(path)
     return resolved
 
 

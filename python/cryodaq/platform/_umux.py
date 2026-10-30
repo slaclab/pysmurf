@@ -37,10 +37,65 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-from typing import Dict, Tuple
+from dataclasses import dataclass
+from typing import Any, Dict, Mapping, Optional, Tuple
 
-__all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES', 'Carrier', 'APPLICATION',
+__all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES', 'Carrier', 'BringUp', 'APPLICATION',
            'SERVER_ADDED_ROOT_NODES']
+
+# --------------------------------------------------------------------------
+# what the launcher decides on, per platform, before a tree exists
+# --------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class BringUp:
+    """What defines a platform's carrier to the server launcher, before it has a tree.
+
+    A platform whose carrier's records imply more than this -- which bays hold a
+    board, which defaults file they call for -- subclasses it and overrides
+    `options`; what is here is common to every carrier.
+
+    Parameters
+    ----------
+    firmware_image : str
+        The image name in the release's file names: the FPGA image and the
+        package archive are found by it.
+    carrier_part_numbers : tuple of str
+        FRU part-number prefixes by which a carrier of this platform is
+        recognised; empty where no carrier with a management controller has
+        been read yet.
+    processor_offset : int or None
+        The address offset of a processor system beside the FPGA, where the
+        board has one (the FPGA's own port is at 100).
+    """
+    firmware_image: str
+    carrier_part_numbers: Tuple[str, ...] = ()
+    processor_offset: Optional[int] = None
+
+    def options(self, inventory: Mapping[str, Any]) -> Dict[str, Any]:
+        """The server options this platform derives from the shelf manager's record of a slot.
+
+        Parameters
+        ----------
+        inventory : mapping
+            What the shelf manager said about the slot: the carrier's and each
+            bay's FRU fields, None where a read failed.
+
+        Returns
+        -------
+        dict
+            Option destination name to value, as the launcher fills them in
+            where the command line did not; ``layers`` names one register
+            defaults file in the firmware release. Empty for a carrier whose
+            records imply nothing beyond its address.
+
+        Raises
+        ------
+        ValueError
+            If the records are not ones this platform can act on.
+        """
+        return {}
+
 
 # --------------------------------------------------------------------------
 # register paths, as templates over the indexed scopes
@@ -88,6 +143,7 @@ SYSTEM_CONFIGURED = f'{APPLICATION}.SystemConfigured'
 CONFIGURING_IN_PROGRESS = f'{APPLICATION}.ConfiguringInProgress'
 ENABLED_BAYS = f'{APPLICATION}.EnabledBays'
 STARTUP_ARGUMENTS = f'{APPLICATION}.StartupArguments'
+HARDWARE_INVENTORY = f'{APPLICATION}.HardwareInventory'   # what the launcher read off the crate, as JSON
 SMURF_VERSION = f'{APPLICATION}.SmurfVersion'
 SMURF_DIRECTORY = f'{APPLICATION}.SmurfDirectory'
 STARTUP_SCRIPT = f'{APPLICATION}.StartupScript'
@@ -582,6 +638,7 @@ REGISTERS = {
     'application.configuring': (CONFIGURING_IN_PROGRESS, _V),
     'application.enabled_bays': (ENABLED_BAYS, _V),
     'application.startup_arguments': (STARTUP_ARGUMENTS, _V),
+    'application.hardware_inventory': (HARDWARE_INVENTORY, _V),
     'server.restart_rssi': (RESTART_RSSI, _C),
     'application.version': (SMURF_VERSION, _V),
     'ops.setup': (SET_DEFAULTS, _P),
