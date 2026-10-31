@@ -125,14 +125,6 @@ def _identity():
 def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     """The server's options: the readout server's plus pysmurf's own."""
     cryodaq.server.add_arguments(parser)
-    group = parser.add_argument_group('SMuRF application')
-    # Accepted and ignored: the platform and firmware line are read from the
-    # hardware's build stamp, and the management address belongs to the
-    # launcher's firmware check. Kept so a launcher that still passes them
-    # keeps working; to be removed.
-    group.add_argument('--is-rfsoc', action='store_true', help=argparse.SUPPRESS)
-    group.add_argument('--is-prespectra', action='store_true', help=argparse.SUPPRESS)
-    group.add_argument('--rfsoc-mgmt-ip', default=None, help=argparse.SUPPRESS)
     return parser
 
 
@@ -142,10 +134,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         prog='python -m pysmurf.core.server', description='Start the SMuRF server.'))
     args = parser.parse_args(argv)
     cryodaq.server.configure_logging(args)
-    for flag in ('is_rfsoc', 'is_prespectra'):
-        if getattr(args, flag):
-            _log.warning("--%s is ignored: the platform is read from the hardware's build stamp",
-                         flag.replace('_', '-'))
+    cryodaq.server.launch(args)
     source = pysmurf.core.emulators.StreamDataSource() if args.transport == 'emulation' else None
     root = compose(transport=cryodaq.server.transport_from(args, emulation_source=source),
                    **cryodaq.server.composition_kwargs(args))

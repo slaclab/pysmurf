@@ -9,7 +9,7 @@
 #    The platform map for microwave-multiplexed readout on the RFMC carrier: an
 #    RFSoC whose data converters are on the chip, on a carrier board of its own
 #    with two RF front-end quads -- each with the same attenuator block an AMC
-#    bay carries, and four synthesiser PLLs the AMC does not. It has no JESD
+#    bay carries, with its synthesisers driven by the firmware. It has no JESD
 #    links, so it does not offer the names those registers back.
 #
 #    The application registers come from _umux, as every platform's do. The
@@ -29,14 +29,14 @@
 
 from cryodaq.platform import _umux
 
-__all__ = ['NAME', 'TAGS', 'PACKAGE_CONFIG_DIR', 'CARRIER', 'REGISTERS', 'LEGACY',
+__all__ = ['NAME', 'TAGS', 'PACKAGE_CONFIG_DIR', 'BRING_UP', 'CARRIER', 'REGISTERS', 'LEGACY',
            'WITNESS', 'SCOPES', 'QUAD', 'RFDC', 'LMK_CONFIG', 'STARTUP_TIMING_SOURCE',
            'TIMING_RECEIVER_CROSSBAR_OUTPUT']
 
 NAME = 'umux-rfmc'
 
 # The firmware image name this platform runs, as the build stamp reports it.
-# First derived from the release asset's name (rogue_MicrowaveMuxRfmcCarrier_v1.1.0),
+# First derived from the release asset's name (rogue_MicrowaveMuxRfmcCarrier_v2.0.0),
 # then read off a board running that release, through the TCP bridge:
 #
 #   MicrowaveMuxRfmcCarrier: Vivado v2026.1, rdsrv403 (Ubuntu 22.04.5 LTS), Built Fri Oct 16 ... 2026 by ruckman
@@ -49,6 +49,12 @@ TAGS = ('MicrowaveMuxRfmcCarrier',)
 # defaults, and the clock chip's register file under lmk/ -- so a relative name a
 # server is given means a file there.
 PACKAGE_CONFIG_DIR = 'python/rfmc_cryo_det/config'
+
+# An ATCA carrier with a processor system beside the FPGA (+200) and its converters on
+# the board, so no bays and no population. No board with a management controller has
+# been read yet, so no carrier part number is listed: a shelf manager cannot recognise
+# this platform, and the launcher takes the addresses it is given.
+BRING_UP = _umux.BringUp(firmware_image='MicrowaveMuxRfmcCarrier', processor_offset=200)
 
 # --------------------------------------------------------------------------
 # the carrier core
@@ -91,16 +97,12 @@ QUAD = f'{_umux.APP_CORE}.RfmcQuad[{{bay}}]'
 _ATTENUATORS = f'{QUAD}.ATT'
 _ATTENUATOR_UC = f'{_ATTENUATORS}.UC[{{attenuator}}]'
 _ATTENUATOR_DC = f'{_ATTENUATORS}.DC[{{attenuator}}]'
-# The four synthesiser PLLs of a quad (ADF5356), and whether each reports lock.
-_PLL_LOCKED = f'{QUAD}.PllLocked[{{pll}}]'
-
 _V = 'value'
 
 REGISTERS = {**_umux.REGISTERS, **CARRIER.registers()}
 REGISTERS.update({
     'bay[*].attenuator[*].uc': (_ATTENUATOR_UC, _V),
     'bay[*].attenuator[*].dc': (_ATTENUATOR_DC, _V),
-    'bay[*].pll[*].locked': (_PLL_LOCKED, _V),
 })
 
 LEGACY = {**_umux.LEGACY, **CARRIER.legacy()}
@@ -108,13 +110,12 @@ LEGACY = {**_umux.LEGACY, **CARRIER.legacy()}
 SCOPES = {**_umux.SCOPES, **CARRIER.scopes()}
 SCOPES.update({
     'attenuator': ((_ATTENUATOR_UC, _ATTENUATOR_DC), ('bay',)),
-    'pll': ((_PLL_LOCKED,), ('bay',)),
 })
 
-# Worth recording how this carrier was left: its attenuator settings and whether
-# each synthesiser locked.
+# Worth recording how this carrier was left: its attenuator settings. (The release
+# before v2.0.0 exposed each quad's synthesiser PLLs and their lock bits; v2.0.0
+# drives the synthesisers from the firmware and offers no such registers.)
 WITNESS = _umux.WITNESS + (
     'bay[*].attenuator[*].uc',
     'bay[*].attenuator[*].dc',
-    'bay[*].pll[*].locked',
 )

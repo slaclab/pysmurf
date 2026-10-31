@@ -107,11 +107,10 @@ CARRIER_ONLY_DEVICES = ('MicrowaveMuxCore', 'AppTopJesd', 'SmurfApplication.Jesd
 
 # What the AMC carrier and the RFMC carrier differ by: the AMC carrier core against
 # the RFMC's (each named for its board, with the same leaves inside), the AMC's
-# converter cards and their JESD links against the RFMC's quads with their synthesiser
-# PLLs, and the regulator the server attaches on the AMC carrier. The two share the
-# uMux application wholesale, which is what the difference is checked against.
+# converter cards and their JESD links against the RFMC's quads, and the regulator
+# the server attaches on the AMC carrier. The two share the uMux application
+# wholesale, which is what the difference is checked against.
 AMC_CARRIER_ONLY_DEVICES = CARRIER_ONLY_DEVICES + ('AmcCarrierCore',)
-RFMC_CARRIER_ONLY_DEVICES = ('RfmcCarrierCore', 'RfmcQuad')
 
 # Names whose nodes the server attaches to the tree at start-up, rather than the
 # firmware package declaring them: the four resonator-tuning processes and the
@@ -568,22 +567,23 @@ def check_the_two_carriers_differ_by_their_boards_alone():
     Both carry the whole uMux application, so every name that is not the board's
     must be in both maps and reach the same register. What is only the AMC carrier's is its
     converter cards' devices, the JESD verdict and health, the AMC carrier core and the
-    regulator the server attaches to it; what is only the RFMC's is its quads'
-    synthesisers. The carrier-core names are in both maps and reach different
-    devices, named for the board -- so the same name resolves on both dumps, at
-    different paths, and that is asserted here as well.
+    regulator the server attaches to it. The RFMC offers no name the AMC lacks: since
+    release v2.0.0 its synthesisers are driven by the firmware and expose no registers,
+    so the RFMC's whole difference is *where* shared names go -- the carrier-core names
+    and the attenuators are in both maps and reach different devices, named for the
+    board, and that is asserted here as well. (Through v1.1.0 the quads' PLL lock bits
+    were RFMC-only names; a name reappearing on one side only would show up here.)
     """
     amc = platform.by_name(PLATFORM_OF['amc'])
     rfmc = platform.by_name(PLATFORM_OF['rfmc'])
     amc_only = sorted(set(amc.registers) - set(rfmc.registers))
     rfmc_only = sorted(set(rfmc.registers) - set(amc.registers))
-    assert amc_only and rfmc_only, 'the two carrier maps do not differ in both directions'
+    assert amc_only, 'the AMC carrier offers nothing the RFMC does not; its converter cards are not being told apart'
     stray = [n for n in amc_only
              if not any(d in template_of(amc, n) for d in AMC_CARRIER_ONLY_DEVICES)]
     assert not stray, 'AMC-only name(s) that are not its board\'s: ' + ', '.join(stray[:6])
-    stray = [n for n in rfmc_only
-             if not any(d in template_of(rfmc, n) for d in RFMC_CARRIER_ONLY_DEVICES)]
-    assert not stray, 'RFMC-only name(s) that are not its board\'s: ' + ', '.join(stray[:6])
+    assert not rfmc_only, \
+        'RFMC-only name(s), which v2.0.0 has none of: ' + ', '.join(rfmc_only[:6])
     # A shared name that reaches a different device on the two is the carrier core's
     # (AmcCarrierCore / RfmcCarrierCore) or the front end's (MicrowaveMuxCore / RfmcQuad
     # carry the same attenuator block); any other difference is two tables drifting.

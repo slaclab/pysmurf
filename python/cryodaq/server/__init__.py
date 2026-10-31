@@ -49,12 +49,13 @@ __all__ = ['compose', 'CORE_PROVIDERS', 'OperationsProvider', 'attach_operations
            'PlatformSupport', 'Setup',
            'Transport', 'eth', 'pcie', 'tcp_bridge', 'emulation', 'OffloadCard', 'ReadoutRoot',
            'ApplicationConfig', 'ApplicationStatus', 'EXCLUDED_FROM', 'UMUX_OPERATIONS',
-           'add_capture_receivers', 'CAPTURE_POINTS', 'add_arguments', 'configure_logging', 'transport_from',
-           'composition_kwargs', 'run']
+           'add_capture_receivers', 'CAPTURE_POINTS', 'add_arguments', 'configure_logging', 'launch',
+           'transport_from', 'composition_kwargs', 'run']
 
 # The command line a server entry point shares.
 add_arguments = _cli.add_arguments
 configure_logging = _cli.configure_logging
+launch = _cli.launch
 transport_from = _cli.transport_from
 composition_kwargs = _cli.composition_kwargs
 run = _cli.run
@@ -73,7 +74,8 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
             top_level_options: Optional[Mapping[str, Any]] = None,
             capture_points: int = 0, capture_type: str = 'Int16',
             on_start: Optional[Callable[[ReadoutRoot], None]] = None,
-            support: Optional[PlatformSupport] = None, application: str = '') -> ReadoutRoot:
+            support: Optional[PlatformSupport] = None, application: str = '',
+            hardware_inventory: Optional[Mapping[str, Any]] = None) -> ReadoutRoot:
     """Build a readout server.
 
     Parameters
@@ -123,6 +125,9 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
     application : str, optional
         The application composing this server, published as
         ``application.name``; the readout core alone leaves it ''.
+    hardware_inventory : mapping, optional
+        What the launcher read from the crate before composing -- FRU records,
+        crate id, firmware hash -- published on the status device as JSON.
 
     Returns
     -------
@@ -175,7 +180,7 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
                            sinks=sinks, layers=layers, server_port=server_port, polling=polling,
                            configure=configure, variable_groups=variable_groups, on_start=on_start,
                            application=application, devices=support.devices(transport),
-                           setup=support.setup())
+                           setup=support.setup(), hardware_inventory=hardware_inventory)
         if capture_points:
             add_capture_receivers(root, transport, capture_points, capture_type)
     except BaseException:

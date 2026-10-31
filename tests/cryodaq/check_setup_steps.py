@@ -403,7 +403,7 @@ def check_the_rfmc_sequence_is_the_firmwares_own():
         ('call', f'{rfdc}.Init'),
         ('call', 'AMCc.ReadAll'),
         ('set', f'{rfdc}.Mts.DacTiles', 0xF),
-        ('set', f'{rfdc}.Mts.AdcTiles', 0xF),
+        ('set', f'{rfdc}.Mts.AdcTiles', 0x5),                    # ADC224 + ADC226: the IP disables MTS on the 6x-decimation tiles (v2.0.0)
         ('set', f'{rfdc}.Mts.DacRefTile', 0x0),                  # DAC228, the DAC clock source
         ('set', f'{rfdc}.Mts.AdcRefTile', 0x2),                  # ADC226, the ADC clock source
         ('call', f'{rfdc}.Mts.SyncDacTiles'),

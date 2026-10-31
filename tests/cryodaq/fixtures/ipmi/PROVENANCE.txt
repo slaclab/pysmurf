@@ -1,0 +1,17 @@
+Recorded shelf-manager answers for tests/cryodaq/check_launch.py and the slot-driven entry
+point check in validate_client_emulated.py: what the tools the server launcher wraps printed
+for two crate slots, captured from a live crate (shm-smrf-sp01, reads only) with stderr folded
+into stdout as run_tool() folds it. One transcript per slot; replay.py answers from them.
+
+slot2.txt   An AMC carrier (AMCC-KU15P, PC_379_396_38_C03_A04) with both bays populated
+            (PC_379_396_30_C03_A01, low band). The IPMC answers everything: crate id "01 00",
+            firmware git hash "83 9f 24 af" (byte-reversed af249f83), boot state 3, carrier
+            FRU 0; FRU 1 (the rear transition module) absent, "Destination unavailable", and
+            -- the [rtm-fitted] variant -- present after an LCLS-II cryo RTM (PC_379_396_32_C01)
+            was fitted to the same slot.
+slot4.txt   A bench board with no management controller: every ipmitool call fails ("Unable
+            to send RAW command", "Device not present (No Response)") with exit status 1, and
+            the cba_* tools print "Board not present in slot" with exit status 0.
+
+Not recorded (no such hardware was at hand): a slot with one bay empty, a high-band or TKID
+daughter board, a firmware mismatch. check_launch.py makes those answers up and says so.

@@ -37,10 +37,27 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-from typing import Dict, Tuple
+from dataclasses import dataclass, field
+from typing import Dict, Mapping, Optional, Tuple
 
-__all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES', 'Carrier', 'APPLICATION',
+__all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES', 'Carrier', 'BringUp', 'APPLICATION',
            'SERVER_ADDED_ROOT_NODES']
+
+# --------------------------------------------------------------------------
+# what the launcher decides on, per platform, before a tree exists
+# --------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class BringUp:
+    """Per-platform facts the server launcher decides on before it has a tree. Data only."""
+    firmware_image: str                                   # the image name in the release's file names
+    carrier_part_numbers: Tuple[str, ...] = ()            # carrier FRU part-number prefixes of this platform
+    amc_part_number: Optional[str] = None                 # the AMC daughter board's part-number prefix
+    amc_types: Mapping[str, str] = field(default_factory=dict)   # AMC type code -> defaults-file word
+    power_i2c_from: Optional[Tuple[str, int]] = None      # (carrier prefix, version) carrying the EM22xx
+    processor_offset: Optional[int] = None                # address offset of a processor system beside the FPGA
+    defaults_layer: Optional[str] = None                  # one defaults file, where no population chooses it
+
 
 # --------------------------------------------------------------------------
 # register paths, as templates over the indexed scopes
@@ -88,6 +105,7 @@ SYSTEM_CONFIGURED = f'{APPLICATION}.SystemConfigured'
 CONFIGURING_IN_PROGRESS = f'{APPLICATION}.ConfiguringInProgress'
 ENABLED_BAYS = f'{APPLICATION}.EnabledBays'
 STARTUP_ARGUMENTS = f'{APPLICATION}.StartupArguments'
+HARDWARE_INVENTORY = f'{APPLICATION}.HardwareInventory'   # what the launcher read off the crate, as JSON
 SMURF_VERSION = f'{APPLICATION}.SmurfVersion'
 SMURF_DIRECTORY = f'{APPLICATION}.SmurfDirectory'
 STARTUP_SCRIPT = f'{APPLICATION}.StartupScript'
@@ -582,6 +600,7 @@ REGISTERS = {
     'application.configuring': (CONFIGURING_IN_PROGRESS, _V),
     'application.enabled_bays': (ENABLED_BAYS, _V),
     'application.startup_arguments': (STARTUP_ARGUMENTS, _V),
+    'application.hardware_inventory': (HARDWARE_INVENTORY, _V),
     'server.restart_rssi': (RESTART_RSSI, _C),
     'application.version': (SMURF_VERSION, _V),
     'ops.setup': (SET_DEFAULTS, _P),

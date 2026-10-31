@@ -34,6 +34,10 @@
 # Application boundary: the identifiers is_rfsoc, tes, bias_group and
 # pA_per_phi0 do not appear anywhere under cryodaq.
 #
+# Tool boundary: the shelf-manager tools the server launcher wraps are run by
+# one function, the seam a check replays through; a subprocess anywhere else
+# in the package is a tool call the replay cannot see.
+#
 # Publisher substitutability: the null publisher a session falls back to spells
 # its parameters the way pysmurf's Publisher spells them, so a caller that passes
 # them by keyword gets the same call on either. Compared by parsing both files,
@@ -76,6 +80,8 @@ SERVER_SIDE_PACKAGE = ('server',)
 # Identifiers that mark the application boundary.
 APPLICATION_NAMES = ('is_rfsoc', 'tes', 'bias_group', 'pA_per_phi0')
 APPLICATION_NAMES_RE = re.compile(r'\b(' + '|'.join(APPLICATION_NAMES) + r')\b')
+# The one function allowed to run a subprocess, as `module.function`.
+SUBPROCESS_SEAM = ('platform/_atca.py', 'run_tool')
 # Anything that looks like a rogue register path.
 REGISTER_PATH_RE = re.compile(
     r'(^|[.\s\'"])(AMCc|FpgaTopLevel|AppTop|AppCore|SysgenCryo|CryoChannels|'
@@ -257,6 +263,28 @@ def check_rogue_is_imported_only_where_a_session_opens_or_a_server_runs():
 
 def check_register_paths_only_in_platform():
     report('paths')
+
+
+def subprocess_sites(package):
+    """Every function that reaches `subprocess`, as ``file:function``, less the seam."""
+    found = []
+    for rel, tree in modules(package):
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            uses = any(isinstance(n, ast.Attribute) and isinstance(n.value, ast.Name) and n.value.id == 'subprocess'
+                       for n in ast.walk(node))
+            if uses and (rel.as_posix(), node.name) != SUBPROCESS_SEAM:
+                found.append(f"{rel}:{node.lineno} {node.name} runs a subprocess outside the seam")
+    return found
+
+
+def check_every_tool_call_goes_through_the_seam():
+    bad = subprocess_sites(PACKAGE)
+    if bad:
+        raise AssertionError(f"{len(bad)} site(s):\n" + '\n'.join(f"    {b}" for b in bad))
+    assert any(rel.as_posix() == SUBPROCESS_SEAM[0] for rel, _ in modules(PACKAGE)), \
+        f"the seam {SUBPROCESS_SEAM[0]} is not in the package; the rule has nothing to hold"
 
 
 def check_register_paths_in_data_files_are_in_platform_too():
@@ -573,6 +601,8 @@ def check_rules_fire_on_a_bad_package():
         "    rogue = None\n"
     )
     server_side = "import pyrogue\nclass D(pyrogue.Device):\n    pass\n"
+    # A tool run from anywhere but the seam.
+    tool_elsewhere = "import subprocess\ndef probe():\n    return subprocess.run(['ipmitool'])\n"
     bad_map = (
         "import sodetlib\n"
         "import pyrogue as pr\n"
@@ -591,6 +621,7 @@ def check_rules_fire_on_a_bad_package():
         (pkg / 'server' / '__init__.py').write_text('')
         (pkg / 'server' / '_root.py').write_text(server_side)
         (pkg / 'server' / '_bad.py').write_text('import pysmurf\n')
+        (pkg / 'server' / '_tool.py').write_text(tool_elsewhere)
         # The same content one directory over is not exempt.
         (pkg / 'other').mkdir()
         (pkg / 'other' / '__init__.py').write_text('')
@@ -613,6 +644,7 @@ def check_rules_fire_on_a_bad_package():
             '{"path": "AMCc.FpgaTopLevel.AppTop"}')
         (pkg / 'logo.bin').write_bytes(b'\x00\xff\xfe AMCc.FpgaTopLevel')
         found = violations(pkg)
+        seam_rule = subprocess_sites(pkg)
 
         PACKAGE = pkg
         try:
@@ -623,6 +655,9 @@ def check_rules_fire_on_a_bad_package():
             data_rule = ''
         finally:
             PACKAGE = saved
+
+    assert seam_rule == ['server/_tool.py:2 probe runs a subprocess outside the seam'], \
+        f"a subprocess outside the seam was not caught as such: {seam_rule}"
 
     assert 'smuggled.json' in data_rule, \
         f"a register map shipped as data outside the platform package was not caught: {data_rule!r}"

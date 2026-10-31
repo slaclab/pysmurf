@@ -1,0 +1,96 @@
+# Slot 2 of shm-smrf-sp01, 2026-10-29/30: an AMC carrier (AMCC-KU15P) whose IPMC answers
+# everything; both bays hold low-band AMCs; no rear module until the [rtm-fitted] block.
+# Format: `$ <command>` (or `$[tag] <command>` for a variant), the lines it printed, `= <exit status>`.
+
+$ ipmitool -I lan -H shm-smrf-sp01 -t 0x84 -b 0 -A NONE raw 0x34 0x04 0xFD 0x02
+ 01 00
+= 0
+
+$ ipmitool -I lan -H shm-smrf-sp01 -t 0x84 -b 0 -A NONE raw 0x34 0x04 0xe0 0x04
+ 83 9f 24 af
+= 0
+
+$ ipmitool -I lan -H shm-smrf-sp01 -t 0x84 -b 0 -A NONE raw 0x34 0xF4
+ 03 00 00 00 00
+= 0
+
+$ ipmitool -I lan -H shm-smrf-sp01 -t 0x84 -b 0 -A NONE fru print 0
+ Board Mfg Date        : Tue Oct 12 00:00:00 2021 UTC
+ Board Mfg             : SLAC
+ Board Product         : AMCC-KU15P
+ Board Serial          : e00000017b7d8a70
+ Board Part Number     : PC_379_396_38_C03_A04
+ Product Manufacturer  : SLAC
+ Product Name          : AMCC-KU15P
+ Product Part Number   : PC_379_396_38_C03_A04
+ Product Version       : C03_A04
+ Product Serial        : e00000017b7d8a70
+ Product Asset Tag     : C03-50
+= 0
+
+$ ipmitool -I lan -H shm-smrf-sp01 -t 0x84 -b 0 -A NONE fru print 1
+ Device not present (Destination unavailable)
+= 1
+
+$[rtm-fitted] ipmitool -I lan -H shm-smrf-sp01 -t 0x84 -b 0 -A NONE fru print 1
+ Board Mfg Date        : Wed Nov  1 00:00:00 2017 UTC
+ Board Mfg             : SLAC
+ Board Product         : LCLS-II CRYO RTM
+ Board Serial          : 580000012ca9b770
+ Board Part Number     : PC_379_396_32_C01
+ Product Manufacturer  : SLAC
+ Product Name          : LCLS-II CRYO RTM
+ Product Part Number   : PC_379_396_32_C01
+ Product Version       : C01
+ Product Serial        : 580000012ca9b770
+ Product Asset Tag     : C01-A01-14
+= 0
+
+$ cba_fru_init --dump shm-smrf-sp01/2
+FRU Device Description :
+ Board Mfg Date        : 2021-10-11 23:00:00
+ Board Mfg Name        : SLAC
+ Board Product Name    : AMCC-KU15P
+ Board Serial No.      : e00000017b7d8a70
+ Board Part Number     : PC_379_396_38_C03_A04
+ Board File ID         : pc_379_396_38_c03_a04.inf
+ Product Mfg Name      : SLAC
+ Product Name          : AMCC-KU15P
+ Product Part Number   : PC_379_396_38_C03_A04
+ Product Version       : C03_A04
+ Product Serial No.    : e00000017b7d8a70
+ Product Asset Tag     : C03-50
+ Product File ID       : pc_379_396_38_c03_a04.inf
+= 0
+
+$ cba_amc_init --dump shm-smrf-sp01/2/0
+AMC 0 Device Description :
+ Board Mfg Date        : 2017-10-02 23:00:00
+ Board Mfg Name        : SLAC
+ Board Serial No.      : 8f00000163d18970
+ Board Part Number     : PC_379_396_30_C03_A01
+ Product Mfg Name      : SLAC
+ Product Part Number   : PC_379_396_30_C03_A01
+ Product Version       : C03
+ Product Serial No.    : 8f00000163d18970
+ Product Asset Tag     : A01-25
+ Internal Aux Pwr Ekey : 01
+ Internal BOM          : 00
+ Internal Type         : 0000000a
+= 0
+
+$ cba_amc_init --dump shm-smrf-sp01/2/2
+AMC 2 Device Description :
+ Board Mfg Date        : 2020-08-12 23:00:00
+ Board Mfg Name        : SLAC
+ Board Serial No.      : 000000011d1f8f70
+ Board Part Number     : PC_379_396_30_C03_A01
+ Product Mfg Name      : SLAC
+ Product Part Number   : PC_379_396_30_C03_A01
+ Product Version       : C03
+ Product Serial No.    : 000000011d1f8f70
+ Product Asset Tag     : A01-109
+ Internal Aux Pwr Ekey : 01
+ Internal BOM          : 01
+ Internal Type         : 0000000a
+= 0
