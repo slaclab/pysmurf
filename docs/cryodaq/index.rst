@@ -233,18 +233,6 @@ in what the command line left out, and every value it fills in is a default:
 an option given explicitly is used as given, and the log says which of the
 launcher's answers went unused. There are two ways in.
 
-The firmware directory (``--firmware-dir``, default ``/tmp/fw``) is the one
-place a deployment keeps its firmware, and the one option that names it. The
-server finds the firmware's Python package there: the one release archive
-(``rogue_<image>_v*.zip``), or else the one checkout (a directory with
-``firmware/python``, or the firmware directory being one itself). Two of a
-kind is a refusal naming them, since guessing between releases is how a server
-comes up on the wrong register map; none is allowed, for a package already
-importable. The same directory holds the FPGA image the firmware check
-compares against and the register defaults (``smurf_cfg/defaults/``) a
-population calls for. A relative ``--layer`` name is a file in the package's
-own configuration directory, inside the archive or under the checkout.
-
 **Told an address** (``--addr``, or ``--transport emulation``), nothing is read
 from a crate. The address, the bays and the register layers are as given, the
 PCIe lane is 0 unless ``--pcie-rssi-lane`` says otherwise, and the package is
@@ -296,6 +284,18 @@ The shelf manager is driven through SLAC's crate tools (``ipmitool``,
 one module that starts a subprocess; nothing writes to a carrier -- no power
 cycle, no image load -- except at steps 5 and 6, and the launcher's checks
 replay recorded crate answers with no crate.
+
+The firmware directory (``--firmware-dir``, default ``/tmp/fw``) is the one
+place a deployment keeps its firmware, and the one option that names it. The
+server finds the firmware's Python package there: the one release archive
+(``rogue_<image>_v*.zip``), or else the one checkout (a directory with
+``firmware/python``, or the firmware directory being one itself). Two of a
+kind is a refusal naming them, since guessing between releases is how a server
+comes up on the wrong register map; none is allowed, for a package already
+importable. The same directory holds the FPGA image the firmware check
+compares against and the register defaults (``smurf_cfg/defaults/``) a
+population calls for. A relative ``--layer`` name is a file in the package's
+own configuration directory, inside the archive or under the checkout.
 
 The server's own log and rogue's are set apart: ``--log-level`` (default
 ``INFO``) governs what the server says about its decisions, identification and
