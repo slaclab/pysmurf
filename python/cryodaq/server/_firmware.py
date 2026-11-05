@@ -25,6 +25,7 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
+import importlib.resources
 import logging
 import os
 import sys
@@ -36,7 +37,8 @@ import pyrogue
 from cryodaq import platform
 from cryodaq._errors import ConnectError
 
-__all__ = ['load_package', 'checkout_python_dirs', 'resolve_layers', 'probe_platform', 'ROOT_NAME']
+__all__ = ['load_package', 'checkout_python_dirs', 'resolve_layers', 'package_defaults_layer',
+           'probe_platform', 'ROOT_NAME']
 
 _log = logging.getLogger(__name__)
 
@@ -140,6 +142,37 @@ def resolve_layers(layers, firmware: Optional[os.PathLike], config_dir: str) -> 
                 raise FileNotFoundError(f"{checkout} holds no {config_dir}/{layer}")
             resolved.append(path)
     return resolved
+
+
+def package_defaults_layer(pmap: platform.PlatformMap, firmware: Optional[os.PathLike]) -> str:
+    """The register defaults the platform's package ships, as rogue's loader will take them.
+
+    Where the package was given (an archive or a checkout) the file is looked
+    up in it as any relative layer is; where it is already importable, through
+    the package itself -- the archive's ``python/`` is the import root, so the
+    package is the first name under it in the platform's configuration
+    directory.
+
+    Raises
+    ------
+    ConnectError
+        If the platform declares no defaults, or the package does not ship them.
+    """
+    name = pmap.package_defaults
+    if name is None:
+        raise ConnectError(f"platform {pmap.name!r} declares no package defaults; give a layer")
+    try:
+        if firmware is not None and (zipfile.is_zipfile(firmware) or checkout_python_dirs(firmware)):
+            return resolve_layers([name], firmware, pmap.package_config_dir)[0]
+        top, package, *subdir = pmap.package_config_dir.split('/')
+        if top != 'python' or not package:
+            raise FileNotFoundError(f"{pmap.package_config_dir!r} does not name a package under python/")
+        resource = importlib.resources.files(package).joinpath('/'.join(subdir), name)
+        if not resource.is_file():
+            raise FileNotFoundError(f"the {package} package ships no {'/'.join(subdir)}/{name}")
+        return str(resource)
+    except (FileNotFoundError, ModuleNotFoundError) as e:
+        raise ConnectError(f"the {pmap.name} package's register defaults were not found: {e}") from e
 
 
 class _Probe(pyrogue.Root):

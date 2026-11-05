@@ -120,6 +120,12 @@ a server imports. The map module declares:
 ``PACKAGE_CONFIG_DIR``
     Where the firmware's release archive keeps its configuration files, so a
     relative layer name a server is given means a file there.
+``PACKAGE_DEFAULTS``
+    The register defaults file in that directory a server loads when it is
+    given no layer, or None. A platform with one set of defaults for every
+    board (the RFMC carrier, which has no bays) names the file its package
+    ships; one whose defaults depend on the population (the AMC carrier)
+    declares None and the launcher chooses the file from the slot's records.
 ``BRING_UP``
     What defines this platform's carrier to the launcher before there is a
     tree (a ``_umux.BringUp``): the image name the release's files carry, the
@@ -302,7 +308,12 @@ comes up on the wrong register map; none is allowed, for a package already
 importable. The same directory holds the FPGA image the firmware check
 compares against and the register defaults (``smurf_cfg/defaults/``) a
 population calls for. A relative ``--layer`` name is a file in the package's
-own configuration directory, inside the archive or under the checkout.
+own configuration directory, inside the archive or under the checkout. Given
+no ``--layer`` at all, a server for a platform whose package ships one set of
+defaults (``PACKAGE_DEFAULTS`` in its map module; the RFMC carrier's) loads
+that file, found in the package wherever the package was found; a platform
+whose defaults depend on the population has none to fall back on, and its
+configuration procedure refuses to run with nothing to load.
 
 The server's own log and rogue's are set apart: ``--log-level`` (default
 ``INFO``) governs what the server says about its decisions, identification and

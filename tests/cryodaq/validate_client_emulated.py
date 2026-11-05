@@ -1049,6 +1049,49 @@ def check_the_rfmc_composition_carries_its_converter_and_clock_file():
         raise AssertionError('an RFMC server was composed with no path to its converter')
 
 
+def check_a_server_given_no_layer_loads_the_defaults_its_package_ships_where_the_platform_declares_them():
+    """With no ``--layer``, the RFMC loads its package's ``defaults.yml``; the AMC, whose defaults are the population's, loads nothing.
+
+    The platform declares the file (``PACKAGE_DEFAULTS``) and the composition
+    resolves it in the package wherever the package was found: given as an
+    archive, or already importable. A layer given explicitly is kept as given
+    and the package's is not added behind it. The composition only names the
+    file; whether a root called ``AMCc`` can load it is the procedure's
+    pre-step key check, run here on the resolved file.
+    """
+    from cryodaq.server import _setup
+    pmap = this_platform_map()
+    if PLATFORM == 'rfsoc':
+        raise Skipped('the ZCU208 package declares no defaults; nothing to resolve')
+    # Not started: what is asserted is what the composition decided.
+    root = standin_root(reduced=True)
+    if pmap.package_defaults is None:
+        assert root.layers == [], f"{pmap.name} declares no package defaults, yet loaded {root.layers}"
+        # ... and the load step refuses an empty list (the procedure's pre-step
+        # refusal over it is check_setup_steps.py's, on every platform).
+        try:
+            _setup.load_layers(root, root.layers)
+        except _setup.StepError as e:
+            assert 'no register layers' in str(e), e
+        else:
+            raise AssertionError('a load with no layers ran')
+        return
+    assert len(root.layers) == 1 and root.layers[0].endswith(
+        f"/{pmap.package_config_dir}/{pmap.package_defaults}"), root.layers
+    # The release's file as shipped is keyed for a root called 'Root'; the
+    # key check refuses it by that name, which is how a deployment learns
+    # the file is not loadable rather than seeing nothing applied.
+    try:
+        _setup.check_layer_names_this_root(root, root.layers[0])
+        keyed = 'loadable'
+    except _setup.StepError as e:
+        assert "'Root'" in str(e) and "'AMCc'" in str(e), e
+        keyed = 'refused'
+    print(f"      the package's defaults.yml: {keyed} for a root called {root.name!r}")
+    given = standin_root(reduced=True, layers=['/a/site/layer.yml'])
+    assert given.layers == ['/a/site/layer.yml'], f"a given layer was changed: {given.layers}"
+
+
 def check_the_offload_card_is_configured_around_the_server():
     """A transport through the PCIe card opens its lane before the firmware is probed, and closes it after.
 
