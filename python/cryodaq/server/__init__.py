@@ -36,7 +36,7 @@ from cryodaq._errors import ConnectError
 from cryodaq.server._application_config import ApplicationConfig, EXCLUDED_FROM
 from cryodaq.server._application_status import ApplicationStatus
 from cryodaq.server._capture import CAPTURE_POINTS, add_capture_receivers
-from cryodaq.server._firmware import load_package, probe_platform, resolve_layers
+from cryodaq.server._firmware import load_package, package_defaults_layer, probe_platform, resolve_layers
 from cryodaq.server._provider import OperationsProvider, attach_operations
 from cryodaq.server._root import ReadoutRoot
 from cryodaq.server._setup import PlatformSupport, Setup
@@ -89,6 +89,8 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
         Register configuration files, applied in order by rogue's own loader:
         the population's defaults first, then any site or slot overrides. A
         relative name is looked up in the package's configuration directory.
+        None at all loads the defaults the platform's package ships, where the
+        platform declares them (`PlatformMap.package_defaults`).
     providers : sequence of OperationsProvider
         What attaches operations to the tree; the core's own by default. An
         application appends its providers.
@@ -165,6 +167,13 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
         else:
             pmap = platform.by_name(platform_name)
 
+        # Given no layer, a platform whose defaults do not depend on how the
+        # board is populated loads the ones its package ships; one whose do
+        # (the AMC carrier's bays) has none to fall back on, and the procedure
+        # refuses to run with nothing to load.
+        if not layers and pmap.package_defaults is not None:
+            layers = [package_defaults_layer(pmap, firmware)]
+            _log.info("no register layer given: loading the %s package's %s", pmap.name, layers[0])
         # A relative file name means one in the archive's configuration
         # directory, which is where the platform's package keeps them.
         layers = resolve_layers(layers, firmware, pmap.package_config_dir)

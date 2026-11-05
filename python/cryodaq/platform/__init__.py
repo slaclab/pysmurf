@@ -43,7 +43,7 @@
 import functools
 import re
 from dataclasses import dataclass, field
-from typing import (Any, Callable, Dict, List, Mapping, Sequence, Tuple)
+from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple)
 
 from cryodaq._errors import ConnectError, UnresolvedName
 from cryodaq.platform import _umux, amc, rfmc, rfsoc
@@ -183,6 +183,10 @@ class PlatformMap:
     package_config_dir : str
         Where this platform's firmware release archive keeps its configuration
         files, relative to the archive's root.
+    package_defaults : str or None
+        The register defaults file in that directory a server loads when it is
+        given no layer; None for a platform whose defaults depend on how the
+        board is populated, which the launcher chooses from the slot's records.
     """
 
     name: str
@@ -193,6 +197,7 @@ class PlatformMap:
     module: str = ''
     tag_path: str = ''
     package_config_dir: str = ''
+    package_defaults: Optional[str] = None
 
     def __contains__(self, pattern: str) -> bool:
         return pattern in self.registers
@@ -251,7 +256,8 @@ def _from_module(module: Any) -> PlatformMap:
                        witness=tuple(module.WITNESS),
                        scopes=dict(module.SCOPES), module=module.__name__,
                        tag_path=module.CARRIER.BUILD_STAMP,
-                       package_config_dir=module.PACKAGE_CONFIG_DIR)
+                       package_config_dir=module.PACKAGE_CONFIG_DIR,
+                       package_defaults=module.PACKAGE_DEFAULTS)
 
 
 # Every supported platform. One module per platform, and a platform is a set of

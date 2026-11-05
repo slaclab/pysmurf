@@ -72,7 +72,8 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
                             "already be importable.")
     group.add_argument('--layer', '--defaults', '-d', dest='layers', action='append', default=[],
                        metavar='FILE', help="A register configuration file, applied in order "
-                       "given; the population's defaults first, then overrides.")
+                       "given; the population's defaults first, then overrides. With none, a "
+                       "platform whose package ships one set of defaults loads those.")
     group.add_argument('--platform', dest='platform_name', default=None,
                        choices=[m.name for m in platform.MAPS],
                        help="Names the platform for an emulated server, whose transport reads no "

@@ -34,7 +34,7 @@ from typing import Any, Dict, Mapping
 
 from cryodaq.platform import _atca, _umux
 
-__all__ = ['NAME', 'TAGS', 'PACKAGE_CONFIG_DIR', 'BRING_UP', 'CARRIER', 'REGISTERS', 'LEGACY',
+__all__ = ['NAME', 'TAGS', 'PACKAGE_CONFIG_DIR', 'PACKAGE_DEFAULTS', 'BRING_UP', 'CARRIER', 'REGISTERS', 'LEGACY',
            'WITNESS', 'SCOPES', 'MUX_CORE', 'JESD_BAY', 'AMC_CARRIER_REGISTERS', 'AMC_CARRIER_LEGACY',
            'AMC_CARRIER_SCOPES']
 
@@ -57,6 +57,10 @@ TAGS = ('MicrowaveMuxBpEthGen2',)
 # Where the firmware's release archive keeps its configuration files, so a relative
 # name a server is given means a file there.
 PACKAGE_CONFIG_DIR = 'python/CryoDet/config'
+
+# No one defaults file: the AMC carrier's depends on which boards are in its bays, and
+# the launcher chooses it from the slot's records (`AmcBringUp.options`).
+PACKAGE_DEFAULTS = None
 
 # What the launcher decides on for this board before there is a tree. Part numbers
 # as the FRU records carry them: carrier PC_379_396_01 (Gen1) or _38 (Gen2, with the

@@ -92,6 +92,26 @@ def check_every_map_is_named_and_tagged():
         assert platform.by_name(pmap.name) is pmap
 
 
+def check_package_defaults_are_a_file_in_the_package_or_none():
+    """A platform's package defaults are a bare file name in its configuration directory, or None.
+
+    A path would escape the package (a server loads the file from wherever the
+    package was found, so only a name inside it can be meant), and a platform
+    whose defaults depend on the population must declare None, so that a
+    server given no layer refuses rather than configures the wrong boards.
+    """
+    for pmap in platform.MAPS:
+        assert pmap.package_config_dir and not pmap.package_config_dir.startswith('/'), pmap.package_config_dir
+        name = pmap.package_defaults
+        if name is None:
+            continue
+        assert isinstance(name, str) and name and '/' not in name and name not in ('.', '..'), \
+            f"{pmap.name}: package defaults {name!r} is not a bare file name"
+    by_name = {m.name: m.package_defaults for m in platform.MAPS}
+    assert by_name['umux-amc'] is None, 'the AMC carrier has bays: its defaults are the population\'s'
+    assert by_name['umux-rfmc'] == 'defaults.yml', by_name
+
+
 def check_each_map_reads_its_stamp_where_its_table_says():
     """The stamp a platform is identified by is the register its own map names.
 
