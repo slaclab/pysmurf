@@ -177,9 +177,14 @@ def _launch_from_slot(args, done):
 
     # 3. Which platform's board this is, by its carrier's FRU part number. That
     #    chooses the image, the package, and how to read the bays; identifying
-    #    the platform proper waits for the tree and its build stamp.
-    carrier = done.inventory.get('carrier') or {}
-    bring_up = _bring_up_for(carrier)
+    #    the platform proper waits for the tree and its build stamp. A record
+    #    that could not be read is not an unknown carrier: it is refused unless
+    #    the command line gives up both detection and the firmware check.
+    carrier = done.inventory.get('carrier')
+    if carrier is None and not (args.no_hw_detect and not args.check_firmware):
+        raise LaunchError(f"the carrier's record could not be read: {errors.get('carrier')}; "
+                          f"pass -E and -D and the options yourself")
+    bring_up = _bring_up_for(carrier or {})
     if bring_up is not None:
         if bring_up.processor_offset is not None:
             done.set_default(args, 'ip_ps', _atca.fpga_address(crate_id, args.slot, bring_up.processor_offset))
@@ -188,17 +193,19 @@ def _launch_from_slot(args, done):
         if not args.no_hw_detect:
             _apply_options(args, done, bring_up, firmware_dir)
 
-    # 5. A hard boot, before the firmware check so the check sees the booted FPGA.
+    # 5. The firmware's Python package, by the platform's image name: before
+    #    anything touches the board, so a directory with two releases in it is
+    #    refused without a reboot.
+    _find_package(args, done, firmware_dir, image=bring_up.firmware_image if bring_up else None)
+
+    # 6. A hard boot, before the firmware check so the check sees the booted FPGA.
     if args.hard_boot:
         _reboot(shm, args.ip_addr)
         done.set_default(args, 'configure', True)
 
-    # 6. Is the FPGA running the image on disk? If not, load it (which reboots).
+    # 7. Is the FPGA running the image on disk? If not, load it (which reboots).
     if bring_up is not None and args.check_firmware:
         _check_firmware(args, done, shm, bring_up, firmware_dir)
-
-    # 7. The firmware's Python package, by the platform's image name.
-    _find_package(args, done, firmware_dir, image=bring_up.firmware_image if bring_up else None)
 
 
 def _spelled(decided):

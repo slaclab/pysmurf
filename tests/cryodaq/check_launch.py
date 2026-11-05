@@ -157,6 +157,31 @@ def check_a_bay_that_could_not_be_read_is_refused_not_left_out():
     assert args.disable_bay1 and args.layers == ['/site/defaults.yml'], (args.disable_bay1, args.layers)
 
 
+def check_a_carrier_record_that_could_not_be_read_is_refused_unless_nothing_is_decided_from_it():
+    """Synthetic: the crate id reads but the carrier's FRU record does not. Unknown is not an unknown carrier."""
+    failing = Replay(overrides={'fru print 0': (1, 'Unable to read FRU')})
+    refused(SLOT_2, failing, naming=('carrier', 'Unable to read FRU', '-E and -D'))
+    refused(SLOT_2 + ['-E'], failing, naming=('-E and -D',))
+    args, done, replay = launched(SLOT_2 + ['-E', '-D', '--disable-bay1', '-d', '/site/defaults.yml'], failing)
+    assert done.inventory['carrier'] is None and args.ip_addr == '10.0.1.102' and wrote(replay) == [], \
+        (done.inventory['carrier'], args.ip_addr, wrote(replay))
+
+
+def check_two_archives_are_refused_before_anything_reaches_the_board():
+    """A directory with two releases is refused before a hard boot or a load touches the FPGA."""
+    stale = Replay(overrides={'raw 0x34 0x04 0xe0 0x04': (0, ' 00 11 22 33\n')})
+    with tempfile.TemporaryDirectory() as tmp:
+        fw = firmware_dir(tmp)
+        (fw / 'rogue_MicrowaveMuxBpEthGen2_v2.6.0.zip').touch()
+        try:
+            launch(SLOT_2 + ['-H'], stale, fw)
+        except SystemExit as e:
+            assert '2 firmware packages' in str(e), str(e)
+        else:
+            raise AssertionError('two archives were not refused')
+    assert wrote(stale) == [], f"the board was touched before the refusal: {wrote(stale)}"
+
+
 def check_a_tool_that_does_not_answer_is_a_failed_read():
     """Synthetic: a tool hangs past its timeout; the read is recorded as failed, not raised through."""
     import subprocess
