@@ -165,6 +165,12 @@ def check_a_carrier_record_that_could_not_be_read_is_refused_unless_nothing_is_d
     args, done, replay = launched(SLOT_2 + ['-E', '-D', '--disable-bay1', '-d', '/site/defaults.yml'], failing)
     assert done.inventory['carrier'] is None and args.ip_addr == '10.0.1.102' and wrote(replay) == [], \
         (done.inventory['carrier'], args.ip_addr, wrote(replay))
+    # With no record to choose the package by, --platform does, as on the other paths.
+    with tempfile.TemporaryDirectory() as tmp:
+        fw = firmware_dir(tmp)
+        (fw / 'rogue_MicrowaveMuxZcu208_v3.2.1.zip').touch()
+        args, _ = launch(SLOT_2 + ['-E', '-D', '--platform', 'umux-amc'], failing, fw)
+        assert args.firmware.endswith(ARCHIVE), args.firmware
 
 
 def check_two_archives_are_refused_before_anything_reaches_the_board():

@@ -263,7 +263,8 @@ launcher reads the slot through the crate's shelf manager, in this order:
    refused, naming the error, unless ``--no-hw-detect`` and
    ``--no-check-firmware`` both say the launcher is to decide nothing from it.
    The platform proper is identified later, from the build stamp, once there
-   is a tree. ``--platform`` takes no part.
+   is a tree. ``--platform`` takes no part in this; it only chooses among
+   several platforms' archives (step 5) when no record could.
 4. What else the platform makes of the records (``BringUp.options``; skipped
    with ``--no-hw-detect``). For the AMC carrier: a bay without a board is
    left out of the tree (``--disable-bay0/1``), the carrier version and the
