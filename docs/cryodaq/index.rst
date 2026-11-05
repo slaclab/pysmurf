@@ -259,8 +259,11 @@ launcher reads the slot through the crate's shelf manager, in this order:
    (:func:`cryodaq.platform.bring_up_for`): which image and package the board
    takes, and whether a processor system sits beside the FPGA, at
    ``<200 + slot>``. A part number no platform declares is logged, and the
-   addresses are taken as given; the platform proper is identified later,
-   from the build stamp, once there is a tree. ``--platform`` takes no part.
+   addresses are taken as given; a record that could not be read at all is
+   refused, naming the error, unless ``--no-hw-detect`` and
+   ``--no-check-firmware`` both say the launcher is to decide nothing from it.
+   The platform proper is identified later, from the build stamp, once there
+   is a tree. ``--platform`` takes no part.
 4. What else the platform makes of the records (``BringUp.options``; skipped
    with ``--no-hw-detect``). For the AMC carrier: a bay without a board is
    left out of the tree (``--disable-bay0/1``), the carrier version and the
@@ -269,21 +272,23 @@ launcher reads the slot through the crate's shelf manager, in this order:
    or ``none`` per bay, and a Gen2 carrier of version C03 or later has its
    power monitor enabled (``--enable-em22xx``). The platform's defaults file
    goes before any ``--layer`` given, so the user's overrides it.
-5. A hard boot, when asked (``--hard-boot``): the shelf manager power-cycles
+5. The firmware package, from the firmware directory as above, the archives
+   narrowed to those carrying the platform's image name. Before the two steps
+   that touch the board, so a directory holding two releases is refused
+   without a reboot.
+6. A hard boot, when asked (``--hard-boot``): the shelf manager power-cycles
    the FPGA and waits for it to answer at its address. The register
    configuration is then applied at start-up (``--configure``).
-6. The firmware check (skipped with ``--no-check-firmware``): the short git
+7. The firmware check (skipped with ``--no-check-firmware``): the short git
    hash the FPGA reports is compared with the one in the FPGA image's file
    name (``*-<short githash>.mcs[.gz]``). When they differ the image is
    loaded, which reboots the FPGA into it, and ``--configure`` is set as after
    a hard boot. A hard boot on a stale image is therefore two reboots.
-7. The firmware package, from the firmware directory as above, the archives
-   narrowed to those carrying the platform's image name.
 
 The shelf manager is driven through SLAC's crate tools (``ipmitool``,
 ``cba_amc_init``, ``ProgramFPGA.bash``) from ``cryodaq.platform._atca``, the
 one module that starts a subprocess; nothing writes to a carrier -- no power
-cycle, no image load -- except at steps 5 and 6, and the launcher's checks
+cycle, no image load -- except at steps 6 and 7, and the launcher's checks
 replay recorded crate answers with no crate.
 
 The firmware directory (``--firmware-dir``, default ``/tmp/fw``) is the one

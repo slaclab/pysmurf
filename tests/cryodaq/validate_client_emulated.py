@@ -163,7 +163,8 @@ ENTRY_POINT_READY_S = 600
 ENTRY_POINT_EXIT_S = 90
 # The firmware-directory arguments the child entry points are given so they
 # build the same tree as this run: a directory holding the one archive this run
-# was given with --zip, or none, for a package on the import path. Set in main().
+# was given with --zip, or an empty one for a package on the import path, so the
+# child never finds a release in the host's default directory. Set in main().
 FIRMWARE_ARGS = []
 ZIP_DIR = None
 # The PCIe offload card's firmware package (`SmurfPcie`, a release archive or a
@@ -1715,9 +1716,8 @@ class _SlotChild(_EntryPointChild):
         # (--cryo-det), which the launcher leaves alone.
         (fw / 'MicrowaveMuxBpEthGen2-0x02050000-20260616105622-ruckman-af249f83.mcs').touch()
         (fw / 'smurf_cfg' / 'defaults' / 'defaults_c03_lb_lb.yml').write_text('AMCc: {}\n')
-        if ZIP_DIR is not None:
-            for name in os.listdir(ZIP_DIR.name):
-                os.symlink(os.path.join(ZIP_DIR.name, name), fw / name)
+        for name in os.listdir(ZIP_DIR.name):
+            os.symlink(os.path.join(ZIP_DIR.name, name), fw / name)
         if PLATFORM == 'rfmc':
             self.slot = 4
             slot_args = ['-S', 'shm-smrf-sp01', '-N', '4', '--addr', '10.0.1.104', '--ps-addr', '10.0.1.204']
@@ -2180,11 +2180,13 @@ def main():
         # form adds CryoDet alone, which is what the RFMC run needs.
         ap.error('--rfmc goes with --cryo-det, not --zip: a CryoDet archive would '
                  "put its older surf ahead of the RFMC release's")
+    # The entry points take a directory and find the one archive in it; a
+    # checkout run gives them an empty one, so the package stays the one on
+    # the import path whatever the host keeps in its default directory.
+    ZIP_DIR = tempfile.TemporaryDirectory()
     if args.zip:
-        # The entry points take a directory and find the one archive in it.
-        ZIP_DIR = tempfile.TemporaryDirectory()
         os.symlink(os.path.abspath(args.zip), os.path.join(ZIP_DIR.name, os.path.basename(args.zip)))
-        FIRMWARE_ARGS = ['--firmware-dir', ZIP_DIR.name]
+    FIRMWARE_ARGS = ['--firmware-dir', ZIP_DIR.name]
     if args.smurf_pcie:
         SMURF_PCIE = f"{args.smurf_pcie}/python" if zipfile.is_zipfile(args.smurf_pcie) else args.smurf_pcie
         # Behind the firmware package, never in front of it: a smurf-pcie release
