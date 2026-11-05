@@ -26,6 +26,7 @@ import rogue.protocols.srp
 
 import pysmurf
 import pysmurf.core.devices
+import pysmurf.core.operations
 import pysmurf.core.utilities
 
 class Common(pyrogue.Root):
@@ -66,6 +67,13 @@ class Common(pyrogue.Root):
 
         # Add FPGA
         self.add(self._fpga)
+
+        # Attach the cryo channel operations to each band's CryoChannels
+        # device, unless the loaded CryoDet package defines them itself (its
+        # releases up to v2.6.0 do). This must happen after the FPGA is in the
+        # tree and before start(), which is when pyrogue seals it against
+        # further additions. See pysmurf.core.operations.
+        pysmurf.core.operations.attach_all_cryo_operations(self._fpga)
 
         # File writer for streaming interfaces
         # DDR interface (TDEST 0x80 - 0x87)
