@@ -112,6 +112,8 @@ def launch(args: argparse.Namespace, parser: argparse.ArgumentParser) -> Launche
         command line stands in for it.
     """
     done = Launched(parser)
+    # Absolute, so a defaults file found here is never taken for a package member.
+    args.firmware_dir = str(pathlib.Path(args.firmware_dir).resolve())
     if args.shelfmanager is None and args.slot is None:
         _launch_addressed(args, done)
     else:
@@ -129,7 +131,7 @@ def _launch_addressed(args, done):
         args.pcie_rssi_lane = 0
     # The firmware package is still looked for in the firmware directory; a
     # package already on the import path needs none.
-    _find_package(args, done, pathlib.Path(args.firmware_dir), image=None)
+    _find_package(args, done, pathlib.Path(args.firmware_dir), image=_named_image(args))
 
 
 def _launch_from_slot(args, done):
@@ -165,7 +167,7 @@ def _launch_from_slot(args, done):
                               f"{errors.get('crate_id')}")
         _log.warning("the shelf manager did not answer for slot %d (%s); taking the addresses "
                      "as given and skipping the inventory", args.slot, errors.get('crate_id'))
-        _find_package(args, done, firmware_dir, image=None)
+        _find_package(args, done, firmware_dir, image=_named_image(args))
         return
 
     # 2. The FPGA's address follows from the crate id.
@@ -234,6 +236,18 @@ def _bring_up_for(carrier):
     else:
         _log.info("carrier %s (%s): image %s", part, carrier.get('Board Product', '?'), bring_up.firmware_image)
     return bring_up
+
+
+def _named_image(args):
+    """The image name of the platform ``--platform`` names, when no carrier record can say.
+
+    A deployment's firmware directory holds every platform's release, so with
+    no record to choose by the name on the command line does; without it the
+    search is over every archive. The build stamp still identifies the platform.
+    """
+    if args.platform_name is None:
+        return None
+    return platform.bring_up_by_name(args.platform_name).firmware_image
 
 
 def _apply_options(args, done, bring_up, firmware_dir):

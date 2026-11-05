@@ -96,8 +96,12 @@ def run_tool(argv: Sequence[str]) -> Tuple[int, str]:
     """
     if shutil.which(argv[0]) is None:
         raise ShelfManagerError('finding the tool', argv, f"{argv[0]} is not installed")
-    done = subprocess.run(list(argv), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                          text=True, timeout=TOOL_TIMEOUT_S, check=False)
+    try:
+        done = subprocess.run(list(argv), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                              text=True, timeout=TOOL_TIMEOUT_S, check=False)
+    except subprocess.TimeoutExpired:
+        raise ShelfManagerError('running the tool', argv,
+                                f"no answer in {TOOL_TIMEOUT_S} s") from None
     return done.returncode, done.stdout
 
 

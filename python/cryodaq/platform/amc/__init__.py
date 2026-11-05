@@ -88,13 +88,18 @@ class AmcBringUp(_umux.BringUp):
         Raises
         ------
         ValueError
-            If a bay holds a board this platform does not know, or boards of
-            two versions, for which there is no one defaults file.
+            If a bay could not be read (its record is None, the error under
+            ``errors``), holds a board this platform does not know, or boards
+            of two versions, for which there is no one defaults file.
         """
         options: Dict[str, Any] = {}
         words, versions = [], []
         for index, bay in enumerate(_atca.AMC_BAYS):
             record = inventory.get(f'amc{bay}')
+            if record is None:
+                # Not read is not empty: an unanswered bay must not be left out.
+                raise ValueError(f"AMC bay {bay} could not be read: "
+                                 f"{inventory.get('errors', {}).get(f'amc{bay}', 'no record')}")
             if not record:
                 words.append('none')
                 options[f'disable_bay{index}'] = True

@@ -76,8 +76,9 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     group.add_argument('--platform', dest='platform_name', default=None,
                        choices=[m.name for m in platform.MAPS],
                        help="Names the platform for an emulated server, whose transport reads no "
-                            "build stamp. On hardware the stamp identifies the platform and this, "
-                            "if given, is only checked against it.")
+                            "build stamp, and chooses among several platforms' archives in the "
+                            "firmware directory when no crate record can. On hardware the stamp "
+                            "identifies the platform and this, if given, is checked against it.")
     group.add_argument('--configure', '-c', action='store_true',
                        help="Apply the register configuration at startup.")
     group.add_argument('--nopoll', '-n', action='store_false', dest='polling',
@@ -124,9 +125,9 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
                        help="The crate's shelf manager; with --slot.")
     crate.add_argument('--slot', '-N', type=int, default=None,
                        help="The carrier's slot in the crate; with --shelfmanager.")
-    crate.add_argument('--no-hw-detect', '-E', action='store_true',
+    crate.add_argument('--no-hw-detect', '--disable-hw-detect', '-E', action='store_true',
                        help="Do not read the board population; pass --disable-bay* and --layer yourself.")
-    crate.add_argument('--no-check-firmware', '-D', dest='check_firmware', action='store_false',
+    crate.add_argument('--no-check-firmware', '--no-check-fw', '-D', dest='check_firmware', action='store_false',
                        help="Do not compare the FPGA's firmware with the image on disk.")
     crate.add_argument('--hard-boot', '-H', action='store_true',
                        help="Reboot the FPGA before starting, then apply the register configuration.")
