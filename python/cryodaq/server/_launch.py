@@ -193,10 +193,12 @@ def _launch_from_slot(args, done):
         if not args.no_hw_detect:
             _apply_options(args, done, bring_up, firmware_dir)
 
-    # 5. The firmware's Python package, by the platform's image name: before
-    #    anything touches the board, so a directory with two releases in it is
-    #    refused without a reboot.
-    _find_package(args, done, firmware_dir, image=bring_up.firmware_image if bring_up else None)
+    # 5. The firmware's Python package, by the platform's image name -- the
+    #    carrier's, or the named platform's when no record identified one.
+    #    Before anything touches the board, so a directory with two releases
+    #    in it is refused without a reboot.
+    _find_package(args, done, firmware_dir,
+                  image=bring_up.firmware_image if bring_up else _named_image(args))
 
     # 6. A hard boot, before the firmware check so the check sees the booted FPGA.
     if args.hard_boot:
