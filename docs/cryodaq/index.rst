@@ -236,7 +236,8 @@ launcher's answers went unused. There are two ways in.
 **Told an address** (``--addr``, or ``--transport emulation``), nothing is read
 from a crate. The address, the bays and the register layers are as given, the
 PCIe lane is 0 unless ``--pcie-rssi-lane`` says otherwise, and the package is
-found in the firmware directory as above. ``--hard-boot`` needs the crate and is
+found in the firmware directory as above -- among several platforms' archives
+there, ``--platform <name>`` says whose. ``--hard-boot`` needs the crate and is
 refused. This is how a bench board without a management controller, or an
 emulated server (``--transport emulation --platform <name>``), is started.
 

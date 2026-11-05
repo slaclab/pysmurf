@@ -48,7 +48,7 @@ from typing import (Any, Callable, Dict, List, Mapping, Sequence, Tuple)
 from cryodaq._errors import ConnectError, UnresolvedName
 from cryodaq.platform import _umux, amc, rfmc, rfsoc
 
-__all__ = ['PlatformMap', 'MAPS', 'identify', 'from_stamp', 'by_name', 'bring_up_for',
+__all__ = ['PlatformMap', 'MAPS', 'identify', 'from_stamp', 'by_name', 'bring_up_for', 'bring_up_by_name',
            'tag_of', 'parse', 'expand', 'indices', 'witness_names', 'VALUE', 'COMMAND',
            'PROCESS', 'DEVICE', 'KINDS', 'MAX_SCOPE_INDEX', 'ROOT_PATH', 'STATUS_DEVICE_PATH']
 
@@ -296,6 +296,21 @@ def by_name(name: str) -> PlatformMap:
         if candidate.name == name:
             return candidate
     known = ', '.join(m.name for m in MAPS)
+    raise ConnectError(f"no platform called {name!r}; cryodaq has {known}")
+
+
+def bring_up_by_name(name: str) -> Any:
+    """The bring-up declaration of the platform called ``name``.
+
+    Raises
+    ------
+    ConnectError
+        If no platform goes by it.
+    """
+    for module in (amc, rfsoc, rfmc):
+        if module.NAME == name:
+            return module.BRING_UP
+    known = ', '.join(m.NAME for m in (amc, rfsoc, rfmc))
     raise ConnectError(f"no platform called {name!r}; cryodaq has {known}")
 
 

@@ -149,6 +149,35 @@ def check_an_empty_bay_is_left_out_and_names_the_other_bays_defaults():
     assert [os.path.basename(l) for l in args.layers] == ['defaults_c03_lb_none.yml'], args.layers
 
 
+def check_a_bay_that_could_not_be_read_is_refused_not_left_out():
+    """Synthetic: the inventory tool fails on one bay. Unknown is not empty; the user overrides with -E."""
+    failing = Replay(overrides={'cba_amc_init --dump shm-smrf-sp01/2/2': (1, 'IPMB timeout')})
+    refused(SLOT_2, failing, naming=('AMC bay 2', 'IPMB timeout', '-E'))
+    args, _, _ = launched(SLOT_2 + ['-E', '--disable-bay1', '-d', '/site/defaults.yml'], failing)
+    assert args.disable_bay1 and args.layers == ['/site/defaults.yml'], (args.disable_bay1, args.layers)
+
+
+def check_a_tool_that_does_not_answer_is_a_failed_read():
+    """Synthetic: a tool hangs past its timeout; the read is recorded as failed, not raised through."""
+    import subprocess
+
+    def hang(*a, **kw):
+        raise subprocess.TimeoutExpired(a[0], kw.get('timeout'))
+    real_run, real_which = _atca.subprocess.run, _atca.shutil.which
+    _atca.subprocess.run, _atca.shutil.which = hang, lambda name: '/usr/bin/' + name
+    try:
+        try:
+            _atca.run_tool(['ipmitool', 'raw', '0x34', '0xF4'])
+        except _atca.ShelfManagerError as e:
+            assert 'no answer' in str(e), str(e)
+        else:
+            raise AssertionError('a timeout was not a ShelfManagerError')
+        inv = _atca.ShelfManager('shm', 4).inventory()
+        assert inv['crate_id'] is None and set(inv['errors']) >= {'crate_id', 'carrier', 'amc0'}, inv
+    finally:
+        _atca.subprocess.run, _atca.shutil.which = real_run, real_which
+
+
 def check_what_the_command_line_gives_is_kept():
     """An option given beats the decided one, and a user's layer follows the population's so it overrides it."""
     args, _, _ = launched(SLOT_2 + ['-a', '10.0.9.9', '-l', '3', '--disable-bay1', '-d', '/site/override.yml'])
@@ -213,6 +242,39 @@ def check_without_a_slot_nothing_is_read_and_nothing_reaches_the_crate():
     refused(['-S', 'shm-smrf-sp01'], no_tool, naming=('--slot',))
     refused(['-N', '2'], no_tool, naming=('--shelfmanager',))
     refused(['-S', 'shm-smrf-sp01', '-N', '9'], no_tool, naming=('slot',))
+    # The old spellings of the two switches are still taken.
+    parser = _cli.add_arguments(argparse.ArgumentParser())
+    args = parser.parse_args(['--disable-hw-detect', '--no-check-fw'])
+    assert args.no_hw_detect and not args.check_firmware, args
+
+
+def check_the_platform_name_chooses_among_several_platforms_archives_without_a_record():
+    """A deployment ships every platform's archive; with no carrier record, --platform says whose."""
+    others = ('rogue_MicrowaveMuxZcu208_v3.2.1.zip', 'rogue_MicrowaveMuxRfmcCarrier_v2.0.0.zip')
+    with tempfile.TemporaryDirectory() as tmp:
+        fw = firmware_dir(tmp)
+        for name in others:
+            (fw / name).touch()
+        addressed = ['-a', '10.0.1.102', '--transport', 'pcie']
+        try:
+            launch(addressed, Replay(), fw)
+        except SystemExit as e:
+            assert '3 firmware packages' in str(e), str(e)
+        else:
+            raise AssertionError('three archives were not refused')
+        args, _ = launch(addressed + ['--platform', 'umux-amc'], Replay(), fw)
+        assert args.firmware.endswith(ARCHIVE), args.firmware
+        args, _ = launch(SLOT_4 + ['-a', '10.0.1.104', '--ps-addr', '10.0.1.204', '--platform', 'umux-rfmc'],
+                         Replay(), fw)
+        assert args.firmware.endswith(others[1]), args.firmware
+        # The detected defaults path is absolute whatever the directory was given as.
+        cwd = os.getcwd()
+        os.chdir(tmp)
+        try:
+            args, _ = launch(SLOT_2, Replay(), pathlib.Path('fw'))
+        finally:
+            os.chdir(cwd)
+        assert os.path.isabs(args.layers[0]) and os.path.isabs(args.firmware), (args.layers, args.firmware)
 
 
 def check_the_firmware_package_is_the_one_archive_or_else_the_one_checkout():
