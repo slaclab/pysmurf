@@ -1,15 +1,24 @@
 #!/usr/bin/env bash
 
-# This script builds the stable pysmurf server docker image, which includes the firmware and
-# configuration files, as well as pysmurf.
+# Build the pysmurf server image and push it to ghcr.io/slaclab/pysmurf-server:<tag>:
+# pysmurf and what a server needs to run, plus the firmware releases and the configuration
+# files named in definitions.sh under /tmp/fw.
 #
-# The firmware and configuration files versions are defined in the 'definitions.sh' file, while the
-# version of pysmurf is extracted from this copy of the repository (using the
-# `git describe --tags --always` command).
+# The pysmurf built is this checkout's HEAD; <tag> is `git describe --tags --always`
+# of it, so a release is tagged by its release tag and any other commit by the
+# nearest tag, its distance and its hash (v11.4.4-174-g835b0ffb).
 #
-# This script downloads the firmware and configuration files into a temporary directory called
-# 'local_files' which is then used by the Dockerfile to generate the final docker image.
-# Finally, the docker image is pushed to the repository defined by ${dockerhub_org_name}.
+# The firmware files are downloaded into 'local_files', which the Dockerfile
+# copies to /tmp/fw. Downloading the private releases needs
+# GITHUB_TOKEN in the environment.
+#
+# Environment:
+#   PUSH=0            build and tag only (the default pushes)
+#   SYSTEMS=a,b       only these FW_SYSTEMS names, e.g. SYSTEMS=umux,rfmc (default: all)
+#   REF=<ref>         build this pysmurf tag, branch or commit instead of HEAD
+#   TAG=<tag>         tag the images so instead of by `git describe`
+
+cd "$(dirname "$0")" || exit 1
 
 # Load the user definitions
 . definitions.sh
@@ -17,14 +26,17 @@
 # Call the validation script
 . validate.sh
 
-# Dockerhub repositories definitions
+# Image repository definitions
 dockerhub_org_name='ghcr.io/slaclab'
-dockerhub_repo_stable='pysmurf-server'
-dockerhub_repo_base='pysmurf-server-base'
+dockerhub_repo='pysmurf-server'
 
-# Get the git tag, which will be used to tag the docker image.
-# At the moment, this script runs only on tagged releases.
-tag=`git describe --tags --always`
+# What to build, and what to call it.
+ref=${REF:-$(git rev-parse HEAD)}
+tag=${TAG:-$(git describe --tags --always ${REF:+"${REF}"})}
+push=${PUSH:-1}
+systems=${SYSTEMS:-}
+
+echo "pysmurf ${ref} -> ${dockerhub_repo}:${tag}"
 
 # Create temporary local file directory to hold firmware and configuration
 # files which will later be copied to the docker image
@@ -34,6 +46,10 @@ rm -rf local_files && mkdir local_files
 echo "Downloading firmware files..."
 for entry in "${FW_SYSTEMS[@]}"; do
     IFS='|' read -r sys_name sys_repo sys_tag sys_fw_files sys_zip <<< "${entry}"
+    if [ -n "${systems}" ] && [[ ",${systems}," != *",${sys_name},"* ]]; then
+        echo "  [${sys_name}] skipped (SYSTEMS=${systems})"
+        continue
+    fi
     # Fall back to rogue_<tag>.zip if no explicit zip filename was specified
     sys_zip="${sys_zip:-rogue_${sys_tag}.zip}"
 
@@ -58,17 +74,18 @@ done
 echo "Downloading configuration files..."
 git -C local_files clone -c advice.detachedHead=false ${config_repo} -b ${config_repo_tag} || exit 1
 
-# Build the docker image. This same image will be pushed to both the stable
-# and the base dockerhub repositories.
+# Build the image.
 echo "Building docker image..."
-docker image build --build-arg branch=${tag} -t pysmurf_server . || exit 1
+docker image build \
+    --build-arg ref="${ref}" --build-arg smurf_pcie_tag="${smurf_pcie_tag}" \
+    -t pysmurf_server . || exit 1
 
-# Tag and push the image to the stable dockerhub repository
-docker image tag pysmurf_server ${dockerhub_org_name}/${dockerhub_repo_stable}:${tag}
-docker image push ${dockerhub_org_name}/${dockerhub_repo_stable}:${tag}
-echo "Docker image '${dockerhub_org_name}/${dockerhub_repo_stable}:${tag}' pushed"
+docker image tag pysmurf_server ${dockerhub_org_name}/${dockerhub_repo}:${tag}
 
-# Tag and push the image to the base dockerhub repository (for backwards compatibility)
-docker image tag pysmurf_server ${dockerhub_org_name}/${dockerhub_repo_base}:${tag}
-docker image push ${dockerhub_org_name}/${dockerhub_repo_base}:${tag}
-echo "Docker image '${dockerhub_org_name}/${dockerhub_repo_base}:${tag}' pushed"
+if [ "${push}" != 1 ]; then
+    echo "Built '${dockerhub_org_name}/${dockerhub_repo}:${tag}' (PUSH=${push}: not pushed)"
+    exit 0
+fi
+
+docker image push ${dockerhub_org_name}/${dockerhub_repo}:${tag} || exit 1
+echo "Docker image '${dockerhub_org_name}/${dockerhub_repo}:${tag}' pushed"

@@ -121,24 +121,18 @@ jobs:
       - name: Set up docker build enviroment
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
 
-      # Extract the branch name.
-      # - For PR, the branch name is "github.head_ref"
-      # - For non-pull-request builds, the BRANCH_NAME env var will be empty.
-      #   Extract it from GITHUB_REF in the format of refs/heads/<branch-name>
-      - name: Get branch name
-        id: branch_name
-        env:
-          BRANCH_NAME: ${{ github.head_ref }}
-        run: |
-          echo "branch=${BRANCH_NAME:-$(echo "$GITHUB_REF" | awk 'BEGIN { FS = "/" } ; { $1=$2=""; sub("  ",""); gsub(" ","/"); print }')}" >> "$GITHUB_OUTPUT"
-
-      # Build docker image
+      # Build the server image at the commit under test -- a pull request's head
+      # commit, else the pushed one -- with no firmware files (an empty
+      # local_files; the deploy job fills it). The offload card's release is
+      # the one definitions.sh pins.
       - name: Build docker image
         run: |
+          . docker/server/definitions.sh
           mkdir docker/server/local_files
           docker image build \
             --file ./docker/server/Dockerfile \
-            --build-arg branch=${{ steps.branch_name.outputs.branch }} \
+            --build-arg ref=${{ github.event.pull_request.head.sha || github.sha }} \
+            --build-arg smurf_pcie_tag=${smurf_pcie_tag} \
             --tag server_docker \
             ./docker/server
 
@@ -221,6 +215,9 @@ jobs:
       #   so --package-dump excludes those names and requires every name under the
       #   firmware's own tree to resolve.
       #
+      #   The release is the one the server image ships (definitions.sh's umux
+      #   entry), so the names are checked against what a deployment runs.
+      #
       #   cryo-det is a private repository, so this needs the same token the
       #   definitions check uses, not the workflow's own. Secrets are withheld from a
       #   pull request opened from a fork; there the step says so and stops, and the
@@ -235,11 +232,13 @@ jobs:
                  "the released-package resolution is skipped, the fixtures still run"
             exit 0
           fi
-          tag=MicrowaveMuxBpEthGen2_v2.5.1
-          zip=rogue_${tag}.zip
+          . docker/server/definitions.sh
+          IFS='|' read -r sys_name repo tag fw_files zip <<< "$(printf '%s\n' "${FW_SYSTEMS[@]}" | grep '^umux|')"
+          zip=${zip:-rogue_${tag}.zip}
+          api=${repo/github.com/api.github.com/repos}
           id=$(curl --fail --silent --show-error --location \
                  --header "Authorization: token ${GITHUB_TOKEN}" \
-                 "https://api.github.com/repos/slaclab/cryo-det/releases/tags/${tag}" \
+                 "${api}/releases/tags/${tag}" \
                | python3 -c "import json,sys;
           print(next(a['id'] for a in json.load(sys.stdin)['assets']
                      if a['name'] == '${zip}'))")
@@ -247,7 +246,7 @@ jobs:
                --header "Authorization: token ${GITHUB_TOKEN}" \
                --header "Accept: application/octet-stream" \
                --output "${zip}" \
-               "https://api.github.com/repos/slaclab/cryo-det/releases/assets/${id}"
+               "${api}/releases/assets/${id}"
           docker container cp "${zip}" server:/tmp/"${zip}"
           docker container cp tests/cryodaq/dump_released_tree.py \
             server:/tmp/dump_released_tree.py
@@ -274,11 +273,13 @@ jobs:
                  "the RFMC released-package resolution is skipped, the fixture still runs"
             exit 0
           fi
-          tag=MicrowaveMuxRfmcCarrier_v2.0.0
-          zip=rogue_${tag}.zip
+          . docker/server/definitions.sh
+          IFS='|' read -r sys_name repo tag fw_files zip <<< "$(printf '%s\n' "${FW_SYSTEMS[@]}" | grep '^rfmc|')"
+          zip=${zip:-rogue_${tag}.zip}
+          api=${repo/github.com/api.github.com/repos}
           id=$(curl --fail --silent --show-error --location \
                  --header "Authorization: token ${GITHUB_TOKEN}" \
-                 "https://api.github.com/repos/slaclab/rfmc-cryo-det/releases/tags/${tag}" \
+                 "${api}/releases/tags/${tag}" \
                | python3 -c "import json,sys;
           print(next(a['id'] for a in json.load(sys.stdin)['assets']
                      if a['name'] == '${zip}'))")
@@ -286,7 +287,7 @@ jobs:
                --header "Authorization: token ${GITHUB_TOKEN}" \
                --header "Accept: application/octet-stream" \
                --output "${zip}" \
-               "https://api.github.com/repos/slaclab/rfmc-cryo-det/releases/assets/${id}"
+               "${api}/releases/assets/${id}"
           docker container cp "${zip}" server:/tmp/"${zip}"
           docker container cp tests/cryodaq/dump_released_tree.py \
             server:/tmp/dump_released_tree.py
@@ -300,22 +301,16 @@ jobs:
       # - The PCIe offload card's lane driven through a released smurf-pcie package:
       #   the server binds the package's register map to the card and configures the
       #   RSSI lane by name, so a release whose map the module cannot drive is found
-      #   here and not on a crate. The image carries a smurf-pcie checkout on its path already
-      #   (v3.1.1, which has no release); the script puts the given package in front
-      #   of it and prints which one it imported, so what is driven here is the
-      #   release named below. Public repository: no token.
-      - name: Drive the offload card's lane through a released smurf-pcie package
+      #   here and not on a crate. The package driven is the release archive the
+      #   image carries, the one definitions.sh pins; the script prints which one
+      #   it imported.
+      - name: Drive the offload card's lane through the smurf-pcie release the image carries
         run: |
           set -euo pipefail
-          tag=v3.3.1
-          zip=rogue_${tag}.zip
-          curl --fail --silent --location \
-               --output "${zip}" \
-               "https://github.com/slaclab/smurf-pcie/releases/download/${tag}/${zip}"
-          docker container cp "${zip}" server:/tmp/"${zip}"
+          . docker/server/definitions.sh
           docker container cp tests/cryodaq/check_offload_card.py server:/tmp/check_offload_card.py
           docker container exec server /bin/bash -c \
-            "python3 /tmp/check_offload_card.py --smurf-pcie /tmp/${zip}"
+            "python3 /tmp/check_offload_card.py --smurf-pcie /usr/local/src/smurf-pcie/rogue_${smurf_pcie_tag}.zip"
 
   # Client tests
   test-client:
@@ -380,23 +375,12 @@ jobs:
       - name: Set up docker build enviroment
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
 
-      # Extract the branch name.
-      # - For PR, the branch name is "github.head_ref"
-      # - For non-pull-request builds, the BRANCH_NAME env var will be empty.
-      #   Extract it from GITHUB_REF in the format of refs/heads/<branch-name>
-      - name: Get branch name
-        id: branch_name
-        env:
-          BRANCH_NAME: ${{ github.head_ref }}
-        run: |
-          echo "branch=${BRANCH_NAME:-$(echo "$GITHUB_REF" | awk 'BEGIN { FS = "/" } ; { $1=$2=""; sub("  ",""); gsub(" ","/"); print }')}" >> "$GITHUB_OUTPUT"	
-
-      # Build docker image
+      # Build the client image at the commit under test (as the server's).
       - name: Build docker Image
         run: |
           docker image build \
             --file ./docker/client/Dockerfile \
-            --build-arg branch=${{ steps.branch_name.outputs.branch }} \
+            --build-arg ref=${{ github.event.pull_request.head.sha || github.sha }} \
             --tag client_docker \
             ./docker/client
 
@@ -567,7 +551,7 @@ jobs:
           file: ./docker/client/Dockerfile
           push: true
           tags: ghcr.io/slaclab/pysmurf-client:${{ steps.get_tag.outputs.tag }}
-          build-args: branch=${{ steps.get_tag.outputs.tag }}
+          build-args: ref=${{ steps.get_tag.outputs.tag }}
 
   # Deploy wheel to PyPI
   deploy-wheel:

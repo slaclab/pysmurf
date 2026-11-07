@@ -1,4 +1,4 @@
-FROM ghcr.io/slaclab/smurf-rogue:R5.1.0
+FROM ghcr.io/slaclab/smurf-rogue:R5.1.1
 
 RUN apt-get update
 RUN apt-get install -y \
@@ -30,10 +30,14 @@ RUN pip3 install --no-cache-dir \
     schema \
     setuptools_scm
 
-# Install pysmurf
-ARG branch
+# Install pysmurf at `ref`: a tag, a branch or a commit (as the server image).
+ARG ref
+RUN test -n "${ref}" || { echo "build-arg ref is required: the pysmurf tag, branch or commit to build" >&2; exit 1; }
 WORKDIR /usr/local/src
-RUN git clone https://github.com/slaclab/pysmurf.git -b ${branch}
+RUN git clone https://github.com/slaclab/pysmurf.git \
+ && cd pysmurf \
+ && (git fetch --quiet origin "${ref}" 2>/dev/null || true) \
+ && git checkout --quiet --detach "${ref}"
 # Must add to safe directories for cryo user in order for the core
 # pysmurf instance to be able to resolve its version using git.
 USER cryo
