@@ -36,8 +36,8 @@ RUN test -n "${ref}" || { echo "build-arg ref is required: the pysmurf tag, bran
 WORKDIR /usr/local/src
 RUN git clone https://github.com/slaclab/pysmurf.git \
  && cd pysmurf \
- && (git fetch --quiet origin "${ref}" 2>/dev/null || true) \
- && git checkout --quiet --detach "${ref}"
+ && { { git fetch --quiet origin "${ref}" 2>/dev/null && git checkout --quiet --detach FETCH_HEAD; } \
+      || git checkout --quiet --detach "${ref}"; }
 # Must add to safe directories for cryo user in order for the core
 # pysmurf instance to be able to resolve its version using git.
 USER cryo

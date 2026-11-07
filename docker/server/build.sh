@@ -4,9 +4,10 @@
 # pysmurf and what a server needs to run, plus the firmware releases and the configuration
 # files named in definitions.sh under /tmp/fw.
 #
-# The pysmurf built is this checkout's HEAD; <tag> is `git describe --tags --always`
+# The pysmurf built is this checkout's HEAD as the remote has it -- commit and push first,
+# uncommitted changes stay out of the image; <tag> is `git describe --tags --always`
 # of it, so a release is tagged by its release tag and any other commit by the
-# nearest tag, its distance and its hash (v11.4.4-174-g835b0ffb).
+# nearest tag, its distance and its hash (v11.4.4-12-g<hash>).
 #
 # The firmware files are downloaded into 'local_files', which the Dockerfile
 # copies to /tmp/fw. Downloading the private releases needs

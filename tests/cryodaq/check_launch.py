@@ -349,7 +349,7 @@ def check_a_relative_layer_is_found_in_the_package_or_the_configuration_director
     """One resolver for every layer: the package's configuration directory and the deployment's are the
     two places a relative name may be, the working directory never; a name in both is refused, not guessed."""
     import zipfile
-    from cryodaq._errors import ConnectError
+    from cryodaq._errors import ConfigError
     from cryodaq.server._firmware import resolve_layers
     with tempfile.TemporaryDirectory() as tmp:
         fw = firmware_dir(tmp)
@@ -372,14 +372,22 @@ def check_a_relative_layer_is_found_in_the_package_or_the_configuration_director
             assert args.layers == [str(other / 'defaults_c03_lb_lb.yml')], args.layers
             refused(SLOT_2 + ['--config-dir', str(pathlib.Path(tmp) / 'nowhere')],
                     naming=['defaults_c03_lb_lb.yml', 'nowhere', '--layer'])
+            # A relative --config-dir is made absolute, as the firmware directory is, so the
+            # composition takes the resolved file as given instead of resolving it again.
+            args, done = launch(SLOT_2 + ['--config-dir', 'site'], Replay(), fw)
+            assert args.config_dir == str(other) and args.layers == [str(other / 'defaults_c03_lb_lb.yml')], \
+                (args.config_dir, args.layers)
+            assert resolve_layers(args.layers, fw / ARCHIVE, 'CryoDet/config', deployment_dir=args.config_dir) == args.layers
+
             # The composition's resolution, one function: a package member, a deployment file, both, neither.
-            resolve = lambda names, **kw: resolve_layers(names, fw / ARCHIVE, 'CryoDet/config', **kw)   # noqa: E731
+            def resolve(names, **kw):
+                return resolve_layers(names, fw / ARCHIVE, 'CryoDet/config', **kw)
             assert resolve(['defaults.yml'], deployment_dir=site) == [f"{fw / ARCHIVE}/CryoDet/config/defaults.yml"]
             assert resolve(['defaults_c03_lb_none.yml'], deployment_dir=site) == [str(site / 'defaults_c03_lb_none.yml')]
             assert resolve(['/abs/x.yml'], deployment_dir=site) == ['/abs/x.yml']
             try:
                 resolve(['defaults_c03_lb_lb.yml'], deployment_dir=site)
-            except ConnectError as e:
+            except ConfigError as e:
                 assert 'both' in str(e) and str(site) in str(e) and ARCHIVE in str(e), str(e)
             else:
                 raise AssertionError('a name in both places was not refused')

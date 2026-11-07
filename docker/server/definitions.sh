@@ -8,7 +8,7 @@
 # ====================
 # - config_repo: points to the configuration repository, which contains the YML files.
 # - smurf_pcie_repo/smurf_pcie_tag: the PCIe offload card's firmware; its release archive's
-#     Python package is the card's register map, built into the base image (not under /tmp/fw).
+#     Python package is the card's register map, placed on the image's import path (not under /tmp/fw).
 # - FW_SYSTEMS: array of firmware system definitions. Each entry is a pipe-separated tuple:
 #     name|repo_url|tag|fw_files[|zip_file]
 #
