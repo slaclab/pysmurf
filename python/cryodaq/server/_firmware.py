@@ -36,13 +36,17 @@ import pyrogue
 from cryodaq import platform
 from cryodaq._errors import ConnectError
 
-__all__ = ['load_package', 'checkout_python_dirs', 'resolve_layers', 'probe_platform', 'ROOT_NAME']
+__all__ = ['load_package', 'checkout_python_dirs', 'resolve_layers', 'probe_platform', 'ROOT_NAME',
+           'DEFAULTS_SUBDIR']
 
 _log = logging.getLogger(__name__)
 
 # What the root of every tree here is called; the register paths a client
 # resolves start with it.
 ROOT_NAME = platform.ROOT_PATH
+# Where, under the firmware directory, a deployment keeps the register
+# configuration files it chooses from (the population defaults among them).
+DEFAULTS_SUBDIR = 'smurf_cfg/defaults'
 
 
 def load_package(path: Optional[os.PathLike]) -> None:
@@ -99,46 +103,80 @@ def checkout_python_dirs(path: os.PathLike) -> List[str]:
     return found
 
 
-def resolve_layers(layers, firmware: Optional[os.PathLike], config_dir: str) -> List[str]:
+def resolve_layers(layers, firmware: Optional[os.PathLike], config_dir: Optional[str],
+                   deployment_dir: Optional[os.PathLike] = None) -> List[str]:
     """Configuration files as rogue's loader will take them.
 
-    With a firmware package, a relative name means a file in the package's
-    configuration directory (``config_dir``, the platform's) -- inside a
-    release archive, or under a checkout's ``firmware/`` -- and nothing else,
-    so a file of the same name in the working directory is never taken for
-    it. That is how a deployment names the defaults a package ships. An
-    absolute name is used as given, and so is any name when there is no
-    package to look inside.
+    A relative name is looked for in two places and nowhere else -- never the
+    working directory: the firmware package's configuration directory
+    (``config_dir``, the platform's, inside a release archive or under a
+    checkout's ``firmware/``), which is where the files a firmware ships are,
+    and the deployment's directory (``deployment_dir``), which is where a
+    site keeps the files it chooses from, the population defaults among them.
+    Found in one of them, that is the file; in both, the name is refused
+    rather than guessed; in neither, the error names both places. An absolute
+    name is used as given, and so is a relative one when there is nowhere to
+    look.
+
+    Parameters
+    ----------
+    layers : sequence of path-like
+        The names as given on the command line or by the platform.
+    firmware : path-like or None
+        The firmware package, or None when it is not to hand.
+    config_dir : str or None
+        The package's configuration directory, relative to the archive or to
+        the checkout's ``firmware/``; None not to look in the package.
+    deployment_dir : path-like or None
+        The deployment's configuration directory; None not to look there.
 
     Raises
     ------
     FileNotFoundError
-        If a relative name is not in the package.
+        If a relative name is in neither place.
+    ConnectError
+        If a relative name is in both.
     """
-    resolved = []
     archive = checkout = None
-    if firmware is not None:
+    if firmware is not None and config_dir is not None:
         if zipfile.is_zipfile(firmware):
             archive = os.fspath(firmware)
         elif checkout_python_dirs(firmware):
             checkout = os.path.join(os.fspath(firmware), 'firmware')
+    deployment_dir = os.fspath(deployment_dir) if deployment_dir is not None else None
+
+    def in_package(layer):
+        if archive is not None:
+            member = f"{config_dir}/{layer}"
+            with zipfile.ZipFile(archive) as zf:
+                return f"{archive}/{member}" if member in zf.namelist() else None
+        if checkout is not None:
+            path = os.path.join(checkout, config_dir, layer)
+            return path if os.path.isfile(path) else None
+        return None
+
+    def in_deployment(layer):
+        if deployment_dir is None:
+            return None
+        path = os.path.join(deployment_dir, layer)
+        return path if os.path.isfile(path) else None
+
+    places = [p for p in (archive and f"{archive}/{config_dir}", checkout and os.path.join(checkout, config_dir),
+                          deployment_dir) if p]
+    resolved = []
     for layer in layers:
         layer = os.fspath(layer)
-        if os.path.isabs(layer) or (archive is None and checkout is None):
+        if os.path.isabs(layer) or not places:
             # As given: rogue's loader takes a path into an archive as well as
             # a file, and reports what it cannot open.
             resolved.append(layer)
-        elif archive is not None:
-            member = f"{config_dir}/{layer}"
-            with zipfile.ZipFile(archive) as zf:
-                if member not in zf.namelist():
-                    raise FileNotFoundError(f"{archive} holds no {member}")
-            resolved.append(f"{archive}/{member}")
-        else:
-            path = os.path.join(checkout, config_dir, layer)
-            if not os.path.isfile(path):
-                raise FileNotFoundError(f"{checkout} holds no {config_dir}/{layer}")
-            resolved.append(path)
+            continue
+        found = [p for p in (in_package(layer), in_deployment(layer)) if p]
+        if len(found) > 1:
+            raise ConnectError(f"{layer} is in both {found[0]} and {found[1]}; name one with its path")
+        if not found:
+            raise FileNotFoundError(f"no {layer} in {' or '.join(places)}")
+        resolved.append(found[0])
     return resolved
 
 

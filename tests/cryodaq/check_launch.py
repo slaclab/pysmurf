@@ -344,6 +344,56 @@ def check_the_firmware_package_is_the_one_archive_or_else_the_one_checkout():
         _, done = launch(SLOT_2 + ['-E', '-D'], Replay(), fw / 'cryo-det')
         assert done.decided.get('firmware') == str(fw / 'cryo-det'), done.decided
 
+
+def check_a_relative_layer_is_found_in_the_package_or_the_configuration_directory_not_both():
+    """One resolver for every layer: the package's configuration directory and the deployment's are the
+    two places a relative name may be, the working directory never; a name in both is refused, not guessed."""
+    import zipfile
+    from cryodaq._errors import ConnectError
+    from cryodaq.server._firmware import resolve_layers
+    with tempfile.TemporaryDirectory() as tmp:
+        fw = firmware_dir(tmp)
+        with zipfile.ZipFile(fw / ARCHIVE, 'w') as zf:
+            zf.writestr('CryoDet/config/defaults.yml', 'in: package\n')
+            zf.writestr('CryoDet/config/defaults_c03_lb_lb.yml', 'in: package too\n')
+        site = fw / 'smurf_cfg' / 'defaults'
+        (pathlib.Path(tmp) / 'defaults.yml').touch()                # beside the cwd: never taken
+        cwd = os.getcwd()
+        os.chdir(tmp)
+        try:
+            # The deployment's directory defaults to <firmware-dir>/smurf_cfg/defaults; --config-dir moves it.
+            args, done = launch(SLOT_2, Replay(), fw)
+            assert args.config_dir == str(site), args.config_dir
+            assert args.layers == [str(site / 'defaults_c03_lb_lb.yml')], args.layers
+            other = pathlib.Path(tmp) / 'site'
+            other.mkdir()
+            (other / 'defaults_c03_lb_lb.yml').touch()
+            args, done = launch(SLOT_2 + ['--config-dir', str(other)], Replay(), fw)
+            assert args.layers == [str(other / 'defaults_c03_lb_lb.yml')], args.layers
+            refused(SLOT_2 + ['--config-dir', str(pathlib.Path(tmp) / 'nowhere')],
+                    naming=['defaults_c03_lb_lb.yml', 'nowhere', '--layer'])
+            # The composition's resolution, one function: a package member, a deployment file, both, neither.
+            resolve = lambda names, **kw: resolve_layers(names, fw / ARCHIVE, 'CryoDet/config', **kw)   # noqa: E731
+            assert resolve(['defaults.yml'], deployment_dir=site) == [f"{fw / ARCHIVE}/CryoDet/config/defaults.yml"]
+            assert resolve(['defaults_c03_lb_none.yml'], deployment_dir=site) == [str(site / 'defaults_c03_lb_none.yml')]
+            assert resolve(['/abs/x.yml'], deployment_dir=site) == ['/abs/x.yml']
+            try:
+                resolve(['defaults_c03_lb_lb.yml'], deployment_dir=site)
+            except ConnectError as e:
+                assert 'both' in str(e) and str(site) in str(e) and ARCHIVE in str(e), str(e)
+            else:
+                raise AssertionError('a name in both places was not refused')
+            try:
+                resolve(['missing.yml'], deployment_dir=site)
+            except FileNotFoundError as e:
+                assert str(site) in str(e) and ARCHIVE in str(e), str(e)
+            else:
+                raise AssertionError('a name in neither place was accepted')
+            # Nowhere to look: as given (rogue's loader reports what it cannot open).
+            assert resolve_layers(['defaults.yml'], None, None) == ['defaults.yml']
+        finally:
+            os.chdir(cwd)
+
 # --------------------------------------------------------------------------
 
 

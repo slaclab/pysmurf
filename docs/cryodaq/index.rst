@@ -269,7 +269,7 @@ launcher reads the slot through the crate's shelf manager, in this order:
    with ``--no-hw-detect``). For the AMC carrier: a bay without a board is
    left out of the tree (``--disable-bay0/1``), the carrier version and the
    board types choose the defaults file, ``defaults_<version>_<bay 0>_<bay 1>.yml``
-   under ``<firmware-dir>/smurf_cfg/defaults/`` with ``lb``, ``hb``, ``tkid``
+   in the configuration directory (below) with ``lb``, ``hb``, ``tkid``
    or ``none`` per bay, and a Gen2 carrier of version C03 or later has its
    power monitor enabled (``--enable-em22xx``). The platform's defaults file
    goes before any ``--layer`` given, so the user's overrides it.
@@ -300,9 +300,17 @@ server finds the firmware's Python package there: the one release archive
 kind is a refusal naming them, since guessing between releases is how a server
 comes up on the wrong register map; none is allowed, for a package already
 importable. The same directory holds the FPGA image the firmware check
-compares against and the register defaults (``smurf_cfg/defaults/``) a
-population calls for. A relative ``--layer`` name is a file in the package's
-own configuration directory, inside the archive or under the checkout.
+compares against.
+
+Register configuration files come from two places and no other. The firmware
+package's own configuration directory, inside the archive or under the
+checkout, holds the files a firmware ships; the deployment's configuration
+directory (``--config-dir``, default ``<firmware-dir>/smurf_cfg/defaults``)
+holds the files a site chooses from, the population defaults of step 4 among
+them. A relative ``--layer`` name is looked for in both and refused if it is in
+both, since a server configured from the wrong file is as wrong as one on the
+wrong register map; the working directory is never searched. An absolute name
+is used as given.
 
 The server's own log and rogue's are set apart: ``--log-level`` (default
 ``INFO``) governs what the server says about its decisions, identification and
