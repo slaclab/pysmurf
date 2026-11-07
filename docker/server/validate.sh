@@ -20,6 +20,13 @@ check_if_public_tag_exist()
     git ls-remote --refs --tag ${repo} | grep -q refs/tags/${tag} > /dev/null
 }
 
+# Check if a release asset of a GitHub public repository can be downloaded
+# Arguments: repo_url tag file
+check_if_public_asset_exist()
+{
+    curl --head --silent --fail --location "$1/releases/download/$2/$3" > /dev/null
+}
+
 # Check if a tag exists on a GitHub private repository.
 # Paginates through all tags (100 per page) so repos with many releases are
 # handled correctly. Requires $GITHUB_TOKEN.
@@ -152,7 +159,41 @@ if [ ${#FW_SYSTEMS[@]} -eq 0 ]; then
 fi
 echo "${#FW_SYSTEMS[@]} system(s) defined"
 
+printf "Checking if the offload card's firmware was defined...  "
+if [ -z "${smurf_pcie_repo}" ] || [ -z "${smurf_pcie_tag}" ]; then
+    echo "Failed!"
+    echo
+    echo "Offload card firmware not defined! Please check that 'smurf_pcie_repo' and 'smurf_pcie_tag' are defined in 'definitions.sh'."
+    exit_on_error
+fi
+echo "${smurf_pcie_repo} ${smurf_pcie_tag}"
+
 echo "Done! All repository names were defined!"
+echo
+
+# Validate the offload card's firmware (public repository: no token)
+echo "======================================================================================"
+echo "Firmware validation: offload card (smurf-pcie)"
+echo "======================================================================================"
+printf "Checking if release exists...                       "
+check_if_public_tag_exist "${smurf_pcie_repo}" "${smurf_pcie_tag}"
+if [ $? != 0 ]; then
+    echo "Failed!"
+    echo
+    echo "Release '${smurf_pcie_tag}' does not exist in repository '${smurf_pcie_repo}'!"
+    exit_on_error
+fi
+echo "Release exists!"
+printf "Checking ZIP file is in the list of assets...      "
+check_if_public_asset_exist "${smurf_pcie_repo}" "${smurf_pcie_tag}" "rogue_${smurf_pcie_tag}.zip"
+if [ $? != 0 ]; then
+    echo "Failed!"
+    echo
+    echo "File 'rogue_${smurf_pcie_tag}.zip' does not exist in assets for release '${smurf_pcie_tag}' of '${smurf_pcie_repo}'!"
+    exit_on_error
+fi
+echo "File exists!"
+echo "Done! Offload card firmware validated."
 echo
 
 # Validate each firmware system

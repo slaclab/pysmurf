@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 
+# Every firmware release the server image carries is pinned here and nowhere
+# else: build.sh downloads them, validate.sh checks they exist, and the CI
+# workflow reads the tags it resolves the register names against from here.
+#
 # Define repositories:
 # ====================
 # - config_repo: points to the configuration repository, which contains the YML files.
+# - smurf_pcie_repo/smurf_pcie_tag: the PCIe offload card's firmware; its release archive's
+#     Python package is the card's register map, built into the base image (not under /tmp/fw).
 # - FW_SYSTEMS: array of firmware system definitions. Each entry is a pipe-separated tuple:
 #     name|repo_url|tag|fw_files[|zip_file]
 #
@@ -53,9 +59,17 @@ FW_SYSTEMS=(
     # Pre-Spectra
     "rfsoc|https://github.com/slaclab/zcu208-cryo-det-pre-spectra|MicrowaveMuxZcu208_PreSpectra_v2.1.1|MicrowaveMuxZcu208_PreSpectra-0x02010000-20260416123535-ruckman-7d4fca8.linux.tar.gz|rogue_MicrowaveMuxZcu208_PreSpectra_v2.1.1.zip"
 
+    # RFMC carrier (uMUX on the RFSoC-based ATCA carrier). One linux.tar.gz image, like the ZCU208;
+    # the release zip follows rogue_<tag>.zip naming. Its register defaults are in the package itself.
+    "rfmc|https://github.com/slaclab/rfmc-cryo-det|MicrowaveMuxRfmcCarrier_v2.0.0|MicrowaveMuxRfmcCarrier-0x02000000-20261026082858-ruckman-d41f50d.linux.tar.gz|rogue_MicrowaveMuxRfmcCarrier_v2.0.0.zip"
+
     # Add additional systems below, one per line:
     # "mysystem|https://github.com/slaclab/my-repo|v1.2.3|MyFirmware-0x01020300-date-hash.mcs"
 )
+
+# The PCIe offload card's firmware (public repository); the release zip is rogue_<tag>.zip.
+smurf_pcie_repo=https://github.com/slaclab/smurf-pcie
+smurf_pcie_tag=v3.3.1
 
 # Repo for defaults YMLs
 config_repo=https://github.com/slaclab/smurf_cfg

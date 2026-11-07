@@ -67,7 +67,8 @@ CORE_PROVIDERS = (UMUX_OPERATIONS,)
 
 
 def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
-            layers: Sequence[os.PathLike] = (), providers: Sequence[OperationsProvider] = CORE_PROVIDERS,
+            layers: Sequence[os.PathLike] = (), config_dir: Optional[os.PathLike] = None,
+            providers: Sequence[OperationsProvider] = CORE_PROVIDERS,
             sinks: Sequence[Any] = (), platform_name: Optional[str] = None,
             server_port: int = 0, polling: bool = True, configure: bool = False,
             variable_groups: Optional[Mapping] = None,
@@ -88,7 +89,11 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
     layers : sequence of path-like
         Register configuration files, applied in order by rogue's own loader:
         the population's defaults first, then any site or slot overrides. A
-        relative name is looked up in the package's configuration directory.
+        relative name is looked up in the package's configuration directory
+        and in ``config_dir``, and refused if it is in both.
+    config_dir : path-like, optional
+        The deployment's register configuration directory, where a site keeps
+        the files it chooses from; None to look in the package alone.
     providers : sequence of OperationsProvider
         What attaches operations to the tree; the core's own by default. An
         application appends its providers.
@@ -165,9 +170,10 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
         else:
             pmap = platform.by_name(platform_name)
 
-        # A relative file name means one in the archive's configuration
-        # directory, which is where the platform's package keeps them.
-        layers = resolve_layers(layers, firmware, pmap.package_config_dir)
+        # A relative file name means one in the package's configuration
+        # directory, where the platform keeps the files it ships, or in the
+        # deployment's, where a site keeps the files it chooses from.
+        layers = resolve_layers(layers, firmware, pmap.package_config_dir, deployment_dir=config_dir)
         # The platform's own rogue code builds its top level for this transport
         # and whatever it adds beside it; there is no other way to build one,
         # so a stand-in is a PlatformSupport too.

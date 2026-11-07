@@ -25,7 +25,7 @@ import socket
 from typing import Any, Dict, Optional
 
 from cryodaq import platform
-from cryodaq.server import _launch
+from cryodaq.server import _firmware, _launch
 from cryodaq.server._capture import CAPTURE_POINTS
 
 __all__ = ['add_arguments', 'configure_logging', 'launch', 'transport_from', 'composition_kwargs',
@@ -67,12 +67,16 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
                             "as already open; for eth, leave its lanes alone.")
     group.add_argument('--firmware-dir', default=_launch.DEFAULT_FIRMWARE_DIR, metavar='DIR',
                        help="Where the firmware is kept: its Python package as the one release archive "
-                            "or the one checkout there, the FPGA image, and the register defaults "
-                            "(smurf_cfg/defaults). With neither archive nor checkout the package must "
-                            "already be importable.")
+                            "or the one checkout there, and the FPGA image. With neither archive nor "
+                            "checkout the package must already be importable.")
+    group.add_argument('--config-dir', default=None, metavar='DIR',
+                       help="The deployment's register configuration files, the population defaults "
+                            f"among them; default <firmware-dir>/{_firmware.DEFAULTS_SUBDIR}.")
     group.add_argument('--layer', '--defaults', '-d', dest='layers', action='append', default=[],
                        metavar='FILE', help="A register configuration file, applied in order "
-                       "given; the population's defaults first, then overrides.")
+                       "given; the population's defaults first, then overrides. A relative name is "
+                       "looked for in the firmware package's configuration directory and in "
+                       "--config-dir, and refused if it is in both.")
     group.add_argument('--platform', dest='platform_name', default=None,
                        choices=[m.name for m in platform.MAPS],
                        help="Names the platform for an emulated server, whose transport reads no "
@@ -248,8 +252,8 @@ def transport_from(args: argparse.Namespace, emulation_source: Any = None):
 
 def composition_kwargs(args: argparse.Namespace) -> Dict[str, Any]:
     """The `compose()` keyword arguments the parsed options name, less the transport."""
-    return dict(firmware=args.firmware, layers=args.layers, platform_name=args.platform_name,
-                server_port=server_port_for(args), polling=args.polling,
+    return dict(firmware=args.firmware, layers=args.layers, config_dir=getattr(args, 'config_dir', None),
+                platform_name=args.platform_name, server_port=server_port_for(args), polling=args.polling,
                 configure=args.configure, capture_points=args.capture_points,
                 capture_type=args.capture_type,
                 top_level_options=top_level_options(args),

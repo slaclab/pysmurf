@@ -14,7 +14,9 @@
 #    records, the firmware package, whether the FPGA is running the image on
 #    disk, and, if asked, a reboot. The firmware directory (`--firmware-dir`)
 #    is the one place a deployment keeps its release: the package archive or a
-#    checkout, the FPGA image and the register defaults are all found there.
+#    checkout and the FPGA image are found there, and the register
+#    configuration files a population calls for in its configuration
+#    directory (`--config-dir`, under it by default).
 #    What a board's records mean is the
 #    platform's to say (its bring-up declaration); this module only applies the
 #    answers, and every value it fills in is a default an explicit option
@@ -44,6 +46,7 @@ from typing import Any, Dict
 from cryodaq import platform
 from cryodaq._errors import ConnectError, CryodaqError
 from cryodaq.platform import _atca
+from cryodaq.server._firmware import DEFAULTS_SUBDIR, resolve_layers
 
 __all__ = ['launch', 'LaunchError', 'Launched', 'DEFAULT_FIRMWARE_DIR']
 
@@ -52,7 +55,6 @@ _log = logging.getLogger(__name__)
 # Where the container keeps the firmware release: the Python package archive,
 # the FPGA image and the register defaults.
 DEFAULT_FIRMWARE_DIR = '/tmp/fw'
-DEFAULTS_SUBDIR = 'smurf_cfg/defaults'
 # A short git hash as the firmware file names carry it.
 SHORT_HASH_RE = re.compile(r'([0-9a-f]{7})[0-9a-f]*(?=\.(mcs|linux\.tar)\b)')
 
@@ -114,6 +116,8 @@ def launch(args: argparse.Namespace, parser: argparse.ArgumentParser) -> Launche
     done = Launched(parser)
     # Absolute, so a defaults file found here is never taken for a package member.
     args.firmware_dir = str(pathlib.Path(args.firmware_dir).resolve())
+    if args.config_dir is None:
+        args.config_dir = str(pathlib.Path(args.firmware_dir) / DEFAULTS_SUBDIR)
     if args.shelfmanager is None and args.slot is None:
         _launch_addressed(args, done)
     else:
@@ -191,7 +195,7 @@ def _launch_from_slot(args, done):
         # 4. What else the platform reads off the slot's records (for the AMC
         #    carrier: its bays, their defaults file, the power monitor).
         if not args.no_hw_detect:
-            _apply_options(args, done, bring_up, firmware_dir)
+            _apply_options(args, done, bring_up)
 
     # 5. The firmware's Python package, by the platform's image name -- the
     #    carrier's, or the named platform's when no record identified one.
@@ -259,13 +263,15 @@ def _named_image(args):
     return platform.bring_up_by_name(args.platform_name).firmware_image
 
 
-def _apply_options(args, done, bring_up, firmware_dir):
+def _apply_options(args, done, bring_up):
     """Fill in the options the platform derives from the slot's records.
 
     The platform decides (`BringUp.options`); what is the command line's is
-    done here: a defaults file it names is looked up where the release keeps
-    them and goes before any layer the user gave, so the user's overrides it,
-    and every other option is a default the command line beats.
+    done here: a defaults file it names is resolved in the deployment's
+    configuration directory -- by the resolver the composition uses for every
+    layer, here so a missing file is refused before anything touches the
+    board -- and goes before any layer the user gave, so the user's overrides
+    it; every other option is a default the command line beats.
     """
     try:
         options = bring_up.options(done.inventory)
@@ -274,12 +280,13 @@ def _apply_options(args, done, bring_up, firmware_dir):
     _log.info("platform options from the slot's records: %s", options or 'none')
     for name, value in options.items():
         if name == 'layers':
-            path = firmware_dir / DEFAULTS_SUBDIR / value
-            if not path.is_file():
-                raise LaunchError(f"the defaults file the platform calls for is not there: {path}; "
-                                  f"pass -E and --layer yourself")
-            args.layers.insert(0, str(path))
-            done.decided['layers'] = [str(path)]
+            try:
+                path = resolve_layers([value], None, None, deployment_dir=args.config_dir)[0]
+            except FileNotFoundError as e:
+                raise LaunchError(f"the defaults file the platform calls for is not there: {e}; "
+                                  f"pass -E and --layer yourself") from e
+            args.layers.insert(0, path)
+            done.decided['layers'] = [path]
         else:
             done.set_default(args, name, value)
 
