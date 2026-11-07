@@ -26,7 +26,7 @@ no firmware files, and run the test suites inside them; nothing is pushed.
 ([validate.sh](docker/server/validate.sh)), downloads the firmware assets into `local_files/`
 (private repositories: `GITHUB_TOKEN` in the environment), builds the image at this checkout's
 `HEAD` and pushes it tagged `git describe --tags --always` -- the release tag on a release,
-`v11.4.4-174-g835b0ffb` on any other commit. Any commit builds; a push to `ghcr.io` needs a token
+`v11.4.4-12-g<hash>` on any other commit. Any pushed commit builds (the image clones it); a push to `ghcr.io` needs a token
 with `write:packages`. For a local build:
 
 ```

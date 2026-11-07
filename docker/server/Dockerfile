@@ -38,16 +38,17 @@ RUN pip3 install --no-cache-dir --upgrade pip
 RUN pip3 install --no-cache-dir \
     setuptools_scm
 
-# Install pysmurf at `ref`: a tag, a branch or a commit. The clone is a full
-# one so the version resolves from the tags; a commit the clone does not
-# reach (a pull request's) is fetched by name first.
+# Install pysmurf at `ref`: a tag, a branch or a commit, as the remote has it.
+# The clone is a full one so the version resolves from the tags; the ref is
+# fetched by name (which also reaches a pull request's commit) and checked
+# out detached, or, for a name the fetch does not know, checked out as given.
 ARG ref
 RUN test -n "${ref}" || { echo "build-arg ref is required: the pysmurf tag, branch or commit to build" >&2; exit 1; }
 WORKDIR /usr/local/src
 RUN git clone https://github.com/slaclab/pysmurf.git \
  && cd pysmurf \
- && (git fetch --quiet origin "${ref}" 2>/dev/null || true) \
- && git checkout --quiet --detach "${ref}"
+ && { { git fetch --quiet origin "${ref}" 2>/dev/null && git checkout --quiet --detach FETCH_HEAD; } \
+      || git checkout --quiet --detach "${ref}"; }
 # Must add to safe directories for cryo user in order for the core
 # pysmurf instance to be able to resolve its version using git.
 USER cryo

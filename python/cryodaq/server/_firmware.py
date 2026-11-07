@@ -6,10 +6,12 @@
 # Created    : 2026-10-08
 #-----------------------------------------------------------------------------
 # Description:
-#    Three steps a server takes before it has a register tree: put the firmware's
-#    Python package on the path (a release archive or a checkout), read the build
-#    stamp off the hardware to learn which platform this is, and import the class
-#    that builds that platform's tree.
+#    What a server does with its firmware before it has a register tree: put the
+#    firmware's Python package on the path (a release archive or a checkout),
+#    read the build stamp off the hardware to learn which platform this is,
+#    import the class that builds that platform's tree, and find the register
+#    configuration files it was named -- in the package, or in the deployment's
+#    own directory.
 #
 #    The probe is a tree holding only the version block, at the address every
 #    platform here places it; it is started, read and stopped before the real
@@ -34,7 +36,7 @@ from typing import Any, List, Optional
 import pyrogue
 
 from cryodaq import platform
-from cryodaq._errors import ConnectError
+from cryodaq._errors import ConfigError, ConnectError
 
 __all__ = ['load_package', 'checkout_python_dirs', 'resolve_layers', 'probe_platform', 'ROOT_NAME',
            'DEFAULTS_SUBDIR']
@@ -134,7 +136,7 @@ def resolve_layers(layers, firmware: Optional[os.PathLike], config_dir: Optional
     ------
     FileNotFoundError
         If a relative name is in neither place.
-    ConnectError
+    ConfigError
         If a relative name is in both.
     """
     archive = checkout = None
@@ -173,7 +175,7 @@ def resolve_layers(layers, firmware: Optional[os.PathLike], config_dir: Optional
             continue
         found = [p for p in (in_package(layer), in_deployment(layer)) if p]
         if len(found) > 1:
-            raise ConnectError(f"{layer} is in both {found[0]} and {found[1]}; name one with its path")
+            raise ConfigError(f"{layer} is in both {found[0]} and {found[1]}; name one with its path")
         if not found:
             raise FileNotFoundError(f"no {layer} in {' or '.join(places)}")
         resolved.append(found[0])

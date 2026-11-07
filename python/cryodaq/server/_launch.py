@@ -118,6 +118,10 @@ def launch(args: argparse.Namespace, parser: argparse.ArgumentParser) -> Launche
     args.firmware_dir = str(pathlib.Path(args.firmware_dir).resolve())
     if args.config_dir is None:
         args.config_dir = str(pathlib.Path(args.firmware_dir) / DEFAULTS_SUBDIR)
+    else:
+        # Absolute too: the file names resolved against it are absolute, so the
+        # composition takes them as given rather than resolving them again.
+        args.config_dir = str(pathlib.Path(args.config_dir).resolve())
     if args.shelfmanager is None and args.slot is None:
         _launch_addressed(args, done)
     else:
