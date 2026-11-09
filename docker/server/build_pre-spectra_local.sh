@@ -2,7 +2,11 @@
 
 # This script builds a local pre-spectra pysmurf server docker image for development/testing.
 # Unlike build.sh, it does not push to any registry, and tags the image as ':latest'
-# using the current branch name rather than a release tag.
+# rather than by a release tag.
+#
+# TO BE DELETED: a stopgap from before build.sh could build without pushing. `PUSH=0
+# build.sh` now builds the same image from the same definitions, tagged by `git describe`,
+# and is what to use; this script stays only until its users have moved over.
 
 # Load the user definitions
 . definitions.sh
@@ -46,9 +50,11 @@ done
 echo "Downloading configuration files..."
 git -C local_files clone -c advice.detachedHead=false ${config_repo} -b ${config_repo_tag} || exit 1
 
-# Build the docker image using the current branch name
+# Build the docker image at this checkout's HEAD, as the remote has it (commit and push
+# first), with the offload card's release pinned in definitions.sh
 echo "Building docker image..."
-docker image build --build-arg branch=$(git rev-parse --abbrev-ref HEAD) -t pysmurf_server . || exit 1
+docker image build --build-arg ref="$(git rev-parse HEAD)" --build-arg smurf_pcie_tag="${smurf_pcie_tag}" \
+    -t pysmurf_server . || exit 1
 
 # Tag the image locally (no push for local builds)
 docker image tag pysmurf_server ${dockerhub_repo_stable}:latest
