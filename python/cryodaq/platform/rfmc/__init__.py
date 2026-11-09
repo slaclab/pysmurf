@@ -29,8 +29,8 @@
 
 from cryodaq.platform import _umux
 
-__all__ = ['NAME', 'TAGS', 'PACKAGE_CONFIG_DIR', 'BRING_UP', 'CARRIER', 'REGISTERS', 'LEGACY',
-           'WITNESS', 'SCOPES', 'QUAD', 'RFDC', 'LMK_CONFIG', 'STARTUP_TIMING_SOURCE',
+__all__ = ['NAME', 'TAGS', 'PACKAGE_CONFIG_DIR', 'PACKAGE_DEFAULTS', 'BRING_UP', 'CARRIER', 'REGISTERS',
+           'LEGACY', 'WITNESS', 'SCOPES', 'QUAD', 'RFDC', 'LMK_CONFIG', 'STARTUP_TIMING_SOURCE',
            'TIMING_RECEIVER_CROSSBAR_OUTPUT']
 
 NAME = 'umux-rfmc'
@@ -49,6 +49,12 @@ TAGS = ('MicrowaveMuxRfmcCarrier',)
 # defaults, and the clock chip's register file under lmk/ -- so a relative name a
 # server is given means a file there.
 PACKAGE_CONFIG_DIR = 'python/rfmc_cryo_det/config'
+
+# The register defaults the package ships, loaded first, under any layer a server is
+# given. This board has no bays, so one file serves every carrier: the firmware's own,
+# which its authors' server loads at start-up. (A file keyed for a root called 'Root' is refused
+# before any step; the release's file has to be keyed 'root', rogue's alias for any root.)
+PACKAGE_DEFAULTS = 'defaults.yml'
 
 # An ATCA carrier with a processor system beside the FPGA (+200) and its converters on
 # the board, so no bays and no population. Its FRU record has the AMC carrier's format

@@ -87,10 +87,12 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
         The firmware's Python package: a release archive or a checkout. None if
         it is already importable.
     layers : sequence of path-like
-        Register configuration files, applied in order by rogue's own loader:
-        the population's defaults first, then any site or slot overrides. A
-        relative name is looked up in the package's configuration directory
-        and in ``defaults_dir``, and refused if it is in both.
+        Register configuration files, applied in order by rogue's own loader
+        after the defaults the platform's package ships, where it declares them
+        (`PlatformMap.package_defaults`): the population's defaults, then any
+        site or slot overrides. A relative name is looked up in the package's
+        configuration directory and in ``defaults_dir``, and refused if it is
+        in both.
     defaults_dir : path-like, optional
         The deployment's defaults directory, where a site keeps the register
         files it chooses from; None to look in the package alone.
@@ -170,11 +172,12 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
         else:
             pmap = platform.by_name(platform_name)
 
-        # A relative file name means one in the package's configuration
-        # directory, where the platform keeps the files it ships, or in the
-        # deployment's defaults directory, where a site keeps the files it
-        # chooses from.
-        layers = resolve_layers(layers, firmware, pmap.package_config_dir, defaults_dir=defaults_dir)
+        # The package's own defaults first, where the platform declares them,
+        # then the files given as overrides. A relative name means a file in
+        # the package's configuration directory, where the platform keeps the
+        # files it ships, or in the deployment's defaults directory, where a
+        # site keeps the files it chooses from.
+        layers = resolve_layers(layers, firmware, pmap, defaults_dir=defaults_dir)
         # The platform's own rogue code builds its top level for this transport
         # and whatever it adds beside it; there is no other way to build one,
         # so a stand-in is a PlatformSupport too.

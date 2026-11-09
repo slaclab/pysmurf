@@ -123,6 +123,13 @@ a server imports. The map module declares:
     means a file there (or one in the deployment's defaults directory, which
     holds what SMuRF operations maintain; see *Register configuration files*
     below).
+``PACKAGE_DEFAULTS``
+    The register defaults file in that directory a server loads first, under
+    any layer it is given, or None. A platform with one set of defaults for
+    every board (the RFMC carrier, which has no bays) names the file its
+    package ships; one whose defaults depend on the population (the AMC
+    carrier) declares None and the launcher chooses the file from the slot's
+    records.
 ``BRING_UP``
     What defines this platform's carrier to the launcher before there is a
     tree (a ``_umux.BringUp``): the image name the release's files carry, the
@@ -326,6 +333,13 @@ knows both places. A relative ``--layer`` name is looked for in both and
 refused if it is in both, since a server configured from the wrong file is as
 wrong as one on the wrong register map; the working directory is never
 searched. An absolute name is used as given.
+
+A platform whose package ships one set of defaults (``PACKAGE_DEFAULTS`` in
+its map module; the RFMC carrier's) loads that file
+first, and every ``--layer`` after it as an override, so a site names only
+what it changes; a platform whose defaults depend on the population has no
+such base, its layers are the launcher's choice from the slot's records, and
+its configuration procedure refuses to run with none.
 
 The server's own log and rogue's are set apart: ``--log-level`` (default
 ``INFO``) governs what the server says about its decisions, identification and

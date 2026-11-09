@@ -33,6 +33,7 @@
 
 import argparse
 import contextlib
+import dataclasses
 import os
 import pathlib
 import sys
@@ -44,6 +45,7 @@ sys.path.insert(0, str(HERE / 'fixtures' / 'ipmi'))
 
 from replay import Replay                                       # noqa: E402
 
+from cryodaq import platform                                    # noqa: E402
 from cryodaq.platform import _atca                              # noqa: E402
 from cryodaq.server import _cli                                 # noqa: E402
 
@@ -390,11 +392,13 @@ def check_a_relative_layer_is_found_in_the_package_or_the_configuration_director
             args, done = launch(SLOT_2 + ['--defaults-dir', 'site'], Replay(), fw)
             assert args.defaults_dir == str(other) and args.layers == [str(other / 'defaults_c03_lb_lb.yml')], \
                 (args.defaults_dir, args.layers)
-            assert resolve_layers(args.layers, fw / ARCHIVE, 'CryoDet/config', defaults_dir=args.defaults_dir) == args.layers
+            # The map's package directory moved to where this archive keeps its files; it ships no defaults.
+            amc = dataclasses.replace(platform.by_name('umux-amc'), package_config_dir='CryoDet/config')
+            assert resolve_layers(args.layers, fw / ARCHIVE, amc, defaults_dir=args.defaults_dir) == args.layers
 
             # The composition's resolution, one function: a package member, a deployment file, both, neither.
             def resolve(names, **kw):
-                return resolve_layers(names, fw / ARCHIVE, 'CryoDet/config', **kw)
+                return resolve_layers(names, fw / ARCHIVE, amc, **kw)
             assert resolve(['defaults.yml'], defaults_dir=site) == [f"{fw / ARCHIVE}/CryoDet/config/defaults.yml"]
             assert resolve(['defaults_c03_lb_none.yml'], defaults_dir=site) == [str(site / 'defaults_c03_lb_none.yml')]
             assert resolve(['/abs/x.yml'], defaults_dir=site) == ['/abs/x.yml']
