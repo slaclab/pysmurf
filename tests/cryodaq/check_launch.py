@@ -240,6 +240,19 @@ def check_a_firmware_mismatch_loads_the_image_and_a_match_does_not():
     assert 'programmed' not in done.decided and wrote(replay) == [] and not args.configure, \
         '-D must skip the firmware check'
 
+
+def check_a_carrier_whose_processor_loads_its_image_is_not_firmware_checked():
+    """Synthetic: slot 2's controller reports an RFMC carrier's part number. Its image is a linux.tar.gz its processor loads; no .mcs is looked for and nothing is loaded."""
+    rfmc_record = (0, ' Board Mfg             : SLAC\n Board Product         : RFMC\n'
+                      ' Board Part Number     : PC_379_396_55_C01\n')
+    replay = Replay(overrides={'fru print 0': rfmc_record})
+    args, done, replay = launched(SLOT_2, replay, archive='rogue_MicrowaveMuxRfmcCarrier_v2.0.0.zip')
+    assert args.firmware and args.firmware.endswith('rogue_MicrowaveMuxRfmcCarrier_v2.0.0.zip'), args.firmware
+    assert args.ip_ps == '10.0.1.202', f"the processor system at +200: {args.ip_ps}"
+    assert 'programmed' not in done.decided and wrote(replay) == [] and not args.configure, \
+        f"an image the processor loads was checked or loaded: {done.decided}, {wrote(replay)}"
+
+
 # --------------------------------------------------------------------------
 # a slot whose controller does not answer
 # --------------------------------------------------------------------------

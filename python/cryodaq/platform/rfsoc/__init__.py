@@ -77,4 +77,4 @@ PACKAGE_CONFIG_DIR = 'python/CryoDet/config'
 
 # An evaluation board: no shelf manager, no FRU record, no bays; a processor
 # system beside the FPGA at the +200 address.
-BRING_UP = _umux.BringUp(firmware_image='MicrowaveMuxZcu208', processor_offset=200)
+BRING_UP = _umux.BringUp(firmware_image='MicrowaveMuxZcu208', processor_offset=200, shelf_manager_loads_image=False)

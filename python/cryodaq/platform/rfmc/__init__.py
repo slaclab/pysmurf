@@ -56,7 +56,7 @@ PACKAGE_CONFIG_DIR = 'python/rfmc_cryo_det/config'
 # working IPMI, so a shelf manager cannot see it and the launcher takes the addresses it
 # is given; from C01 the slot can be named).
 BRING_UP = _umux.BringUp(firmware_image='MicrowaveMuxRfmcCarrier', processor_offset=200,
-                         carrier_part_numbers=('PC_379_396_55',))
+                         carrier_part_numbers=('PC_379_396_55',), shelf_manager_loads_image=False)
 
 # --------------------------------------------------------------------------
 # the carrier core
