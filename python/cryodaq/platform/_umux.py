@@ -67,10 +67,16 @@ class BringUp:
     processor_offset : int or None
         The address offset of a processor system beside the FPGA, where the
         board has one (the FPGA's own port is at 100).
+    shelf_manager_loads_image : bool
+        Whether the FPGA image is an MCS file the shelf manager loads, which
+        is what the launcher's firmware check compares and loads. False for a
+        board whose processor system loads its image (a ``linux.tar.gz``); the
+        launcher then leaves the image alone.
     """
     firmware_image: str
     carrier_part_numbers: Tuple[str, ...] = ()
     processor_offset: Optional[int] = None
+    shelf_manager_loads_image: bool = True
 
     def options(self, inventory: Mapping[str, Any]) -> Dict[str, Any]:
         """The server options this platform derives from the shelf manager's record of a slot.

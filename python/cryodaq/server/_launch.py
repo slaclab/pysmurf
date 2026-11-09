@@ -214,8 +214,14 @@ def _launch_from_slot(args, done):
         done.set_default(args, 'configure', True)
 
     # 7. Is the FPGA running the image on disk? If not, load it (which reboots).
+    #    Only where the shelf manager loads the image; a board whose processor
+    #    system loads its own is left alone.
     if bring_up is not None and args.check_firmware:
-        _check_firmware(args, done, shm, bring_up, firmware_dir)
+        if bring_up.shelf_manager_loads_image:
+            _check_firmware(args, done, shm, bring_up, firmware_dir)
+        else:
+            _log.info("the %s image is loaded by the board's processor system, not through the "
+                      "shelf manager; not checked here", bring_up.firmware_image)
 
 
 def _spelled(decided):

@@ -126,8 +126,8 @@ a server imports. The map module declares:
 ``BRING_UP``
     What defines this platform's carrier to the launcher before there is a
     tree (a ``_umux.BringUp``): the image name the release's files carry, the
-    carrier part numbers a shelf manager reports for it, and where a processor
-    system sits. A platform whose records imply more -- the AMC carrier's bays
+    carrier part numbers a shelf manager reports for it, where a processor
+    system sits, and whether the shelf manager loads the FPGA image. A platform whose records imply more -- the AMC carrier's bays
     choose its defaults file -- subclasses it and overrides ``options()``,
     which turns the shelf manager's record of the slot into server options by
     name; the launcher applies them and knows nothing of bays. An empty
@@ -287,7 +287,10 @@ launcher reads the slot through the crate's shelf manager, in this order:
    hash the FPGA reports is compared with the one in the FPGA image's file
    name (``*-<short githash>.mcs[.gz]``). When they differ the image is
    loaded, which reboots the FPGA into it, and ``--configure`` is set as after
-   a hard boot. A hard boot on a stale image is therefore two reboots.
+   a hard boot. A hard boot on a stale image is therefore two reboots. A
+   board whose processor system loads its own image (the RFMC carrier and the
+   ZCU208, a ``linux.tar.gz``) is left alone: its bring-up declaration says
+   the shelf manager does not load it, and the launcher says so in its log.
 
 The shelf manager is driven through SLAC's crate tools (``ipmitool``,
 ``cba_amc_init``, ``ProgramFPGA.bash``) from ``cryodaq.platform._atca``, the
