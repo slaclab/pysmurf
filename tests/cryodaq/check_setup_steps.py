@@ -368,8 +368,11 @@ def check_every_platform_has_a_procedure():
 
 def check_every_procedure_reaches_only_nodes_its_platform_has():
     """Run on each platform's dump, no procedure asks for a node the tree lacks."""
+    # The RFMC's procedure reads the version block to tell the firmware line; the
+    # tree answers as a version-1 board does (0, emulated memory's answer, is refused).
+    rfmc_version = {f'{rfmc.CARRIER.CARRIER}.AxiVersion.FpgaVersion': 0x01020000}
     for stem in PLATFORM_OF:
-        values = aligned_lanes({}) if stem == 'amc' else None
+        values = {'amc': aligned_lanes({}), 'rfmc': rfmc_version}.get(stem)
         log, loads = run_procedure(stem, values=values)
         assert log, f"{stem}: the procedure touched nothing"
         assert loads == [('a.yml',)], loads
@@ -385,45 +388,56 @@ def check_the_rfmc_sequence_is_the_firmwares_own():
     wait bounded, the backplane routed to the receiver's crossbar output, the
     tile groups the firmware uses, and polling off throughout. The firmware's
     final health check is left out, as the carrier's was.
+
+    The two lines of the firmware synchronise different ADC tile groups, and the
+    procedure tells them apart by the major version the board reports: version
+    1 (baseband) all four tiles, version 2 (direct RF sampling) only the two the
+    converter IP allows. A major it does not know is the step's failure.
     """
-    _setup, root = tree('rfmc', {'AMCc.PollEn': True})
-    setup = procedure(_setup, 'rfmc', layers=('d.yml',))
-    setup.lmk_config = lambda: '/pkg/lmk.txt'      # the package's file, stood in
-    with StoodInLoad(_setup) as load:
-        run_on(setup, root)
     core = rfmc.CARRIER.CARRIER
     rfdc = rfmc.RFDC
     crossbar = f'{core}.AxiSy56040.OutputConfig[{rfmc.TIMING_RECEIVER_CROSSBAR_OUTPUT}]'
-    expected = [
-        ('set', 'AMCc.PollEn', False),
-        ('call', f'{core}.UserRst', _setup.rfmc.RfmcSetup.RESET_RECOVERY_TIMEOUT_S),
-        ('set', crossbar, 0x2),                                   # backplane, STARTUP_TIMING in the firmware
-        ('call', f'{core}.InitClock', '/pkg/lmk.txt'),
-        ('call', f'{core}.DspRstWait', _setup.rfmc.RfmcSetup.RESET_RECOVERY_TIMEOUT_S),
-        ('call', f'{rfdc}.Init'),
-        ('call', 'AMCc.ReadAll'),
-        ('set', f'{rfdc}.Mts.DacTiles', 0xF),
-        ('set', f'{rfdc}.Mts.AdcTiles', 0x5),                    # ADC224 + ADC226: the IP disables MTS on the 6x-decimation tiles (v2.0.0)
-        ('set', f'{rfdc}.Mts.DacRefTile', 0x0),                  # DAC228, the DAC clock source
-        ('set', f'{rfdc}.Mts.AdcRefTile', 0x2),                  # ADC226, the ADC clock source
-        ('call', f'{rfdc}.Mts.SyncDacTiles'),
-        ('call', f'{rfdc}.Mts.SyncAdcTiles'),
-        ('load', 'd.yml'),
-        ('call', 'AMCc.CountReset'),
-        ('set', 'AMCc.PollEn', True),
-    ]
-    assert root.log == expected, '\n'.join(f'  {e}' for e in root.log)
-    assert load.loads == [('d.yml',)]
-    assert setup.progress == [('total', 9)] + ['step'] * 9, setup.progress
-    # The RFMC has no JESD links and never touches a verdict.
-    assert setup.status.JesdStatus.values == []
-    # A reset that does not come back, a clock that does not lock, and no clock
-    # file are each the named step's failure, with the firmware's reason where it
-    # gives one; polling is restored on the way out of a failed run too.
+    fpga_version = f'{core}.AxiVersion.FpgaVersion'
+    for version, adc_tiles in ((0x01020000, 0xF), (0x02000000, 0x5)):
+        _setup, root = tree('rfmc', {'AMCc.PollEn': True, fpga_version: version})
+        setup = procedure(_setup, 'rfmc', layers=('d.yml',))
+        setup.lmk_config = lambda: '/pkg/lmk.txt'      # the package's file, stood in
+        with StoodInLoad(_setup) as load:
+            run_on(setup, root)
+        expected = [
+            ('set', 'AMCc.PollEn', False),
+            ('call', f'{core}.UserRst', _setup.rfmc.RfmcSetup.RESET_RECOVERY_TIMEOUT_S),
+            ('set', crossbar, 0x2),                                   # backplane, STARTUP_TIMING in the firmware
+            ('call', f'{core}.InitClock', '/pkg/lmk.txt'),
+            ('call', f'{core}.DspRstWait', _setup.rfmc.RfmcSetup.RESET_RECOVERY_TIMEOUT_S),
+            ('call', f'{rfdc}.Init'),
+            ('call', 'AMCc.ReadAll'),
+            ('set', f'{rfdc}.Mts.DacTiles', 0xF),
+            ('get', fpga_version),                                    # which line of the firmware the board runs
+            ('set', f'{rfdc}.Mts.AdcTiles', adc_tiles),              # v1: all four; v2: ADC224 + ADC226, the IP disables MTS on the 6x-decimation tiles
+            ('set', f'{rfdc}.Mts.DacRefTile', 0x0),                  # DAC228, the DAC clock source
+            ('set', f'{rfdc}.Mts.AdcRefTile', 0x2),                  # ADC226, the ADC clock source
+            ('call', f'{rfdc}.Mts.SyncDacTiles'),
+            ('call', f'{rfdc}.Mts.SyncAdcTiles'),
+            ('load', 'd.yml'),
+            ('call', 'AMCc.CountReset'),
+            ('set', 'AMCc.PollEn', True),
+        ]
+        assert root.log == expected, f'version 0x{version:08x}:\n' + '\n'.join(f'  {e}' for e in root.log)
+        assert load.loads == [('d.yml',)]
+        assert setup.progress == [('total', 9)] + ['step'] * 9, setup.progress
+        # The RFMC has no JESD links and never touches a verdict.
+        assert setup.status.JesdStatus.values == []
+    # A reset that does not come back, a clock that does not lock, no clock
+    # file, and a firmware line the procedure does not know (a version block
+    # reading 0, as emulated memory does) are each the named step's failure,
+    # with the firmware's reason where it gives one; polling is restored on the
+    # way out of a failed run too.
     for values, step, reason in (({'user reset times out': True}, 'reset user logic', 'did not come out of reset'),
                                  ({'dsp reset times out': True}, 'wait for DSP clock', 'did not come out of reset'),
                                  ({'clocks fail': True}, 'init clocks', 'PLL not locked: Lmx[1]'),
-                                 ({}, 'init clocks', 'ships no config/lmk')):
+                                 ({}, 'init clocks', 'ships no config/lmk'),
+                                 ({fpga_version: 0x00000000}, 'sync converter tiles', 'version 0x00000000 (major 0)')):
         _setup, root = tree('rfmc', dict(values, **{'AMCc.PollEn': True}))
         setup = procedure(_setup, 'rfmc')
         if 'ships no' in reason:

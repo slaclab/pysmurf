@@ -64,12 +64,18 @@ class RfmcSetup(Setup):
     # routed to it: the backplane, as the firmware's own start-up routes.
     TIMING_SOURCE = 'backplane'
     # The multi-tile synchronisation groups and their reference tiles, as the
-    # firmware's own start-up (v2.0.0) sets them: every DAC tile, with DAC228 as
-    # the reference; of the ADCs only ADC224 and ADC226, since the converter IP
-    # disables synchronisation on the two 6x-decimation tiles (ADC225, ADC227),
-    # with ADC226 as the reference.
+    # firmware's own start-up sets them: every DAC tile, with DAC228 as the
+    # reference, and ADC226 as the ADC reference, on every release. Which ADC
+    # tiles join depends on the firmware line, told apart by the major version
+    # the board's version block reports: version 1 (baseband, the quads' own
+    # synthesisers mix to RF) runs its four ADC tiles alike and synchronises them
+    # all; version 2 (direct RF sampling) runs ADC225 and ADC227 at a different
+    # rate and decimation, on which the converter IP disables synchronisation,
+    # so only ADC224 and ADC226 join. A major version not listed here is
+    # refused, not guessed at.
     MTS_DAC_TILES, MTS_DAC_REF_TILE = 0xF, 0x0
-    MTS_ADC_TILES, MTS_ADC_REF_TILE = 0x5, 0x2
+    MTS_ADC_TILES_BY_MAJOR = {1: 0xF, 2: 0x5}
+    MTS_ADC_REF_TILE = 0x2
     # How long the logic is given to come out of a reset before the step gives
     # up; the firmware's own helpers wait for ever by default.
     RESET_RECOVERY_TIMEOUT_S = 10.0
@@ -84,7 +90,7 @@ class RfmcSetup(Setup):
                 ('wait for DSP clock', lambda: self.wait_for_dsp_clock(carrier)),
                 ('init RF data converter', rfdc.Init),
                 ('read all', root.ReadAll),
-                ('sync converter tiles', lambda: self.sync_converter_tiles(rfdc)),
+                ('sync converter tiles', lambda: self.sync_converter_tiles(carrier, rfdc)),
                 ('load layers', lambda: load_layers(root, self.layers)),
                 ('reset counters', root.CountReset))
 
@@ -132,11 +138,21 @@ class RfmcSetup(Setup):
             raise StepError(f"the DSP clock did not come out of reset in "
                             f"{self.RESET_RECOVERY_TIMEOUT_S:.0f} s")
 
-    def sync_converter_tiles(self, rfdc: Any) -> None:
-        """Multi-tile synchronise the DAC tiles, then the ADC tiles."""
+    def adc_tiles(self, carrier: Any) -> int:
+        """The ADC tiles to synchronise, chosen by the firmware line the board reports."""
+        version = carrier.AxiVersion.FpgaVersion.get()
+        major = version >> 24
+        if major not in self.MTS_ADC_TILES_BY_MAJOR:
+            known = ', '.join(str(m) for m in sorted(self.MTS_ADC_TILES_BY_MAJOR))
+            raise StepError(f"the board reports firmware version 0x{version:08x} (major {major}); "
+                            f"which ADC tiles synchronise is known for major versions {known} only")
+        return self.MTS_ADC_TILES_BY_MAJOR[major]
+
+    def sync_converter_tiles(self, carrier: Any, rfdc: Any) -> None:
+        """Multi-tile synchronise the DAC tiles, then the ADC tiles the firmware line allows."""
         mts = rfdc.Mts
         mts.DacTiles.set(self.MTS_DAC_TILES)
-        mts.AdcTiles.set(self.MTS_ADC_TILES)
+        mts.AdcTiles.set(self.adc_tiles(carrier))
         mts.DacRefTile.set(self.MTS_DAC_REF_TILE)
         mts.AdcRefTile.set(self.MTS_ADC_REF_TILE)
         mts.SyncDacTiles()
