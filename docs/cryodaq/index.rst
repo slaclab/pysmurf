@@ -118,8 +118,11 @@ a server imports. The map module declares:
     them before its first colon. Read one off a board rather than deriving it:
     an image not listed is refused by name, which is the safe failure.
 ``PACKAGE_CONFIG_DIR``
-    Where the firmware's release archive keeps its configuration files, so a
-    relative layer name a server is given means a file there.
+    Where the firmware's release archive keeps the configuration files its
+    authors ship with the firmware, so a relative layer name a server is given
+    means a file there (or one in the deployment's defaults directory, which
+    holds what SMuRF operations maintain; see *Register configuration files*
+    below).
 ``BRING_UP``
     What defines this platform's carrier to the launcher before there is a
     tree (a ``_umux.BringUp``): the image name the release's files carry, the
@@ -302,15 +305,24 @@ comes up on the wrong register map; none is allowed, for a package already
 importable. The same directory holds the FPGA image the firmware check
 compares against.
 
-Register configuration files come from two places and no other. The firmware
-package's own configuration directory, inside the archive or under the
-checkout, holds the files a firmware ships; the deployment's defaults
-directory (``--defaults-dir``, default ``<firmware-dir>/smurf_cfg/defaults``)
-holds the files a site chooses from, the population defaults of step 4 among
-them. A relative ``--layer`` name is looked for in both and refused if it is in
-both, since a server configured from the wrong file is as wrong as one on the
-wrong register map; the working directory is never searched. An absolute name
-is used as given.
+Register configuration files come from two places and no other, because two
+parties write them on two release cycles. The firmware package's own
+configuration directory (``PACKAGE_CONFIG_DIR`` in the platform's map module;
+``python/CryoDet/config`` in a CryoDet release, ``python/rfmc_cryo_det/config``
+in an RFMC one), inside the archive or under the checkout, holds what the
+firmware's authors ship with the firmware: its own register defaults and, on
+the RFMC, the clock chip's register file. The deployment's defaults directory
+(``--defaults-dir``, default ``<firmware-dir>/smurf_cfg/defaults``) holds what
+SMuRF operations maintain in the ``smurf_cfg`` repository, which the server
+image pins at its own version: the files a site chooses from, above all the
+AMC carrier's per-population defaults of step 4 (``defaults_c03_lb_lb.yml``
+and its kin), which no firmware release carries. Each platform draws on one of
+the two in practice -- the RFMC on its package, the AMC carrier on the
+deployment -- but the server does not know which in advance, so one resolver
+knows both places. A relative ``--layer`` name is looked for in both and
+refused if it is in both, since a server configured from the wrong file is as
+wrong as one on the wrong register map; the working directory is never
+searched. An absolute name is used as given.
 
 The server's own log and rogue's are set apart: ``--log-level`` (default
 ``INFO``) governs what the server says about its decisions, identification and

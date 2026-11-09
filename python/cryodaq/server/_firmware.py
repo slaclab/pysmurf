@@ -47,7 +47,11 @@ _log = logging.getLogger(__name__)
 # resolves start with it.
 ROOT_NAME = platform.ROOT_PATH
 # Where, under the firmware directory, a deployment keeps its defaults: the
-# register files it chooses from, the population defaults among them.
+# register files a site chooses from, the AMC carrier's per-population defaults
+# among them. They are SMuRF operations' files, from the smurf_cfg repository
+# the server image pins, on a release cycle of their own -- which is why they
+# are not looked for in the firmware package, and the package's own files are
+# not looked for here.
 DEFAULTS_SUBDIR = 'smurf_cfg/defaults'
 
 

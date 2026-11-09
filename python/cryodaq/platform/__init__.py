@@ -181,8 +181,11 @@ class PlatformMap:
         platform's: inside the carrier core, which is named for the board, so
         where it is depends on the platform.
     package_config_dir : str
-        Where this platform's firmware release archive keeps its configuration
-        files, relative to the archive's root.
+        Where this platform's firmware release archive keeps the configuration
+        files its authors ship with the firmware, relative to the archive's
+        root. The files a site chooses from, the AMC carrier's per-population
+        defaults among them, are not here but in the deployment's defaults
+        directory, which SMuRF operations maintain.
     """
 
     name: str
