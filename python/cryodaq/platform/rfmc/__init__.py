@@ -115,9 +115,11 @@ SCOPES.update({
     'attenuator': ((_ATTENUATOR_UC, _ATTENUATOR_DC), ('bay',)),
 })
 
-# Worth recording how this carrier was left: its attenuator settings. (The release
-# before v2.0.0 exposed each quad's synthesiser PLLs and their lock bits; v2.0.0
-# drives the synthesisers from the firmware and offers no such registers.)
+# Worth recording how this carrier was left: its attenuator settings. (The firmware
+# comes in two lines: version 1 mixes at baseband with a synthesiser per RF path in each
+# quad, and exposes the four PLLs and their lock bits; version 2 samples the RF bands
+# directly and has no synthesiser to expose. This map names only what both have, so one
+# map serves either; the lock bits are not witnessed.)
 WITNESS = _umux.WITNESS + (
     'bay[*].attenuator[*].uc',
     'bay[*].attenuator[*].dc',
