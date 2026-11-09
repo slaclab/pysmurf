@@ -277,6 +277,9 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [test-docs, test-server, test-client]  # Run only if all tests passed
     if: startsWith(github.ref, 'refs/tags/')      # Run only on tagged releases
+    permissions:
+      contents: read
+      packages: write
     steps:
       # Checkout the code.
       # We use ssh key authentication to be able to access other private
@@ -290,13 +293,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
-      # Login to Dockerhub
-      - name: Login to Dockerhub
+      # Login to GHCR with the job's GITHUB_TOKEN (requires packages: write)
+      - name: Login to GHCR
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ghcr.io
-          username: slacrherbst
-          password: ${{ secrets.GH_TOKEN }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       # Build and push the docker image
       # Note about tokens: In this stage we need to use the SLACLAB TOKEN
@@ -318,6 +321,9 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [test-docs, test-server, test-client]  # Run only if all tests passed
     if: startsWith(github.ref, 'refs/tags/')      # Run only on tagged releases
+    permissions:
+      contents: read
+      packages: write
     steps:
       # Checkout the code
       - name: Checkout code
@@ -333,13 +339,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
-      # Login to Dockerhub
-      - name: Login to Dockerhub
+      # Login to GHCR with the job's GITHUB_TOKEN (requires packages: write)
+      - name: Login to GHCR
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ghcr.io
-          username: slacrherbst
-          password: ${{ secrets.GH_TOKEN }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       # Build and push the docker image
       - name: Build and push image to Dockerhub
