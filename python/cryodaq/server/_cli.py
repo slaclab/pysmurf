@@ -74,7 +74,8 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
                             f"from, the population defaults among them; default <firmware-dir>/{_firmware.DEFAULTS_SUBDIR}.")
     group.add_argument('--layer', '--defaults', '-d', dest='layers', action='append', default=[],
                        metavar='FILE', help="A register configuration file, applied in order "
-                       "given; the population's defaults first, then overrides. A relative name is "
+                       "given over the defaults the platform's package ships, where it ships "
+                       "one; the population's defaults first, then overrides. A relative name is "
                        "looked for in the firmware package's configuration directory and in "
                        "--defaults-dir, and refused if it is in both.")
     group.add_argument('--platform', dest='platform_name', default=None,

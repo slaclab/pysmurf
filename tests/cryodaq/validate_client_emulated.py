@@ -185,6 +185,8 @@ ENDPOINT = None
 PLATFORM = 'amc'
 # Whether the RFMC firmware package was put on the path (--rfmc); its builder is asked only then.
 RFMC_ON_PATH = False
+# The RFMC release archive itself (--rfmc), for a check that composes with the package in hand.
+RFMC_ZIP = None
 
 
 def stamp_for(image):
@@ -425,11 +427,16 @@ def precheck_a_relative_layer_name_means_the_archive_and_nothing_else():
     absolute name is used as given, and so is a relative one with no archive to
     look in. Asserted here on a throwaway archive beside a same-named local file.
     """
+    import dataclasses
     import zipfile
     from cryodaq.server._firmware import resolve_layers
     # The directory is the platform's: each package keeps its files in its own.
-    config_dir = platform.by_name(EXPECTED_PLATFORM[PLATFORM]).package_config_dir
+    # The rule is asserted on a map that ships no defaults, so what comes back
+    # is the given names alone; the real map's defaults are asserted last.
+    pmap = platform.by_name(EXPECTED_PLATFORM[PLATFORM])
+    config_dir = pmap.package_config_dir
     assert config_dir and not config_dir.startswith('/'), config_dir
+    bare = dataclasses.replace(pmap, package_defaults=None)
     with tempfile.TemporaryDirectory() as d:
         archive = os.path.join(d, 'fw.zip')
         with zipfile.ZipFile(archive, 'w') as zf:
@@ -440,15 +447,18 @@ def precheck_a_relative_layer_name_means_the_archive_and_nothing_else():
         here = os.getcwd()
         os.chdir(d)
         try:
-            resolved = resolve_layers(['defaults.yml'], archive, config_dir)
+            resolved = resolve_layers(['defaults.yml'], archive, bare)
             assert resolved == [f'{archive}/{config_dir}/defaults.yml'], \
                 f"a relative name beside a same-named local file resolved to {resolved}"
-            assert resolve_layers([local], archive, config_dir) == [local], \
+            assert resolve_layers([local], archive, bare) == [local], \
                 "an absolute name was not used as given"
-            assert resolve_layers(['defaults.yml'], None, config_dir) == ['defaults.yml'], \
+            assert resolve_layers(['defaults.yml'], None, bare) == ['defaults.yml'], \
                 "with no archive a relative name was not used as given"
+            shipped = [] if pmap.package_defaults is None else [f'{archive}/{config_dir}/{pmap.package_defaults}']
+            assert resolve_layers([local], archive, pmap) == shipped + [local], \
+                f"the package's defaults did not come first: {resolve_layers([local], archive, pmap)}"
             try:
-                resolve_layers(['missing.yml'], archive, config_dir)
+                resolve_layers(['missing.yml'], archive, bare)
             except FileNotFoundError:
                 pass
             else:
@@ -1047,6 +1057,53 @@ def check_the_rfmc_composition_carries_its_converter_and_clock_file():
         assert 'srp_rfdc' in str(e) and 'emulation' in str(e), e
     else:
         raise AssertionError('an RFMC server was composed with no path to its converter')
+
+
+def check_the_defaults_a_platforms_package_ships_come_first_under_any_layer_given():
+    """The RFMC loads its package's ``defaults.yml`` first and every given layer after it; the AMC, whose defaults are the population's, loads only what it is given.
+
+    The platform declares the file (``PACKAGE_DEFAULTS``) and the composition
+    resolves it in the package as it does any relative layer, so a site layer
+    is an override of what the package ships and never replaces it. The
+    composition only names the files; whether a root called ``AMCc`` can load
+    the package's is the procedure's pre-step key check, run here on the
+    resolved file.
+    """
+    from cryodaq.server import _setup
+    pmap = this_platform_map()
+    if PLATFORM == 'rfsoc':
+        raise Skipped('the ZCU208 package declares no defaults; nothing to resolve')
+    site = '/a/site/layer.yml'
+    # Not started: what is asserted is what the composition decided.
+    if pmap.package_defaults is None:
+        root = standin_root(reduced=True)
+        assert root.layers == [], f"{pmap.name} declares no package defaults, yet loaded {root.layers}"
+        # ... and the load step refuses an empty list (the procedure's pre-step
+        # refusal over it is check_setup_steps.py's, on every platform).
+        try:
+            _setup.load_layers(root, root.layers)
+        except _setup.StepError as e:
+            assert 'no register layers' in str(e), e
+        else:
+            raise AssertionError('a load with no layers ran')
+        given = standin_root(reduced=True, layers=[site])
+        assert given.layers == [site], f"a given layer was changed: {given.layers}"
+        return
+    root = standin_root(reduced=True, firmware=RFMC_ZIP)
+    shipped = f"{RFMC_ZIP}/{pmap.package_config_dir}/{pmap.package_defaults}"
+    assert root.layers == [shipped], root.layers
+    # The release's file as shipped is keyed for a root called 'Root'; the
+    # key check refuses it by that name, which is how a deployment learns
+    # the file is not loadable rather than seeing nothing applied.
+    try:
+        _setup.check_layer_names_this_root(root, root.layers[0])
+        keyed = 'loadable'
+    except _setup.StepError as e:
+        assert "'Root'" in str(e) and "'AMCc'" in str(e), e
+        keyed = 'refused'
+    print(f"      the package's defaults.yml: {keyed} for a root called {root.name!r}")
+    given = standin_root(reduced=True, firmware=RFMC_ZIP, layers=[site])
+    assert given.layers == [shipped, site], f"a given layer did not follow the package's: {given.layers}"
 
 
 def check_the_offload_card_is_configured_around_the_server():
@@ -2136,7 +2193,7 @@ def run(checks):
 
 
 def main():
-    global SESSION, ROOT, ENDPOINT, PLATFORM, BAND, FIRMWARE_ARGS, ZIP_DIR, SMURF_PCIE, RFMC_ON_PATH
+    global SESSION, ROOT, ENDPOINT, PLATFORM, BAND, FIRMWARE_ARGS, ZIP_DIR, SMURF_PCIE, RFMC_ON_PATH, RFMC_ZIP
     ap = argparse.ArgumentParser(
         description='Drive a cryodaq session against an emulated firmware tree.')
     source = ap.add_mutually_exclusive_group(required=True)
@@ -2171,6 +2228,7 @@ def main():
     args = ap.parse_args()
     PLATFORM = args.platform
     RFMC_ON_PATH = bool(args.rfmc)
+    RFMC_ZIP = os.path.abspath(args.rfmc) if args.rfmc else None
     if (args.platform == 'rfmc') != bool(args.rfmc):
         ap.error('--platform rfmc and --rfmc go together')
     if args.rfmc and args.zip:

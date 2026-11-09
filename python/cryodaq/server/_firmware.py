@@ -109,14 +109,17 @@ def checkout_python_dirs(path: os.PathLike) -> List[str]:
     return found
 
 
-def resolve_layers(layers, firmware: Optional[os.PathLike], config_dir: Optional[str],
+def resolve_layers(layers, firmware: Optional[os.PathLike], pmap: Optional[platform.PlatformMap],
                    defaults_dir: Optional[os.PathLike] = None) -> List[str]:
-    """Configuration files as rogue's loader will take them.
+    """The register layers a server loads, as rogue's loader will take them.
 
-    A relative name is looked for in two places and nowhere else -- never the
-    working directory: the firmware package's configuration directory
-    (``config_dir``, the platform's, inside a release archive or under a
-    checkout's ``firmware/``), which is where the files a firmware ships are,
+    The package's own defaults come first, where the platform declares them
+    (``pmap.package_defaults``), found in the package and nowhere else; the
+    names given follow, in order, so each is an override of what the package
+    ships. A relative name is looked for in two places and nowhere else --
+    never the working directory: the firmware package's configuration
+    directory (``pmap.package_config_dir``, inside a release archive or under
+    a checkout's ``firmware/``), which is where the files a firmware ships are,
     and the deployment's defaults directory (``defaults_dir``), which is where
     a site keeps the files it chooses from, the population defaults among them.
     Found in one of them, that is the file; in both, the name is refused
@@ -130,20 +133,22 @@ def resolve_layers(layers, firmware: Optional[os.PathLike], config_dir: Optional
         The names as given on the command line or by the platform.
     firmware : path-like or None
         The firmware package, or None when it is not to hand.
-    config_dir : str or None
-        The package's configuration directory, relative to the archive or to
-        the checkout's ``firmware/``; None not to look in the package.
+    pmap : PlatformMap or None
+        The platform, for its package's configuration directory and the
+        defaults it declares; None not to look in the package.
     defaults_dir : path-like or None
         The deployment's defaults directory; None not to look there.
 
     Raises
     ------
     FileNotFoundError
-        If a relative name is in neither place.
+        If a relative name is in neither place, or the package lacks the
+        defaults its platform declares.
     ConfigError
         If a relative name is in both.
     """
     archive = checkout = None
+    config_dir = pmap.package_config_dir if pmap is not None else None
     if firmware is not None and config_dir is not None:
         if zipfile.is_zipfile(firmware):
             archive = os.fspath(firmware)
@@ -170,6 +175,12 @@ def resolve_layers(layers, firmware: Optional[os.PathLike], config_dir: Optional
     places = [p for p in (archive and f"{archive}/{config_dir}", checkout and os.path.join(checkout, config_dir),
                           defaults_dir) if p]
     resolved = []
+    if pmap is not None and pmap.package_defaults is not None:
+        shipped = in_package(pmap.package_defaults)
+        if shipped is None and (archive or checkout):
+            raise FileNotFoundError(f"no {pmap.package_defaults} in {places[0]}, which the {pmap.name} package ships")
+        # With no package to hand, as given: rogue's loader reports what it cannot open.
+        resolved.append(shipped or pmap.package_defaults)
     for layer in layers:
         layer = os.fspath(layer)
         if os.path.isabs(layer) or not places:
