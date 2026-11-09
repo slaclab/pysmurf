@@ -454,6 +454,8 @@ def precheck_a_relative_layer_name_means_the_archive_and_nothing_else():
                 "an absolute name was not used as given"
             assert resolve_layers(['defaults.yml'], None, bare) == ['defaults.yml'], \
                 "with no archive a relative name was not used as given"
+            assert resolve_layers([], None, pmap) == [], \
+                "with no package to hand, a base was added from nowhere"
             shipped = [] if pmap.package_defaults is None else [f'{archive}/{config_dir}/{pmap.package_defaults}']
             assert resolve_layers([local], archive, pmap) == shipped + [local], \
                 f"the package's defaults did not come first: {resolve_layers([local], archive, pmap)}"

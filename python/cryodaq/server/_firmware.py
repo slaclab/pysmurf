@@ -114,9 +114,9 @@ def resolve_layers(layers, firmware: Optional[os.PathLike], pmap: Optional[platf
     """The register layers a server loads, as rogue's loader will take them.
 
     The package's own defaults come first, where the platform declares them
-    (``pmap.package_defaults``), found in the package and nowhere else; the
-    names given follow, in order, so each is an override of what the package
-    ships. A relative name is looked for in two places and nowhere else --
+    (``pmap.package_defaults``), found in the package and nowhere else -- so
+    only where the package is to hand; the names given follow, in order, so
+    each is an override of what the package ships. A relative name is looked for in two places and nowhere else --
     never the working directory: the firmware package's configuration
     directory (``pmap.package_config_dir``, inside a release archive or under
     a checkout's ``firmware/``), which is where the files a firmware ships are,
@@ -175,12 +175,14 @@ def resolve_layers(layers, firmware: Optional[os.PathLike], pmap: Optional[platf
     places = [p for p in (archive and f"{archive}/{config_dir}", checkout and os.path.join(checkout, config_dir),
                           defaults_dir) if p]
     resolved = []
-    if pmap is not None and pmap.package_defaults is not None:
+    if pmap is not None and pmap.package_defaults is not None and (archive or checkout):
+        # The package's defaults exist only where the package is to hand; with
+        # none there is no base, and a server with no layer at all reaches the
+        # procedure's refusal rather than a file of that name beside it.
         shipped = in_package(pmap.package_defaults)
-        if shipped is None and (archive or checkout):
+        if shipped is None:
             raise FileNotFoundError(f"no {pmap.package_defaults} in {places[0]}, which the {pmap.name} package ships")
-        # With no package to hand, as given: rogue's loader reports what it cannot open.
-        resolved.append(shipped or pmap.package_defaults)
+        resolved.append(shipped)
     for layer in layers:
         layer = os.fspath(layer)
         if os.path.isabs(layer) or not places:
