@@ -361,38 +361,38 @@ def check_a_relative_layer_is_found_in_the_package_or_the_configuration_director
         cwd = os.getcwd()
         os.chdir(tmp)
         try:
-            # The deployment's directory defaults to <firmware-dir>/smurf_cfg/defaults; --config-dir moves it.
+            # The deployment's defaults directory is <firmware-dir>/smurf_cfg/defaults; --defaults-dir moves it.
             args, done = launch(SLOT_2, Replay(), fw)
-            assert args.config_dir == str(site), args.config_dir
+            assert args.defaults_dir == str(site), args.defaults_dir
             assert args.layers == [str(site / 'defaults_c03_lb_lb.yml')], args.layers
             other = pathlib.Path(tmp) / 'site'
             other.mkdir()
             (other / 'defaults_c03_lb_lb.yml').touch()
-            args, done = launch(SLOT_2 + ['--config-dir', str(other)], Replay(), fw)
+            args, done = launch(SLOT_2 + ['--defaults-dir', str(other)], Replay(), fw)
             assert args.layers == [str(other / 'defaults_c03_lb_lb.yml')], args.layers
-            refused(SLOT_2 + ['--config-dir', str(pathlib.Path(tmp) / 'nowhere')],
+            refused(SLOT_2 + ['--defaults-dir', str(pathlib.Path(tmp) / 'nowhere')],
                     naming=['defaults_c03_lb_lb.yml', 'nowhere', '--layer'])
-            # A relative --config-dir is made absolute, as the firmware directory is, so the
+            # A relative --defaults-dir is made absolute, as the firmware directory is, so the
             # composition takes the resolved file as given instead of resolving it again.
-            args, done = launch(SLOT_2 + ['--config-dir', 'site'], Replay(), fw)
-            assert args.config_dir == str(other) and args.layers == [str(other / 'defaults_c03_lb_lb.yml')], \
-                (args.config_dir, args.layers)
-            assert resolve_layers(args.layers, fw / ARCHIVE, 'CryoDet/config', deployment_dir=args.config_dir) == args.layers
+            args, done = launch(SLOT_2 + ['--defaults-dir', 'site'], Replay(), fw)
+            assert args.defaults_dir == str(other) and args.layers == [str(other / 'defaults_c03_lb_lb.yml')], \
+                (args.defaults_dir, args.layers)
+            assert resolve_layers(args.layers, fw / ARCHIVE, 'CryoDet/config', defaults_dir=args.defaults_dir) == args.layers
 
             # The composition's resolution, one function: a package member, a deployment file, both, neither.
             def resolve(names, **kw):
                 return resolve_layers(names, fw / ARCHIVE, 'CryoDet/config', **kw)
-            assert resolve(['defaults.yml'], deployment_dir=site) == [f"{fw / ARCHIVE}/CryoDet/config/defaults.yml"]
-            assert resolve(['defaults_c03_lb_none.yml'], deployment_dir=site) == [str(site / 'defaults_c03_lb_none.yml')]
-            assert resolve(['/abs/x.yml'], deployment_dir=site) == ['/abs/x.yml']
+            assert resolve(['defaults.yml'], defaults_dir=site) == [f"{fw / ARCHIVE}/CryoDet/config/defaults.yml"]
+            assert resolve(['defaults_c03_lb_none.yml'], defaults_dir=site) == [str(site / 'defaults_c03_lb_none.yml')]
+            assert resolve(['/abs/x.yml'], defaults_dir=site) == ['/abs/x.yml']
             try:
-                resolve(['defaults_c03_lb_lb.yml'], deployment_dir=site)
+                resolve(['defaults_c03_lb_lb.yml'], defaults_dir=site)
             except ConfigError as e:
                 assert 'both' in str(e) and str(site) in str(e) and ARCHIVE in str(e), str(e)
             else:
                 raise AssertionError('a name in both places was not refused')
             try:
-                resolve(['missing.yml'], deployment_dir=site)
+                resolve(['missing.yml'], defaults_dir=site)
             except FileNotFoundError as e:
                 assert str(site) in str(e) and ARCHIVE in str(e), str(e)
             else:
