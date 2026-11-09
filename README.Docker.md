@@ -58,7 +58,7 @@ documentation (*Starting a server*); `python3 -m pysmurf.core.server --help` lis
 
 The firmware is found in `/tmp/fw` (`--firmware-dir`): the one release archive or checkout of the
 platform's package, its FPGA image, and the deployment's register configuration files under
-`smurf_cfg/defaults/` (`--config-dir`). The image carries them; mount a directory of your own
+`smurf_cfg/defaults/` (`--defaults-dir`). The image carries them; mount a directory of your own
 there, `-v <local_fw_files_dir>:/tmp/fw/`, to run other ones. With several platforms' archives in the directory and no crate record to choose
 by, `--platform <name>` says whose.
 
