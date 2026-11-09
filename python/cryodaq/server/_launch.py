@@ -15,8 +15,8 @@
 #    disk, and, if asked, a reboot. The firmware directory (`--firmware-dir`)
 #    is the one place a deployment keeps its release: the package archive or a
 #    checkout and the FPGA image are found there, and the register
-#    configuration files a population calls for in its configuration
-#    directory (`--config-dir`, under it by default).
+#    defaults a population calls for in its defaults directory
+#    (`--defaults-dir`, under it by default).
 #    What a board's records mean is the
 #    platform's to say (its bring-up declaration); this module only applies the
 #    answers, and every value it fills in is a default an explicit option
@@ -116,12 +116,12 @@ def launch(args: argparse.Namespace, parser: argparse.ArgumentParser) -> Launche
     done = Launched(parser)
     # Absolute, so a defaults file found here is never taken for a package member.
     args.firmware_dir = str(pathlib.Path(args.firmware_dir).resolve())
-    if args.config_dir is None:
-        args.config_dir = str(pathlib.Path(args.firmware_dir) / DEFAULTS_SUBDIR)
+    if args.defaults_dir is None:
+        args.defaults_dir = str(pathlib.Path(args.firmware_dir) / DEFAULTS_SUBDIR)
     else:
         # Absolute too: the file names resolved against it are absolute, so the
         # composition takes them as given rather than resolving them again.
-        args.config_dir = str(pathlib.Path(args.config_dir).resolve())
+        args.defaults_dir = str(pathlib.Path(args.defaults_dir).resolve())
     if args.shelfmanager is None and args.slot is None:
         _launch_addressed(args, done)
     else:
@@ -285,7 +285,7 @@ def _apply_options(args, done, bring_up):
     for name, value in options.items():
         if name == 'layers':
             try:
-                path = resolve_layers([value], None, None, deployment_dir=args.config_dir)[0]
+                path = resolve_layers([value], None, None, defaults_dir=args.defaults_dir)[0]
             except FileNotFoundError as e:
                 raise LaunchError(f"the defaults file the platform calls for is not there: {e}; "
                                   f"pass -E and --layer yourself") from e

@@ -304,8 +304,8 @@ compares against.
 
 Register configuration files come from two places and no other. The firmware
 package's own configuration directory, inside the archive or under the
-checkout, holds the files a firmware ships; the deployment's configuration
-directory (``--config-dir``, default ``<firmware-dir>/smurf_cfg/defaults``)
+checkout, holds the files a firmware ships; the deployment's defaults
+directory (``--defaults-dir``, default ``<firmware-dir>/smurf_cfg/defaults``)
 holds the files a site chooses from, the population defaults of step 4 among
 them. A relative ``--layer`` name is looked for in both and refused if it is in
 both, since a server configured from the wrong file is as wrong as one on the

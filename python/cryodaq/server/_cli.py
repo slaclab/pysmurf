@@ -69,14 +69,14 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
                        help="Where the firmware is kept: its Python package as the one release archive "
                             "or the one checkout there, and the FPGA image. With neither archive nor "
                             "checkout the package must already be importable.")
-    group.add_argument('--config-dir', default=None, metavar='DIR',
-                       help="The deployment's register configuration files, the population defaults "
-                            f"among them; default <firmware-dir>/{_firmware.DEFAULTS_SUBDIR}.")
+    group.add_argument('--defaults-dir', default=None, metavar='DIR',
+                       help="The deployment's defaults directory: the register files a site chooses "
+                            f"from, the population defaults among them; default <firmware-dir>/{_firmware.DEFAULTS_SUBDIR}.")
     group.add_argument('--layer', '--defaults', '-d', dest='layers', action='append', default=[],
                        metavar='FILE', help="A register configuration file, applied in order "
                        "given; the population's defaults first, then overrides. A relative name is "
                        "looked for in the firmware package's configuration directory and in "
-                       "--config-dir, and refused if it is in both.")
+                       "--defaults-dir, and refused if it is in both.")
     group.add_argument('--platform', dest='platform_name', default=None,
                        choices=[m.name for m in platform.MAPS],
                        help="Names the platform for an emulated server, whose transport reads no "
@@ -252,7 +252,7 @@ def transport_from(args: argparse.Namespace, emulation_source: Any = None):
 
 def composition_kwargs(args: argparse.Namespace) -> Dict[str, Any]:
     """The `compose()` keyword arguments the parsed options name, less the transport."""
-    return dict(firmware=args.firmware, layers=args.layers, config_dir=getattr(args, 'config_dir', None),
+    return dict(firmware=args.firmware, layers=args.layers, defaults_dir=getattr(args, 'defaults_dir', None),
                 platform_name=args.platform_name, server_port=server_port_for(args), polling=args.polling,
                 configure=args.configure, capture_points=args.capture_points,
                 capture_type=args.capture_type,
