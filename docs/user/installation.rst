@@ -37,7 +37,7 @@ Install
 
       .. code-block:: bash
 
-         docker pull ghcr.io/slaclab/pysmurf-server-base:<TAG>
+         docker pull ghcr.io/slaclab/pysmurf-server:<TAG>
          docker pull ghcr.io/slaclab/pysmurf-client:<TAG>
 
       Start the server:
@@ -45,10 +45,10 @@ Install
       .. code-block:: bash
 
          # By shelfmanager + slot:
-         docker run ghcr.io/slaclab/pysmurf-server-base:<TAG> -S <shelfmanager> -N <slot>
+         docker run ghcr.io/slaclab/pysmurf-server:<TAG> -S <shelfmanager> -N <slot>
 
          # By direct IP:
-         docker run ghcr.io/slaclab/pysmurf-server-base:<TAG> -a <FPGA_IP>
+         docker run ghcr.io/slaclab/pysmurf-server:<TAG> -a <FPGA_IP>
 
       .. note::
 
