@@ -30,6 +30,8 @@
 import numpy as np
 import pyrogue as pr
 
+from cryodaq.platform._umux import (OPERATION_COMMANDS, OPERATION_NODES, OPERATION_PROCESSES,
+                                    OPERATION_VARIABLES, OPERATIONS_ANCHOR)
 from cryodaq.server.operations._new_serial_gradient_descent import NewSerialGradientDescent
 from cryodaq.server._provider import OperationsProvider
 from cryodaq.server.operations._serial_eta_scan import SerialEtaScan
@@ -47,47 +49,6 @@ __all__ = [
 # The 29 node names this provider owns, in the order they are added. These are
 # the collision surface, so a node added by _attach() and left out of these
 # tuples would be invisible to the pre-attach check.
-OPERATION_VARIABLES = (
-    'etaScanChannel',
-    'etaScanInProgress',
-    'etaScanFreqs',
-    'etaScanResultsImag',
-    'etaScanResultsReal',
-    'etaScanDelF',
-    'etaScanMaxMag',
-    'etaScanDwell',
-    'etaScanAmplitude',
-    'gradientDescentMaxIters',
-    'gradientDescentAverages',
-    'gradientDescentGain',
-    'gradientDescentConvergeHz',
-    'gradientDescentStepHz',
-    'gradientDescentMomentum',
-    'gradientDescentBeta',
-    'etaScanAverages',
-    'debug',
-    'UseNewSerialGradientDescent',
-)
-
-# Node names come from the class names, so they are documented rogue paths
-# and not something to rename here.
-OPERATION_PROCESSES = (
-    'SerialGradientDescent',
-    'NewSerialGradientDescent',
-    'SerialEtaScan',
-    'SerialFindFreq',
-)
-
-OPERATION_COMMANDS = (
-    'loadTuneFile',
-    'runEtaScan',
-    'setAmplitudeScales',
-    'runSerialGradientDescent',
-    'runSerialEtaScan',
-    'runSerialFindFreq',
-)
-
-OPERATION_NODES = OPERATION_VARIABLES + OPERATION_PROCESSES + OPERATION_COMMANDS
 
 
 
@@ -99,8 +60,9 @@ def _attach(cryo_channels):
 
 
 # The provider the composition attaches: one instance of these nodes under every
-# band's operations device the platform map names.
-UMUX_OPERATIONS = OperationsProvider(name='cryodaq.umux', anchor='band[*].ops',
+# band's operations device the platform map names. What it adds is declared with the
+# map's other server-added nodes (`cryodaq.platform._umux`), re-exported here.
+UMUX_OPERATIONS = OperationsProvider(name='cryodaq.umux', anchor=OPERATIONS_ANCHOR,
                            nodes=OPERATION_NODES, attach=_attach)
 
 
