@@ -41,7 +41,8 @@ from dataclasses import dataclass
 from typing import Any, Dict, Mapping, Optional, Tuple
 
 __all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES', 'Carrier', 'BringUp', 'APPLICATION',
-           'SERVER_ADDED_ROOT_NODES']
+           'SERVER_ADDED_ROOT_NODES', 'OPERATIONS_ANCHOR', 'OPERATION_VARIABLES',
+           'OPERATION_PROCESSES', 'OPERATION_COMMANDS', 'OPERATION_NODES']
 
 # --------------------------------------------------------------------------
 # what the launcher decides on, per platform, before a tree exists
@@ -238,6 +239,57 @@ SERVER_ADDED_ROOT_NODES = tuple(
     p.split('.')[1]
     for p in (READY, SET_DEFAULTS, RESTART_RSSI, APPLICATION, APPLICATION_CONFIG, PROCESSOR,
               STREAM_DATA_SOURCE, CAPTURE, STREAM_WRITER, STREAMING_INTERFACE))
+
+# The tuning operations the server attaches under each band's operations device
+# (`OPERATIONS_ANCHOR`, a pattern of this map), by node name: the parameters, the
+# processes and the commands, in the order they are added. A firmware package from
+# which the operations have been removed defines none of these. Declared here, beside
+# the server's other additions, so that the provider that attaches them and a check
+# that must not expect them of a firmware package read one declaration -- and read it
+# without rogue, which the provider's own module needs.
+OPERATIONS_ANCHOR = 'band[*].ops'
+
+OPERATION_VARIABLES = (
+    'etaScanChannel',
+    'etaScanInProgress',
+    'etaScanFreqs',
+    'etaScanResultsImag',
+    'etaScanResultsReal',
+    'etaScanDelF',
+    'etaScanMaxMag',
+    'etaScanDwell',
+    'etaScanAmplitude',
+    'gradientDescentMaxIters',
+    'gradientDescentAverages',
+    'gradientDescentGain',
+    'gradientDescentConvergeHz',
+    'gradientDescentStepHz',
+    'gradientDescentMomentum',
+    'gradientDescentBeta',
+    'etaScanAverages',
+    'debug',
+    'UseNewSerialGradientDescent',
+)
+
+# Node names come from the class names, so they are documented rogue paths
+# and not something to rename here.
+OPERATION_PROCESSES = (
+    'SerialGradientDescent',
+    'NewSerialGradientDescent',
+    'SerialEtaScan',
+    'SerialFindFreq',
+)
+
+OPERATION_COMMANDS = (
+    'loadTuneFile',
+    'runEtaScan',
+    'setAmplitudeScales',
+    'runSerialGradientDescent',
+    'runSerialEtaScan',
+    'runSerialFindFreq',
+)
+
+OPERATION_NODES = OPERATION_VARIABLES + OPERATION_PROCESSES + OPERATION_COMMANDS
 
 # --------------------------------------------------------------------------
 # the FPGA

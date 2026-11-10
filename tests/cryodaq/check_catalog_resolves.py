@@ -116,7 +116,10 @@ AMC_CARRIER_ONLY_DEVICES = CARRIER_ONLY_DEVICES + ('AmcCarrierCore',)
 # firmware package declaring them: the four resonator-tuning processes and the
 # server's own configuration procedure. A dump records what a package defines, so
 # these are absent from one by construction and their absence says nothing about the
-# firmware. Named here so that "absent" means one thing everywhere else.
+# firmware. Named here so that "absent" means one thing everywhere else. The tuning
+# operations' own nodes (the parameters, commands and processes under each band's
+# operations device) are not listed: the map declares them beside its other
+# server-added nodes, and `attached_by_a_provider` reads that declaration -- see there.
 SERVER_ATTACHED = (
     # The point-of-load regulator, an I2C device the server attaches on top of the
     # firmware package. Named here for the same reason as the tuning processes: a dump
@@ -436,6 +439,54 @@ def expand(paths, template):
     return out
 
 
+def attached_by_a_provider(pmap, template):
+    """Whether a register path template names a node an operations provider attaches.
+
+    The map declares, beside its other server-added nodes, the device pattern
+    the operations provider anchors to and every node it adds there
+    (`_umux.OPERATIONS_ANCHOR`, `_umux.OPERATION_NODES` -- the same tuple the
+    provider and the pre-attach collision check read), so a firmware package
+    from which the operations have been removed lacks exactly these, and a dump
+    of such a package cannot be expected to carry them. Read from that
+    declaration, not kept here, so the two cannot drift; and without importing
+    the server package, which needs rogue and this check must not.
+    """
+    if _umux.OPERATIONS_ANCHOR not in pmap:
+        return False
+    anchor = template_of(pmap, _umux.OPERATIONS_ANCHOR)
+    return any(template == f'{anchor}.{node}' or template.startswith(f'{anchor}.{node}.')
+               for node in _umux.OPERATION_NODES)
+
+
+def operations_the_package_defines(stem, platform_name):
+    """The provider-attached names whose nodes a package dump has: what the firmware still defines.
+
+    The other half of `attached_by_a_provider`: a name excused from resolving
+    against a released package because the server attaches it must then be
+    *absent* from the package -- a present one means the firmware still
+    defines the operation, the composition's pre-attach check would refuse
+    the package, and the exclusion would have excused a name on no grounds.
+    So for a package dump the exclusion is an assertion in both directions:
+    the composed fixtures must have these nodes (their run never excludes
+    them), the package must not. Returns name -> the path found, empty when
+    the package defines none.
+    """
+    paths = load_dump(stem)
+    pmap = platform.by_name(platform_name)
+    defined = {}
+    for name in sorted(pmap.registers):
+        template = template_of(pmap, name)
+        if not attached_by_a_provider(pmap, template):
+            continue
+        # A device or a process is in a dump only through its children, so both
+        # are matched against the parents of the rows listed.
+        by_parent = pmap.kind(name) in (platform.DEVICE, platform.PROCESS)
+        hits = expand(device_paths(paths) if by_parent else paths, template)
+        if hits:
+            defined[name] = hits[0]
+    return defined
+
+
 def reaches_a_server_added_subtree(template):
     """Is this template's node one the server adds rather than the firmware declaring it?
 
@@ -469,9 +520,11 @@ def resolution(stem, names=None, package_only=False, platform_name=None):
     so those are absent from it by construction rather than by omission.
 
     `package_only` says the dump came from a released firmware ZIP rather than from a
-    running server, so the whole server-added half of the tree is absent too and is
-    excluded on the same grounds. The committed fixtures are *not* package-only -- they
-    are built with the server's own root -- so the default is the stricter reading.
+    running server, so the whole server-added half of the tree is absent too -- the
+    server's own subtrees, and the operation nodes its providers attach under the
+    firmware's devices -- and is excluded on the same grounds. The committed fixtures
+    are *not* package-only -- they are built with the server's own root -- so the
+    default is the stricter reading.
     """
     paths = load_dump(stem)
     pmap = platform.by_name(platform_name or PLATFORM_OF[stem])
@@ -480,9 +533,10 @@ def resolution(stem, names=None, package_only=False, platform_name=None):
     for name in wanted:
         if name in SERVER_ATTACHED:
             continue
-        if package_only and name in pmap \
-                and reaches_a_server_added_subtree(template_of(pmap, name)):
-            continue
+        if package_only and name in pmap:
+            template = template_of(pmap, name)
+            if reaches_a_server_added_subtree(template) or attached_by_a_provider(pmap, template):
+                continue
         if name not in pmap:
             absent[name] = 'not in this platform map'
             continue
@@ -963,9 +1017,55 @@ def selftest():
                 if not reaches_a_server_added_subtree(tmpl):
                     failures += 1
                     print(f'  FAIL  {tmpl} not recognised as server-added')
+            # The provider-attached exclusion is read from the map's declaration, so it is
+            # asserted on the real AMC map: an operation node under the band's
+            # operations device is excluded, a firmware register beside it is not.
+            real_amc = next(m for m in saved[-1] if m.name == 'umux-amc')   # the real maps, not the fakes
+            ops_device = template_of(real_amc, 'band[*].ops')
+            for tmpl, expected in ((f'{ops_device}.etaScanAmplitude', True),
+                                   (f'{ops_device}.runEtaScan', True),
+                                   (template_of(real_amc, 'band[*].delay_us'), False),
+                                   (f'{ops_device}.Something', False)):
+                if attached_by_a_provider(real_amc, tmpl) != expected:
+                    failures += 1
+                    print(f'  FAIL  {tmpl} {"not recognised as" if expected else "wrongly classed as"} '
+                          f'provider-attached')
             if failures == before_classifier:
-                print('  ok    the package-dump exclusion covers the server subtrees '
-                      'and nothing under FpgaTopLevel')
+                print('  ok    the package-dump exclusion covers the server subtrees, the '
+                      'operations the providers attach, and nothing else under FpgaTopLevel')
+
+            # The exclusion's other direction: a package dump that still carries an
+            # operation node is caught, with the real AMC map, on a dump that is
+            # otherwise the fixture's. One planted node, so a pass here is one found.
+            before_defined = failures
+            fixture_paths = sorted(load_dump(FIXTURES / 'amc.varlist.txt'))
+            # Two planted nodes: a command (a row of its own) and a process (seen only
+            # through a child variable's row), since a dump lists no row for a process.
+            planted = [f'{ops_device}.runEtaScan'.replace('[{band}]', '[0]'),
+                       f'{ops_device}.SerialEtaScan.Running'.replace('[{band}]', '[0]')]
+            with_one = [p for p in fixture_paths if not attached_by_a_provider(real_amc, p.replace('[0]', '[{band}]'))] + planted
+            write('planted', with_one)
+            saved_maps = platform.MAPS
+            platform.MAPS = saved[-1]
+            try:
+                defined = operations_the_package_defines(tree / 'planted.varlist.txt', 'umux-amc')
+            finally:
+                platform.MAPS = saved_maps
+            if sorted(defined) != ['band[*].ops.eta_scan', 'band[*].ops.run_eta_scan']:
+                failures += 1
+                print(f'  FAIL  a package dump with a command and a process planted reported {defined}')
+            write('planted', with_one[:-2])
+            platform.MAPS = saved[-1]
+            try:
+                defined = operations_the_package_defines(tree / 'planted.varlist.txt', 'umux-amc')
+            finally:
+                platform.MAPS = saved_maps
+            if defined:
+                failures += 1
+                print(f'  FAIL  a package dump without operation nodes reported {defined}')
+            if failures == before_defined:
+                print('  ok    an operation command or process a released package still defines '
+                      'is caught, and a package without one is not')
 
             # The same tree under two names must fail.
             write('rfsoc', good_amc)
@@ -1182,12 +1282,20 @@ def main():
         print(f'  absent   : {len(absent)}')
         for name, why in sorted(absent.items()):
             print(f'    {name:46s} {why}')
-        if absent:
-            print(f'\nFAILED: {len(absent)} name(s) the map offers are not in this '
-                  f'released package.')
+        defined = operations_the_package_defines(args.package_dump, args.platform)
+        print(f'  operations the server attaches, still defined by the package: {len(defined)}')
+        for name, path in sorted(defined.items()):
+            print(f'    {name:46s} {path}')
+        if absent or defined:
+            if absent:
+                print(f'\nFAILED: {len(absent)} name(s) the map offers are not in this '
+                      f'released package.')
+            if defined:
+                print(f'\nFAILED: {len(defined)} operation(s) the server attaches are still '
+                      f'defined by this released package; the composition would refuse it.')
             return 1
         print(f'\nAll {len(resolved)} firmware-tree name(s) resolve against this '
-              f'released package.')
+              f'released package, which defines none of the operations the server attaches.')
         return 0
 
     checks = sorted((name[len('check_'):], fn)
