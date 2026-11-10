@@ -35,13 +35,16 @@
 FW_SYSTEMS=(
     # uMUX (standard microwave multiplexer) systems
     # Uses Primary:False naming -> rogue_MicrowaveMuxBpEthGen2_<tag>.zip
-    "umux|https://github.com/slaclab/cryo-det|MicrowaveMuxBpEthGen2_v2.5.1|MicrowaveMuxBpEthGen2-0x02050000-20260616105622-ruckman-af249f83.mcs|rogue_MicrowaveMuxBpEthGen2_v2.5.1.zip"
+    # v2.7.1 is the first release whose package leaves the tuning operations to pysmurf.
+    "umux|https://github.com/slaclab/cryo-det|MicrowaveMuxBpEthGen2_v2.7.1|MicrowaveMuxBpEthGen2-0x02070000-20261106193048-ruckman-d3e99291.mcs|rogue_MicrowaveMuxBpEthGen2_v2.7.1.zip"
 
     # NO LONGER BEING DEVELOPED
     ## TKID (transition-edge sensor kinetic inductance detector) systems
     ##"tkid|https://github.com/slaclab/cryo-det-kid|v2.1.0|CryoDetKid-0x02010000-20240920083819-ruckman-ec69acf.mcs.gz"
 
-    # RFSoC systems (ZCU208).
+    # RFSoC systems (ZCU208). No release of either repository yet leaves the tuning operations to
+    # pysmurf (the latest, v4.0.0 and PreSpectra v2.1.1, predate cryo-det v2.7.1), so a server on
+    # these packages needs a stripped CryoDet checkout mounted in front of them until one does.
     # fw_files is a semicolon-separated list of linux.tar.gz images, one per FPGA target variant
     # (e.g. BaseBand, HighOrderNyquist). All listed images are downloaded into the docker image.
     # At runtime, checkRFSoCFW() reads the target name from the board via axiversiondump and
@@ -61,7 +64,11 @@ FW_SYSTEMS=(
 
     # RFMC carrier (uMUX on the RFSoC-based ATCA carrier). One linux.tar.gz image, like the ZCU208;
     # the release zip follows rogue_<tag>.zip naming. Its register defaults are in the package itself.
-    "rfmc|https://github.com/slaclab/rfmc-cryo-det|MicrowaveMuxRfmcCarrier_v2.0.0|MicrowaveMuxRfmcCarrier-0x02000000-20261026082858-ruckman-d41f50d.linux.tar.gz|rogue_MicrowaveMuxRfmcCarrier_v2.0.0.zip"
+    # Two firmware lines are released in parallel: version 1 (baseband, with the mixer daughter
+    # cards) and version 2 (direct RF sampling). One archive per image name is all the launcher
+    # accepts, so one line ships: v1.2.1, the first RFMC release whose package leaves the tuning
+    # operations to pysmurf. The version 2 line (v2.0.0) still carries them.
+    "rfmc|https://github.com/slaclab/rfmc-cryo-det|MicrowaveMuxRfmcCarrier_v1.2.1|MicrowaveMuxRfmcCarrier-0x01020000-20261106110105-ruckman-29c6f6b.linux.tar.gz|rogue_MicrowaveMuxRfmcCarrier_v1.2.1.zip"
 
     # Add additional systems below, one per line:
     # "mysystem|https://github.com/slaclab/my-repo|v1.2.3|MyFirmware-0x01020300-date-hash.mcs"
