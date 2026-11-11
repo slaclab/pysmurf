@@ -71,7 +71,7 @@ FW_SYSTEMS=(
     "rfmc|https://github.com/slaclab/rfmc-cryo-det|MicrowaveMuxRfmcCarrier_v1.2.1|MicrowaveMuxRfmcCarrier-0x01020000-20261106110105-ruckman-29c6f6b.linux.tar.gz|rogue_MicrowaveMuxRfmcCarrier_v1.2.1.zip"
 
     # Add additional systems below, one per line:
-    # "mysystem|https://github.com/slaclab/my-repo|v1.2.3|MyFirmware-0x01020300-date-hash.mcs"
+    # "mysystem|https://github.com/slaclab/my-repo|v1.2.3|MyFirmware-0x01020000-date-hash.mcs"   (the image name carries major.minor only)
 )
 
 # The PCIe offload card's firmware (public repository); the release zip is rogue_<tag>.zip.

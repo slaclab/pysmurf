@@ -259,9 +259,9 @@ class ReadoutRoot(pyrogue.Root):
         self._setup_groups()
 
         try:
-            _log.info("FPGA image: %s; version 0x%x; git 0x%x",
-                      self._get('firmware.build_stamp'), self._get('firmware.version'),
-                      self._get('firmware.git_hash'))
+            version = self._get('firmware.version')
+            _log.info("FPGA image: %s; version 0x%x = %s; git 0x%x", self._get('firmware.build_stamp'),
+                      version, _release(version), self._get('firmware.git_hash'))
         except Exception as e:
             _log.warning("could not read the FPGA image information: %s", e)
 
@@ -329,3 +329,14 @@ class ReadoutRoot(pyrogue.Root):
         if self._jesd_health_cmd is not None:
             self._jesd_status.set(2)
             self._jesd_status.set(self._jesd_health_cmd.call())
+
+
+def _release(version: int) -> str:
+    """The release line a version register encodes: major and minor in its top two bytes.
+
+    The firmware releases carry no patch number in the register (v2.5.1 and
+    v2.5.0 both build 0x02050000); low bits, when a build sets any, are shown
+    as they are.
+    """
+    low = version & 0xffff
+    return f"v{version >> 24}.{(version >> 16) & 0xff}" + (f" (low bits 0x{low:04x})" if low else "")

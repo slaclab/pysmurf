@@ -49,12 +49,13 @@ __all__ = ['compose', 'CORE_PROVIDERS', 'OperationsProvider', 'attach_operations
            'PlatformSupport', 'Setup',
            'Transport', 'eth', 'pcie', 'tcp_bridge', 'emulation', 'OffloadCard', 'ReadoutRoot',
            'ApplicationConfig', 'ApplicationStatus', 'EXCLUDED_FROM', 'UMUX_OPERATIONS',
-           'add_capture_receivers', 'CAPTURE_POINTS', 'add_arguments', 'configure_logging', 'launch',
+           'add_capture_receivers', 'CAPTURE_POINTS', 'add_arguments', 'configure_logging', 'log_started', 'launch',
            'transport_from', 'composition_kwargs', 'run']
 
 # The command line a server entry point shares.
 add_arguments = _cli.add_arguments
 configure_logging = _cli.configure_logging
+log_started = _cli.log_started
 launch = _cli.launch
 transport_from = _cli.transport_from
 composition_kwargs = _cli.composition_kwargs
