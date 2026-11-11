@@ -93,17 +93,29 @@ to the line that set the default; one the schema filled in is
 What ``setup()`` does
 ^^^^^^^^^^^^^^^^^^^^^
 
-``setup()`` first runs the server's own configuration procedure (the rogue
+``setup()`` first sees to the server's own configuration procedure (the rogue
 ``setDefaults`` process, which ``set_defaults_pv()`` runs alone): the server
 loads the register layers it was started with and, on a carrier with
 converter cards, resets the converters before the load and checks their links
 after it. That leaves every firmware register at the population's default.
+The layers are the server's, not the client's, so a server that reports the
+procedure has already run -- started with ``--configure``, or set up before --
+is not made to run it again unless ``force_configure=True``.
 ``setup()`` then writes this file's per-band values over those defaults,
 routes the triggers, sets the flux ramp up, turns the stream on, sets the
 processor's payload size and channel mask, zeroes the detector biases, sets
 the cryostat card's amplifier defaults where a card is present, and selects
 the timing reference. It returns ``False``, saying why, when the server
 reports the procedure failed, and writes nothing further.
+
+``setup()`` refuses to run a second time while the server is up, unless
+``force_configure=True``. What it asks is whether the server holds the record
+a ``setup()`` writes when it succeeds (below), not whether the server's own
+procedure has run: a server started with ``--configure`` has run that
+procedure before any client connects, and still needs this half, so a first
+``setup()`` on it proceeds. Forced, ``setup()`` does not read the record at
+all: a record the server holds that cannot be decoded is replaced, not an
+obstacle.
 
 A key is in this file because some site sets it to something other than the
 server's default. A register every site leaves at the default -- the DSP

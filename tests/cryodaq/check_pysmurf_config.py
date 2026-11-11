@@ -637,10 +637,10 @@ def check_setup_resumes_hardware_logging_whatever_happens():
     S._hardware_logging_thread = object()
     S.pause_hardware_logging = lambda: calls.append('pause')
     S.resume_hardware_logging = lambda: calls.append('resume')
-    S.get_system_configured = lambda: False
-    S._session = type('_S', (), {'clear_config': lambda self: calls.append('clear')})()
+    S._session = type('_S', (), {'clear_config': lambda self: calls.append('clear'),
+                                 'resolved_config': lambda self: None})()
 
-    def body(write_log, payload_size, **kw):
+    def body(write_log, payload_size, force_configure, **kw):
         calls.append('body')
         raise Boom()
     S._setup_hardware = body
@@ -653,9 +653,68 @@ def check_setup_resumes_hardware_logging_whatever_happens():
     assert calls == ['clear', 'pause', 'body', 'resume'], calls
     # And a body that returns hands its verdict through, still resuming.
     del calls[:]
-    S._setup_hardware = lambda write_log, payload_size, **kw: False
+    S._setup_hardware = lambda write_log, payload_size, force_configure, **kw: False
     assert S.setup() is False
     assert calls == ['clear', 'pause', 'resume'], calls
+
+
+def check_setup_is_gated_on_its_own_record_not_the_servers_flag():
+    # A server started with --configure runs its own procedure and raises
+    # SystemConfigured before any client connects; the client's half of the
+    # configuration has still not been applied. setup() therefore asks for the
+    # record setup() itself writes, and proceeds when there is none -- whatever
+    # the flag says. A record present means a setup() already ran: refused
+    # unless forced.
+    from pysmurf.client.base.smurf_control import SmurfControl
+
+    def control(record):
+        S = SmurfControl.__new__(SmurfControl)
+        S.log = lambda *a, **k: None
+        S._hardware_logging_thread = None
+        S.get_system_configured = lambda: True            # the server's own procedure ran
+        S._session = type('_S', (), {'clear_config': lambda self: None,
+                                     'resolved_config': lambda self, record=record: record})()
+        S._setup_hardware = lambda write_log, payload_size, force_configure, **kw: ("ran", force_configure)
+        return S
+
+    assert control(None).setup() == ('ran', False), 'a server configured only by its own procedure must be set up'
+    assert control(object()).setup() is False, 'a second setup() on a set-up server must be refused'
+    assert control(object()).setup(force_configure=True) == ('ran', True), 'unless forced -- and the body is told so'
+
+    # Forced, the record is not read at all: a record the server holds but
+    # that cannot be decoded is replaced by the forced setup(), not a wall
+    # before it.
+    def broken():
+        raise ValueError('malformed record')
+    S = control(None)
+    S._session.resolved_config = lambda: broken()
+    assert S.setup(force_configure=True) == ('ran', True), 'a forced setup() must not read the record it replaces'
+
+    # The server's half: its register layers are the server's, not the
+    # client's. A server that reports its procedure has run is not made to
+    # load them again unless forced; one that has not is.
+    def server(configured):
+        S = SmurfControl.__new__(SmurfControl)
+        S.log = lambda *a, **k: None
+        S.get_system_configured = lambda: configured
+        S._session = type('_S', (), {'get': lambda self, path: 'stood-in'})()
+        calls = []
+        S.set_defaults_pv = lambda write_log: calls.append('defaults') or True
+        return S, calls
+
+    S, calls = server(True)
+    assert S._configure_server(write_log=False, force_configure=False) is True and calls == [], \
+        'a configured server must not be made to load its layers again'
+    S, calls = server(True)
+    assert S._configure_server(write_log=False, force_configure=True) is True and calls == ['defaults'], \
+        'unless forced'
+    S, calls = server(False)
+    assert S._configure_server(write_log=False, force_configure=False) is True and calls == ['defaults'], \
+        'an unconfigured server runs its procedure'
+    S, calls = server(False)
+    S.set_defaults_pv = lambda write_log: False
+    assert S._configure_server(write_log=False, force_configure=False) is False, \
+        'and its failure is the verdict'
 
 
 def check_a_write_into_a_per_band_property_persists():
