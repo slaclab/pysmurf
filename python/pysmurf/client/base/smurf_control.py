@@ -352,9 +352,13 @@ class SmurfControl(SmurfCommandMixin,
         payload_size : int, optional, default 2048
             The starting size of the payload.
         force_configure : bool, optional, default False
-            Whether or not to force configure if system has already
-            been configured once by the currently running Rogue
-            server.
+            Whether to configure again a system a ``setup()`` has already
+            configured while this server has been up -- the server holds
+            that ``setup()``'s record -- and whether to make the server run
+            its own procedure (load its register layers) again when it
+            already has. A server that only ran its procedure at start
+            (``--configure``) holds no record and is set up without this;
+            its layers are then left as loaded.
         \**kwargs
             Passed to every per-band setter.
 
@@ -362,8 +366,8 @@ class SmurfControl(SmurfCommandMixin,
         -------
         success : bool
            Returns `True` if system setup succeeded, otherwise
-           `False`.  Also returns False if system has already been
-           configured by the currently running Rogue server and
+           `False`.  Also returns False if a ``setup()`` has already
+           configured the system while this server has been up and
            force_configure=False.
 
         See Also
@@ -372,18 +376,22 @@ class SmurfControl(SmurfCommandMixin,
               Runs the server's procedure alone.
         """
 
-        # Check if system is already configured.  Be aware this checks
-        # a software register which does not persist on restart of the
-        # Rogue server, so it really only checks if the system has
-        # been successfully configured at any point while this Rogue
-        # server has been up.
-        if self.get_system_configured():
-            if force_configure:
-                self.log(f'System already configured, but will configure again since force_configure={force_configure}.', self.LOG_USER)
-            else:
-                self.log('\033[91mSystem already configured once while this Rogue server has been up.\033[00m', self.LOG_ERROR) # color red
-                self.log('\033[91mIf you really want to configure again, run setup with force_configure=True.\033[00m', self.LOG_ERROR) # color red
-                return False
+        # Already set up? The record this method writes at the end is what
+        # says so; it does not survive a server restart, and it is not the
+        # server's SystemConfigured flag, which the server's own procedure
+        # also sets when started with --configure -- a server that only did
+        # that still needs the client's half, so it is set up here without
+        # force_configure. An image without the record's node never says
+        # already set up.
+        # The flag is checked first: a forced setup() replaces whatever record
+        # the server holds without reading it, so a record that cannot be
+        # decoded does not stand in the way of the setup() that would clear it.
+        if force_configure:
+            self.log(f'System already set up, but will configure again since force_configure={force_configure}.', self.LOG_USER)
+        elif self._session.resolved_config() is not None:
+            self.log('\033[91mSystem already set up once while this Rogue server has been up.\033[00m', self.LOG_ERROR) # color red
+            self.log('\033[91mIf you really want to configure again, run setup with force_configure=True.\033[00m', self.LOG_ERROR) # color red
+            return False
 
         self.log('Setting up...', (self.LOG_USER))
 
@@ -401,16 +409,26 @@ class SmurfControl(SmurfCommandMixin,
                      (self.LOG_USER))
             self.pause_hardware_logging()
         try:
-            return self._setup_hardware(write_log, payload_size, **kwargs)
+            return self._setup_hardware(write_log, payload_size, force_configure, **kwargs)
         finally:
             if self._hardware_logging_thread is not None:
                 self.log('Resuming hardware logging.', self.LOG_USER)
                 self.resume_hardware_logging()
 
-    def _setup_hardware(self, write_log, payload_size, **kwargs):
-        """The body of ``setup()``: the server's procedure, then the operating state, then the record. True on success."""
-        # The server's procedure: the register layers loaded, the converter
-        # links checked. Its message names the step that failed.
+    def _configure_server(self, write_log, force_configure):
+        """The server's half of ``setup()``: its configuration procedure, unless it has already run. True when the server is configured."""
+        # The register layers are the server's, not this client's: a server
+        # that has run its procedure -- started with --configure, or set up
+        # before -- reports SystemConfigured and is not made to load them
+        # again unless asked.
+        if self.get_system_configured() and not force_configure:
+            self.log('Server already configured by its own procedure; the register'
+                     ' layers are left as loaded. Pass force_configure=True to load them again.',
+                     self.LOG_USER)
+            return True
+
+        # The register layers loaded, the converter links checked. The
+        # procedure's message names the step that failed.
         if not self.set_defaults_pv(write_log=write_log):
             message = self._session.get('ops.setup.message')
             self.log(
@@ -423,6 +441,12 @@ class SmurfControl(SmurfCommandMixin,
                 ' set_read_all/save_state functions).',
                 self.LOG_ERROR)
             self.log('Setup failed!', self.LOG_ERROR)
+            return False
+        return True
+
+    def _setup_hardware(self, write_log, payload_size, force_configure, **kwargs):
+        """The body of ``setup()``: the server's procedure, then the operating state, then the record. True on success."""
+        if not self._configure_server(write_log, force_configure):
             return False
 
         # The per-band values this site sets differently from the server's
