@@ -21,14 +21,17 @@
 #-----------------------------------------------------------------------------
 import argparse
 import logging
+import os
+import shlex
 import socket
-from typing import Any, Dict, Optional
+import sys
+from typing import Any, Dict, Optional, Sequence
 
 from cryodaq import platform
 from cryodaq.server import _firmware, _launch
 from cryodaq.server._capture import CAPTURE_POINTS
 
-__all__ = ['add_arguments', 'configure_logging', 'launch', 'transport_from', 'composition_kwargs',
+__all__ = ['add_arguments', 'configure_logging', 'log_started', 'launch', 'transport_from', 'composition_kwargs',
            'top_level_options', 'server_port_for', 'run']
 
 # The ZMQ port convention: a base, three ports per server, chosen by the slot.
@@ -197,6 +200,19 @@ def configure_logging(args: argparse.Namespace) -> None:
     logging.basicConfig(level=args.log_level,
                         format="[%(asctime)s] %(levelname)s:%(name)s: %(message)s")
     logging.getLogger('pyrogue').setLevel(args.rogue_log_level)
+
+
+def log_started(parser: argparse.ArgumentParser, argv: Optional[Sequence[str]]) -> None:
+    """The first line of a server's log: the command line it was started with.
+
+    Shell-quoted, so it can be run again as logged -- the person reading the
+    log is not always the one who started the server. Called by each entry
+    point's ``main`` with the arguments it parsed; ``None`` means the process's
+    own.
+    """
+    logging.getLogger(parser.prog.split()[-1]).info(
+        "started as: %s %s  (pid %d, cwd %s)", parser.prog,
+        shlex.join(sys.argv[1:] if argv is None else list(argv)), os.getpid(), os.getcwd())
 
 
 def server_port_for(args: argparse.Namespace) -> int:

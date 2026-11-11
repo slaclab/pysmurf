@@ -37,6 +37,7 @@ def parser() -> argparse.ArgumentParser:
 def main(argv=None) -> int:
     args = parser().parse_args(argv)
     _cli.configure_logging(args)
+    _cli.log_started(parser(), argv)
     _cli.launch(args, parser())
     with cryodaq.server.compose(transport=_cli.transport_from(args),
                                 **_cli.composition_kwargs(args)) as root:

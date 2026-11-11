@@ -24,9 +24,11 @@
 #
 #    What was read is kept as one inventory record and published on the status
 #    device beside the startup arguments, so a client can see what the launcher
-#    saw. A board the shelf manager cannot reach is tolerated when the addresses
-#    are given on the command line and refused, naming the call that failed,
-#    when they are not.
+#    saw, and logged -- boards and revisions, package and release -- so the
+#    log says what a server found. A
+#    board the shelf manager cannot reach is tolerated when the addresses are
+#    given on the command line and refused, naming the call that failed, when
+#    they are not.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -38,15 +40,17 @@
 #-----------------------------------------------------------------------------
 
 import argparse
+import datetime
 import logging
 import pathlib
 import re
-from typing import Any, Dict
+import zipfile
+from typing import Any, Dict, Mapping
 
 from cryodaq import platform
 from cryodaq._errors import ConnectError, CryodaqError
 from cryodaq.platform import _atca
-from cryodaq.server._firmware import DEFAULTS_SUBDIR, resolve_layers
+from cryodaq.server._firmware import DEFAULTS_SUBDIR, checkout_python_dirs, resolve_layers
 
 __all__ = ['launch', 'LaunchError', 'Launched', 'DEFAULT_FIRMWARE_DIR']
 
@@ -57,6 +61,11 @@ _log = logging.getLogger(__name__)
 DEFAULT_FIRMWARE_DIR = '/tmp/fw'
 # A short git hash as the firmware file names carry it.
 SHORT_HASH_RE = re.compile(r'([0-9a-f]{7})[0-9a-f]*(?=\.(mcs|linux\.tar)\b)')
+# The two fields of a release archive's setup.py that name the release.
+_SETUP_FIELD_RE = re.compile(r'''^\s*(name|version)\s*=\s*['"]([^'"]*)['"]''', re.MULTILINE)
+# The date formats the FRU records carry, for the month a board was made; the
+# last is the tool's form for a date the record leaves unspecified.
+_FRU_DATE_FORMATS = ('%Y-%m-%d %H:%M:%S', '%a %b %d %H:%M:%S %Y %Z', '%a %b %d %H:%M:%S %Y')
 
 
 class LaunchError(CryodaqError):
@@ -175,6 +184,8 @@ def _launch_from_slot(args, done):
                               f"{errors.get('crate_id')}")
         _log.warning("the shelf manager did not answer for slot %d (%s); taking the addresses "
                      "as given and skipping the inventory", args.slot, errors.get('crate_id'))
+        # Every read was attempted on its own: a board whose record came back is logged as found.
+        _log_population(args.slot, done.inventory)
         _find_package(args, done, firmware_dir, image=_named_image(args))
         return
 
@@ -182,6 +193,7 @@ def _launch_from_slot(args, done):
     done.set_default(args, 'ip_addr', _atca.fpga_address(crate_id, args.slot))
     _log.info("crate id 0x%04x, slot %d: FPGA at %s, PCIe RSSI lane %d", crate_id, args.slot,
               args.ip_addr, args.pcie_rssi_lane)
+    _log_population(args.slot, done.inventory)
 
     # 3. Which platform's board this is, by its carrier's FRU part number. That
     #    chooses the image, the package, and how to read the bays; identifying
@@ -256,8 +268,6 @@ def _bring_up_for(carrier):
     if bring_up is None:
         _log.warning("carrier part number %r is not one any platform declares; the bays and the "
                      "firmware are not checked, the addresses are taken as given", part)
-    else:
-        _log.info("carrier %s (%s): image %s", part, carrier.get('Board Product', '?'), bring_up.firmware_image)
     return bring_up
 
 
@@ -315,6 +325,7 @@ def _find_package(args, done, firmware_dir, image):
         raise LaunchError(f"{len(archives)} firmware packages match {pattern} in {firmware_dir}: "
                           f"{', '.join(a.name for a in archives)}; keep one there")
     if archives:
+        _log.info("firmware package: release archive %s, %s", archives[0], _archive_release(archives[0]))
         done.set_default(args, 'firmware', str(archives[0]))
         return
     checkouts = [d for d in ([firmware_dir] + sorted(firmware_dir.iterdir()) if firmware_dir.is_dir() else [])
@@ -323,10 +334,93 @@ def _find_package(args, done, firmware_dir, image):
         raise LaunchError(f"{len(checkouts)} firmware checkouts in {firmware_dir}: "
                           f"{', '.join(c.name for c in checkouts)}; keep one there")
     if checkouts:
+        _log.info("firmware package: checkout %s %s, %d python directories", checkouts[0],
+                  _git_describe(checkouts[0]), len(checkout_python_dirs(checkouts[0])))
         done.set_default(args, 'firmware', str(checkouts[0]))
         return
-    _log.info("no firmware package matching %s and no checkout in %s; the package must be importable",
-              pattern, firmware_dir)
+    _log.info("firmware package: none in %s (no %s, no checkout); the package must be importable",
+              firmware_dir, pattern)
+
+
+def _archive_release(archive: pathlib.Path) -> str:
+    """``<name> <version>`` as a release archive's ``setup.py`` states them, read as text, not run; else why not."""
+    try:
+        with zipfile.ZipFile(archive) as zf:
+            text = zf.read('setup.py').decode('utf-8', 'replace')
+    except (KeyError, OSError, zipfile.BadZipFile):
+        return "release unknown (no setup.py in the archive)"
+    fields = dict(_SETUP_FIELD_RE.findall(text))
+    if 'version' not in fields:
+        return "release unknown (its setup.py names no version)"
+    return f"{fields.get('name', archive.stem)} {fields['version']}"
+
+
+def _git_describe(checkout: pathlib.Path) -> str:
+    """``at <tag or hash>[-dirty] (<branch>)`` from the checkout's own git metadata, or why there is none.
+
+    Only a directory with its own ``.git`` is asked, so a copy inside some
+    other repository is never described as that repository. The checkout is
+    named safe for this one call: in a container the server runs as another
+    user than the checkout's owner, which git otherwise refuses. git runs
+    through the same seam as the shelf-manager tools, so a check can answer
+    for it.
+    """
+    if not (checkout / '.git').exists():
+        return "version unknown (no git metadata)"
+
+    def git(*words):
+        status, text = _atca.run_tool(['git', '-c', f'safe.directory={checkout}', '-C', str(checkout), *words])
+        if status != 0:
+            raise _atca.ShelfManagerError('describing the checkout', ['git', *words], text)
+        return text.strip()
+    try:
+        return f"at {git('describe', '--tags', '--dirty', '--always')} ({git('rev-parse', '--abbrev-ref', 'HEAD')})"
+    except _atca.ShelfManagerError as e:
+        return f"version unknown ({e})"
+
+
+def _log_population(slot: int, inventory: Mapping[str, Any]) -> None:
+    """One line per board the slot's records name: the carrier, each bay, the rear module.
+
+    A board that could not be read is said to be unread, with the error; one the
+    controller reported absent is said to be absent. The two are never confused.
+    """
+    _log.info("slot %d carrier: %s", slot, _board(inventory, 'carrier', 'carrier'))
+    for index, bay in enumerate(_atca.AMC_BAYS):
+        _log.info("slot %d bay %d: %s", slot, index, _board(inventory, f'amc{bay}', 'AMC'))
+    _log.info("slot %d RTM: %s", slot, _board(inventory, 'rtm', 'RTM'))
+
+
+def _board(inventory: Mapping[str, Any], key: str, kind: str) -> str:
+    """A board's FRU record in one phrase: part, product, version, BOM, serial, month made."""
+    record = inventory.get(key)
+    if record is None:
+        return f"not read ({inventory.get('errors', {}).get(key, 'no record')})"
+    if not record:
+        return f"no {kind}"
+    phrase = [f"{kind} {record.get('Board Part Number', '?')}"]
+    product = record.get('Board Product Name') or record.get('Board Product')
+    if product:
+        phrase[0] += f" {product}"
+    for label, field in (('version', 'Product Version'), ('BOM', 'Internal BOM')):
+        if record.get(field):
+            phrase.append(f"{label} {record[field]}")
+    serial = record.get('Board Serial No.') or record.get('Board Serial')
+    if serial:
+        phrase.append(f"serial {serial}")
+    if record.get('Board Mfg Date'):
+        phrase.append(f"made {_month(record['Board Mfg Date'])}")
+    return ', '.join(phrase)
+
+
+def _month(date: str) -> str:
+    """``YYYY-MM`` from a FRU date in either form the records use; the text as given otherwise."""
+    for fmt in _FRU_DATE_FORMATS:
+        try:
+            return datetime.datetime.strptime(date, fmt).strftime('%Y-%m')
+        except ValueError:
+            continue
+    return date
 
 
 def _check_firmware(args, done, shm, bring_up, firmware_dir):

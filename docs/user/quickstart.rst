@@ -9,8 +9,13 @@ Connect
 
 .. code-block:: python
 
-   import pysmurf
-   S = pysmurf.SmurfControl(cfg_file='/path/to/config.cfg', make_logfile=True)
+   import pysmurf.client
+   S = pysmurf.client.SmurfControl(cfg_file='/path/to/config.yaml',
+                                   server_addr='localhost', server_port=9012)
+
+``server_addr`` and ``server_port`` are where the server listens (a server for
+the carrier in slot ``n`` of a crate on its host listens on ``9000 + 3 n``);
+see :doc:`installation` for running the client away from the server's host.
 
 Setup
 -----

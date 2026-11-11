@@ -134,6 +134,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         prog='python -m pysmurf.core.server', description='Start the SMuRF server.'))
     args = parser.parse_args(argv)
     cryodaq.server.configure_logging(args)
+    cryodaq.server.log_started(parser, argv)
     cryodaq.server.launch(args, parser)
     source = pysmurf.core.emulators.StreamDataSource() if args.transport == 'emulation' else None
     root = compose(transport=cryodaq.server.transport_from(args, emulation_source=source),

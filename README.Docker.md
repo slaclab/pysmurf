@@ -40,11 +40,15 @@ PUSH=0 SYSTEMS=umux,rfmc docker/server/build.sh
 
 ```
 docker pull ghcr.io/slaclab/pysmurf-server:<TAG>
-docker run -ti --rm \
+docker run -ti --rm --network host \
     -v <local_data_dir>:/data \
     ghcr.io/slaclab/pysmurf-server:<TAG> \
     <arguments>
 ```
+
+`--network host` puts the server's rogue ZMQ sockets on the host's ports, where a client finds them
+by the slot convention below; the server also needs the host's network to reach the carrier and
+the shelf manager (and `--device /dev/datadev_0 --device /dev/datadev_1` for a PCIe transport, one option per node).
 
 The entrypoint is [start_server.sh](docker/server/scripts/start_server.sh). It passes every
 argument to the server's own command line, `python3 -m pysmurf.core.server`, with one translation:
@@ -73,26 +77,38 @@ which runs `python3 -m pysmurf.core.server -S shm-smrf-sp01 -N 2 --transport pci
 
 ## Running the client
 
+The client talks to a server over the server's rogue ZMQ sockets. It needs to know where the
+server listens and nothing else: a host and port, or, for a server on the same host, the crate
+slot it serves (`crate:4` is `localhost:9012`, the server's own port convention).
+
 ```
 docker pull ghcr.io/slaclab/pysmurf-client:<TAG>
-docker run -ti --rm \
+docker run -ti --rm --network host \
     -v <local_data_dir>:/data \
     -v <local_home_dir>:/home/cryo \
     ghcr.io/slaclab/pysmurf-client:<TAG> \
-    -e <epics_prefix> -c <config_file>
+    -t crate:4 -c <config_file>
 ```
 
-The entrypoint is [start_client.sh](docker/client/scripts/start_client.sh):
+`--network host` puts the client on the host's network, where a server container started as above
+listens. The entrypoint is [start_client.sh](docker/client/scripts/start_client.sh):
 
 ```
-usage: start_client.sh [-e|--epics <epics_prefix>] [-c|--config-file <config_file>] [-h|--help]
-    -e|--epics <epics_prefix>      : Sets the EPICS PV name prefix (defaults to 'smurf_server').
-    -c|--config-file <config_file> : Path to the configuration path
+usage: start_client.sh [-t|--target <target>] [-c|--config-file <config_file>] [-h|--help]
+    -t|--target <target>           : The server: 'host:port', or 'crate:<slot>' for a server on this
+                                     host serving an ATCA slot (defaults to 'localhost:9000').
+    -c|--config-file <config_file> : A configuration file (YAML) for the client. Without one, the
+                                     configuration is read back from a server that has been set up.
     -h|--help                      : Show this message.
 ```
 
-It starts an `ipython3` session as the `cryo` user, loading
-[pysmurf_startup.py](docker/client/scripts/pysmurf_startup.py), which takes the prefix and the
-configuration file given. The client writes data under `/data/smurf_data`, so mount a host
-directory holding `smurf_data` at `/data`; mount a host directory at `/home/cryo` to keep the
-`ipython3` history.
+It starts an `ipython3` session loading
+[pysmurf_startup.py](docker/client/scripts/pysmurf_startup.py), which connects a `SmurfControl`
+named `S` to the server, with the configuration file if one was given. The client writes data under
+`/data/smurf_data`, so mount a host directory holding `smurf_data` at `/data`; mount a host
+directory at `/home/cryo` to keep the `ipython3` history. The image also carries JupyterLab;
+`--entrypoint jupyter` with `lab --ip 0.0.0.0` in place of the client arguments serves notebooks
+instead of a terminal session.
+
+The client does not need the container. Installed on any machine with network access to the
+server, it connects the same way; see *Installation* in the Sphinx documentation.
