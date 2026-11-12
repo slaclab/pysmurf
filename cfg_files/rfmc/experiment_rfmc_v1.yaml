@@ -1,0 +1,383 @@
+# RFMC carrier, version 1 firmware (rfmc-cryo-det MicrowaveMuxRfmcCarrier v1.2.x: baseband
+# IF with the QUAD daughter cards), both quads, eight bands, external reference.
+#
+# What is specific to the RFMC: the per-band IQ swaps. With iq_swap_in = iq_swap_out = 0
+# the DSP synthesis and analysis are mirrored on every band of this carrier, so a tone on
+# a channel is received in the channel at the opposite offset (slaclab/rfmc-cryo-det#30).
+# The low-side LO bands (0, 1, 4, 5) swap the synthesis I/Q and the high-side LO bands
+# (2, 3, 6, 7), whose down-conversion inverts, swap the analysis I/Q; a channel's tone
+# then lands in that channel at band centre plus its tone frequency offset in RF. The
+# firmware package's own defaults set the same values since v1.2.4, but setup() writes
+# these from this file.
+#
+# Everything else -- attenuators (UC 12 on bands 0-3, 0 on bands 4-7, DC 0), tuning,
+# wiring and amplifier values -- is converted from
+# cfg_files/b33/experiment_b33_rfc1-2_C05-40_s4_2xLB_extref.cfg, the AMC configuration
+# the RFMC prototype was first run with; a site overrides its own with `inherit:`.
+paths:
+  data: /data/smurf_data
+  tune: /data/smurf_data/tune
+  status: /data/smurf_data/status
+wiring:
+  R_sh: 0.00039
+  bias_line_resistance: 16100
+  high_low_current_ratio: 5.669
+  pic_to_bias_group:
+    '0': 0
+    '1': 1
+    '2': 2
+    '3': 3
+    '4': 4
+    '5': 5
+    '6': 6
+    '7': 7
+    '8': 8
+    '9': 9
+    '10': 10
+    '11': 11
+    '12': 12
+    '13': 13
+    '14': 14
+    '15': 15
+  bias_group_to_pair:
+    '0':
+    - 1
+    - 2
+    '1':
+    - 3
+    - 4
+    '2':
+    - 5
+    - 6
+    '3':
+    - 7
+    - 8
+    '4':
+    - 9
+    - 10
+    '5':
+    - 11
+    - 12
+    '6':
+    - 13
+    - 14
+    '7':
+    - 15
+    - 16
+    '8':
+    - 17
+    - 18
+    '9':
+    - 19
+    - 20
+    '10':
+    - 21
+    - 22
+    '11':
+    - 23
+    - 24
+    '12':
+    - 25
+    - 26
+    '13':
+    - 27
+    - 28
+    '14':
+    - 29
+    - 30
+  all_bias_groups:
+  - 3
+  high_current_mode: 0
+  pA_per_phi0: 9000000.0
+  bad_mask: []
+attenuator:
+  att1: 0
+  att2: 1
+  att3: 2
+  att4: 3
+amplifier:
+  hemt_Vg: 0.265
+  bit_to_V_hemt: 1.93e-06
+  hemt_Id_offset: 0.2326
+  LNA_Vg: 0
+  50k_Id_offset: 0.5084
+  dac_num_50k: 32
+  bit_to_V_50k: 3.38e-06
+  hemt_gate_min_voltage: -1.0
+  hemt_gate_max_voltage: 1.0
+  hemt1:
+    drain_conversion_b: 1.74185
+    drain_conversion_m: -0.259491
+    drain_dac_num: 31
+    drain_offset: 0.2326
+    drain_opamp_gain: 3.874
+    drain_pic_address: 3
+    drain_resistor: 50.0
+    drain_volt_default: 0.5
+    drain_volt_min: 0
+    drain_volt_max: 2
+    gate_bit_to_volt: 3.86936e-06
+    gate_volt_default: 0.265
+    gate_volt_min: 0
+    gate_volt_max: 2.03
+    power_bitmask: 1
+  hemt2:
+    drain_conversion_m: -0.259491
+    drain_conversion_b: 1.74185
+    drain_dac_num: 29
+    drain_offset: 0.2881
+    drain_opamp_gain: 3.874
+    drain_pic_address: 10
+    drain_resistor: 50.0
+    drain_volt_default: 0.5
+    drain_volt_max: 2
+    drain_volt_min: 0
+    gate_bit_to_volt: 3.86936e-06
+    gate_dac_num: 27
+    gate_volt_default: 0.0
+    gate_volt_max: 2.03
+    gate_volt_min: 0
+    power_bitmask: 4
+  50k1:
+    drain_conversion_m: -0.224968
+    drain_conversion_b: 5.59815
+    drain_dac_num: 32
+    drain_offset: 0.5084
+    drain_opamp_gain: 9.929
+    drain_pic_address: 4
+    drain_resistor: 12.0
+    drain_volt_default: 5.0
+    drain_volt_max: 5.5
+    drain_volt_min: 3.5
+    gate_bit_to_volt: 3.86936e-06
+    gate_dac_num: 30
+    gate_volt_default: 0.0
+    gate_volt_max: 2.03
+    gate_volt_min: 0
+    power_bitmask: 2
+  50k2:
+    drain_conversion_m: -0.224968
+    drain_conversion_b: 5.59815
+    drain_dac_num: 28
+    drain_offset: 0.3599
+    drain_opamp_gain: 9.929
+    drain_pic_address: 11
+    drain_resistor: 12.0
+    drain_volt_default: 5.0
+    drain_volt_max: 5.5
+    drain_volt_min: 3.5
+    gate_bit_to_volt: 3.86936e-06
+    gate_dac_num: 26
+    gate_volt_default: 0.0
+    gate_volt_max: 2.03
+    gate_volt_min: 0
+    power_bitmask: 8
+timing:
+  timing_reference: ext_ref
+fs: 200.0
+flux_ramp:
+  num_flux_ramp_counter_bits: 32
+tune:
+  fraction_full_scale: 0.495
+  reset_rate_khz: 4.0
+bands:
+  0:
+    iq_swap_in: 0
+    iq_swap_out: 1
+    trigger_reset_delay: 15
+    feedback_enable: 1
+    feedback_gain: 2048
+    feedback_polarity: 1
+    feedback_limit_khz: 225
+    lms_gain: 1
+    att_uc: 12
+    att_dc: 0
+    amplitude_scale: 12
+    band_delay_us: 2.5
+    delta_freq: 0.02
+    lms_freq_hz: 16500
+    feedback_start_frac: 0.05
+    feedback_end_frac: 0.98
+    gradient_descent_gain: 0.0001
+    gradient_descent_averages: 1
+    gradient_descent_converge_hz: 500
+    gradient_descent_step_hz: 1000
+    gradient_descent_beta: 0
+    gradient_descent_momentum: 1
+    eta_scan_del_f: 5000
+    eta_scan_averages: 1
+  1:
+    iq_swap_in: 0
+    iq_swap_out: 1
+    trigger_reset_delay: 15
+    feedback_enable: 1
+    feedback_gain: 2048
+    feedback_polarity: 1
+    feedback_limit_khz: 225
+    lms_gain: 1
+    att_uc: 12
+    att_dc: 0
+    amplitude_scale: 12
+    band_delay_us: 2.5
+    delta_freq: 0.02
+    lms_freq_hz: 16500
+    feedback_start_frac: 0.05
+    feedback_end_frac: 0.98
+    gradient_descent_gain: 0.0001
+    gradient_descent_averages: 1
+    gradient_descent_converge_hz: 500
+    gradient_descent_step_hz: 1000
+    gradient_descent_beta: 0
+    gradient_descent_momentum: 1
+    eta_scan_del_f: 5000
+    eta_scan_averages: 1
+  2:
+    iq_swap_in: 1
+    iq_swap_out: 0
+    trigger_reset_delay: 15
+    feedback_enable: 1
+    feedback_gain: 2048
+    feedback_polarity: 1
+    feedback_limit_khz: 225
+    lms_gain: 1
+    att_uc: 12
+    att_dc: 0
+    amplitude_scale: 12
+    band_delay_us: 2.5
+    delta_freq: 0.02
+    lms_freq_hz: 16500
+    feedback_start_frac: 0.05
+    feedback_end_frac: 0.98
+    gradient_descent_gain: 0.0001
+    gradient_descent_averages: 1
+    gradient_descent_converge_hz: 500
+    gradient_descent_step_hz: 1000
+    gradient_descent_beta: 0
+    gradient_descent_momentum: 1
+    eta_scan_del_f: 5000
+    eta_scan_averages: 1
+  3:
+    iq_swap_in: 1
+    iq_swap_out: 0
+    trigger_reset_delay: 15
+    feedback_enable: 1
+    feedback_gain: 2048
+    feedback_polarity: 1
+    feedback_limit_khz: 225
+    lms_gain: 1
+    att_uc: 12
+    att_dc: 0
+    amplitude_scale: 12
+    band_delay_us: 2.5
+    delta_freq: 0.02
+    lms_freq_hz: 16500
+    feedback_start_frac: 0.05
+    feedback_end_frac: 0.98
+    gradient_descent_gain: 0.0001
+    gradient_descent_averages: 1
+    gradient_descent_converge_hz: 500
+    gradient_descent_step_hz: 1000
+    gradient_descent_beta: 0
+    gradient_descent_momentum: 1
+    eta_scan_del_f: 5000
+    eta_scan_averages: 1
+  4:
+    iq_swap_in: 0
+    iq_swap_out: 1
+    trigger_reset_delay: 15
+    feedback_enable: 1
+    feedback_gain: 2048
+    feedback_polarity: 1
+    feedback_limit_khz: 225
+    lms_gain: 1
+    att_uc: 0
+    att_dc: 0
+    amplitude_scale: 12
+    band_delay_us: 2.5
+    delta_freq: 0.02
+    lms_freq_hz: 16500
+    feedback_start_frac: 0.05
+    feedback_end_frac: 0.98
+    gradient_descent_gain: 0.0001
+    gradient_descent_averages: 1
+    gradient_descent_converge_hz: 500
+    gradient_descent_step_hz: 1000
+    gradient_descent_beta: 0
+    gradient_descent_momentum: 1
+    eta_scan_del_f: 5000
+    eta_scan_averages: 1
+  5:
+    iq_swap_in: 0
+    iq_swap_out: 1
+    trigger_reset_delay: 15
+    feedback_enable: 1
+    feedback_gain: 2048
+    feedback_polarity: 1
+    feedback_limit_khz: 225
+    lms_gain: 1
+    att_uc: 0
+    att_dc: 0
+    amplitude_scale: 12
+    band_delay_us: 2.5
+    delta_freq: 0.02
+    lms_freq_hz: 16500
+    feedback_start_frac: 0.05
+    feedback_end_frac: 0.98
+    gradient_descent_gain: 0.0001
+    gradient_descent_averages: 1
+    gradient_descent_converge_hz: 500
+    gradient_descent_step_hz: 1000
+    gradient_descent_beta: 0
+    gradient_descent_momentum: 1
+    eta_scan_del_f: 5000
+    eta_scan_averages: 1
+  6:
+    iq_swap_in: 1
+    iq_swap_out: 0
+    trigger_reset_delay: 15
+    feedback_enable: 1
+    feedback_gain: 2048
+    feedback_polarity: 1
+    feedback_limit_khz: 225
+    lms_gain: 1
+    att_uc: 0
+    att_dc: 0
+    amplitude_scale: 12
+    band_delay_us: 2.5
+    delta_freq: 0.02
+    lms_freq_hz: 16500
+    feedback_start_frac: 0.05
+    feedback_end_frac: 0.98
+    gradient_descent_gain: 0.0001
+    gradient_descent_averages: 1
+    gradient_descent_converge_hz: 500
+    gradient_descent_step_hz: 1000
+    gradient_descent_beta: 0
+    gradient_descent_momentum: 1
+    eta_scan_del_f: 5000
+    eta_scan_averages: 1
+  7:
+    iq_swap_in: 1
+    iq_swap_out: 0
+    trigger_reset_delay: 15
+    feedback_enable: 1
+    feedback_gain: 2048
+    feedback_polarity: 1
+    feedback_limit_khz: 225
+    lms_gain: 1
+    att_uc: 0
+    att_dc: 0
+    amplitude_scale: 12
+    band_delay_us: 2.5
+    delta_freq: 0.02
+    lms_freq_hz: 16500
+    feedback_start_frac: 0.05
+    feedback_end_frac: 0.98
+    gradient_descent_gain: 0.0001
+    gradient_descent_averages: 1
+    gradient_descent_converge_hz: 500
+    gradient_descent_step_hz: 1000
+    gradient_descent_beta: 0
+    gradient_descent_momentum: 1
+    eta_scan_del_f: 5000
+    eta_scan_averages: 1
