@@ -31,7 +31,7 @@ from cryodaq.platform import _umux
 
 __all__ = ['NAME', 'TAGS', 'PACKAGE_CONFIG_DIR', 'PACKAGE_DEFAULTS', 'BRING_UP', 'CARRIER', 'REGISTERS',
            'LEGACY', 'WITNESS', 'SCOPES', 'QUAD', 'RFDC', 'LMK_CONFIG', 'STARTUP_TIMING_SOURCE',
-           'TIMING_RECEIVER_CROSSBAR_OUTPUT']
+           'TIMING_RECEIVER_CROSSBAR_OUTPUT', 'BAND', 'DSP_RESET', 'FIRMWARE_BAND_MASK']
 
 NAME = 'umux-rfmc'
 
@@ -90,6 +90,12 @@ RFDC = f'{_umux.ROOT}.Rfdc'
 # not to PACKAGE_CONFIG_DIR, which is the same `config/` directory seen from the
 # release archive's root and serves the register layers.
 LMK_CONFIG = 'config/lmk/HexRegisterValues.txt'
+# The per-band DSP cores the configuration procedure resets once the converter runs
+# (see `support.py`), and the register that says which bands the build carries, one
+# bit per band.
+BAND = _umux.BAND
+DSP_RESET = _umux.DSP_RESET
+FIRMWARE_BAND_MASK = _umux.FIRMWARE_BAND_MASK
 
 # --------------------------------------------------------------------------
 # what only this platform has

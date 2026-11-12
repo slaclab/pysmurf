@@ -384,10 +384,11 @@ def check_the_rfmc_sequence_is_the_firmwares_own():
     The expected side is the firmware root's `start()`, transcribed from the
     release (`rfmc_cryo_det/_Root.py`): user reset, timing route, clock chips
     from the vendor file, DSP clock wait, converter init, a read of the tree,
-    tile sync, then the configuration load and a counter reset -- with every
-    wait bounded, the backplane routed to the receiver's crossbar output, the
-    tile groups the firmware uses, and polling off throughout. The firmware's
-    final health check is left out, as the carrier's was.
+    tile sync, then the configuration load, a counter reset and a DSP core
+    reset pulse on every band the build carries -- with every wait bounded, the
+    backplane routed to the receiver's crossbar output, the tile groups the
+    firmware uses, and polling off throughout. The firmware's final health
+    check is left out, as the carrier's was.
 
     The two lines of the firmware synchronise different ADC tile groups, and the
     procedure tells them apart by the major version the board reports: version
@@ -398,8 +399,12 @@ def check_the_rfmc_sequence_is_the_firmwares_own():
     rfdc = rfmc.RFDC
     crossbar = f'{core}.AxiSy56040.OutputConfig[{rfmc.TIMING_RECEIVER_CROSSBAR_OUTPUT}]'
     fpga_version = f'{core}.AxiVersion.FpgaVersion'
+    # Every band built and its device enabled, as a started tree reads.
+    bands = {rfmc.FIRMWARE_BAND_MASK: 0xFF}
+    bands.update({f'{rfmc.BAND.format(band=b)}.enable': True for b in range(8)})
+    dsp_resets = [('set', rfmc.DSP_RESET.format(band=b), v) for b in range(8) for v in (1, 0)]
     for version, adc_tiles in ((0x01020000, 0xF), (0x02000000, 0x5)):
-        _setup, root = tree('rfmc', {'AMCc.PollEn': True, fpga_version: version})
+        _setup, root = tree('rfmc', dict(bands, **{'AMCc.PollEn': True, fpga_version: version}))
         setup = procedure(_setup, 'rfmc', layers=('d.yml',))
         setup.lmk_config = lambda: '/pkg/lmk.txt'      # the package's file, stood in
         with StoodInLoad(_setup) as load:
@@ -421,11 +426,13 @@ def check_the_rfmc_sequence_is_the_firmwares_own():
             ('call', f'{rfdc}.Mts.SyncAdcTiles'),
             ('load', 'd.yml'),
             ('call', 'AMCc.CountReset'),
+            ('get', rfmc.FIRMWARE_BAND_MASK),                        # which bands the build carries
+        ] + dsp_resets + [                                           # one dspReset pulse per band
             ('set', 'AMCc.PollEn', True),
         ]
         assert root.log == expected, f'version 0x{version:08x}:\n' + '\n'.join(f'  {e}' for e in root.log)
         assert load.loads == [('d.yml',)]
-        assert setup.progress == [('total', 9)] + ['step'] * 9, setup.progress
+        assert setup.progress == [('total', 10)] + ['step'] * 10, setup.progress
         # The RFMC has no JESD links and never touches a verdict.
         assert setup.status.JesdStatus.values == []
     # A reset that does not come back, a clock that does not lock, no clock
@@ -454,6 +461,39 @@ def check_the_rfmc_sequence_is_the_firmwares_own():
             raise AssertionError(f'{step} did not fail')
         assert not [e for e in root.log if e[0] == 'load'], f'{step} failed and the layers were still loaded'
         assert root.log[-1] == ('set', 'AMCc.PollEn', True), f'polling was not restored after {step} failed'
+
+
+def check_the_rfmc_dsp_reset_covers_only_built_and_enabled_bands():
+    """Only the bands the build carries are reset, and a built band that never enables is the step's failure.
+
+    A write to a disabled band device reaches rogue's shadow and not the board,
+    so a band left disabled is reported rather than counted as reset.
+    """
+    fpga_version = f'{rfmc.CARRIER.CARRIER}.AxiVersion.FpgaVersion'
+    enabled = {f'{rfmc.BAND.format(band=b)}.enable': True for b in range(8)}
+    # A build of bands 1 and 6 only: those two are pulsed, the others untouched.
+    _setup, root = tree('rfmc', dict(enabled, **{'AMCc.PollEn': True, fpga_version: 0x01020000,
+                                                 rfmc.FIRMWARE_BAND_MASK: 0x42}))
+    setup = procedure(_setup, 'rfmc', layers=('d.yml',))
+    with StoodInLoad(_setup):
+        run_on(setup, root)
+    resets = [e for e in root.log if e[0] == 'set' and e[1].endswith('.dspReset')]
+    assert resets == [('set', rfmc.DSP_RESET.format(band=b), v) for b in (1, 6) for v in (1, 0)], resets
+    # Band 3 built but never enabled: no pulse at all, and the step fails naming it.
+    disabled = dict(enabled, **{'AMCc.PollEn': True, fpga_version: 0x01020000, rfmc.FIRMWARE_BAND_MASK: 0x0F,
+                                f'{rfmc.BAND.format(band=3)}.enable': False})
+    _setup, root = tree('rfmc', disabled)
+    setup = procedure(_setup, 'rfmc', layers=('d.yml',))
+    setup.RESET_RECOVERY_TIMEOUT_S = 0.0
+    try:
+        with StoodInLoad(_setup):
+            run_on(setup, root)
+    except _setup.StepError as e:
+        assert str(e).startswith('reset DSP cores: bands [3] did not enable'), e
+    else:
+        raise AssertionError('a built band that never enabled did not fail the step')
+    assert not [e for e in root.log if e[0] == 'set' and e[1].endswith('.dspReset')], root.log
+    assert root.log[-1] == ('set', 'AMCc.PollEn', True), root.log[-1]
 
 
 def check_the_carrier_sequence_is_the_witnessed_one():

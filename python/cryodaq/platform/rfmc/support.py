@@ -24,6 +24,7 @@
 import atexit
 import contextlib
 import importlib.resources
+import time
 from typing import Any, Callable, List, Sequence, Tuple
 
 from cryodaq._errors import ConnectError
@@ -50,9 +51,9 @@ class RfmcSetup(Setup):
     uses at start: reset the user logic, route a timing source to the receiver,
     program the clock chips from the vendor's register file, wait for the DSP
     clock, initialise the RF data converter, read the tree, synchronise the
-    converter tiles, load the layers, reset the counters. The converter is a
-    device of its own on the root, reached over a second register path to the
-    processor system, not a child of the FPGA's tree.
+    converter tiles, load the layers, reset the counters, reset the DSP cores.
+    The converter is a device of its own on the root, reached over a second
+    register path to the processor system, not a child of the FPGA's tree.
 
     Polling is held off for the whole run, as the firmware's root holds it off
     through its start: a poll landing on the user reset, the clock programming,
@@ -92,7 +93,8 @@ class RfmcSetup(Setup):
                 ('read all', root.ReadAll),
                 ('sync converter tiles', lambda: self.sync_converter_tiles(carrier, rfdc)),
                 ('load layers', lambda: load_layers(root, self.layers)),
-                ('reset counters', root.CountReset))
+                ('reset counters', root.CountReset),
+                ('reset DSP cores', lambda: self.reset_dsp_cores(root)))
 
     def run_steps(self) -> None:
         # Polling held off: a poll mid-reset or mid-sync reads registers whose
@@ -157,6 +159,39 @@ class RfmcSetup(Setup):
         mts.AdcRefTile.set(self.MTS_ADC_REF_TILE)
         mts.SyncDacTiles()
         mts.SyncAdcTiles()
+
+    def reset_dsp_cores(self, root: Any) -> None:
+        """Pulse the DSP core reset of every band the build carries.
+
+        The cores come out of the user logic reset before the clock chips, the
+        converter and its tile sync are brought up, and without a reset after
+        that the synthesis plays each channel at a frequency other than its
+        tone frequency offset, a different one on every start. One pulse per
+        band, as the firmware's own root gives since rfmc-cryo-det v1.2.3, puts
+        every channel on its offset. A band's device enables only once its
+        bit of the band mask has been read back, and a write to a disabled
+        device reaches rogue's shadow and not the board, so the pulse waits for
+        the enable of every band the mask says is built.
+        """
+        built = int(root.getNode(rfmc.FIRMWARE_BAND_MASK).get())
+        # The band mask carries one bit per band, for the eight bands of the DSP.
+        bands = [b for b in range(8) if (built >> b) & 1]
+
+        def disabled():
+            return [b for b in bands if root.getNode(rfmc.BAND.format(band=b)).enable.value() is not True]
+
+        deadline = time.monotonic() + self.RESET_RECOVERY_TIMEOUT_S
+        pending = disabled()
+        while pending and time.monotonic() < deadline:
+            time.sleep(0.1)
+            pending = disabled()
+        if pending:
+            raise StepError(f"bands {pending} did not enable in {self.RESET_RECOVERY_TIMEOUT_S:.0f} s, "
+                            f"so their DSP cores could not be reset")
+        for b in bands:
+            reset = root.getNode(rfmc.DSP_RESET.format(band=b))
+            reset.set(1)
+            reset.set(0)
 
 
 class RfmcSupport(PlatformSupport):
