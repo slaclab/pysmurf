@@ -450,12 +450,18 @@ class SmurfControl(SmurfCommandMixin,
             return False
 
         # The per-band values this site sets differently from the server's
-        # defaults, written over what the layers left.
+        # defaults, written over what the layers left. The I/Q swaps are the
+        # carrier's, set by the firmware (its defaults, or the register's reset
+        # value); a band that leaves them unnamed keeps what the registers hold,
+        # which on a server that was configured before is whatever was last
+        # written -- force_configure=True reloads the layers.
         for band in self._bands:
-            self.set_iq_swap_in(band, self.iq_swap_in[band],
-                                write_log=write_log, **kwargs)
-            self.set_iq_swap_out(band, self.iq_swap_out[band],
-                                 write_log=write_log, **kwargs)
+            if self.iq_swap_in[band] is not None:
+                self.set_iq_swap_in(band, self.iq_swap_in[band],
+                                    write_log=write_log, **kwargs)
+            if self.iq_swap_out[band] is not None:
+                self.set_iq_swap_out(band, self.iq_swap_out[band],
+                                     write_log=write_log, **kwargs)
 
             # The band delay as a total; the firmware derives its three
             # delay registers from it, lmsDelay -- the LMS feedback

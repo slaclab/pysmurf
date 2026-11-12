@@ -103,8 +103,11 @@ def _schema():
         'gate_volt_min': number, 'gate_volt_max': number, 'power_bitmask': _is_int,
     }
     band = {
-        'iq_swap_in': _bool_int,
-        'iq_swap_out': _bool_int,
+        # The I/Q swaps are a fact about the carrier's mixing scheme, set by
+        # the firmware (its defaults, or the register's reset value); a site
+        # names them only to override.
+        Optional('iq_swap_in'): _bool_int,
+        Optional('iq_swap_out'): _bool_int,
         'feedback_enable': _bool_int,
         'feedback_polarity': _bool_int,
         'feedback_gain': _in_range(0, 2**16),

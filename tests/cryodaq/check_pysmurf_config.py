@@ -251,7 +251,7 @@ def check_the_default_alone_is_a_complete_template_that_needs_a_site():
 def check_a_minimal_configuration_resolves_with_defaults_filled():
     resolved = load_mapping(minimal())
     band = resolved.values['bands'][4]
-    assert band['iq_swap_in'] == 0 and band['feedback_enable'] == 1, 'band_default not applied'
+    assert band['feedback_enable'] == 1 and band['feedback_polarity'] == 1, 'band_default not applied'
     assert resolved.values['wiring']['pA_per_phi0'] == 9e6
     assert resolved.values['amplifier']['hemt1']['drain_dac_num'] == 31
     assert resolved.values['paths']['tune'] == '/data/smurf_data/tune'
@@ -762,6 +762,43 @@ def check_setup_writes_the_live_delay_a_caller_set():
     assert holder._per_band_tables['band_delay_us'][4] == 8.8, 'the live edit was not kept'
     for gone in ('ref_phase_delay', 'ref_phase_delay_fine', 'lms_delay'):
         assert not hasattr(holder, gone), f"{gone} is still a configuration property"
+
+
+def check_setup_writes_an_iq_swap_only_when_the_configuration_names_one():
+    # The I/Q swaps are the carrier's: the firmware's defaults set them and
+    # band_default does not, so a band that leaves them unnamed keeps what the
+    # server loaded, and setup() writes one only where a site names it. The
+    # body is stopped at the first write after the swaps; one band suffices.
+    from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin
+    from pysmurf.client.base.smurf_control import SmurfControl
+
+    class Stop(Exception):
+        pass
+
+    def drive(mapping):
+        S = SmurfControl.__new__(SmurfControl)
+        SmurfConfigPropertiesMixin.__init__(S)
+        S.copy_config_to_properties(load_mapping(mapping))
+        S._bands = list(S.config.values['bands'])
+        S.log = lambda *a, **k: None
+        S._configure_server = lambda write_log, force_configure: True
+        written = []
+        S.set_iq_swap_in = lambda band, val, **kw: written.append(('in', band, val))
+        S.set_iq_swap_out = lambda band, val, **kw: written.append(('out', band, val))
+
+        def stop(*a, **kw):
+            raise Stop()
+        S.set_band_delay_us = stop
+        try:
+            S._setup_hardware(write_log=False, payload_size=None, force_configure=False)
+        except Stop:
+            return written
+        raise AssertionError('the body did not reach the delay write')
+
+    assert drive(minimal()) == [], 'a band that names no swap had one written'
+    named = minimal()
+    named['bands'][4]['iq_swap_out'] = 1
+    assert drive(named) == [('out', 4, 1)], 'the named swap was not written, or the unnamed one was'
 
 
 def check_the_converter_drops_only_what_nothing_read():

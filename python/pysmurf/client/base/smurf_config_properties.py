@@ -286,12 +286,12 @@ class SmurfConfigPropertiesMixin:
 
     @property
     def iq_swap_in(self):
-        """Swap I and Q on input, per band."""
+        """Swap I and Q on input, per band; None where the band leaves it to the firmware."""
         return self._per_band('iq_swap_in')
 
     @property
     def iq_swap_out(self):
-        """Swap I and Q on output, per band."""
+        """Swap I and Q on output, per band; None where the band leaves it to the firmware."""
         return self._per_band('iq_swap_out')
 
     @property

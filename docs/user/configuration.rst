@@ -326,10 +326,15 @@ is applied under each block first. Every key below is exposed as a
 for some, writes into. Legacy: ``init:band_#`` for the firmware settings and
 ``tune_band:<key>:<band>`` for the tuning parameters.
 
-``iq_swap_in``, ``iq_swap_out`` (0 or 1)
+``iq_swap_in``, ``iq_swap_out`` (0 or 1, *optional*)
     Swap I and Q at the analysis filter bank input / synthesis filter bank
     output, flipping the spectrum about the band centre; corrects a
-    hardware-dependent sideband convention.
+    hardware-dependent sideband convention. The convention is the carrier's,
+    so the firmware sets these (its defaults, or the register's reset value)
+    and ``band_default`` does not; a band that names one has ``setup()``
+    write it, a band that leaves them out keeps what the registers hold. On
+    a server that was configured before, that is whatever was last written:
+    ``setup(force_configure=True)`` reloads the firmware's layers first.
 ``feedback_enable`` (0 or 1), ``feedback_polarity`` (0 or 1)
     Whether the tone-tracking loop applies frequency corrections to the
     band's channels, and the sign of the correction (which depends on the eta
