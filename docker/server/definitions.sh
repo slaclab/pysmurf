@@ -66,12 +66,13 @@ FW_SYSTEMS=(
     # the release zip follows rogue_<tag>.zip naming. Its register defaults are in the package itself.
     # Two firmware lines are released in parallel: version 1 (baseband, with the mixer daughter
     # cards) and version 2 (direct RF sampling). One archive per image name is all the launcher
-    # accepts, so one line ships: v1.2.4, on the image of v1.2.1 (the first RFMC release whose
+    # accepts, so one line ships: v1.2.5, on the image of v1.2.1 (the first RFMC release whose
     # package leaves the tuning operations to pysmurf), with the host fixes since: the DSP cores
     # reset at start-up, the high-speed ADC NCO restore, the per-band IQ swaps that put synthesis
-    # and analysis in the RF frame, and the LMK04828 lock detect layout. The version 2 line
-    # (v2.0.0) still carries the tuning operations.
-    "rfmc|https://github.com/slaclab/rfmc-cryo-det|MicrowaveMuxRfmcCarrier_v1.2.4|MicrowaveMuxRfmcCarrier-0x01020000-20261106110105-ruckman-29c6f6b.linux.tar.gz|rogue_MicrowaveMuxRfmcCarrier_v1.2.4.zip"
+    # and analysis in the RF frame, the LMK04828 lock detect layout, and the low-side LO PLLs
+    # driving the mixers inside their LO range. The version 2 line (v2.0.0) still carries the
+    # tuning operations.
+    "rfmc|https://github.com/slaclab/rfmc-cryo-det|MicrowaveMuxRfmcCarrier_v1.2.5|MicrowaveMuxRfmcCarrier-0x01020000-20261106110105-ruckman-29c6f6b.linux.tar.gz|rogue_MicrowaveMuxRfmcCarrier_v1.2.5.zip"
 
     # Add additional systems below, one per line:
     # "mysystem|https://github.com/slaclab/my-repo|v1.2.3|MyFirmware-0x01020000-date-hash.mcs"   (the image name carries major.minor only)
