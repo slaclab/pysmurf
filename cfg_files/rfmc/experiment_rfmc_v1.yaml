@@ -1,14 +1,12 @@
-# RFMC carrier, version 1 firmware (rfmc-cryo-det MicrowaveMuxRfmcCarrier v1.2.x: baseband
-# IF with the QUAD daughter cards), both quads, eight bands, external reference.
+# RFMC carrier, both quads, eight bands, external reference. Written for the version 1
+# firmware (rfmc-cryo-det MicrowaveMuxRfmcCarrier v1.2.x: baseband IF with the QUAD
+# daughter cards); nothing in it is specific to that line.
 #
-# What is specific to the RFMC: the per-band IQ swaps. With iq_swap_in = iq_swap_out = 0
-# the DSP synthesis and analysis are mirrored on every band of this carrier, so a tone on
-# a channel is received in the channel at the opposite offset (slaclab/rfmc-cryo-det#30).
-# The low-side LO bands (0, 1, 4, 5) swap the synthesis I/Q and the high-side LO bands
-# (2, 3, 6, 7), whose down-conversion inverts, swap the analysis I/Q; a channel's tone
-# then lands in that channel at band centre plus its tone frequency offset in RF. The
-# firmware package's own defaults set the same values since v1.2.4, but setup() writes
-# these from this file.
+# The per-band IQ swaps are not set here. They are a fact about the carrier's mixing
+# scheme -- the version 1 line swaps one side per band (slaclab/rfmc-cryo-det#30), the
+# direct RF version 2 line swaps neither (slaclab/rfmc-cryo-det#32) -- and the firmware
+# package's defaults.yml carries them for each line (version 1 since v1.2.4, version 2
+# from the release after v2.0.3); setup() leaves the registers as it finds them.
 #
 # Everything else -- attenuators (UC 12 on bands 0-3, 0 on bands 4-7, DC 0), tuning,
 # wiring and amplifier values -- is converted from
@@ -182,8 +180,6 @@ tune:
   reset_rate_khz: 4.0
 bands:
   0:
-    iq_swap_in: 0
-    iq_swap_out: 1
     trigger_reset_delay: 15
     feedback_enable: 1
     feedback_gain: 2048
@@ -207,8 +203,6 @@ bands:
     eta_scan_del_f: 5000
     eta_scan_averages: 1
   1:
-    iq_swap_in: 0
-    iq_swap_out: 1
     trigger_reset_delay: 15
     feedback_enable: 1
     feedback_gain: 2048
@@ -232,8 +226,6 @@ bands:
     eta_scan_del_f: 5000
     eta_scan_averages: 1
   2:
-    iq_swap_in: 1
-    iq_swap_out: 0
     trigger_reset_delay: 15
     feedback_enable: 1
     feedback_gain: 2048
@@ -257,8 +249,6 @@ bands:
     eta_scan_del_f: 5000
     eta_scan_averages: 1
   3:
-    iq_swap_in: 1
-    iq_swap_out: 0
     trigger_reset_delay: 15
     feedback_enable: 1
     feedback_gain: 2048
@@ -282,8 +272,6 @@ bands:
     eta_scan_del_f: 5000
     eta_scan_averages: 1
   4:
-    iq_swap_in: 0
-    iq_swap_out: 1
     trigger_reset_delay: 15
     feedback_enable: 1
     feedback_gain: 2048
@@ -307,8 +295,6 @@ bands:
     eta_scan_del_f: 5000
     eta_scan_averages: 1
   5:
-    iq_swap_in: 0
-    iq_swap_out: 1
     trigger_reset_delay: 15
     feedback_enable: 1
     feedback_gain: 2048
@@ -332,8 +318,6 @@ bands:
     eta_scan_del_f: 5000
     eta_scan_averages: 1
   6:
-    iq_swap_in: 1
-    iq_swap_out: 0
     trigger_reset_delay: 15
     feedback_enable: 1
     feedback_gain: 2048
@@ -357,8 +341,6 @@ bands:
     eta_scan_del_f: 5000
     eta_scan_averages: 1
   7:
-    iq_swap_in: 1
-    iq_swap_out: 0
     trigger_reset_delay: 15
     feedback_enable: 1
     feedback_gain: 2048

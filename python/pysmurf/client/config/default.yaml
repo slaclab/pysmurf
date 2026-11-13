@@ -129,10 +129,11 @@ tune:
   fraction_full_scale: null           # (required)
   reset_rate_khz: null                # (required)
 
-# Applied to every band under `bands` before the band's own block.
+# Applied to every band under `bands` before the band's own block. The I/Q
+# swaps (iq_swap_in, iq_swap_out) are not here: the firmware sets them for the
+# carrier (its defaults, or the register's reset value), and a band names them
+# only to override.
 band_default:
-  iq_swap_in: 0
-  iq_swap_out: 0
   feedback_enable: 1
   feedback_polarity: 1
   band_delay_us: null                 # total band delay, microseconds; each band sets it
