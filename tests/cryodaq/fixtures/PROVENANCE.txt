@@ -15,10 +15,10 @@ Do not edit them by hand. Regenerate them with that script (its header says
 how); a hand edit is a fixture that answers a question the firmware would
 answer differently.
 
-Built at pysmurf b6ac1664-dirty (amc, rfsoc, from the v2.9.0 package) and 1c127e84-dirty (rfmc, rebuilt alone from the v1.6.1 package; identical rows to the v1.6.0 build).
+Built at pysmurf b6ac1664-dirty (amc, rfsoc, from the v2.9.1 package) and 1c127e84-dirty (rfmc, rebuilt alone from the v1.6.1 package; identical rows to the v1.6.0 build).
 
 amc.varlist.txt
-  built from      zip rogue_MicrowaveMuxBpEthGen2_v2.9.0.zip
+  built from      zip rogue_MicrowaveMuxBpEthGen2_v2.9.1.zip
   built by        pysmurf.core.server.compose over an emulated transport
   rows            3774 of 75530
   bands           [0, 1, 2, 3, 4, 5, 6, 7]
@@ -26,7 +26,7 @@ amc.varlist.txt
   daq mux bays    [0, 1]
 
 rfsoc.varlist.txt
-  built from      zip rogue_MicrowaveMuxBpEthGen2_v2.9.0.zip
+  built from      zip rogue_MicrowaveMuxBpEthGen2_v2.9.1.zip
   built by        pysmurf.core.server.compose over an emulated transport, isRFSOC=True
   rows            2214 of 60898
   bands           [0, 1, 2, 3, 4, 5, 6, 7]
