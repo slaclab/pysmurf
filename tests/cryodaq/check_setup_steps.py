@@ -606,6 +606,36 @@ def check_the_carrier_skips_an_unpopulated_bay():
     assert load.loads == [('a.yml',)]
 
 
+def check_the_carrier_arms_the_eye_scan_before_the_load():
+    """Both eye-scan enables of every GT channel of a populated bay are set after the DAC resets, before the load.
+
+    The fixture dumps carry no GT channel (no name reaches one), so they are grown
+    here, ten lanes on each bay, as a tree built with the DRP devices has them. On
+    the dump as committed the step finds none and writes nothing, which is what the
+    carrier sequence check above shows.
+    """
+    _setup = setup_module()
+    gts = {f"{amc.JESD_RX_GT.format(bay=bay, rx_lane=lane)}.{reg}"
+           for bay in (0, 1) for lane in range(10) for reg in ('ES_EYE_SCAN_EN', 'ES_ERRDET_EN')}
+    root = StandInRoot(load_dump('amc') | gts, aligned_lanes({}))
+    with StoodInLoad(_setup):
+        run_on(procedure(_setup, 'amc'), root)
+    kinds = [e[0] for e in root.log]
+    load = kinds.index('load')
+    armed = [e for e in root.log if e[0] == 'set' and e[1] in gts]
+    assert sorted(e[1] for e in armed) == sorted(gts), 'not every enable of every lane was set'
+    assert all(e[2] == 1 for e in armed), armed
+    last_dac_reset = max(i for i, e in enumerate(root.log) if e[0] == 'set' and 'dacReset' in e[1])
+    assert all(last_dac_reset < root.log.index(e) < load for e in armed), 'an enable was set out of its place'
+    # A bay left out of the tree is not armed, though its GT channels were grown.
+    paths = {p for p in load_dump('amc') | gts if 'MicrowaveMuxCore[1]' not in p}
+    root = StandInRoot(paths, aligned_lanes({}))
+    with StoodInLoad(_setup):
+        run_on(procedure(_setup, 'amc'), root)
+    touched = {e[1] for e in root.log if e[0] == 'set' and e[1] in gts}
+    assert touched and not [p for p in touched if 'AppTopJesd[1]' in p], touched
+
+
 def check_the_platform_without_links_loads_the_layers_alone():
     log, loads = run_procedure('rfsoc')
     assert loads == [('a.yml',)], loads
@@ -872,8 +902,8 @@ def check_a_failing_step_ends_the_procedure_unconfigured():
     else:
         raise AssertionError('a failing read was not reported')
     assert again.status.JesdStatus.values == [_setup.amc.AmcSetup.JESD_LOCKED, _setup.amc.AmcSetup.JESD_UNLOCKED], again.status.JesdStatus.values
-    # Four steps declared each run; the good run stepped through all four, the bad one through none.
-    assert again.progress == [('total', 4)] + ['step'] * 4 + [('total', 4)], again.progress
+    # Five steps declared each run; the good run stepped through all five, the bad one through none.
+    assert again.progress == [('total', 5)] + ['step'] * 5 + [('total', 5)], again.progress
     # A firmware without the health check has a status of 'Not found', which the outcome leaves alone.
     old = procedure(_setup, 'amc')
     old.given_status.JesdStatus = Flag(_setup.amc.AmcSetup.JESD_NOT_FOUND)
