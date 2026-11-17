@@ -75,134 +75,162 @@ AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.FpgaReloadAtAddress	int	WO	None	0	['
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.UserReset	UInt1	RW	None	0	['NoConfig', 'Hidden']	Optional User Reset
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.UserRst	int	WO	None	0	[]	Toggle UserReset
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.FdSerial	UInt64	RO	None	0	['Hidden']	Board ID value read from DS2411 chip
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.DeviceId	UInt32	RO	None	0	[]	Device Identification  (configued by generic)
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.DeviceId	UInt32	RO	None	0	[]	Device Identification  (configured by generic)
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.GitHash	UInt160	RO	None	0	['Hidden']	GIT SHA-1 Hash
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.GitHashShort	str	RO	None	0	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.GitHashShort	str	RO	None	0	[]	Short (7-character) GIT SHA-1 hash
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.DeviceDna	UInt128	RO	None	0	[]	Xilinx Device DNA value burned into FPGA
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.BuildStamp	String(256)	RO	None	0	['Hidden']	Firmware Build String
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.ImageName	str	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.BuildEnv	str	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.BuildServer	str	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.BuildDate	str	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.Builder	str	RO	None	0	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.ImageName	str	RO	None	0	[]	Firmware image name parsed from build stamp
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.BuildEnv	str	RO	None	0	[]	Build environment parsed from build stamp
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.BuildServer	str	RO	None	0	[]	Build server hostname parsed from build stamp
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.BuildDate	str	RO	None	0	[]	Firmware build date parsed from build stamp
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.Builder	str	RO	None	0	[]	Builder username parsed from build stamp
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiVersion.PrintStatus	int	WO	None	0	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SR	UInt32	RO	None	0	['Hidden']	Status Register
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AOSR	UInt32	RO	None	0	['Hidden']	Alarm Output Status Register
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.CONVSTR	UInt32	WO	None	0	['NoConfig', 'Hidden']	CONVST Register
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SYSMONRR	UInt32	WO	None	0	['NoConfig', 'Hidden']	SYSMON Hard Macro Reset Register
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.GIER	UInt32	RW	None	0	['NoConfig', 'Hidden']	Global Interrupt Enable Register
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.IPISR	UInt32	RO	None	0	['Hidden']	IP Interrupt Status Register
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.IPIER	UInt32	RW	None	0	['NoConfig', 'Hidden']	IP Interrupt Enable Register
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawTemperature	UInt12	RO	None	5	['Hidden']	Temperature's ADC value
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SR	UInt32	RO	None	0	['Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AOSR	UInt32	RO	None	0	['Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.CONVSTR	UInt32	WO	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SYSMONRR	UInt32	WO	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.GIER	UInt32	RW	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.IPISR	UInt32	RO	None	0	['Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.IPIER	UInt32	RW	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawTemperature	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Temperature	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVccInt	UInt12	RO	None	5	['Hidden']	VCCINT's ADC value
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVccInt	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.VccInt	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVccAux	UInt12	RO	None	5	['Hidden']	VCCAUX's ADC value
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVccAux	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.VccAux	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVpVn	UInt12	RO	None	5	['Hidden']	VP/VN's ADC value
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVpVn	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.VpVn	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVrefp	UInt12	RO	None	5	['Hidden']	VREFP's ADC value
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVrefp	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Vrefp	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVrefn	UInt12	RO	None	5	['Hidden']	VREFN's ADC value
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVrefn	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Vrefn	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVccBram	UInt12	RO	None	5	['Hidden']	VBRAM's ADC value
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVccBram	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.VccBram	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawSupplyOffset	UInt12	RO	None	5	['Hidden']	Supply Offset
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SupplyOffset	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawAdcOffset	UInt12	RO	None	5	['Hidden']	ADC Offset
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AdcOffset	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawGainError	UInt12	RO	None	5	['Hidden']	Gain Offset
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawSupplyOffset	UInt12	RO	None	5	['Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SupplyOffset	int	RO	None	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawAdcOffset	UInt12	RO	None	5	['Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AdcOffset	int	RO	None	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawGainError	UInt7	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.GainError	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[0]	UInt12	RO	None	5	['Hidden']	VAUXP_VAUXN's ADC values
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[0]	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.VauxpVauxn[0]	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[1]	UInt12	RO	None	5	['Hidden']	VAUXP_VAUXN's ADC values
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[1]	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.VauxpVauxn[1]	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[2]	UInt12	RO	None	5	['Hidden']	VAUXP_VAUXN's ADC values
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[2]	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.VauxpVauxn[2]	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[3]	UInt12	RO	None	5	['Hidden']	VAUXP_VAUXN's ADC values
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[3]	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.VauxpVauxn[3]	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[4]	UInt12	RO	None	5	['Hidden']	VAUXP_VAUXN's ADC values
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[4]	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.VauxpVauxn[4]	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[5]	UInt12	RO	None	5	['Hidden']	VAUXP_VAUXN's ADC values
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[5]	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.VauxpVauxn[5]	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[6]	UInt12	RO	None	5	['Hidden']	VAUXP_VAUXN's ADC values
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[6]	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.VauxpVauxn[6]	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[7]	UInt12	RO	None	5	['Hidden']	VAUXP_VAUXN's ADC values
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[7]	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.VauxpVauxn[7]	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[8]	UInt12	RO	None	5	['Hidden']	VAUXP_VAUXN's ADC values
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[8]	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.VauxpVauxn[8]	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[9]	UInt12	RO	None	5	['Hidden']	VAUXP_VAUXN's ADC values
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[9]	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.VauxpVauxn[9]	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[10]	UInt12	RO	None	5	['Hidden']	VAUXP_VAUXN's ADC values
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[10]	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.VauxpVauxn[10]	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[11]	UInt12	RO	None	5	['Hidden']	VAUXP_VAUXN's ADC values
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[11]	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.VauxpVauxn[11]	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[12]	UInt12	RO	None	5	['Hidden']	VAUXP_VAUXN's ADC values
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[12]	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.VauxpVauxn[12]	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[13]	UInt12	RO	None	5	['Hidden']	VAUXP_VAUXN's ADC values
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[13]	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.VauxpVauxn[13]	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[14]	UInt12	RO	None	5	['Hidden']	VAUXP_VAUXN's ADC values
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[14]	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.VauxpVauxn[14]	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[15]	UInt12	RO	None	5	['Hidden']	VAUXP_VAUXN's ADC values
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVauxpVauxn[15]	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.VauxpVauxn[15]	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMaxTemperature	UInt12	RO	None	5	['Hidden']	maximum temperature measurement
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMaxTemperature	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MaxTemperature	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMaxVccInt	UInt12	RO	None	5	['Hidden']	maximum VCCINT measurement
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMaxVccInt	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MaxVccInt	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMaxVccAux	UInt12	RO	None	5	['Hidden']	maximum VCCAUX measurement
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMaxVccAux	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MaxVccAux	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMaxVccBram	UInt12	RO	None	5	['Hidden']	maximum VBRAM measurement
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMaxVccBram	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MaxVccBram	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMinTemperature	UInt12	RO	None	5	['Hidden']	minimum temperature measurement
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMinTemperature	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MinTemperature	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMinVccInt	UInt12	RO	None	5	['Hidden']	minimum VCCINT measurement
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMinVccInt	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MinVccInt	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMinVccAux	UInt12	RO	None	5	['Hidden']	minimum VCCAUX measurement
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMinVccAux	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MinVccAux	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMinVccBram	UInt12	RO	None	5	['Hidden']	minimum VBRAM measurement
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMinVccBram	UInt12	RO	None	5	['Hidden']	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MinVccBram	Float32	RO	None	5	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.I2cAddress	UInt32	RO	None	0	['Hidden']	I2C Address
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.FlagRegister	UInt32	RO	None	0	['Hidden']	Flag Register
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SequenceReg8	UInt32	RW	None	0	['NoConfig', 'Hidden']	Sequence Register 8
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SequenceReg9	UInt32	RW	None	0	['NoConfig', 'Hidden']	Sequence Register 9
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SequenceReg_7_0[0]	UInt32	RW	None	0	['NoConfig', 'Hidden']	Sequence Register [7:0]
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SequenceReg_7_0[1]	UInt32	RW	None	0	['NoConfig', 'Hidden']	Sequence Register [7:0]
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SequenceReg_7_0[2]	UInt32	RW	None	0	['NoConfig', 'Hidden']	Sequence Register [7:0]
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SequenceReg_7_0[3]	UInt32	RW	None	0	['NoConfig', 'Hidden']	Sequence Register [7:0]
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SequenceReg_7_0[4]	UInt32	RW	None	0	['NoConfig', 'Hidden']	Sequence Register [7:0]
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SequenceReg_7_0[5]	UInt32	RW	None	0	['NoConfig', 'Hidden']	Sequence Register [7:0]
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SequenceReg_7_0[6]	UInt32	RW	None	0	['NoConfig', 'Hidden']	Sequence Register [7:0]
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SequenceReg_7_0[7]	UInt32	RW	None	0	['NoConfig', 'Hidden']	Sequence Register [7:0]
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.OTThresholdDisable	UInt1	RW	None	0	[]	Set 1 to disable OT threshold
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.OTAutomaticShutdown	UInt4	RW	None	0	[]	OT_AUTOMATIC_SHUTDOWN, set to 0x3 to enable (defatul 125 degC)
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.OTUpperThresholdRaw	UInt12	RW	None	0	['NoConfig']	UPPER_OT threshold
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.OTUpperThreshold	Float32	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.OTLowerThresholdRaw	UInt12	RW	None	0	['NoConfig']	LOWER_OT threshold
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.OTLowerThreshold	Float32	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AlarmThresholdReg12	UInt32	RW	None	0	['NoConfig', 'Hidden']	Alarm Threshold Register 12
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AlarmThresholdReg_25_16[0]	UInt32	RW	None	0	['NoConfig', 'Hidden']	Alarm Threshold Register [25:16]
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AlarmThresholdReg_25_16[1]	UInt32	RW	None	0	['NoConfig', 'Hidden']	Alarm Threshold Register [25:16]
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AlarmThresholdReg_25_16[2]	UInt32	RW	None	0	['NoConfig', 'Hidden']	Alarm Threshold Register [25:16]
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AlarmThresholdReg_25_16[3]	UInt32	RW	None	0	['NoConfig', 'Hidden']	Alarm Threshold Register [25:16]
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AlarmThresholdReg_25_16[4]	UInt32	RW	None	0	['NoConfig', 'Hidden']	Alarm Threshold Register [25:16]
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AlarmThresholdReg_25_16[5]	UInt32	RW	None	0	['NoConfig', 'Hidden']	Alarm Threshold Register [25:16]
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AlarmThresholdReg_25_16[6]	UInt32	RW	None	0	['NoConfig', 'Hidden']	Alarm Threshold Register [25:16]
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AlarmThresholdReg_25_16[7]	UInt32	RW	None	0	['NoConfig', 'Hidden']	Alarm Threshold Register [25:16]
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Vuser[0]	UInt32	RO	None	0	['Hidden']	VUSER[4:0] supply monitor measurement
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Vuser[1]	UInt32	RO	None	0	['Hidden']	VUSER[4:0] supply monitor measurement
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Vuser[2]	UInt32	RO	None	0	['Hidden']	VUSER[4:0] supply monitor measurement
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Vuser[3]	UInt32	RO	None	0	['Hidden']	VUSER[4:0] supply monitor measurement
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MaxVuser[0]	UInt32	RO	None	0	['Hidden']	Maximum VUSER[4:0] supply monitor measurement
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MaxVuser[1]	UInt32	RO	None	0	['Hidden']	Maximum VUSER[4:0] supply monitor measurement
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MaxVuser[2]	UInt32	RO	None	0	['Hidden']	Maximum VUSER[4:0] supply monitor measurement
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MaxVuser[3]	UInt32	RO	None	0	['Hidden']	Maximum VUSER[4:0] supply monitor measurement
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MinVuser[0]	UInt32	RO	None	0	['Hidden']	Minimum VUSER[4:0] supply monitor measurement
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MinVuser[1]	UInt32	RO	None	0	['Hidden']	Minimum VUSER[4:0] supply monitor measurement
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MinVuser[2]	UInt32	RO	None	0	['Hidden']	Minimum VUSER[4:0] supply monitor measurement
-AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MinVuser[3]	UInt32	RO	None	0	['Hidden']	Minimum VUSER[4:0] supply monitor measurement
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.I2cAddress	UInt32	RO	None	0	['Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.FlagRegister	UInt32	RO	None	0	['Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Alm0	Bool	RO	{False: 'False', True: 'True'}	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Alm1	Bool	RO	{False: 'False', True: 'True'}	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Alm2	Bool	RO	{False: 'False', True: 'True'}	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Ot	Bool	RO	{False: 'False', True: 'True'}	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Alm3	Bool	RO	{False: 'False', True: 'True'}	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Alm4	Bool	RO	{False: 'False', True: 'True'}	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Alm5	Bool	RO	{False: 'False', True: 'True'}	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Alm6	Bool	RO	{False: 'False', True: 'True'}	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Ref	Bool	RO	{False: 'False', True: 'True'}	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Jtgr	Bool	RO	{False: 'False', True: 'True'}	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Jtgd	Bool	RO	{False: 'False', True: 'True'}	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.FlagRegister1	UInt32	RO	None	0	['Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Alm8	Bool	RO	{False: 'False', True: 'True'}	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Alm9	Bool	RO	{False: 'False', True: 'True'}	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Alm10	Bool	RO	{False: 'False', True: 'True'}	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Alm11	Bool	RO	{False: 'False', True: 'True'}	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SequenceReg8	UInt32	RW	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SequenceReg9	UInt32	RW	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SequenceReg_7_0[0]	UInt32	RW	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SequenceReg_7_0[1]	UInt32	RW	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SequenceReg_7_0[2]	UInt32	RW	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SequenceReg_7_0[3]	UInt32	RW	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SequenceReg_7_0[4]	UInt32	RW	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SequenceReg_7_0[5]	UInt32	RW	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SequenceReg_7_0[6]	UInt32	RW	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.SequenceReg_7_0[7]	UInt32	RW	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.OTThresholdDisable	UInt1	RW	None	0	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.OTAutomaticShutdown	UInt4	RW	None	0	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.OTUpperThresholdRaw	UInt12	RW	None	0	['NoConfig']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.OTUpperThreshold	Float32	RW	None	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.OTLowerThresholdRaw	UInt12	RW	None	0	['NoConfig']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.OTLowerThreshold	Float32	RW	None	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AlarmThresholdReg12	UInt32	RW	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AlarmThresholdReg_25_16[0]	UInt32	RW	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AlarmThresholdReg_25_16[1]	UInt32	RW	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AlarmThresholdReg_25_16[2]	UInt32	RW	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AlarmThresholdReg_25_16[3]	UInt32	RW	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AlarmThresholdReg_25_22[0]	UInt32	RW	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AlarmThresholdReg_25_22[1]	UInt32	RW	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AlarmThresholdReg_25_22[2]	UInt32	RW	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.AlarmThresholdReg_25_22[3]	UInt32	RW	None	0	['NoConfig', 'Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVuser[0]	UInt12	RO	None	5	['Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Vuser[0]	Float32	RO	None	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVuser[1]	UInt12	RO	None	5	['Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Vuser[1]	Float32	RO	None	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVuser[2]	UInt12	RO	None	5	['Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Vuser[2]	Float32	RO	None	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawVuser[3]	UInt12	RO	None	5	['Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.Vuser[3]	Float32	RO	None	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMaxVuser[0]	UInt12	RO	None	5	['Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MaxVuser[0]	Float32	RO	None	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMaxVuser[1]	UInt12	RO	None	5	['Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MaxVuser[1]	Float32	RO	None	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMaxVuser[2]	UInt12	RO	None	5	['Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MaxVuser[2]	Float32	RO	None	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMaxVuser[3]	UInt12	RO	None	5	['Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MaxVuser[3]	Float32	RO	None	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMinVuser[0]	UInt12	RO	None	5	['Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MinVuser[0]	Float32	RO	None	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMinVuser[1]	UInt12	RO	None	5	['Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MinVuser[1]	Float32	RO	None	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMinVuser[2]	UInt12	RO	None	5	['Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MinVuser[2]	Float32	RO	None	5	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.RawMinVuser[3]	UInt12	RO	None	5	['Hidden']	
+AMCc.FpgaTopLevel.AmcCarrierCore.AxiSysMonUltraScale.MinVuser[3]	Float32	RO	None	5	[]	
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSy56040.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSy56040.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
 AMCc.FpgaTopLevel.AmcCarrierCore.AxiSy56040.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
@@ -555,81 +583,81 @@ AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierTiming.EvrV2CoreTriggers.EvrV2Trigger
 AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
 AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
 AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.StartAddr[0]	UInt64	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.StartAddr[1]	UInt64	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.EndAddr[0]	UInt64	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.EndAddr[1]	UInt64	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.WrAddr[0]	UInt64	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.WrAddr[1]	UInt64	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.TriggerAddr[0]	UInt64	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.TriggerAddr[1]	UInt64	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Enabled[0]	UInt1	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Enabled[1]	UInt1	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Mode[0]	UInt1	RW	{0: 'Wrap', 1: 'DoneWhenFull'}	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Mode[1]	UInt1	RW	{0: 'Wrap', 1: 'DoneWhenFull'}	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Init[0]	UInt1	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Init[1]	UInt1	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.SoftTrigger[0]	UInt1	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.SoftTrigger[1]	UInt1	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.MsgDest[0]	UInt4	RW	{0: 'Software', 1: 'Auto-Readout'}	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.MsgDest[1]	UInt4	RW	{0: 'Software', 1: 'Auto-Readout'}	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.FramesAfterTrigger[0]	UInt16	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.FramesAfterTrigger[1]	UInt16	RW	None	0	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.StartAddr[0]	UInt64	RW	None	0	[]	Ring buffer start address
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.StartAddr[1]	UInt64	RW	None	0	[]	Ring buffer start address
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.EndAddr[0]	UInt64	RW	None	0	[]	Ring buffer end address
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.EndAddr[1]	UInt64	RW	None	0	[]	Ring buffer end address
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.WrAddr[0]	UInt64	RO	None	0	[]	Current DMA write pointer address
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.WrAddr[1]	UInt64	RO	None	0	[]	Current DMA write pointer address
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.TriggerAddr[0]	UInt64	RO	None	0	[]	Address at which trigger event was captured
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.TriggerAddr[1]	UInt64	RO	None	0	[]	Address at which trigger event was captured
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Enabled[0]	UInt1	RW	None	0	[]	Enable DMA ring buffer capture
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Enabled[1]	UInt1	RW	None	0	[]	Enable DMA ring buffer capture
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Mode[0]	UInt1	RW	{0: 'Wrap', 1: 'DoneWhenFull'}	0	[]	Ring buffer wrap mode (wrap around or stop when full)
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Mode[1]	UInt1	RW	{0: 'Wrap', 1: 'DoneWhenFull'}	0	[]	Ring buffer wrap mode (wrap around or stop when full)
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Init[0]	UInt1	RW	None	0	[]	Initialize buffer: reset write pointer to StartAddr and clear Done
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Init[1]	UInt1	RW	None	0	[]	Initialize buffer: reset write pointer to StartAddr and clear Done
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.SoftTrigger[0]	UInt1	RW	None	0	[]	Software trigger to stop ring buffer capture
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.SoftTrigger[1]	UInt1	RW	None	0	[]	Software trigger to stop ring buffer capture
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.MsgDest[0]	UInt4	RW	{0: 'Software', 1: 'Auto-Readout'}	0	[]	Destination for done notification (software or auto-readout)
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.MsgDest[1]	UInt4	RW	{0: 'Software', 1: 'Auto-Readout'}	0	[]	Destination for done notification (software or auto-readout)
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.FramesAfterTrigger[0]	UInt16	RW	None	0	[]	Number of frames to capture after trigger event
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.FramesAfterTrigger[1]	UInt16	RW	None	0	[]	Number of frames to capture after trigger event
 AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Status[0]	UInt32	RO	None	0	[]	Include all of the status bits in one access
 AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Status[1]	UInt32	RO	None	0	[]	Include all of the status bits in one access
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Empty[0]	UInt1	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Empty[1]	UInt1	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Full[0]	UInt1	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Full[1]	UInt1	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Done[0]	UInt1	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Done[1]	UInt1	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Triggered[0]	UInt1	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Triggered[1]	UInt1	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Error[0]	UInt1	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Error[1]	UInt1	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.BurstSize	UInt4	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.FramesSinceTrigger[0]	UInt16	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.FramesSinceTrigger[1]	UInt16	RO	None	0	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Empty[0]	UInt1	RO	None	0	[]	Ring buffer is empty (no data written since last init)
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Empty[1]	UInt1	RO	None	0	[]	Ring buffer is empty (no data written since last init)
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Full[0]	UInt1	RO	None	0	[]	Ring buffer has wrapped around or filled completely
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Full[1]	UInt1	RO	None	0	[]	Ring buffer has wrapped around or filled completely
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Done[0]	UInt1	RO	None	0	[]	DMA ring buffer capture complete
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Done[1]	UInt1	RO	None	0	[]	DMA ring buffer capture complete
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Triggered[0]	UInt1	RO	None	0	[]	Trigger event has been received for this buffer
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Triggered[1]	UInt1	RO	None	0	[]	Trigger event has been received for this buffer
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Error[0]	UInt1	RO	None	0	[]	DMA transfer error flag
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Error[1]	UInt1	RO	None	0	[]	DMA transfer error flag
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.BurstSize	UInt4	RO	None	0	[]	AXI burst size used for DMA ring buffer transfers
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.FramesSinceTrigger[0]	UInt16	RO	None	0	[]	Number of frames captured since the last trigger event
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.FramesSinceTrigger[1]	UInt16	RO	None	0	[]	Number of frames captured since the last trigger event
 AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.Initialize	int	WO	None	0	[]	Initialize the buffer. Reset the write pointer to StartAddr. Clear the Done field.
 AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[0].WaveformEngineBuffers.SoftTriggerAll	int	WO	None	0	[]	Send a trigger to the buffer
 AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
 AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
 AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.StartAddr[0]	UInt64	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.StartAddr[1]	UInt64	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.EndAddr[0]	UInt64	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.EndAddr[1]	UInt64	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.WrAddr[0]	UInt64	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.WrAddr[1]	UInt64	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.TriggerAddr[0]	UInt64	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.TriggerAddr[1]	UInt64	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Enabled[0]	UInt1	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Enabled[1]	UInt1	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Mode[0]	UInt1	RW	{0: 'Wrap', 1: 'DoneWhenFull'}	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Mode[1]	UInt1	RW	{0: 'Wrap', 1: 'DoneWhenFull'}	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Init[0]	UInt1	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Init[1]	UInt1	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.SoftTrigger[0]	UInt1	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.SoftTrigger[1]	UInt1	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.MsgDest[0]	UInt4	RW	{0: 'Software', 1: 'Auto-Readout'}	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.MsgDest[1]	UInt4	RW	{0: 'Software', 1: 'Auto-Readout'}	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.FramesAfterTrigger[0]	UInt16	RW	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.FramesAfterTrigger[1]	UInt16	RW	None	0	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.StartAddr[0]	UInt64	RW	None	0	[]	Ring buffer start address
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.StartAddr[1]	UInt64	RW	None	0	[]	Ring buffer start address
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.EndAddr[0]	UInt64	RW	None	0	[]	Ring buffer end address
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.EndAddr[1]	UInt64	RW	None	0	[]	Ring buffer end address
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.WrAddr[0]	UInt64	RO	None	0	[]	Current DMA write pointer address
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.WrAddr[1]	UInt64	RO	None	0	[]	Current DMA write pointer address
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.TriggerAddr[0]	UInt64	RO	None	0	[]	Address at which trigger event was captured
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.TriggerAddr[1]	UInt64	RO	None	0	[]	Address at which trigger event was captured
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Enabled[0]	UInt1	RW	None	0	[]	Enable DMA ring buffer capture
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Enabled[1]	UInt1	RW	None	0	[]	Enable DMA ring buffer capture
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Mode[0]	UInt1	RW	{0: 'Wrap', 1: 'DoneWhenFull'}	0	[]	Ring buffer wrap mode (wrap around or stop when full)
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Mode[1]	UInt1	RW	{0: 'Wrap', 1: 'DoneWhenFull'}	0	[]	Ring buffer wrap mode (wrap around or stop when full)
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Init[0]	UInt1	RW	None	0	[]	Initialize buffer: reset write pointer to StartAddr and clear Done
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Init[1]	UInt1	RW	None	0	[]	Initialize buffer: reset write pointer to StartAddr and clear Done
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.SoftTrigger[0]	UInt1	RW	None	0	[]	Software trigger to stop ring buffer capture
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.SoftTrigger[1]	UInt1	RW	None	0	[]	Software trigger to stop ring buffer capture
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.MsgDest[0]	UInt4	RW	{0: 'Software', 1: 'Auto-Readout'}	0	[]	Destination for done notification (software or auto-readout)
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.MsgDest[1]	UInt4	RW	{0: 'Software', 1: 'Auto-Readout'}	0	[]	Destination for done notification (software or auto-readout)
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.FramesAfterTrigger[0]	UInt16	RW	None	0	[]	Number of frames to capture after trigger event
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.FramesAfterTrigger[1]	UInt16	RW	None	0	[]	Number of frames to capture after trigger event
 AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Status[0]	UInt32	RO	None	0	[]	Include all of the status bits in one access
 AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Status[1]	UInt32	RO	None	0	[]	Include all of the status bits in one access
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Empty[0]	UInt1	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Empty[1]	UInt1	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Full[0]	UInt1	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Full[1]	UInt1	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Done[0]	UInt1	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Done[1]	UInt1	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Triggered[0]	UInt1	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Triggered[1]	UInt1	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Error[0]	UInt1	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Error[1]	UInt1	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.BurstSize	UInt4	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.FramesSinceTrigger[0]	UInt16	RO	None	0	[]	
-AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.FramesSinceTrigger[1]	UInt16	RO	None	0	[]	
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Empty[0]	UInt1	RO	None	0	[]	Ring buffer is empty (no data written since last init)
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Empty[1]	UInt1	RO	None	0	[]	Ring buffer is empty (no data written since last init)
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Full[0]	UInt1	RO	None	0	[]	Ring buffer has wrapped around or filled completely
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Full[1]	UInt1	RO	None	0	[]	Ring buffer has wrapped around or filled completely
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Done[0]	UInt1	RO	None	0	[]	DMA ring buffer capture complete
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Done[1]	UInt1	RO	None	0	[]	DMA ring buffer capture complete
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Triggered[0]	UInt1	RO	None	0	[]	Trigger event has been received for this buffer
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Triggered[1]	UInt1	RO	None	0	[]	Trigger event has been received for this buffer
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Error[0]	UInt1	RO	None	0	[]	DMA transfer error flag
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Error[1]	UInt1	RO	None	0	[]	DMA transfer error flag
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.BurstSize	UInt4	RO	None	0	[]	AXI burst size used for DMA ring buffer transfers
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.FramesSinceTrigger[0]	UInt16	RO	None	0	[]	Number of frames captured since the last trigger event
+AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.FramesSinceTrigger[1]	UInt16	RO	None	0	[]	Number of frames captured since the last trigger event
 AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.Initialize	int	WO	None	0	[]	Initialize the buffer. Reset the write pointer to StartAddr. Clear the Done field.
 AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierBsa.BsaWaveformEngine[1].WaveformEngineBuffers.SoftTriggerAll	int	WO	None	0	[]	Send a trigger to the buffer
 AMCc.FpgaTopLevel.AppTop.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access

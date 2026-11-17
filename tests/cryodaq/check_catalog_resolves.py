@@ -540,8 +540,7 @@ def resolution(stem, names=None, package_only=False, platform_name=None):
         if name not in pmap:
             absent[name] = 'not in this platform map'
             continue
-        hits = expand(device_paths(paths) if pmap.kind(name) == platform.DEVICE else paths,
-                      template_of(pmap, name))
+        hits = expand(rows_for(pmap, name, paths), template_of(pmap, name))
         if hits:
             resolved[name] = hits[0]
         else:
@@ -557,6 +556,11 @@ def device_paths(paths):
     dump exactly when something under it is.
     """
     return {path.rsplit('.', 1)[0] for path in paths if '.' in path}
+
+
+def rows_for(pmap, name, paths):
+    """What a name is looked up among: a device or a process by its children, anything else by its own row."""
+    return device_paths(paths) if pmap.kind(name) in (platform.DEVICE, platform.PROCESS) else paths
 
 
 def check_each_platform_offers_only_names_its_firmware_has():
@@ -609,9 +613,9 @@ def check_the_platforms_differ_by_the_hardware_one_lacks():
     amc_paths, rfsoc_paths = load_dump('amc'), load_dump('rfsoc')
     for name in sorted(carrier_only):
         template = template_of(amc, name)
-        assert expand(amc_paths, template), \
+        assert expand(rows_for(amc, name, amc_paths), template), \
             f'{name} is declared carrier-only and does not resolve on the carrier'
-        assert not expand(rfsoc_paths, template), \
+        assert not expand(rows_for(amc, name, rfsoc_paths), template), \
             f'{name} is declared carrier-only and resolves on the other platform too'
 
 
