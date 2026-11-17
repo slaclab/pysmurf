@@ -5473,6 +5473,88 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name(f'bay[{bay}].jesd.tx_data_valid', **kwargs)
 
+    @_needs('bay[*].jesd.rx_eye_scan')
+    def run_jesd_rx_eye_scan(self, bay, mode='Status', lanes=None, options='',
+                             out_dir=None, line_rate_gbps=None, wait=True,
+                             timeout=None, **kwargs):
+        r"""Runs a passive statistical eye scan of a bay's JESD receive lanes.
+
+        The scan runs on the server, through surf's eye-scan runner, and
+        never resets anything: the GTs are not reset (their one reset,
+        JesdRx.ResetGTs, is the whole bay's, RX and TX) and the link
+        bring-up is not re-run, so the JESD links stay up through it.
+        The eye-scan sampler is armed by :func:`set_defaults_pv`, so a
+        scan needs a system configured by a server of this version; a
+        lane whose sampler is not alive ends NOT_ENABLED. A scan is
+        refused, with reads only, while the bay's link is down unless
+        ``options`` holds ``--force``. Once scanning, a run cannot be
+        stopped; it ends on its own.
+
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        mode : str, optional, default 'Status'
+            'Status' (reads only), 'Probe', 'Bathtub', 'Eye' or
+            'Margin'.
+        lanes : str or None, optional, default None
+            JESD lanes (GT channels, not ADC channels), e.g. '0-3,8'.
+            None scans every enabled lane.
+        options : str, optional, default ''
+            Further eye-scan runner options as a command line, e.g.
+            '--targetBer 1e-10 --tag warm'. Options that would reset
+            a GT are refused.
+        out_dir : str or None, optional, default None
+            Directory, as the server sees it, that the run folder is
+            made in. None uses this client's output directory. Unused
+            in Status mode.
+        line_rate_gbps : float or None, optional, default None
+            Line rate recorded with the results. None keeps the
+            server's, the image's 12.285 Gb/s.
+        wait : bool, optional, default True
+            Wait for the run to end and return its result. False
+            returns None as soon as it has started.
+        timeout : float or None, optional, default None
+            Seconds to wait. None waits as long as the run takes.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed on to the register
+            reads and writes; see :func:`_caget` and :func:`_caput`.
+
+        Returns
+        -------
+        result : dict or None
+            'exit_code' (0 when every lane ended OK or CLOSED, 2
+            otherwise), 'summary', 'run_folder' (empty in Status mode)
+            and 'message'; None when not waiting.
+        """
+        if out_dir is None and mode != 'Status':
+            out_dir = self.output_dir
+        self._set_by_name(f'bay[{bay}].jesd.rx_eye_scan.mode', mode, **kwargs)
+        self._set_by_name(f'bay[{bay}].jesd.rx_eye_scan.lanes',
+                          '' if lanes is None else str(lanes), **kwargs)
+        self._set_by_name(f'bay[{bay}].jesd.rx_eye_scan.options', options, **kwargs)
+        self._set_by_name(f'bay[{bay}].jesd.rx_eye_scan.out_dir', out_dir or '', **kwargs)
+        if line_rate_gbps is not None:
+            self._set_by_name(f'bay[{bay}].jesd.rx_eye_scan.line_rate', line_rate_gbps,
+                              **kwargs)
+        self._set_by_name(f'bay[{bay}].jesd.rx_eye_scan.start', 1, **kwargs)
+        if not wait:
+            return None
+
+        # The server clears the exit code to -1 when the run starts and sets
+        # it once the run ends, whatever the outcome.
+        self._wait_for(f'bay[{bay}].jesd.rx_eye_scan.exit_code', lambda code: code != -1,
+                       timeout=timeout, poll=1.0)
+        result = {
+            'exit_code': self._get_by_name(f'bay[{bay}].jesd.rx_eye_scan.exit_code', **kwargs),
+            'summary': self._get_by_name(f'bay[{bay}].jesd.rx_eye_scan.summary', **kwargs),
+            'run_folder': self._get_by_name(f'bay[{bay}].jesd.rx_eye_scan.run_folder', **kwargs),
+            'message': self._get_by_name(f'bay[{bay}].jesd.rx_eye_scan.message', **kwargs),
+        }
+        self.log(f'JESD RX eye scan of bay {bay} ({mode}): {result["message"]}\n'
+                 f'{result["summary"]}', self.LOG_USER)
+        return result
+
     @_scheduled_for_removal('nothing in pysmurf or sodetlib calls it')
     def get_jesd_tx_status_valid_cnt(self, bay, num, **kwargs):
         r"""Gets the JESD transmit synchronization count for a lane.

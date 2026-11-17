@@ -35,8 +35,8 @@ from typing import Any, Dict, Mapping
 from cryodaq.platform import _atca, _umux
 
 __all__ = ['NAME', 'TAGS', 'PACKAGE_CONFIG_DIR', 'PACKAGE_DEFAULTS', 'BRING_UP', 'CARRIER', 'REGISTERS', 'LEGACY',
-           'WITNESS', 'SCOPES', 'MUX_CORE', 'JESD_BAY', 'AMC_CARRIER_REGISTERS', 'AMC_CARRIER_LEGACY',
-           'AMC_CARRIER_SCOPES']
+           'WITNESS', 'SCOPES', 'MUX_CORE', 'JESD_BAY', 'JESD_RX_GT', 'RX_EYE_SCAN', 'RX_EYE_SCAN_PARAMETERS',
+           'AMC_CARRIER_REGISTERS', 'AMC_CARRIER_LEGACY', 'AMC_CARRIER_SCOPES']
 
 NAME = 'umux-amc'
 
@@ -134,7 +134,7 @@ class AmcBringUp(_umux.BringUp):
 BRING_UP = AmcBringUp(firmware_image='MicrowaveMuxBpEthGen2',
                       carrier_part_numbers=('PC_379_396_01', 'PC_379_396_38'))
 
-_V, _C = 'value', 'command'
+_V, _C, _P = 'value', 'command', 'process'
 
 # --------------------------------------------------------------------------
 # the AMC carrier board, shared with the RFSoC whose firmware is this carrier's
@@ -240,6 +240,30 @@ _JESD_RX_STATUS_VALID_COUNT = (f'{JESD_BAY}.JesdRx.StatusValidCnt'
 _JESD_TX_STATUS_VALID_COUNT = (f'{JESD_BAY}.JesdTx.StatusValidCnt'
                                f'[{{link}}]')
 
+# The GT channel of each lane, reached over its DRP port: present when the top level is
+# built with the DRP devices (``enJesdDrp``), which the server's support code does. The
+# support code arms each lane's eye-scan sampler here before the links come up, so a
+# later eye scan needs no RX reset. Public for that code; no client name reaches it.
+JESD_RX_GT = f'{JESD_BAY}.Gthe4Channel[{{rx_lane}}]'
+
+# The statistical eye scan of a bay's receive lanes, a process the server adds beside
+# the bay's links (`AmcSupport.top_level`). Passive: it never resets the GTs and never
+# re-runs the link bring-up, so the links stay up through a scan. Its parameters are
+# set first, then it is started; what it found is left on the same device.
+RX_EYE_SCAN = f'{JESD_BAY}.RxEyeScan'
+RX_EYE_SCAN_PARAMETERS = {
+    'mode': 'Mode',
+    'lanes': 'Lanes',
+    'options': 'Options',
+    'line_rate': 'LineRateGbps',
+    'out_dir': 'OutDir',
+    'run_folder': 'RunFolder',
+    'summary': 'Summary',
+    'exit_code': 'ExitCode',
+    'running': 'Running',
+    'message': 'Message',
+}
+
 REGISTERS = {**_umux.REGISTERS, **AMC_CARRIER_REGISTERS}
 REGISTERS.update({
     # the RF front end
@@ -262,7 +286,12 @@ REGISTERS.update({
     'bay[*].jesd.rx_enable': (_JESD_RX_ENABLE, _V),
     'bay[*].jesd.tx_enable': (_JESD_TX_ENABLE, _V),
     'bay[*].jesd.tx_lane[*].data_out_mux': (_JESD_TX_DATA_OUT_MUX, _V),
+    # the passive eye scan of the receive lanes
+    'bay[*].jesd.rx_eye_scan': (RX_EYE_SCAN, _P),
+    'bay[*].jesd.rx_eye_scan.start': (f'{RX_EYE_SCAN}.Start', _C),
 })
+REGISTERS.update({f'bay[*].jesd.rx_eye_scan.{name}': (f'{RX_EYE_SCAN}.{node}', _V)
+                  for name, node in RX_EYE_SCAN_PARAMETERS.items()})
 
 # The carrier's names only deprecated accessors reach; see the shared map's LEGACY.
 LEGACY = {**_umux.LEGACY, **AMC_CARRIER_LEGACY}
