@@ -35,8 +35,10 @@
 FW_SYSTEMS=(
     # uMUX (standard microwave multiplexer) systems
     # Uses Primary:False naming -> rogue_MicrowaveMuxBpEthGen2_<tag>.zip
-    # v2.7.1 is the first release whose package leaves the tuning operations to pysmurf.
-    "umux|https://github.com/slaclab/cryo-det|MicrowaveMuxBpEthGen2_v2.7.1|MicrowaveMuxBpEthGen2-0x02070000-20261106193048-ruckman-d3e99291.mcs|rogue_MicrowaveMuxBpEthGen2_v2.7.1.zip"
+    # v2.7.1 is the first release whose package leaves the tuning operations to pysmurf;
+    # v2.9.0 ships the released surf (v2.78.0) and amc-carrier-core (v5.5.0) eye-scan code
+    # the server's JESD RX eye scan drives.
+    "umux|https://github.com/slaclab/cryo-det|MicrowaveMuxBpEthGen2_v2.9.0|MicrowaveMuxBpEthGen2-0x02090000-20261116174739-ruckman-886a3747.mcs|rogue_MicrowaveMuxBpEthGen2_v2.9.0.zip"
 
     # NO LONGER BEING DEVELOPED
     ## TKID (transition-edge sensor kinetic inductance detector) systems
