@@ -241,69 +241,95 @@ pysmurf.core.server`` the SMuRF server; both take the same options
 :func:`cryodaq.server.launch` before choosing a transport. The launcher fills
 in what the command line left out, and every value it fills in is a default:
 an option given explicitly is used as given, and the log says which of the
-launcher's answers went unused. There are two ways in.
+launcher's answers went unused. It is one sequence of eight steps, run top to
+bottom whatever the board; two facts decide what each step can do -- whether
+a crate answered for the board, and how the board's FPGA comes to run an
+image (its *loader*, below).
 
-**Told an address** (``--addr``, or ``--transport emulation``), nothing is read
-from a crate. The address, the bays and the register layers are as given, the
-PCIe lane is 0 unless ``--pcie-rssi-lane`` says otherwise, and the package is
-found in the firmware directory as above -- among several platforms' archives
-there, ``--platform <name>`` says whose. ``--hard-boot`` needs the crate and is
-refused. This is how a bench board without a management controller, or an
-emulated server (``--transport emulation --platform <name>``), is started.
+1. **The crate's facts.** Given a slot (``--shelfmanager <host>`` with
+   ``--slot <2..7>``), the carrier is read through the crate's shelf manager
+   into one inventory record: the crate id, the carrier's and the rear
+   module's FRU records and each AMC bay's, every read attempted and a read
+   the controller does not answer recorded as missing with its error. The
+   record is published on the status device beside the startup arguments, so
+   a client sees what the launcher saw. Without a slot, or when the
+   controller does not answer at all (a bench board; a carrier with no
+   management controller, such as the RFMC carrier), nothing is known about
+   the board but what the command line says, and the steps below take it
+   from there.
+2. **The platform.** From the carrier's FRU part number when the record was
+   read (:func:`cryodaq.platform.bring_up_for`); from ``--platform <name>``
+   when it was not. Given both, the record wins and the option is checked
+   against it: a disagreement is a refusal, since one of the two is wrong
+   about the board in the slot. A part number no platform declares is
+   logged, and ``--platform`` may say which; a record that could not be read
+   at all is refused, naming the error, unless ``--no-hw-detect`` and
+   ``--no-check-firmware`` both say the launcher is to decide nothing from
+   it. A file name never names the platform. The platform proper is
+   identified later, from the build stamp, once there is a tree.
+3. **The addresses.** By SLAC's convention from the crate id:
+   ``10.<crate id high byte>.<crate id low byte>.<100 + slot>`` for the FPGA,
+   and ``<200 + slot>`` for the processor system of a platform that has one.
+   The PCIe RSSI lane is ``slot - 2``, or 0 without a slot. A board whose
+   crate said nothing must have its addresses on the command line
+   (``--addr``, and ``--ps-addr`` for a board with a processor system); the
+   start is refused, naming the read that failed, when it does not.
+4. **What else the platform makes of the records** (``BringUp.options``;
+   skipped with ``--no-hw-detect``). For the AMC carrier: a bay without a
+   board is left out of the tree (``--disable-bay0/1``), the carrier version
+   and the board types choose the defaults file,
+   ``defaults_<version>_<bay 0>_<bay 1>.yml`` in the configuration directory
+   (below) with ``lb``, ``hb``, ``tkid`` or ``none`` per bay, and a Gen2
+   carrier of version C03 or later has its power monitor enabled
+   (``--enable-em22xx``). The platform's defaults file goes before any
+   ``--layer`` given, so the user's overrides it.
+5. **The firmware package**, from the firmware directory as above, the
+   archives narrowed to those carrying the platform's image name when the
+   platform is known. Before the steps that touch the board, so a directory
+   holding two releases is refused without a reboot.
+6. **The image loader.** The platform's bring-up declaration says how its
+   FPGA comes to run an image. An AMC carrier's flash is programmed by the
+   crate's shelf manager (an ``.mcs`` file), so its loader exists only when
+   the crate answered. A carrier whose processor system boots the FPGA (the
+   RFMC carrier, the ZCU208) runs the boot files on that processor's SD
+   card, shipped as ``<image>-0x<version>-<date>-<user>-<short githash>.linux.tar.gz``
+   and reached over SSH, so its loader exists once the processor's address
+   is known, from the crate or from ``--ps-addr``; without the address the
+   image can be neither checked nor loaded, which is a refusal unless
+   ``--no-check-firmware`` calls the check off.
+7. **A hard boot**, when asked (``--hard-boot``), through the loader: the
+   shelf manager power-cycles the FPGA and waits for it to answer at its
+   address; a processor system is rebooted over SSH, and the FPGA with it.
+   The register configuration is then applied at start-up (``--configure``).
+   Without a loader the reboot is refused, naming what would allow it.
+8. **The firmware check** (skipped with ``--no-check-firmware``): the short
+   git hash in the image file's name (``*-<short githash>.mcs[.gz]`` or
+   ``.linux.tar.gz``, one of a kind in the firmware directory) against the
+   one the FPGA reports -- by the carrier's controller through the shelf
+   manager, or from the firmware's version block through the processor's
+   register bridge, the same read the server later identifies the platform
+   by. When they differ the loader loads the image, which reboots the FPGA
+   into it, and ``--configure`` is set as after a hard boot (a hard boot on a
+   stale image is therefore two reboots). The processor system's load copies
+   the five boot files to the card over SSH (``root`` on the processor has no
+   password), checks them there against what was sent, reboots, and reads
+   the block back once the system answers again; a hash that still differs
+   is a refusal. Without a loader the check says so in the log -- unless no
+   platform is known and the firmware directory holds an image that could
+   have been checked, which is a refusal: name the platform, or call the
+   check off.
 
-**Told a crate slot** (``--shelfmanager <host>`` with ``--slot <2..7>``), the
-launcher reads the slot through the crate's shelf manager, in this order:
-
-1. The inventory: the crate id, the carrier's and the rear module's FRU
-   records and each AMC bay's, every read attempted and a read the controller
-   does not answer recorded as missing with its error. The record is
-   published on the status device as the hardware inventory, beside the
-   startup arguments, so a client sees what the launcher saw. A board whose
-   controller does not answer at all is tolerated when ``--addr`` (and
-   ``--ps-addr`` for a board with a processor system) is given and refused,
-   naming the read that failed, when it is not; nothing further is read.
-2. The FPGA's address, by SLAC's convention from the crate id:
-   ``10.<crate id high byte>.<crate id low byte>.<100 + slot>``. The PCIe
-   RSSI lane is ``slot - 2``.
-3. The platform's bring-up, from the carrier's FRU part number
-   (:func:`cryodaq.platform.bring_up_for`): which image and package the board
-   takes, and whether a processor system sits beside the FPGA, at
-   ``<200 + slot>``. A part number no platform declares is logged, and the
-   addresses are taken as given; a record that could not be read at all is
-   refused, naming the error, unless ``--no-hw-detect`` and
-   ``--no-check-firmware`` both say the launcher is to decide nothing from it.
-   The platform proper is identified later, from the build stamp, once there
-   is a tree. ``--platform`` takes no part in this; it only chooses among
-   several platforms' archives (step 5) when no record could.
-4. What else the platform makes of the records (``BringUp.options``; skipped
-   with ``--no-hw-detect``). For the AMC carrier: a bay without a board is
-   left out of the tree (``--disable-bay0/1``), the carrier version and the
-   board types choose the defaults file, ``defaults_<version>_<bay 0>_<bay 1>.yml``
-   in the configuration directory (below) with ``lb``, ``hb``, ``tkid``
-   or ``none`` per bay, and a Gen2 carrier of version C03 or later has its
-   power monitor enabled (``--enable-em22xx``). The platform's defaults file
-   goes before any ``--layer`` given, so the user's overrides it.
-5. The firmware package, from the firmware directory as above, the archives
-   narrowed to those carrying the platform's image name. Before the two steps
-   that touch the board, so a directory holding two releases is refused
-   without a reboot.
-6. A hard boot, when asked (``--hard-boot``): the shelf manager power-cycles
-   the FPGA and waits for it to answer at its address. The register
-   configuration is then applied at start-up (``--configure``).
-7. The firmware check (skipped with ``--no-check-firmware``): the short git
-   hash the FPGA reports is compared with the one in the FPGA image's file
-   name (``*-<short githash>.mcs[.gz]``). When they differ the image is
-   loaded, which reboots the FPGA into it, and ``--configure`` is set as after
-   a hard boot. A hard boot on a stale image is therefore two reboots. A
-   board whose processor system loads its own image (the RFMC carrier and the
-   ZCU208, a ``linux.tar.gz``) is left alone: its bring-up declaration says
-   the shelf manager does not load it, and the launcher says so in its log.
+An emulated server (``--transport emulation --platform <name>``) has no
+board: steps 6 to 8 do nothing and ``--hard-boot`` is refused.
 
 The shelf manager is driven through SLAC's crate tools (``ipmitool``,
-``cba_amc_init``, ``ProgramFPGA.bash``) from ``cryodaq.platform._atca``, the
-one module that starts a subprocess; nothing writes to a carrier -- no power
-cycle, no image load -- except at steps 6 and 7, and the launcher's checks
-replay recorded crate answers with no crate.
+``cba_amc_init``, ``ProgramFPGA.bash``) from ``cryodaq.platform._atca``, and
+a processor system through ``ssh``, ``scp`` and ``ping`` from
+``cryodaq.platform._soc``, both by the one function that starts a subprocess;
+nothing writes to a carrier -- no power cycle, no image load -- except at
+steps 7 and 8, and the launcher's checks replay recorded crate answers with
+no crate (a processor system's answers during a load are made up there, none
+having been recorded).
 
 The firmware directory (``--firmware-dir``, default ``/tmp/fw``) is the one
 place a deployment keeps its firmware, and the one option that names it. The
@@ -313,7 +339,8 @@ server finds the firmware's Python package there: the one release archive
 kind is a refusal naming them, since guessing between releases is how a server
 comes up on the wrong register map; none is allowed, for a package already
 importable. The same directory holds the FPGA image the firmware check
-compares against.
+compares against: the ``.mcs`` the shelf manager programs, or the
+``.linux.tar.gz`` a processor system boots from.
 
 Register configuration files come from two places and no other, because two
 parties write them on two release cycles. The firmware package's own

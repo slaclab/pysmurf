@@ -8,7 +8,9 @@
 # Description:
 # Answers the shelf-manager tools the server launcher runs (ipmitool,
 # cba_amc_init, ping, ProgramFPGA.bash) from the transcripts beside this file,
-# one per crate slot: `slot<N>.txt` holds each command as the launcher spells
+# and takes the processor-system tools (ssh, scp) as writes or from overrides --
+# a load has never been recorded; check_launch.py makes those answers up and says
+# so -- one per crate slot: `slot<N>.txt` holds each command as the launcher spells
 # it, what the tool printed, and its exit status. Used two ways: imported, a
 # `Replay` stands in for `cryodaq.platform._atca.run_tool`; on PATH under a
 # tool's name (a symlink to this file), it is the tool, for an entry point run
@@ -31,7 +33,7 @@ import re
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
-TOOLS = ('ipmitool', 'cba_amc_init', 'ping', 'ProgramFPGA.bash')
+TOOLS = ('ipmitool', 'cba_amc_init', 'ping', 'ProgramFPGA.bash', 'ssh', 'scp')
 # `$ <command>` opens an answer, `$[tag] <command>` a variant of one; `= <n>` closes it.
 COMMAND_RE = re.compile(r'^\$(?:\[([\w-]+)\])? (.+)$')
 
@@ -69,20 +71,24 @@ class Replay:
         self.calls = []
         self._slots = {}
 
-    def __call__(self, argv):
+    def __call__(self, argv, timeout=None):
         argv = [str(a) for a in argv]
         tool = os.path.basename(argv[0])
         command = ' '.join([tool] + argv[1:])
         self.calls.append(command)
         if tool not in TOOLS:
-            raise AssertionError(f"not a shelf-manager tool: {command}")
+            raise AssertionError(f"not a launcher tool: {command}")
         for needle, answer in self.overrides.items():
             if needle in command:
                 return answer
-        # The writes: a power cycle (NetFn 0x2C, command 0x0A) and an image load.
-        # Recorded above; a check asserts on the calls, never on hardware.
-        if tool in ('ping', 'ProgramFPGA.bash') or ' raw 0x2C 0x0A ' in command:
+        # The writes: a power cycle (NetFn 0x2C, command 0x0A), an image load, a
+        # copy of boot files and a reboot over SSH. Recorded above; a check
+        # asserts on the calls, never on hardware.
+        if tool in ('ping', 'ProgramFPGA.bash', 'scp') or ' raw 0x2C 0x0A ' in command \
+                or (tool == 'ssh' and '/sbin/reboot' in command):
             return 0, ''
+        if tool == 'ssh':
+            raise AssertionError(f"no answer prepared for: {command}")
         slot = self._slot_of(tool, argv)
         answers = self._slots.setdefault(slot, transcript(slot))
         for tag in ((self.variant,) if self.variant else ()) + ('',):

@@ -44,6 +44,7 @@ import rogue.interfaces.memory
 import rogue.interfaces.stream
 import rogue.protocols.srp
 
+from cryodaq.platform import _soc
 from cryodaq.server._offload_card import OffloadCard
 from cryodaq.server._udp_receiver import UdpReceiver
 
@@ -55,10 +56,12 @@ __all__ = ['Transport', 'eth', 'pcie', 'tcp_bridge', 'emulation',
 # arrives on without RSSI.
 RSSI_PORT = 8198
 STREAMING_PORT = 8195
-# The TCP ports of the bridge on an RFSoC's processor system: the FPGA's registers,
-# and the RF data converter's driver; and the offset of the FPGA's register window
-# in the processor's address space, which the bridge does not apply itself.
-BRIDGE_REGISTER_PORT = 9000
+# The TCP ports of the bridge on an RFSoC's processor system: the FPGA's registers
+# (the platform's fact: the launcher reads the version block through it before a
+# transport exists), and the RF data converter's driver; and the offset of the
+# FPGA's register window in the processor's address space, which the bridge does
+# not apply itself.
+BRIDGE_REGISTER_PORT = _soc.REGISTER_BRIDGE_PORT
 BRIDGE_RFDC_PORT = 9002
 BRIDGE_REGISTER_OFFSET = 0x04_0000_0000
 # The DDR capture streams: a TDEST per channel, the first two channels of each of

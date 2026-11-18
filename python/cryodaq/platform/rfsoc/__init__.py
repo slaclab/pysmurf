@@ -81,4 +81,5 @@ PACKAGE_DEFAULTS = None
 
 # An evaluation board: no shelf manager, no FRU record, no bays; a processor
 # system beside the FPGA at the +200 address.
-BRING_UP = _umux.BringUp(firmware_image='MicrowaveMuxZcu208', processor_offset=200, shelf_manager_loads_image=False)
+BRING_UP = _umux.BringUp(firmware_image='MicrowaveMuxZcu208', processor_offset=200,
+                         image_loader=_umux.PROCESSOR_SYSTEM)

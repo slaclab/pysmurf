@@ -17,7 +17,10 @@
 #    platform here places it; it is started, read and stopped before the real
 #    tree is built over the same link. So the platform comes from the hardware in
 #    hand, as the tree's identification does once a client connects, and nothing
-#    is told which hardware it is driving.
+#    is told which hardware it is driving. The same probe, over a link of its
+#    own to a processor system's register bridge, tells the launcher what
+#    firmware such a board is running before it decides whether to load the
+#    image it has on disk.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -31,15 +34,17 @@ import logging
 import os
 import sys
 import zipfile
+from dataclasses import dataclass
 from typing import Any, List, Optional
 
 import pyrogue
 
 from cryodaq import platform
 from cryodaq._errors import ConfigError, ConnectError
+from cryodaq.platform import _soc
 
-__all__ = ['load_package', 'checkout_python_dirs', 'resolve_layers', 'probe_platform', 'ROOT_NAME',
-           'DEFAULTS_SUBDIR']
+__all__ = ['load_package', 'checkout_python_dirs', 'resolve_layers', 'probe_platform', 'read_version',
+           'bridge_version', 'FirmwareVersion', 'ROOT_NAME', 'DEFAULTS_SUBDIR']
 
 _log = logging.getLogger(__name__)
 
@@ -199,6 +204,36 @@ def resolve_layers(layers, firmware: Optional[os.PathLike], pmap: Optional[platf
     return resolved
 
 
+@dataclass(frozen=True)
+class FirmwareVersion:
+    """What the firmware's version block says about the image the FPGA is running.
+
+    Attributes
+    ----------
+    fpga_version : int
+        The image's version number, ``0xMMmmpppp`` (major, minor, patch).
+    git_hash : str
+        The commit the image was built from, 40 hex digits.
+    build_stamp : str
+        The image name and build details, as the firmware reports them.
+    """
+    fpga_version: int
+    git_hash: str
+    build_stamp: str
+
+    @property
+    def short_hash(self) -> str:
+        """The first seven hex digits of the commit, as the release file names carry them."""
+        return self.git_hash[:7]
+
+    def record(self) -> dict:
+        """The version as a plain record, for the inventory a server publishes."""
+        return {'fpga_version': self.fpga_version, 'git_hash': self.git_hash, 'build_stamp': self.build_stamp}
+
+    def __str__(self) -> str:
+        return f"0x{self.fpga_version:08x} {self.short_hash} ({self.build_stamp})"
+
+
 class _Probe(pyrogue.Root):
     """The version block alone, read before the real tree exists.
 
@@ -249,6 +284,46 @@ class _Probe(pyrogue.Root):
         for node in self._link_nodes:
             node._stop()
 
+    def version(self) -> FirmwareVersion:
+        """The version block's three facts, read now; a blank stamp is no hardware, and refused."""
+        block = self.AxiVersion
+        stamp = block.BuildStamp.get()
+        if not stamp:
+            raise ConnectError("the firmware's version block read blank -- is the FPGA reachable over this link?")
+        return FirmwareVersion(int(block.FpgaVersion.get()), f"{int(block.GitHash.get()):040x}", str(stamp))
+
+
+def read_version(srp: Any, link_nodes: Any = (), offset: int = 0, where: str = 'this transport') -> FirmwareVersion:
+    """Read the version block over a register path, before any tree exists over it.
+
+    Parameters
+    ----------
+    srp : rogue memory master
+        The register path.
+    link_nodes : sequence of pyrogue nodes
+        What the path needs started before it answers; started and stopped
+        around the one read.
+    offset : int
+        Where the FPGA's register window starts on the path.
+    where : str
+        How to name the path in the error.
+
+    Raises
+    ------
+    ConnectError
+        If the block could not be read, or read blank.
+    """
+    try:
+        with _Probe(srp, link_nodes, offset) as probe:
+            return probe.version()
+    except ConnectError:
+        raise
+    except Exception as e:
+        # The first thing a server reads from the hardware, so an address that
+        # is wrong or a carrier that is down surfaces here.
+        raise ConnectError(f"could not read the firmware's version block -- is the FPGA "
+                           f"reachable over {where}? ({e})") from e
+
 
 def probe_platform(transport: Any) -> platform.PlatformMap:
     """Read the build stamp over ``transport`` and name the platform it belongs to.
@@ -270,15 +345,35 @@ def probe_platform(transport: Any) -> platform.PlatformMap:
     ConnectError
         If the stamp is empty or names firmware no platform claims.
     """
-    try:
-        with _Probe(transport.srp, transport.register_nodes, transport.register_offset) as probe:
-            pmap = platform.from_stamp(probe.AxiVersion.BuildStamp.get())
-    except ConnectError:
-        raise
-    except Exception as e:
-        # The first thing a server reads from the hardware, so an address that
-        # is wrong or a carrier that is down surfaces here.
-        raise ConnectError(f"could not read the firmware's build stamp -- is the FPGA "
-                           f"reachable over this transport? ({e})") from e
+    version = read_version(transport.srp, transport.register_nodes, transport.register_offset)
+    pmap = platform.from_stamp(version.build_stamp)
     _log.info("firmware %s identified as platform %s", pmap.tags, pmap.name)
     return pmap
+
+
+def bridge_version(address: str, port: int = _soc.REGISTER_BRIDGE_PORT) -> FirmwareVersion:
+    """What the FPGA behind a processor system's register bridge is running, over a link of its own.
+
+    For the launcher, which has no transport yet and may be about to reboot
+    the board: the TCP client is made for this one read and closed after it.
+
+    Parameters
+    ----------
+    address : str
+        The processor system's address.
+    port : int
+        The bridge's port for the FPGA's registers.
+
+    Raises
+    ------
+    ConnectError
+        If the bridge does not answer or the block read blank.
+    """
+    import rogue.interfaces.memory
+    from cryodaq.server import _transport
+    srp = rogue.interfaces.memory.TcpClient(address, port)
+    try:
+        return read_version(srp, (), _transport.BRIDGE_REGISTER_OFFSET,
+                            where=f"the register bridge at {address}:{port}")
+    finally:
+        srp._stop()

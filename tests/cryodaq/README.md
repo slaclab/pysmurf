@@ -240,7 +240,7 @@ themselves, on PATH, for the entry-point check in `validate_client_emulated.py`)
 carrier whose controller answers everything, and a bench board with no controller. It imports the
 server package, so it runs where the server's dependencies are (CI's server job).
 
-What it guards, in nine checks: the **parsing** of each tool's output (the crate id's byte order,
+What it guards: the **parsing** of each tool's output (the crate id's byte order,
 the reversed git hash, FRU fields, absent against unknown); the **rules** that turn an inventory into
 a command line (address and lane from crate id and slot, the AMC platform's bays, defaults layer and
 power monitor from the FRU records, the one package archive or else the one checkout, a given
@@ -248,6 +248,20 @@ option and a user's layer kept); and **hardware safety** — nothing is loaded o
 asked for and possible, a board whose controller does not answer is refused by name without
 addresses and tolerated with them, and a reboot without a slot is refused. Answers the crate
 has not given — an empty bay, a firmware mismatch — are made up and say so.
+
+The launcher is one sequence of eight steps (the module header of `cryodaq/server/_launch.py` lists
+them), and the checks follow it: the platform comes from the carrier's record or, where there is
+none, from `--platform` — never from a file name — and the two disagreeing is a refusal; a start
+that could check an image on disk but names no platform is refused, not skipped. A carrier whose
+processor system boots the FPGA (the RFMC carrier, the ZCU208) has its boot image (`*.linux.tar.gz`)
+checked and loaded over SSH to that processor, with or without a crate. Those checks make up the
+board during a load — the version block read through its register bridge, `scp`, `ssh`, `ping` —
+since no load has been recorded, and guard the order that keeps a half-copied image from being
+booted: the five boot files are copied, checked on the card against what was sent, and only then
+rebooted into; the version is read back and a hash that still differs is a refusal; a boot image
+with no processor address, or no platform named, is refused rather than skipped; `-D` neither reads
+nor writes. The processor system's own rules — what a release archive must hold, a copy that did not
+arrive whole — are its module's, exercised by every load on hardware, and not repeated here.
 
 What it does not do: compare the launcher with the bash script it replaced. That comparison was run
 once, while both existed, and is recorded in the stage report; a test whose expected side is a dead

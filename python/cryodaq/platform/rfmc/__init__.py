@@ -60,9 +60,10 @@ PACKAGE_DEFAULTS = 'defaults.yml'
 # the board, so no bays and no population. Its FRU record has the AMC carrier's format
 # and controller code, part number PC_379_396_55 (the first prototype, C00, has no
 # working IPMI, so a shelf manager cannot see it and the launcher takes the addresses it
-# is given; from C01 the slot can be named).
+# is given; from C01 the slot can be named). The processor system boots the FPGA from
+# the boot files on its SD card, so that is how the image is loaded.
 BRING_UP = _umux.BringUp(firmware_image='MicrowaveMuxRfmcCarrier', processor_offset=200,
-                         carrier_part_numbers=('PC_379_396_55',), shelf_manager_loads_image=False)
+                         carrier_part_numbers=('PC_379_396_55',), image_loader=_umux.PROCESSOR_SYSTEM)
 
 # --------------------------------------------------------------------------
 # the carrier core

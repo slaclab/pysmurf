@@ -42,9 +42,9 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 from cryodaq._errors import CryodaqError
 
-__all__ = ['ShelfManager', 'ShelfManagerError', 'FruRecord', 'run_tool',
+__all__ = ['ShelfManager', 'ShelfManagerError', 'ToolTimeout', 'FruRecord', 'run_tool',
            'ipmb_address', 'fpga_address', 'SLOTS', 'AMC_BAYS', 'CARRIER_FRU_ID', 'RTM_FRU_ID', 'BOOTED',
-           'BOOT_RETRIES', 'BOOT_RETRY_DELAY_S']
+           'BOOT_RETRIES', 'BOOT_RETRY_DELAY_S', 'IMAGE_SUFFIX', 'IMAGE_HASH_RE']
 
 # The slots a front board can sit in: the two hub slots are 1 and 2 on a
 # 7-slot shelf, but SLAC's convention numbers payload carriers 2 through 7.
@@ -61,6 +61,11 @@ AMC_BAYS = (0, 2)
 TOOL_TIMEOUT_S = 60
 # The boot state the carrier reports once its FPGA is up.
 BOOTED = 3
+# The image the shelf manager programs into a carrier's flash: an MCS file,
+# as a release ships it, compressed or not, its name carrying the short git
+# hash of the firmware (``<image>-0x<version>-<date>-<user>-<hash>.mcs[.gz]``).
+IMAGE_SUFFIX = '.mcs*'
+IMAGE_HASH_RE = re.compile(r'-([0-9a-f]{7})[0-9a-f]*\.mcs(\.gz)?$')
 # How long a reboot is given: ten polls of the boot state and then ten of the
 # network, ten seconds apart, as the deployment has always waited.
 BOOT_RETRIES = 10
@@ -88,20 +93,25 @@ class ShelfManagerError(CryodaqError):
         super().__init__(f"{what} failed ({' '.join(argv)}){why}")
 
 
-def run_tool(argv: Sequence[str]) -> Tuple[int, str]:
+class ToolTimeout(ShelfManagerError):
+    """A tool did not return in the time it was given; what it did meanwhile is unknown."""
+
+
+def run_tool(argv: Sequence[str], timeout: float = TOOL_TIMEOUT_S) -> Tuple[int, str]:
     """Run a tool and return its exit status and what it printed.
 
     Standard error is folded into the output: `ipmitool` reports an absent or
-    silent controller there, and the message is what a reader needs.
+    silent controller there, and the message is what a reader needs. The
+    timeout is the shelf manager's unless a caller's tool takes longer by
+    nature (a copy of boot files to a board).
     """
     if shutil.which(argv[0]) is None:
         raise ShelfManagerError('finding the tool', argv, f"{argv[0]} is not installed")
     try:
         done = subprocess.run(list(argv), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                              text=True, timeout=TOOL_TIMEOUT_S, check=False)
+                              text=True, timeout=timeout, check=False)
     except subprocess.TimeoutExpired:
-        raise ShelfManagerError('running the tool', argv,
-                                f"no answer in {TOOL_TIMEOUT_S} s") from None
+        raise ToolTimeout('running the tool', argv, f"no answer in {timeout:.0f} s") from None
     return done.returncode, done.stdout
 
 
@@ -183,12 +193,31 @@ class ShelfManager:
         The shelf manager's host name or address.
     slot : int
         The carrier's slot.
+    address : str, optional
+        The FPGA's address, where it answers once booted; set once known,
+        else the one the crate id implies is waited for after a reboot.
+
+    Loading an image, rebooting the FPGA and reading the hash of the firmware
+    it runs are the verbs this object shares with a carrier's processor
+    system, so a launcher needs no word on which it holds.
     """
 
-    def __init__(self, host: str, slot: int):
+    IMAGE_SUFFIX = IMAGE_SUFFIX
+
+    def __init__(self, host: str, slot: int, address: Optional[str] = None):
         self.host = host
         self.slot = slot
+        self.address = address
         self.ipmb = ipmb_address(slot)
+
+    def __str__(self) -> str:
+        return f"the shelf manager at {self.host}, slot {self.slot}"
+
+    @staticmethod
+    def image_hash(image: 'os.PathLike[str] | str') -> Optional[str]:
+        """The short git hash an image's file name carries, or None when it carries none."""
+        m = IMAGE_HASH_RE.search(os.path.basename(str(image)))
+        return m.group(1) if m else None
 
     # ------------------------------------------------------------------
     # the tools
@@ -269,8 +298,9 @@ class ShelfManager:
                retry_delay: float = BOOT_RETRY_DELAY_S) -> None:
         """Power-cycle the FPGA through the IPMC and wait until it has booted and answers at ``address``.
 
-        ``address`` defaults to the one the crate id implies. ``retry_max`` polls
-        of the boot state and then of the address, ``retry_delay`` apart.
+        ``address`` defaults to the one this object was given, else to the one
+        the crate id implies. ``retry_max`` polls of the boot state and then of
+        the address, ``retry_delay`` apart.
         """
         # cycle power to the FPGA
         self._raw('sending power down command to FPGA', '0x2C', '0x0A', '0', '0', '2', '0')
@@ -297,7 +327,7 @@ class ShelfManager:
             )
 
         # wait for FPGA ETH
-        fpga_ip = address if address is not None else fpga_address(self.crate_id(), self.slot)
+        fpga_ip = address or self.address or fpga_address(self.crate_id(), self.slot)
         eth_ready = False
         for i in range(retry_max):
             status, out = run_tool(['ping', '-c', '2', fpga_ip])
