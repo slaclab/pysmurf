@@ -61,7 +61,9 @@ through the shelf manager -- is documented with the `cryodaq.server` package in 
 documentation (*Starting a server*); `python3 -m pysmurf.core.server --help` lists the options.
 
 The firmware is found in `/tmp/fw` (`--firmware-dir`): the one release archive or checkout of the
-platform's package, its FPGA image, and the deployment's register configuration files under
+platform's package, its FPGA image (the `.mcs` the shelf manager programs, or the `.linux.tar.gz`
+of boot files a carrier's processor system boots from -- copied to the board over SSH and rebooted
+into when the FPGA runs something else), and the deployment's register configuration files under
 `smurf_cfg/defaults/` (`--defaults-dir`). The image carries them; mount a directory of your own
 there, `-v <local_fw_files_dir>:/tmp/fw/`, to run other ones. With several platforms' archives in the directory and no crate record to choose
 by, `--platform <name>` says whose.
