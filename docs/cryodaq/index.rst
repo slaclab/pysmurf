@@ -299,8 +299,10 @@ image (its *loader*, below).
    ``--no-check-firmware`` calls the check off.
 7. **A hard boot**, when asked (``--hard-boot``), through the loader: the
    shelf manager power-cycles the FPGA and waits for it to answer at its
-   address; a processor system is rebooted over SSH, and the FPGA with it.
-   The register configuration is then applied at start-up (``--configure``).
+   address; a processor system is rebooted over SSH, and the FPGA with it,
+   and waited for until the firmware's version block reads again (its
+   register bridge accepts connections before it serves). The register
+   configuration is then applied at start-up (``--configure``).
    Without a loader the reboot is refused, naming what would allow it.
 8. **The firmware check** (skipped with ``--no-check-firmware``): the short
    git hash in the image file's name (``*-<short githash>.mcs[.gz]`` or
@@ -312,9 +314,9 @@ image (its *loader*, below).
    into it, and ``--configure`` is set as after a hard boot (a hard boot on a
    stale image is therefore two reboots). The processor system's load copies
    the five boot files to the card over SSH (``root`` on the processor has no
-   password), checks them there against what was sent, reboots, and reads
-   the block back once the system answers again; a hash that still differs
-   is a refusal. Without a loader the check says so in the log -- unless no
+   password), checks them there against what was sent, and reboots; the
+   hash the block reports once the system is back is compared with the
+   image's, and one that still differs is a refusal. Without a loader the check says so in the log -- unless no
    platform is known and the firmware directory holds an image that could
    have been checked, which is a refusal: name the platform, or call the
    check off.

@@ -73,10 +73,13 @@ import zipfile
 import pyrogue as pr
 import pyrogue.interfaces
 
-import cryodaq
-import cryodaq.server
-import cryodaq.server._firmware
-from cryodaq import platform
+# The checks test the tree they sit in, whichever pysmurf is installed.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'python'))
+
+import cryodaq                                                  # noqa: E402
+import cryodaq.server                                           # noqa: E402
+import cryodaq.server._firmware                                 # noqa: E402
+from cryodaq import platform                                    # noqa: E402
 
 # How long a tuning process gets before the bounded wait gives up. Nothing here
 # has resonators to find, so a run that has not ended in this long is a stall,
@@ -727,12 +730,19 @@ def check_the_platform_probe_opens_the_link_before_reading():
     runs before that tree exists, so it has to start the link itself around its
     one read and stop it again for the real tree to open. An emulated memory needs
     no link, so nothing else here would notice a probe that read over a closed
-    one; the transport here is an emulated memory with a stamp planted in it and
-    a stand-in link that records when it is started and stopped, and the order is
-    what is asserted.
+    one; the transport here is an emulated memory with a stamp planted in it that
+    records when it is read, and a stand-in link that records when it is started
+    and stopped; the order is what is asserted.
     """
     import pyrogue.interfaces.simulation
     events = []
+
+    class Memory(pyrogue.interfaces.simulation.MemEmulate):
+        def _doTransaction(self, transaction):
+            # Every register the probe reads passes here; one event for all of them.
+            if events[-1:] != ['read']:
+                events.append('read')
+            return pyrogue.interfaces.simulation.MemEmulate._doTransaction(self, transaction)
 
     class Link(pr.Device):
         def __init__(self):
@@ -746,20 +756,11 @@ def check_the_platform_probe_opens_the_link_before_reading():
             pr.Device._stop(self)
             events.append('stop')
 
-    srp = pyrogue.interfaces.simulation.MemEmulate()
+    srp = Memory()
     address = ROOT.getNode(platform.by_name(EXPECTED_PLATFORM[PLATFORM]).tag_path).address
     for offset, byte in enumerate(stamp_for(EXPECTED_IMAGE[PLATFORM]).encode()):
         srp._data[address + offset] = byte
-    original = platform.from_stamp
-
-    def from_stamp(stamp):
-        events.append('read')
-        return original(stamp)
-    platform.from_stamp = from_stamp
-    try:
-        pmap = cryodaq.server._firmware.probe_platform(probe_transport(srp, [Link()]))
-    finally:
-        platform.from_stamp = original
+    pmap = cryodaq.server._firmware.probe_platform(probe_transport(srp, [Link()]))
     assert pmap.name == EXPECTED_PLATFORM[PLATFORM], pmap.name
     assert events == ['start', 'read', 'stop'], f"the probe did not bracket its read: {events}"
 

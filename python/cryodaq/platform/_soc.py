@@ -257,10 +257,12 @@ class ProcessorSystem:
 
         The copy is checked file by file against the card before the reboot:
         a file that did not arrive whole is the failure to catch, and it is
-        cheap to catch here and dear after the reboot. Once the system answers
-        again the firmware's hash is read back (`VERSION_RETRIES` tries); one
-        still differing from the image's is an error, not a warning -- a
-        server would come up on firmware other than the one on disk.
+        cheap to catch here and dear after the reboot. The reboot returns
+        with the hash the FPGA reports once the system is back; one still
+        differing from the image's is an error, not a warning -- a server
+        would come up on firmware other than the one on disk. Without a
+        reader of the version block nothing is written: the load could not
+        be read back.
 
         Parameters
         ----------
@@ -268,21 +270,21 @@ class ProcessorSystem:
             The release's ``.linux.tar.gz``, its name carrying the hash.
         """
         expected = self.image_hash(image)
+        if self.read_version is None:
+            raise ProcessorSystemError('loading the boot image', ['read_version', self.address],
+                                       'no reader of the version block was given, so the load could not be read back')
         with self.boot_files(image) as files:
             self.copy_boot_files(files)
             self.verify_boot_files(files)
-        self.reboot()
-        copied = (f"the boot files of {os.path.basename(str(image))} were copied to the processor system at "
-                  f"{self.address} and it was rebooted")
+        copied = f"the boot files of {os.path.basename(str(image))} were copied to the processor system at {self.address}"
         try:
-            running = self.firmware_git_hash(VERSION_RETRIES)
+            running = self.reboot()
         except ProcessorSystemError as e:
-            raise ProcessorSystemError('reading back the firmware after the load', e.argv,
-                                       f"{copied}, but what the FPGA now runs could not be read: {e.detail}") from e
+            raise ProcessorSystemError('rebooting into the copied boot files', e.argv, f"{copied}, but {e.detail}") from e
         if running != expected:
             raise ProcessorSystemError('reading back the firmware after the load', ['read_version', self.address],
-                                       f"{copied}, but the FPGA reports firmware {running}, not {expected}; the boot "
-                                       f"files did not take -- check {BOOT_DIR} there")
+                                       f"{copied} and it was rebooted, but the FPGA reports firmware {running}, not "
+                                       f"{expected}; the boot files did not take -- check {BOOT_DIR} there")
         _log.info("FPGA rebooted into %s", running)
 
     def copy_boot_files(self, files: Sequence[str]) -> None:
@@ -340,13 +342,20 @@ class ProcessorSystem:
     # the reboot
     # ------------------------------------------------------------------
 
-    def reboot(self) -> None:
-        """Flush the card and reboot; return once the system is back with its bridge up.
+    def reboot(self) -> Optional[str]:
+        """Flush the card and reboot; return once the system is back and the FPGA's version block reads again.
 
         The flush before the reboot matters: a reboot during a write to the
         card can corrupt the files just copied. The reboot cuts the connection,
         so neither the command's exit status nor its failing to return says
         anything; the system going away does.
+
+        Returns
+        -------
+        str or None
+            The short hash the FPGA reports once the system is back, or None
+            when no reader of the version block was given and the bridge's
+            port opening was all there was to wait for.
         """
         argv = ['ssh', *SSH_OPTIONS, self.target, '/bin/sync; /sbin/reboot']
         said = ''
@@ -360,16 +369,26 @@ class ProcessorSystem:
         except ProcessorSystemError as e:
             if not e.timed_out:
                 raise
-        self.wait_for_reboot(said)
+        return self.wait_for_reboot(said)
 
-    def wait_for_reboot(self, said: str = '') -> None:
-        """Wait for the system to stop answering, then to answer with its register bridge up.
+    def wait_for_reboot(self, said: str = '') -> Optional[str]:
+        """Wait for the system to stop answering, then to answer with its register bridge serving again.
+
+        The bridge accepts connections before it serves registers, so once
+        its port is open the version block is asked for, up to
+        `VERSION_RETRIES` times, and the hash it carries is returned -- the
+        same wait whether the reboot was a load's or asked for on its own.
 
         Parameters
         ----------
         said : str
             What the reboot command printed, if it failed; named in the error
             when the system never goes away.
+
+        Returns
+        -------
+        str or None
+            The firmware's short hash, or None when no reader was given.
         """
         deadline = time.monotonic() + SHUTDOWN_TIMEOUT_S
         while self.answers():
@@ -386,6 +405,15 @@ class ProcessorSystem:
                                            f"the processor system at {self.address} did not come back with its "
                                            f"register bridge on port {REGISTER_BRIDGE_PORT} in {REBOOT_TIMEOUT_S} s")
             time.sleep(POLL_S)
+        if self.read_version is None:
+            return None
+        try:
+            return self.firmware_git_hash(VERSION_RETRIES)
+        except ProcessorSystemError as e:
+            raise ProcessorSystemError('waiting for the reboot', e.argv,
+                                       f"the processor system at {self.address} came back with its register bridge "
+                                       f"on port {REGISTER_BRIDGE_PORT}, but the FPGA's version block still could not "
+                                       f"be read: {e.detail}") from e
 
 
 def _sha256(path: str) -> str:

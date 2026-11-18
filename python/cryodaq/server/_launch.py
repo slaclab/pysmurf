@@ -236,7 +236,9 @@ def _decide_platform(args, done, crate_id):
 
     The carrier's FRU part number names it when the record was read
     (`platform.bring_up_for`); ``--platform`` names it when there is no
-    record, and is checked against the record when there is one. The platform
+    record, and is checked against the record when there is one. The record
+    is a read of its own: it names the board even when the crate id could
+    not be read, which costs only what follows from the id. The platform
     proper is identified later, from the build stamp, once there is a tree.
     """
     named = None
@@ -245,17 +247,17 @@ def _decide_platform(args, done, crate_id):
             named = platform.bring_up_by_name(args.platform_name)
         except ConnectError as e:
             raise LaunchError(str(e)) from e
-    if crate_id is None:
-        if named is None:
-            _log.info("no carrier record and no --platform: the platform is known only once there is a tree")
-        return named
     carrier = done.inventory.get('carrier')
     if carrier is None:
-        # The record could not be read: not an unknown carrier. Refused unless
-        # the command line gives up both detection and the firmware check.
-        if not (args.no_hw_detect and not args.check_firmware):
+        # No record: no crate, a controller that did not answer at all, or
+        # one that answered the crate id and not the record. The last is not
+        # an unknown carrier, and is refused unless the command line gives up
+        # both detection and the firmware check.
+        if crate_id is not None and not (args.no_hw_detect and not args.check_firmware):
             raise LaunchError(f"the carrier's record could not be read: {done.inventory['errors'].get('carrier')}; "
                               f"pass -E and -D and the options yourself")
+        if named is None:
+            _log.info("no carrier record and no --platform: the platform is known only once there is a tree")
         return named
     part = (carrier or {}).get('Board Part Number', '')
     try:
