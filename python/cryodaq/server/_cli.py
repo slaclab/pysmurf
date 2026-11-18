@@ -83,10 +83,12 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
                        "--defaults-dir, and refused if it is in both.")
     group.add_argument('--platform', dest='platform_name', default=None,
                        choices=[m.name for m in platform.MAPS],
-                       help="Names the platform for an emulated server, whose transport reads no "
-                            "build stamp, and chooses among several platforms' archives in the "
-                            "firmware directory when no crate record can. On hardware the stamp "
-                            "identifies the platform and this, if given, is checked against it.")
+                       help="Names the platform when no carrier record can: a board with no crate "
+                            "or whose controller does not answer, or an emulated server. It chooses "
+                            "the firmware package and image in the firmware directory and how the "
+                            "image is checked and loaded. With a record it is checked against it, "
+                            "and on hardware the build stamp identifies the platform once there is "
+                            "a tree.")
     group.add_argument('--configure', '-c', action='store_true',
                        help="Apply the register configuration at startup.")
     group.add_argument('--nopoll', '-n', action='store_false', dest='polling',

@@ -14,4 +14,7 @@ slot4.txt   A bench board with no management controller: every ipmitool call fai
             the cba_* tools print "Board not present in slot" with exit status 0.
 
 Not recorded (no such hardware was at hand): a slot with one bay empty, a high-band or TKID
-daughter board, a firmware mismatch. check_launch.py makes those answers up and says so.
+daughter board, a firmware mismatch. check_launch.py makes those answers up and says so. So are
+the answers of a carrier's processor system during a load (ssh, scp, ping, the version block over
+its register bridge): replay.py takes scp and the ssh reboot as writes and answers nothing else for
+them; check_launch.py supplies the rest.

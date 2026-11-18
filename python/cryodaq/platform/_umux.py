@@ -40,13 +40,20 @@
 from dataclasses import dataclass
 from typing import Any, Dict, Mapping, Optional, Tuple
 
-__all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES', 'Carrier', 'BringUp', 'APPLICATION',
+__all__ = ['REGISTERS', 'LEGACY', 'WITNESS', 'SCOPES', 'Carrier', 'BringUp', 'SHELF_MANAGER',
+           'PROCESSOR_SYSTEM', 'IMAGE_LOADERS', 'APPLICATION',
            'SERVER_ADDED_ROOT_NODES', 'OPERATIONS_ANCHOR', 'OPERATION_VARIABLES',
            'OPERATION_PROCESSES', 'OPERATION_COMMANDS', 'OPERATION_NODES']
 
 # --------------------------------------------------------------------------
 # what the launcher decides on, per platform, before a tree exists
 # --------------------------------------------------------------------------
+
+# The two ways an FPGA here comes to run an image (`BringUp.image_loader`).
+SHELF_MANAGER = 'shelf-manager'
+PROCESSOR_SYSTEM = 'processor-system'
+IMAGE_LOADERS = (SHELF_MANAGER, PROCESSOR_SYSTEM)
+
 
 @dataclass(frozen=True)
 class BringUp:
@@ -68,16 +75,24 @@ class BringUp:
     processor_offset : int or None
         The address offset of a processor system beside the FPGA, where the
         board has one (the FPGA's own port is at 100).
-    shelf_manager_loads_image : bool
-        Whether the FPGA image is an MCS file the shelf manager loads, which
-        is what the launcher's firmware check compares and loads. False for a
-        board whose processor system loads its image (a ``linux.tar.gz``); the
-        launcher then leaves the image alone.
+    image_loader : str
+        How the FPGA comes to run an image, which is what the launcher's
+        firmware check compares against and loads: ``'shelf-manager'`` for an
+        MCS file the crate's shelf manager programs into the carrier's flash,
+        ``'processor-system'`` for the boot files (a ``linux.tar.gz``) a
+        processor system beside the FPGA boots from its SD card, copied there
+        over SSH and taken up at a reboot.
     """
     firmware_image: str
     carrier_part_numbers: Tuple[str, ...] = ()
     processor_offset: Optional[int] = None
-    shelf_manager_loads_image: bool = True
+    image_loader: str = SHELF_MANAGER
+
+    def __post_init__(self):
+        if self.image_loader not in IMAGE_LOADERS:
+            raise ValueError(f"image_loader must be one of {IMAGE_LOADERS}, not {self.image_loader!r}")
+        if self.image_loader == PROCESSOR_SYSTEM and self.processor_offset is None:
+            raise ValueError("an image the processor system loads needs the processor's address offset")
 
     def options(self, inventory: Mapping[str, Any]) -> Dict[str, Any]:
         """The server options this platform derives from the shelf manager's record of a slot.

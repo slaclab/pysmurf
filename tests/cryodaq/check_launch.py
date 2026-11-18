@@ -16,11 +16,16 @@
 #
 # Two slots were recorded: a carrier whose controller answers everything, and a
 # bench board with no controller, so every read fails. Answers the crate has not
-# given -- an empty bay, a firmware mismatch -- are made up here and say so.
+# given -- an empty bay, a firmware mismatch -- are made up here and say so. So
+# is what a processor system answers during a load (ssh, scp, ping, the version
+# block read through its register bridge), no load having been recorded.
 #
 # What this guards: the parsing of each tool's output, the rules that turn an
-# inventory into a command line, and that nothing is written to a carrier --
-# no image load, no power cycle -- except when asked for and possible.
+# inventory into a command line (the platform from the carrier's record or
+# --platform, never from a file name), and that nothing is written to a
+# carrier -- no image load, no power cycle, no boot files copied, no reboot
+# over SSH -- except when asked for and possible, and then in the order that
+# keeps a half-copied image from being booted.
 #-----------------------------------------------------------------------------
 # This file is part of the pysmurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -34,10 +39,14 @@
 import argparse
 import contextlib
 import dataclasses
+import hashlib
+import io
 import os
 import pathlib
 import sys
+import tarfile
 import tempfile
+import zipfile
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent.parent / 'python'))
@@ -46,8 +55,8 @@ sys.path.insert(0, str(HERE / 'fixtures' / 'ipmi'))
 from replay import Replay                                       # noqa: E402
 
 from cryodaq import platform                                    # noqa: E402
-from cryodaq.platform import _atca                              # noqa: E402
-from cryodaq.server import _cli                                 # noqa: E402
+from cryodaq.platform import _atca, _soc, _umux                 # noqa: E402
+from cryodaq.server import _cli, _firmware                      # noqa: E402
 
 SLOT_2 = ['-S', 'shm-smrf-sp01', '-N', '2', '--transport', 'pcie']
 SLOT_4 = ['-S', 'shm-smrf-sp01', '-N', '4', '--transport', 'tcp-bridge']
@@ -56,16 +65,28 @@ SLOT_4 = ['-S', 'shm-smrf-sp01', '-N', '4', '--transport', 'tcp-bridge']
 IMAGE = 'MicrowaveMuxBpEthGen2-0x02050000-20260616105622-ruckman-af249f83.mcs'
 ARCHIVE = 'rogue_MicrowaveMuxBpEthGen2_v2.5.1.zip'
 DEFAULTS = ('defaults_c03_lb_lb.yml', 'defaults_c03_lb_none.yml', 'defaults_c03_none_lb.yml')
-# The ipmitool commands that write to a carrier: a power cycle and an image load.
-WRITES = (' raw 0x2C 0x0A ', 'ProgramFPGA.bash')
+# The commands that write to a carrier: a power cycle and an image load through
+# the shelf manager, a copy of boot files and a reboot over SSH.
+WRITES = (' raw 0x2C 0x0A ', 'ProgramFPGA.bash', 'scp ', '/sbin/reboot')
+# A processor-booted carrier's release: its boot image and package archive, and
+# what the version block says before (v1.3.0) and after (v1.4.0) the load. The
+# names are rfmc-cryo-det's; the stamps and the long hashes are made up.
+BOOT_IMAGE = 'MicrowaveMuxRfmcCarrier-0x01040000-20261113191646-ruckman-54dc168.linux.tar.gz'
+BOOT_ARCHIVE = 'rogue_MicrowaveMuxRfmcCarrier_v1.4.0.zip'
+PS = '10.0.1.204'
+RUNNING_OLD = _firmware.FirmwareVersion(0x01030000, 'd86406d' + '0' * 33, 'MicrowaveMuxRfmcCarrier: made up')
+RUNNING_NEW = _firmware.FirmwareVersion(0x01040000, '54dc168' + '1' * 33, 'MicrowaveMuxRfmcCarrier: made up')
 
 
 def firmware_dir(tmp, archive=ARCHIVE):
     root = pathlib.Path(tmp) / 'fw'
     (root / 'smurf_cfg' / 'defaults').mkdir(parents=True)
-    for name in (IMAGE, archive) + tuple(f'smurf_cfg/defaults/{d}' for d in DEFAULTS):
-        if name:
-            (root / name).touch()
+    for name in (IMAGE,) + tuple(f'smurf_cfg/defaults/{d}' for d in DEFAULTS):
+        (root / name).touch()
+    if archive:
+        # A real archive with a python/ directory, so the launcher can put it on the path.
+        with zipfile.ZipFile(root / archive, 'w') as zf:
+            zf.writestr('python/.keep', '')
     return root
 
 
@@ -108,6 +129,85 @@ def refused(argv, run=None, *, naming):
 
 def wrote(replay):
     return [c for c in replay.calls if any(w in c for w in WRITES)]
+
+
+def boot_image(fw, name=BOOT_IMAGE):
+    """A boot image in ``fw`` with made-up contents; returns ``{file name: sha256}`` of what it holds."""
+    sums = {}
+    with tarfile.open(fw / name, 'w:gz') as tar:
+        for member in _soc.BOOT_FILES:
+            data = f"{member} of {name}".encode()
+            info = tarfile.TarInfo(f"{_soc.IMAGE_DIR}/{member}")
+            info.size = len(data)
+            tar.addfile(info, io.BytesIO(data))
+            sums[member] = hashlib.sha256(data).hexdigest()
+    return sums
+
+
+class Board:
+    """A processor system's tool answers, made up here, over a `Replay` for the crate's.
+
+    ``sha256sum`` reports what was sent; after a reboot command ``ping`` fails
+    ``down_for`` times, then answers again. Every call is logged on the replay.
+    """
+
+    def __init__(self, replay, sums, down_for=2):
+        self.replay, self.sums, self.down_for, self.down = replay, sums, down_for, 0
+
+    @property
+    def calls(self):
+        return self.replay.calls
+
+    def __call__(self, argv, timeout=None):
+        tool = os.path.basename(str(argv[0]))
+        command = ' '.join([tool] + [str(a) for a in argv[1:]])
+        if tool == 'scp':
+            assert timeout == _soc.COPY_TIMEOUT_S, f"the copy must be given its own timeout, not {timeout}"
+        if tool == 'ssh' and 'sha256sum' in command:
+            self.replay.calls.append(command)
+            return 0, ''.join(f"{d}  {_soc.BOOT_DIR}/{n}\n" for n, d in self.sums.items())
+        if tool == 'ssh' and '/sbin/reboot' in command:
+            self.down = self.down_for
+        if tool == 'ping' and self.down > 0:
+            self.down -= 1
+            self.replay.calls.append(command)
+            return 1, ''
+        return self.replay(argv)
+
+
+@contextlib.contextmanager
+def processor(versions):
+    """The version block answered from ``versions`` in turn (an exception instance is raised), waits skipped."""
+    answers = list(versions)
+
+    def bridge_version(address, port=_soc.REGISTER_BRIDGE_PORT):
+        assert answers, f"the version block at {address} was read more often than prepared for"
+        # The probe imports the firmware package's version block: the package must be on the path by now.
+        assert any(p.endswith('.zip/python') for p in sys.path), \
+            'the firmware package was not put on the path before the version block was probed'
+        answer = answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+    real = _firmware.bridge_version, _soc.time.sleep, _soc.port_open
+    _firmware.bridge_version, _soc.time.sleep, _soc.port_open = \
+        bridge_version, lambda s: None, lambda a, p, timeout=2.0: True
+    try:
+        yield answers
+    finally:
+        _firmware.bridge_version, _soc.time.sleep, _soc.port_open = real
+
+
+def soc_launch(argv, versions, run=None, image=BOOT_IMAGE, archive=BOOT_ARCHIVE):
+    """Launch over a firmware directory holding a processor-booted release, the board made up."""
+    with tempfile.TemporaryDirectory() as tmp:
+        fw = firmware_dir(tmp, archive)
+        (fw / IMAGE).unlink()
+        sums = boot_image(fw, image) if image else {}
+        board = Board(run or Replay(), sums)
+        with processor(versions) as left:
+            args, done = launch(argv, board, fw)
+        return args, done, board, left
 
 # --------------------------------------------------------------------------
 # a slot whose controller answers
@@ -219,7 +319,8 @@ def check_what_the_command_line_gives_is_kept():
     assert [os.path.basename(l) for l in args.layers] == ['defaults_c03_lb_lb.yml', 'override.yml'], args.layers
 
 
-def check_a_hard_boot_power_cycles_polls_the_boot_state_and_configures():
+def check_a_hard_boot_power_cycles_through_the_shelf_manager_or_reboots_the_processor_over_ssh_then_configures():
+    """The AMC's FPGA is power-cycled and its boot state polled; the RFMC's processor system is rebooted over SSH. Either way the firmware is checked on the booted FPGA, and the register configuration is applied at start-up."""
     args, _, replay = launched(SLOT_2 + ['-H'])
     cycles = [c for c in replay.calls if ' raw 0x2C 0x0A ' in c]
     assert len(cycles) == 2 and cycles[0].endswith('0 0 2 0') and cycles[1].endswith('0 0 1 0'), \
@@ -229,6 +330,14 @@ def check_a_hard_boot_power_cycles_polls_the_boot_state_and_configures():
     assert polled and hashed and max(polled) < max(hashed), \
         'the boot state is polled after the power cycle and the firmware is checked on the booted FPGA'
     assert args.configure, 'a hard boot applies the register configuration at start-up'
+    args, done, board, left = soc_launch(BENCH + ['-H'], [RUNNING_NEW])
+    assert wrote(board) == [f"ssh {' '.join(_soc.SSH_OPTIONS)} root@{PS} /bin/sync; /sbin/reboot"], wrote(board)
+    assert left == [] and args.configure, 'the image is checked after the reboot, and the configuration applied'
+    # Without the crate the processor's address and its platform must be given.
+    soc_refused(['-a', '10.0.1.104', '--transport', 'tcp-bridge', '-H'], [], image=None,
+                naming=('--ps-addr', '--shelfmanager', '--platform'))
+    soc_refused(['-a', '10.0.1.104', '--transport', 'tcp-bridge', '--platform', 'umux-rfmc', '-H'], [], image=None,
+                naming=('--ps-addr',))
 
 
 def check_a_firmware_mismatch_loads_the_image_and_a_match_does_not():
@@ -243,16 +352,19 @@ def check_a_firmware_mismatch_loads_the_image_and_a_match_does_not():
         '-D must skip the firmware check'
 
 
-def check_a_carrier_whose_processor_loads_its_image_is_not_firmware_checked():
-    """Synthetic: slot 2's controller reports an RFMC carrier's part number. Its image is a linux.tar.gz its processor loads; no .mcs is looked for and nothing is loaded."""
+def check_a_carrier_whose_processor_boots_it_is_checked_through_its_bridge_not_the_shelf_manager():
+    """Synthetic: slot 2's controller reports an RFMC carrier's part number. Its image is a boot image its processor loads: no .mcs is looked for, the running version comes from the bridge at the derived processor address, and a boot image that is not there is a refusal."""
     rfmc_record = (0, ' Board Mfg             : SLAC\n Board Product         : RFMC\n'
                       ' Board Part Number     : PC_379_396_55_C01\n')
-    replay = Replay(overrides={'fru print 0': rfmc_record})
-    args, done, replay = launched(SLOT_2, replay, archive='rogue_MicrowaveMuxRfmcCarrier_v2.0.0.zip')
-    assert args.firmware and args.firmware.endswith('rogue_MicrowaveMuxRfmcCarrier_v2.0.0.zip'), args.firmware
+    args, done, board, _ = soc_launch(SLOT_2, [RUNNING_NEW], Replay(overrides={'fru print 0': rfmc_record}))
+    assert args.firmware and args.firmware.endswith(BOOT_ARCHIVE), args.firmware
     assert args.ip_ps == '10.0.1.202', f"the processor system at +200: {args.ip_ps}"
-    assert 'programmed' not in done.decided and wrote(replay) == [] and not args.configure, \
-        f"an image the processor loads was checked or loaded: {done.decided}, {wrote(replay)}"
+    assert done.inventory['firmware_running'] == '54dc168', done.inventory
+    assert 'programmed' not in done.decided and wrote(board) == [] and not args.configure, \
+        f"a matching boot image was loaded: {done.decided}, {wrote(board)}"
+    assert not [c for c in board.calls if 'ProgramFPGA' in c or '.mcs' in c], board.calls
+    soc_refused(SLOT_2, [RUNNING_NEW], Replay(overrides={'fru print 0': rfmc_record}), image=None,
+                naming=('no image', 'MicrowaveMuxRfmcCarrier', '-D'))
 
 
 # --------------------------------------------------------------------------
@@ -260,9 +372,11 @@ def check_a_carrier_whose_processor_loads_its_image_is_not_firmware_checked():
 # --------------------------------------------------------------------------
 
 
-def check_a_board_with_no_controller_is_refused_without_addresses_and_tolerated_with_them():
+def check_a_board_with_no_controller_is_refused_without_addresses_and_tolerated_with_them_and_its_platform():
+    """With no record the addresses and the platform come from the command line. Here the AMC's: its loader is the shelf manager that did not answer, so nothing is checked and nothing written."""
     refused(SLOT_4, naming=('crate id', '--addr'))
-    args, done, replay = launched(SLOT_4 + ['-a', '10.0.1.104', '--ps-addr', '10.0.1.204'])
+    refused(SLOT_4 + ['-a', '10.0.1.104'], naming=('--platform', '-D'))
+    args, done, replay = launched(SLOT_4 + ['-a', '10.0.1.104', '--ps-addr', '10.0.1.204', '--platform', 'umux-amc'])
     assert args.ip_addr == '10.0.1.104' and args.ip_ps == '10.0.1.204', 'the given addresses were changed'
     assert args.pcie_rssi_lane == 2, 'the lane still follows from the slot'
     inv = done.inventory
@@ -270,8 +384,140 @@ def check_a_board_with_no_controller_is_refused_without_addresses_and_tolerated_
     assert inv['carrier'] is None and inv['rtm_present'] is None and 'rtm' in inv['errors'], \
         'the IPMC did not answer, so the carrier and the rear module are unknown, not absent'
     assert inv['amc0'] is False, 'the inventory tool said no board in the bay: absent'
-    assert wrote(replay) == [], f"written through a controller that does not answer: {wrote(replay)}"
-    refused(SLOT_4 + ['-a', '10.0.1.104', '-H'], naming=('hard-boot',))
+    assert wrote(replay) == [] and not args.configure, f"written through a controller that does not answer: {wrote(replay)}"
+    refused(SLOT_4 + ['-a', '10.0.1.104', '--platform', 'umux-amc', '-H'], naming=('hard-boot', '--shelfmanager'))
+
+# --------------------------------------------------------------------------
+# a carrier its processor system boots: the boot image over SSH (all made up)
+# --------------------------------------------------------------------------
+
+BENCH = SLOT_4 + ['-a', '10.0.1.104', '--ps-addr', PS, '--platform', 'umux-rfmc']
+
+
+def soc_refused(argv, versions, run=None, *, naming, **kwargs):
+    """`soc_launch` must refuse ``argv`` with a message that carries every word in ``naming``."""
+    try:
+        soc_launch(argv, versions, run, **kwargs)
+    except SystemExit as e:
+        missing = [w for w in naming if w not in str(e)]
+        assert not missing, f"{' '.join(argv)}: the refusal does not name {missing}: {e}"
+    else:
+        raise AssertionError(f"{' '.join(argv)} was launched")
+
+
+def check_a_boot_image_the_fpga_does_not_run_is_copied_and_rebooted_into_and_one_it_runs_is_left_alone():
+    """Synthetic: the bench board runs v1.3.0 and v1.4.0 is on disk. Copy, check the copy, reboot, read back -- in that order -- then configure. A read-back still on v1.3.0 is a refusal. Running v1.4.0, nothing is written, and -D reads nothing."""
+    args, done, board, left = soc_launch(BENCH, [RUNNING_OLD, RUNNING_NEW])
+    assert done.decided.get('programmed') == BOOT_IMAGE and args.configure, done.decided
+    assert left == [], 'the version block was to be read twice: before and after'
+    writes = wrote(board)
+    assert len(writes) == 2 and writes[0].startswith('scp ') and writes[1].endswith('/bin/sync; /sbin/reboot'), writes
+    assert writes[0].endswith(f"root@{PS}:{_soc.BOOT_DIR}/.") and all(f"/{_soc.IMAGE_DIR}/{f} " in writes[0]
+                                                                     for f in _soc.BOOT_FILES), writes[0]
+    order = [i for i, c in enumerate(board.calls) if c.startswith('scp ') or 'sha256sum' in c or '/sbin/reboot' in c]
+    assert len(order) == 3 and order == sorted(order), f"copy, check, reboot, in that order: {board.calls}"
+    assert done.inventory['firmware_image_on_disk'] == BOOT_IMAGE
+    assert done.inventory['firmware_running'] == '54dc168', done.inventory
+    try:
+        soc_launch(BENCH, [RUNNING_OLD, RUNNING_OLD])
+    except SystemExit as e:
+        assert 'did not take' in str(e) and _soc.BOOT_DIR in str(e), str(e)
+    else:
+        raise AssertionError('the old firmware after the reboot was taken as a load')
+    args, done, board, _ = soc_launch(BENCH, [RUNNING_NEW])
+    assert 'programmed' not in done.decided and wrote(board) == [] and not args.configure, (done.decided, wrote(board))
+    assert not [c for c in board.calls if c.startswith('ssh')], f"ssh was run to read the version: {board.calls}"
+    args, done, board, _ = soc_launch(BENCH + ['-D'], [])
+    assert 'firmware_running' not in done.inventory and wrote(board) == [] and not args.configure, \
+        '-D must neither read the version block nor write'
+
+
+def check_a_boot_image_that_cannot_be_checked_is_a_refusal_not_a_skip():
+    """No processor address, no platform named, a silent bridge, a named bench with no image: each names what would let the start go on (-D among them, except after a load). An emulated server has no board and is asked for none of it."""
+    soc_refused(SLOT_4 + ['-a', '10.0.1.104', '--platform', 'umux-rfmc'], [], naming=('--ps-addr', '-D'))
+    # The image on disk does not name the platform: with no record and no --platform it is a refusal, not a guess.
+    soc_refused(SLOT_4 + ['-a', '10.0.1.104', '--ps-addr', PS], [], naming=('--platform', '-D', BOOT_IMAGE))
+    soc_refused(BENCH, [], image=None, naming=('no image', 'MicrowaveMuxRfmcCarrier', '-D'))
+    from cryodaq._errors import ConnectError
+    down = ConnectError('could not read the firmware\'s version block -- made up')
+    soc_refused(BENCH, [down], naming=('version block', '-D'))
+    # After a reboot the bridge accepts connections before it serves: the read is retried, then refused without -D.
+    try:
+        soc_launch(BENCH, [RUNNING_OLD] + [down] * _soc.VERSION_RETRIES)
+    except SystemExit as e:
+        assert 'rebooted' in str(e) and '-D' not in str(e), f"after a load, -D is no advice: {e}"
+    else:
+        raise AssertionError('the bridge never answered after the reboot, and the launch went on')
+
+    def no_tool(argv, timeout=None):
+        raise AssertionError(f"a tool was run: {argv}")
+    with tempfile.TemporaryDirectory() as tmp:
+        fw = firmware_dir(tmp, BOOT_ARCHIVE)
+        (fw / IMAGE).unlink()
+        boot_image(fw)
+        with processor([]):
+            args, done = launch(['--transport', 'emulation', '--platform', 'umux-rfmc'], no_tool, fw)
+            assert args.firmware.endswith(BOOT_ARCHIVE) and done.inventory == {} and not args.configure, (args, done)
+            refused(['--transport', 'emulation', '--platform', 'umux-rfmc', '-H'], no_tool, naming=('emulated',))
+
+
+def check_the_platform_comes_from_the_record_or_the_option_never_from_a_file_name():
+    # Two images of the named platform are refused by count, a stranger's image is no image of the platform's.
+    with tempfile.TemporaryDirectory() as tmp:
+        fw = firmware_dir(tmp, BOOT_ARCHIVE)
+        (fw / IMAGE).unlink()
+        boot_image(fw)
+        boot_image(fw, 'MicrowaveMuxRfmcCarrier-0x01030000-20261112164613-ruckman-d86406d.linux.tar.gz')
+        with processor([]):
+            try:
+                launch(BENCH, Board(Replay(), {}), fw)
+            except SystemExit as e:
+                assert '2 images' in str(e), str(e)
+            else:
+                raise AssertionError('two boot images were not refused')
+    with tempfile.TemporaryDirectory() as tmp:
+        fw = firmware_dir(tmp, BOOT_ARCHIVE)
+        (fw / IMAGE).unlink()
+        boot_image(fw, 'SomethingElse-0x01000000-20261101000000-nobody-0123abc.linux.tar.gz')
+        with processor([]):
+            try:
+                launch(BENCH, Board(Replay(), {}), fw)
+            except SystemExit as e:
+                assert 'no image' in str(e) and 'MicrowaveMuxRfmcCarrier' in str(e), str(e)
+            else:
+                raise AssertionError("a stranger's image was taken for the platform's")
+            # Un-named, the image on disk is a refusal naming the option; named AMC with no crate, the AMC's
+            # loader (the shelf manager) is out of reach and the stranger's image is nobody's: nothing is checked.
+            try:
+                launch(['-a', '10.0.1.102', '--transport', 'pcie'], Board(Replay(), {}), fw)
+            except SystemExit as e:
+                assert '--platform' in str(e) and 'SomethingElse' in str(e), str(e)
+            else:
+                raise AssertionError('an image on disk with no platform named was not refused')
+            args, _ = launch(['-a', '10.0.1.102', '--transport', 'pcie', '--platform', 'umux-amc'],
+                             Board(Replay(), {}), fw)
+            assert not args.configure, args
+    # The declaration refuses what the launcher could not act on.
+    for kwargs in ({'image_loader': 'sd-card'}, {'image_loader': _umux.PROCESSOR_SYSTEM}):
+        try:
+            _umux.BringUp(firmware_image='X', **kwargs)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"BringUp accepted {kwargs}")
+    # With a record, the record wins: --platform agreeing changes nothing, disagreeing is a refusal.
+    args, _, _ = launched(SLOT_2 + ['--platform', 'umux-amc'])
+    assert args.firmware.endswith(ARCHIVE) and args.enable_pwri2c, (args.firmware, args.enable_pwri2c)
+    refused(SLOT_2 + ['--platform', 'umux-rfmc'], naming=('PC_379_396_38', 'umux-rfmc'))
+    # A part number no platform declares: --platform says which; without it, an image on disk is a refusal.
+    unknown = Replay(overrides={'fru print 0': (0, ' Board Mfg             : SLAC\n Board Part Number     : PC_999_000_01\n')})
+    refused(SLOT_2, unknown, naming=('--platform', '-D', IMAGE))
+    args, done, replay = launched(SLOT_2 + ['-D'], unknown)
+    assert args.ip_addr == '10.0.1.102' and args.firmware.endswith(ARCHIVE) and wrote(replay) == [], (args, wrote(replay))
+    args, done, replay = launched(SLOT_2 + ['--platform', 'umux-amc', '-E'], unknown)
+    assert args.firmware.endswith(ARCHIVE) and 'layers' not in done.decided and wrote(replay) == [] and not args.configure, \
+        (args.firmware, done.decided, wrote(replay))
+    assert done.inventory['firmware_image_on_disk'] == IMAGE, 'the named platform has its .mcs checked through the shelf manager'
 
 # --------------------------------------------------------------------------
 # no slot, and the package
@@ -281,10 +527,15 @@ def check_a_board_with_no_controller_is_refused_without_addresses_and_tolerated_
 def check_without_a_slot_nothing_is_read_and_nothing_reaches_the_crate():
     def no_tool(argv):
         raise AssertionError(f"a tool was run: {argv}")
-    args, done, _ = launched(['-a', '10.0.1.102', '--transport', 'pcie'], no_tool)
-    assert done.inventory == {} and args.pcie_rssi_lane == 0, (done.inventory, args.pcie_rssi_lane)
-    assert args.firmware and args.firmware.endswith(ARCHIVE), 'the package is still found beside the image'
-    refused(['-a', '10.0.1.102', '--transport', 'pcie', '-H'], no_tool, naming=('--shelfmanager', '--slot'))
+    addressed = ['-a', '10.0.1.102', '--transport', 'pcie']
+    # An image on disk and no platform named is a refusal; named, or with the check called off, the start goes on.
+    refused(addressed, no_tool, naming=('--platform', '-D', IMAGE))
+    for argv in (addressed + ['--platform', 'umux-amc'], addressed + ['-D']):
+        args, done, _ = launched(argv, no_tool)
+        assert done.inventory == {} and args.pcie_rssi_lane == 0, (done.inventory, args.pcie_rssi_lane)
+        assert args.firmware and args.firmware.endswith(ARCHIVE), 'the package is still found beside the image'
+        assert not args.configure, args
+    refused(addressed + ['--platform', 'umux-amc', '-H'], no_tool, naming=('--shelfmanager', '--slot'))
     refused(['-S', 'shm-smrf-sp01'], no_tool, naming=('--slot',))
     refused(['-N', '2'], no_tool, naming=('--shelfmanager',))
     refused(['-S', 'shm-smrf-sp01', '-N', '9'], no_tool, naming=('slot',))
@@ -310,7 +561,8 @@ def check_the_platform_name_chooses_among_several_platforms_archives_without_a_r
             raise AssertionError('three archives were not refused')
         args, _ = launch(addressed + ['--platform', 'umux-amc'], Replay(), fw)
         assert args.firmware.endswith(ARCHIVE), args.firmware
-        args, _ = launch(SLOT_4 + ['-a', '10.0.1.104', '--ps-addr', '10.0.1.204', '--platform', 'umux-rfmc'],
+        # The platform named, its image is expected: -D, since this directory holds the AMC's only.
+        args, _ = launch(SLOT_4 + ['-a', '10.0.1.104', '--ps-addr', '10.0.1.204', '--platform', 'umux-rfmc', '-D'],
                          Replay(), fw)
         assert args.firmware.endswith(others[1]), args.firmware
         # The detected defaults path is absolute whatever the directory was given as.
