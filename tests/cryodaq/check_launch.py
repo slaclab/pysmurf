@@ -55,6 +55,7 @@ sys.path.insert(0, str(HERE / 'fixtures' / 'ipmi'))
 from replay import Replay                                       # noqa: E402
 
 from cryodaq import platform                                    # noqa: E402
+from cryodaq._errors import ConnectError                        # noqa: E402
 from cryodaq.platform import _atca, _soc, _umux                 # noqa: E402
 from cryodaq.server import _cli, _firmware                      # noqa: E402
 
@@ -76,6 +77,8 @@ BOOT_ARCHIVE = 'rogue_MicrowaveMuxRfmcCarrier_v1.4.0.zip'
 PS = '10.0.1.204'
 RUNNING_OLD = _firmware.FirmwareVersion(0x01030000, 'd86406d' + '0' * 33, 'MicrowaveMuxRfmcCarrier: made up')
 RUNNING_NEW = _firmware.FirmwareVersion(0x01040000, '54dc168' + '1' * 33, 'MicrowaveMuxRfmcCarrier: made up')
+# What a read of the version block gets while the system is down, or its bridge accepts connections and does not serve.
+DOWN = ConnectError("could not read the firmware's version block -- made up")
 
 
 def firmware_dir(tmp, archive=ARCHIVE):
@@ -330,9 +333,13 @@ def check_a_hard_boot_power_cycles_through_the_shelf_manager_or_reboots_the_proc
     assert polled and hashed and max(polled) < max(hashed), \
         'the boot state is polled after the power cycle and the firmware is checked on the booted FPGA'
     assert args.configure, 'a hard boot applies the register configuration at start-up'
-    args, done, board, left = soc_launch(BENCH + ['-H'], [RUNNING_NEW])
+    # The version block is read once the system is back (the reboot's own wait), then for the check.
+    args, done, board, left = soc_launch(BENCH + ['-H'], [RUNNING_NEW, RUNNING_NEW])
     assert wrote(board) == [f"ssh {' '.join(_soc.SSH_OPTIONS)} root@{PS} /bin/sync; /sbin/reboot"], wrote(board)
     assert left == [] and args.configure, 'the image is checked after the reboot, and the configuration applied'
+    # The bridge accepts connections before it serves: reads that fail while the system comes back are retried.
+    args, done, board, left = soc_launch(BENCH + ['-H'], [DOWN, DOWN, RUNNING_NEW, RUNNING_NEW])
+    assert left == [] and args.configure and 'programmed' not in done.decided, (left, done.decided)
     # Without the crate the processor's address and its platform must be given.
     soc_refused(['-a', '10.0.1.104', '--transport', 'tcp-bridge', '-H'], [], image=None,
                 naming=('--ps-addr', '--shelfmanager', '--platform'))
@@ -414,8 +421,9 @@ def check_a_boot_image_the_fpga_does_not_run_is_copied_and_rebooted_into_and_one
     assert len(writes) == 2 and writes[0].startswith('scp ') and writes[1].endswith('/bin/sync; /sbin/reboot'), writes
     assert writes[0].endswith(f"root@{PS}:{_soc.BOOT_DIR}/.") and all(f"/{_soc.IMAGE_DIR}/{f} " in writes[0]
                                                                      for f in _soc.BOOT_FILES), writes[0]
-    order = [i for i, c in enumerate(board.calls) if c.startswith('scp ') or 'sha256sum' in c or '/sbin/reboot' in c]
-    assert len(order) == 3 and order == sorted(order), f"copy, check, reboot, in that order: {board.calls}"
+    kinds = [('copy' if c.startswith('scp ') else 'check' if 'sha256sum' in c else 'reboot')
+             for c in board.calls if c.startswith('scp ') or 'sha256sum' in c or '/sbin/reboot' in c]
+    assert kinds == ['copy', 'check', 'reboot'], f"copy, check, reboot, in that order: {board.calls}"
     assert done.inventory['firmware_image_on_disk'] == BOOT_IMAGE
     assert done.inventory['firmware_running'] == '54dc168', done.inventory
     try:
@@ -438,14 +446,12 @@ def check_a_boot_image_that_cannot_be_checked_is_a_refusal_not_a_skip():
     # The image on disk does not name the platform: with no record and no --platform it is a refusal, not a guess.
     soc_refused(SLOT_4 + ['-a', '10.0.1.104', '--ps-addr', PS], [], naming=('--platform', '-D', BOOT_IMAGE))
     soc_refused(BENCH, [], image=None, naming=('no image', 'MicrowaveMuxRfmcCarrier', '-D'))
-    from cryodaq._errors import ConnectError
-    down = ConnectError('could not read the firmware\'s version block -- made up')
-    soc_refused(BENCH, [down], naming=('version block', '-D'))
+    soc_refused(BENCH, [DOWN], naming=('version block', '-D'))
     # After a reboot the bridge accepts connections before it serves: the read is retried, then refused without -D.
     try:
-        soc_launch(BENCH, [RUNNING_OLD] + [down] * _soc.VERSION_RETRIES)
+        soc_launch(BENCH, [RUNNING_OLD] + [DOWN] * _soc.VERSION_RETRIES)
     except SystemExit as e:
-        assert 'rebooted' in str(e) and '-D' not in str(e), f"after a load, -D is no advice: {e}"
+        assert 'copied' in str(e) and 'version block' in str(e) and '-D' not in str(e), f"after a load, -D is no advice: {e}"
     else:
         raise AssertionError('the bridge never answered after the reboot, and the launch went on')
 
@@ -509,6 +515,13 @@ def check_the_platform_comes_from_the_record_or_the_option_never_from_a_file_nam
     args, _, _ = launched(SLOT_2 + ['--platform', 'umux-amc'])
     assert args.firmware.endswith(ARCHIVE) and args.enable_pwri2c, (args.firmware, args.enable_pwri2c)
     refused(SLOT_2 + ['--platform', 'umux-rfmc'], naming=('PC_379_396_38', 'umux-rfmc'))
+    # The crate id is a read of its own: a record read when the id was not still names the platform and still
+    # refuses a --platform that disagrees; what follows from the id (the addresses, the shelf manager's reach) is lost.
+    no_id = Replay(overrides={'raw 0x34 0x04 0xFD 0x02': (1, 'Unable to send RAW command')})
+    refused(SLOT_2 + ['-a', '10.0.1.102', '--platform', 'umux-rfmc'], no_id, naming=('PC_379_396_38', 'umux-rfmc'))
+    args, done, replay = launched(SLOT_2 + ['-a', '10.0.1.102'], no_id)
+    assert done.inventory['crate_id'] is None and args.firmware.endswith(ARCHIVE) and wrote(replay) == [], \
+        (done.inventory['crate_id'], args.firmware, wrote(replay))
     # A part number no platform declares: --platform says which; without it, an image on disk is a refusal.
     unknown = Replay(overrides={'fru print 0': (0, ' Board Mfg             : SLAC\n Board Part Number     : PC_999_000_01\n')})
     refused(SLOT_2, unknown, naming=('--platform', '-D', IMAGE))
