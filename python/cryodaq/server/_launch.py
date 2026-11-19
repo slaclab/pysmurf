@@ -22,7 +22,9 @@
 #      3. The addresses. The FPGA's follows from the crate id and the slot, the
 #         processor system's from the platform's offset, the PCIe lane from the
 #         slot. Each is a default an explicit option overrides, and a board
-#         whose crate said nothing must have them on the command line.
+#         whose crate said nothing must have them on the command line. The
+#         ones the transport reaches the board by are required here, before
+#         any step writes to the board.
 #      4. What else the platform makes of the records (the AMC carrier's bays
 #         and their defaults file; --no-hw-detect skips it).
 #      5. The firmware's Python package in the firmware directory
@@ -66,7 +68,7 @@ import logging
 import pathlib
 import re
 import zipfile
-from typing import Any, Dict, Mapping, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 from cryodaq import platform
 from cryodaq._errors import ConnectError, CryodaqError
@@ -278,13 +280,39 @@ def _decide_platform(args, done, crate_id):
     return found
 
 
+# The addresses each transport reaches the board by (`_cli.transport_from`
+# builds it from them). The PCIe transport's FPGA address is optional.
+ADDRESSES_REQUIRED = {'eth': ('ip_addr',), 'tcp-bridge': ('ip_ps', 'ip_addr')}
+
+
+def missing_addresses(args: argparse.Namespace) -> List[str]:
+    """The address options the chosen transport needs and ``args`` does not carry, spelled as given.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        As parsed from the server's command line, after step 3 filled in what
+        the crate implies.
+
+    Returns
+    -------
+    list of str
+        ``'--addr'`` and/or ``'--ps-addr'``; empty when the transport has
+        what it needs.
+    """
+    spelling = {'ip_addr': '--addr', 'ip_ps': '--ps-addr'}
+    return [spelling[name] for name in ADDRESSES_REQUIRED.get(args.transport, ()) if not getattr(args, name)]
+
+
 def _decide_addresses(args, done, crate_id, bring_up):
     """Step 3: the PCIe lane from the slot; the FPGA's and the processor system's addresses from the crate id.
 
     SLAC's convention: ``10.<crate id high byte>.<crate id low byte>.<100 + slot>``
     for the FPGA, the platform's offset in place of 100 for a processor system
     beside it. A board whose crate said nothing must have them on the command
-    line.
+    line. The addresses the transport reaches the board by are required here:
+    the steps that write to the board come after, and a start that cannot
+    reach it must not load or reboot anything first.
     """
     if args.slot is not None:
         # The PCIe lane follows from the slot on every crate.
@@ -300,6 +328,11 @@ def _decide_addresses(args, done, crate_id, bring_up):
     elif args.slot is not None and not args.ip_addr:
         raise LaunchError(f"the FPGA's address could not be derived: {done.inventory['errors'].get('crate_id')}; "
                           f"pass --addr (and --ps-addr for a board with a processor system), or fix the crate")
+    missing = missing_addresses(args)
+    if missing:
+        raise LaunchError(f"the {args.transport} transport reaches the board by {' and '.join(missing)}, which "
+                          f"{'neither the crate nor the command line gives' if crate_id is not None else 'no crate was asked for'}; "
+                          f"pass {'them' if len(missing) > 1 else 'it'}")
 
 
 def _apply_options(args, done, bring_up):

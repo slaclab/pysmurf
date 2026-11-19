@@ -241,9 +241,11 @@ def transport_from(args: argparse.Namespace, emulation_source: Any = None):
         transports have a real one and take nothing.
     """
     from cryodaq.server import _transport
+    missing = _launch.missing_addresses(args)
+    if missing:
+        raise SystemExit(f"{' and '.join(missing)} {'are' if len(missing) > 1 else 'is'} required for the "
+                         f"{args.transport} transport")
     if args.transport == 'eth':
-        if not args.ip_addr:
-            raise SystemExit("--addr is required for the eth transport")
         try:
             socket.inet_pton(socket.AF_INET, args.ip_addr)
         except OSError:
@@ -255,9 +257,7 @@ def transport_from(args: argparse.Namespace, emulation_source: Any = None):
                                dev_rssi=args.pcie_dev_rssi, dev_data=args.pcie_dev_data,
                                offload_card=not args.no_pcie_card)
     if args.transport == 'tcp-bridge':
-        for name, value in (('--ps-addr', args.ip_ps), ('--addr', args.ip_addr)):
-            if not value:
-                raise SystemExit(f"{name} is required for the tcp-bridge transport")
+        for value in (args.ip_ps, args.ip_addr):
             try:
                 socket.inet_pton(socket.AF_INET, value)
             except OSError:

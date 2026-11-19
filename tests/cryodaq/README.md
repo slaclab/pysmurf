@@ -259,8 +259,9 @@ board during a load — the version block read through its register bridge, `scp
 since no load has been recorded, and guard the order that keeps a half-copied image from being
 booted: the five boot files are copied, checked on the card against what was sent, and only then
 rebooted into; the version is read back and a hash that still differs is a refusal; a boot image
-with no processor address, or no platform named, is refused rather than skipped; `-D` neither reads
-nor writes. The processor system's own rules — what a release archive must hold, a copy that did not
+with no processor address, or no platform named, is refused rather than skipped, and one whose
+transport lacks the FPGA's address is refused before anything is written; `-D` neither reads nor
+writes. The processor system's own rules — what a release archive must hold, a copy that did not
 arrive whole — are its module's, exercised by every load on hardware, and not repeated here.
 
 What it does not do: compare the launcher with the bash script it replaced. That comparison was run

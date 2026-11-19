@@ -273,7 +273,10 @@ image (its *loader*, below).
    The PCIe RSSI lane is ``slot - 2``, or 0 without a slot. A board whose
    crate said nothing must have its addresses on the command line
    (``--addr``, and ``--ps-addr`` for a board with a processor system); the
-   start is refused, naming the read that failed, when it does not.
+   start is refused, naming the read that failed, when it does not. The
+   addresses the transport reaches the board by (``--addr`` for ``eth``,
+   both for ``tcp-bridge``) are required here, before any step writes to
+   the board.
 4. **What else the platform makes of the records** (``BringUp.options``;
    skipped with ``--no-hw-detect``). For the AMC carrier: a bay without a
    board is left out of the tree (``--disable-bay0/1``), the carrier version
