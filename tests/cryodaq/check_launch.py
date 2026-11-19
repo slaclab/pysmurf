@@ -335,15 +335,16 @@ def check_a_hard_boot_power_cycles_through_the_shelf_manager_or_reboots_the_proc
     assert args.configure, 'a hard boot applies the register configuration at start-up'
     # The version block is read once the system is back (the reboot's own wait), then for the check.
     args, done, board, left = soc_launch(BENCH + ['-H'], [RUNNING_NEW, RUNNING_NEW])
-    assert wrote(board) == [f"ssh {' '.join(_soc.SSH_OPTIONS)} root@{PS} /bin/sync; /sbin/reboot"], wrote(board)
+    assert wrote(board) == [f"ssh {' '.join(_soc.SSH_OPTIONS)} root@{PS} /bin/sync && /sbin/reboot"], wrote(board)
     assert left == [] and args.configure, 'the image is checked after the reboot, and the configuration applied'
     # The bridge accepts connections before it serves: reads that fail while the system comes back are retried.
     args, done, board, left = soc_launch(BENCH + ['-H'], [DOWN, DOWN, RUNNING_NEW, RUNNING_NEW])
     assert left == [] and args.configure and 'programmed' not in done.decided, (left, done.decided)
     # Without the crate the processor's address and its platform must be given.
-    soc_refused(['-a', '10.0.1.104', '--transport', 'tcp-bridge', '-H'], [], image=None,
+    # Over PCIe the transport asks for no address, so the refusal is the reboot's own: what would let it happen.
+    soc_refused(['-a', '10.0.1.104', '--transport', 'pcie', '-H'], [], image=None,
                 naming=('--ps-addr', '--shelfmanager', '--platform'))
-    soc_refused(['-a', '10.0.1.104', '--transport', 'tcp-bridge', '--platform', 'umux-rfmc', '-H'], [], image=None,
+    soc_refused(['-a', '10.0.1.104', '--transport', 'pcie', '--platform', 'umux-rfmc', '-H'], [], image=None,
                 naming=('--ps-addr',))
 
 
@@ -382,7 +383,7 @@ def check_a_carrier_whose_processor_boots_it_is_checked_through_its_bridge_not_t
 def check_a_board_with_no_controller_is_refused_without_addresses_and_tolerated_with_them_and_its_platform():
     """With no record the addresses and the platform come from the command line. Here the AMC's: its loader is the shelf manager that did not answer, so nothing is checked and nothing written."""
     refused(SLOT_4, naming=('crate id', '--addr'))
-    refused(SLOT_4 + ['-a', '10.0.1.104'], naming=('--platform', '-D'))
+    refused(SLOT_4 + ['-a', '10.0.1.104', '--ps-addr', '10.0.1.204'], naming=('--platform', '-D'))
     args, done, replay = launched(SLOT_4 + ['-a', '10.0.1.104', '--ps-addr', '10.0.1.204', '--platform', 'umux-amc'])
     assert args.ip_addr == '10.0.1.104' and args.ip_ps == '10.0.1.204', 'the given addresses were changed'
     assert args.pcie_rssi_lane == 2, 'the lane still follows from the slot'
@@ -392,7 +393,8 @@ def check_a_board_with_no_controller_is_refused_without_addresses_and_tolerated_
         'the IPMC did not answer, so the carrier and the rear module are unknown, not absent'
     assert inv['amc0'] is False, 'the inventory tool said no board in the bay: absent'
     assert wrote(replay) == [] and not args.configure, f"written through a controller that does not answer: {wrote(replay)}"
-    refused(SLOT_4 + ['-a', '10.0.1.104', '--platform', 'umux-amc', '-H'], naming=('hard-boot', '--shelfmanager'))
+    refused(SLOT_4 + ['-a', '10.0.1.104', '--ps-addr', '10.0.1.204', '--platform', 'umux-amc', '-H'],
+            naming=('hard-boot', '--shelfmanager'))
 
 # --------------------------------------------------------------------------
 # a carrier its processor system boots: the boot image over SSH (all made up)
@@ -418,7 +420,8 @@ def check_a_boot_image_the_fpga_does_not_run_is_copied_and_rebooted_into_and_one
     assert done.decided.get('programmed') == BOOT_IMAGE and args.configure, done.decided
     assert left == [], 'the version block was to be read twice: before and after'
     writes = wrote(board)
-    assert len(writes) == 2 and writes[0].startswith('scp ') and writes[1].endswith('/bin/sync; /sbin/reboot'), writes
+    assert len(writes) == 2 and writes[0].startswith('scp ') and writes[1].endswith('/bin/sync && /sbin/reboot'), \
+        f"the flush must succeed for the reboot to run: {writes}"
     assert writes[0].endswith(f"root@{PS}:{_soc.BOOT_DIR}/.") and all(f"/{_soc.IMAGE_DIR}/{f} " in writes[0]
                                                                      for f in _soc.BOOT_FILES), writes[0]
     kinds = [('copy' if c.startswith('scp ') else 'check' if 'sha256sum' in c else 'reboot')
@@ -441,8 +444,16 @@ def check_a_boot_image_the_fpga_does_not_run_is_copied_and_rebooted_into_and_one
 
 
 def check_a_boot_image_that_cannot_be_checked_is_a_refusal_not_a_skip():
-    """No processor address, no platform named, a silent bridge, a named bench with no image: each names what would let the start go on (-D among them, except after a load). An emulated server has no board and is asked for none of it."""
-    soc_refused(SLOT_4 + ['-a', '10.0.1.104', '--platform', 'umux-rfmc'], [], naming=('--ps-addr', '-D'))
+    """No processor address, no platform named, a silent bridge, a named bench with no image: each names what would let the start go on (-D among them, except after a load). No FPGA address for the transport is refused before the board is written to. An emulated server has no board and is asked for none of it."""
+    # Over PCIe the transport does not need the processor's address; the image check does, or -D.
+    soc_refused(['-S', 'shm-smrf-sp01', '-N', '4', '--transport', 'pcie', '-a', '10.0.1.104', '--platform', 'umux-rfmc'],
+                [], naming=('--ps-addr', '-D'))
+    # Without a slot nothing derives the FPGA's address either; the tcp-bridge transport needs it, so the start is
+    # refused at the addresses -- not after a load and a reboot the transport would then refuse to use.
+    run = Replay()
+    soc_refused(['--transport', 'tcp-bridge', '--platform', 'umux-rfmc', '--ps-addr', PS, '-H'],
+                [RUNNING_OLD, RUNNING_NEW], run, naming=('--addr', 'tcp-bridge'))
+    assert wrote(run) == [], f"written to a board the transport could not reach: {wrote(run)}"
     # The image on disk does not name the platform: with no record and no --platform it is a refusal, not a guess.
     soc_refused(SLOT_4 + ['-a', '10.0.1.104', '--ps-addr', PS], [], naming=('--platform', '-D', BOOT_IMAGE))
     soc_refused(BENCH, [], image=None, naming=('no image', 'MicrowaveMuxRfmcCarrier', '-D'))

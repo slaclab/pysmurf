@@ -346,9 +346,10 @@ class ProcessorSystem:
         """Flush the card and reboot; return once the system is back and the FPGA's version block reads again.
 
         The flush before the reboot matters: a reboot during a write to the
-        card can corrupt the files just copied. The reboot cuts the connection,
-        so neither the command's exit status nor its failing to return says
-        anything; the system going away does.
+        card can corrupt the files just copied, so a flush that fails is no
+        reboot -- the system stays up and the wait below says so. The reboot
+        cuts the connection, so neither the command's exit status nor its
+        failing to return says anything; the system going away does.
 
         Returns
         -------
@@ -357,7 +358,7 @@ class ProcessorSystem:
             when no reader of the version block was given and the bridge's
             port opening was all there was to wait for.
         """
-        argv = ['ssh', *SSH_OPTIONS, self.target, '/bin/sync; /sbin/reboot']
+        argv = ['ssh', *SSH_OPTIONS, self.target, '/bin/sync && /sbin/reboot']
         said = ''
         try:
             status, out = _run('rebooting', argv, REBOOT_COMMAND_TIMEOUT_S)
