@@ -73,8 +73,12 @@ import zipfile
 import pyrogue as pr
 import pyrogue.interfaces
 
-# The checks test the tree they sit in, whichever pysmurf is installed.
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'python'))
+# The checks test the tree they sit in, whichever pysmurf is installed: in
+# this interpreter, and in every one they launch (the client checks and the
+# server children), which inherit the environment.
+_PYTHON = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'python'))
+sys.path.insert(0, _PYTHON)
+os.environ['PYTHONPATH'] = os.pathsep.join([_PYTHON] + [p for p in os.environ.get('PYTHONPATH', '').split(os.pathsep) if p])
 
 import cryodaq                                                  # noqa: E402
 import cryodaq.server                                           # noqa: E402
