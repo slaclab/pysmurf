@@ -24,12 +24,16 @@
 import atexit
 import contextlib
 import importlib.resources
+import logging
 import time
+import types
 from typing import Any, Callable, List, Sequence, Tuple
 
 from cryodaq._errors import ConnectError
 from cryodaq.platform import rfmc
 from cryodaq.server._setup import PlatformSupport, Setup, StepError, load_layers
+
+_log = logging.getLogger(__name__)
 
 __all__ = ['RfmcSupport', 'RfmcSetup']
 
@@ -51,7 +55,9 @@ class RfmcSetup(Setup):
     uses at start: reset the user logic, route a timing source to the receiver,
     program the clock chips from the vendor's register file, wait for the DSP
     clock, initialise the RF data converter, read the tree, synchronise the
-    converter tiles, load the layers, reset the counters, reset the DSP cores.
+    converter tiles, load the layers, reset the counters, reset the DSP cores --
+    and then, where the firmware offers it, train and freeze the converter's
+    background calibration, as the firmware's root does on request.
     The converter is a device of its own on the root, reached over a second
     register path to the processor system, not a child of the FPGA's tree.
 
@@ -94,7 +100,8 @@ class RfmcSetup(Setup):
                 ('sync converter tiles', lambda: self.sync_converter_tiles(carrier, rfdc)),
                 ('load layers', lambda: load_layers(root, self.layers)),
                 ('reset counters', root.CountReset),
-                ('reset DSP cores', lambda: self.reset_dsp_cores(root)))
+                ('reset DSP cores', lambda: self.reset_dsp_cores(root)),
+                ('freeze ADC calibration', lambda: self.freeze_adc_calibration(root)))
 
     def run_steps(self) -> None:
         # Polling held off: a poll mid-reset or mid-sync reads registers whose
@@ -192,6 +199,45 @@ class RfmcSetup(Setup):
             reset = root.getNode(rfmc.DSP_RESET.format(band=b))
             reset.set(1)
             reset.set(0)
+
+    @staticmethod
+    def firmware_train_adc_cal() -> Callable[[Any], None]:
+        """The firmware package's own train-and-freeze procedure, as a function of a tree.
+
+        Its root's ``TrainAdcCal`` command, taken off the class: it addresses
+        everything from ``FpgaTopLevel`` on the object it is given, so it runs on
+        any tree that offers the firmware's top level under that name.
+        """
+        from rfmc_cryo_det import Root
+        return Root._trainAdcCal
+
+    def freeze_adc_calibration(self, root: Any) -> None:
+        """Train the RF-ADC background calibration on noise, then hold its coefficients.
+
+        The converter's gain and time-skew calibration loops track the input and
+        wander while a band carries no tone, then re-converge over the first
+        channels of a frequency sweep, stepping the response by whole channels.
+        The firmware's root carries the remedy as its ``TrainAdcCal`` command:
+        release the freeze, play the DSP noise generator on every built band
+        while the loops converge, then assert ``ManualFreeze`` on all eight ADCs.
+        That procedure is run here, on this tree, rather than copied, so there is
+        one of it; what it reports goes to the server's output, and the freeze
+        state it leaves is read back and logged here. A firmware without the
+        device has no freeze to apply, and the step says so and goes on: the
+        sweep that would suffer checks the same register and warns.
+        """
+        if root.getNode(rfmc.ADC_CALIBRATION) is None:
+            _log.info("this firmware has no %s device, so its ADC calibration cannot be frozen",
+                      rfmc.ADC_CALIBRATION.rsplit('.', 1)[1])
+            return
+        procedure = self.firmware_train_adc_cal()
+        procedure(types.SimpleNamespace(FpgaTopLevel=root.getNode(rfmc.FPGA)))
+        frozen = int(root.getNode(f'{rfmc.ADC_CALIBRATION}.CalFrozen').get())
+        if frozen != 0xFF:
+            _log.warning("ADC calibration freeze: CalFrozen reads 0x%02X, expected 0xFF; the bands "
+                         "whose bit is clear will show calibration steps in a frequency sweep", frozen)
+        else:
+            _log.info("ADC calibration trained and frozen on every band (CalFrozen 0x%02X)", frozen)
 
 
 class RfmcSupport(PlatformSupport):

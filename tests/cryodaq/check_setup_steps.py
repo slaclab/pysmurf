@@ -289,6 +289,12 @@ class Status:
         self.JesdStatus = Flag()
 
 
+def firmware_train_adc_cal(firmware_root):
+    """The firmware's `TrainAdcCal` stood in for: records its call against the top level it was given."""
+    top = firmware_root.FpgaTopLevel
+    top.tree.log.append(('call', 'TrainAdcCal', top.path))
+
+
 def procedure(_setup, stem, layers=('a.yml',)):
     """A platform's procedure object, built without rogue; `attach` puts it on a tree."""
     cls = getattr(_setup, stem).__dict__[f"{stem.capitalize()}Setup"]
@@ -301,6 +307,11 @@ def procedure(_setup, stem, layers=('a.yml',)):
     setup.given_status = Status()
     if stem == 'rfmc':
         setup.lmk_config = lambda: '<lmk file>'
+        # The firmware package's train-and-freeze procedure, stood in for: the
+        # package is not importable here, and what it does inside is its own.
+        # The stand-in records the one call, on the tree of the top level it is
+        # handed, as the procedure's own nodes would.
+        setup.firmware_train_adc_cal = lambda: firmware_train_adc_cal
     # rogue's step counters, stood in for.
     setup.progress = []
     setup.setTotalSteps = lambda n: setup.progress.append(('total', n))
@@ -388,7 +399,10 @@ def check_the_rfmc_sequence_is_the_firmwares_own():
     reset pulse on every band the build carries -- with every wait bounded, the
     backplane routed to the receiver's crossbar output, the tile groups the
     firmware uses, and polling off throughout. The firmware's final health
-    check is left out, as the carrier's was.
+    check is left out, as the carrier's was. After that, the firmware's own
+    train-and-freeze of the converter's background calibration (its root's
+    `TrainAdcCal`, run on this tree's top level, stood in for here) and a
+    read-back of the freeze it left.
 
     The two lines of the firmware synchronise different ADC tile groups, and the
     procedure tells them apart by the major version the board reports: version
@@ -403,6 +417,8 @@ def check_the_rfmc_sequence_is_the_firmwares_own():
     bands = {rfmc.FIRMWARE_BAND_MASK: 0xFF}
     bands.update({f'{rfmc.BAND.format(band=b)}.enable': True for b in range(8)})
     dsp_resets = [('set', rfmc.DSP_RESET.format(band=b), v) for b in range(8) for v in (1, 0)]
+    cal_frozen = f'{rfmc.ADC_CALIBRATION}.CalFrozen'
+    bands[cal_frozen] = 0xFF
     for version, adc_tiles in ((0x01020000, 0xF), (0x02000000, 0x5)):
         _setup, root = tree('rfmc', dict(bands, **{'AMCc.PollEn': True, fpga_version: version}))
         setup = procedure(_setup, 'rfmc', layers=('d.yml',))
@@ -428,11 +444,13 @@ def check_the_rfmc_sequence_is_the_firmwares_own():
             ('call', 'AMCc.CountReset'),
             ('get', rfmc.FIRMWARE_BAND_MASK),                        # which bands the build carries
         ] + dsp_resets + [                                           # one dspReset pulse per band
+            ('call', 'TrainAdcCal', rfmc.FPGA),                      # the firmware's own, on this tree's top level
+            ('get', cal_frozen),                                     # what it left frozen, for the log
             ('set', 'AMCc.PollEn', True),
         ]
         assert root.log == expected, f'version 0x{version:08x}:\n' + '\n'.join(f'  {e}' for e in root.log)
         assert load.loads == [('d.yml',)]
-        assert setup.progress == [('total', 10)] + ['step'] * 10, setup.progress
+        assert setup.progress == [('total', 11)] + ['step'] * 11, setup.progress
         # The RFMC has no JESD links and never touches a verdict.
         assert setup.status.JesdStatus.values == []
     # A reset that does not come back, a clock that does not lock, no clock
@@ -461,6 +479,31 @@ def check_the_rfmc_sequence_is_the_firmwares_own():
             raise AssertionError(f'{step} did not fail')
         assert not [e for e in root.log if e[0] == 'load'], f'{step} failed and the layers were still loaded'
         assert root.log[-1] == ('set', 'AMCc.PollEn', True), f'polling was not restored after {step} failed'
+
+
+def check_the_rfmc_calibration_freeze_needs_the_firmwares_device():
+    """A firmware without the CalibrationFreeze device gets no training call, and the procedure still completes.
+
+    The freeze arrived with firmware v1.6.0 (v2.1.0 on the direct-RF line); a board
+    on an earlier release has nothing to freeze, and the step says so rather than
+    reaching for a device the tree lacks. The sweep that would suffer checks the
+    same register, through the map, and warns there.
+    """
+    fpga_version = f'{rfmc.CARRIER.CARRIER}.AxiVersion.FpgaVersion'
+    values = {'AMCc.PollEn': True, fpga_version: 0x01050000, rfmc.FIRMWARE_BAND_MASK: 0x01,
+              f'{rfmc.BAND.format(band=0)}.enable': True}
+    _setup, root = tree('rfmc', values)
+    device = root.by_path[rfmc.ADC_CALIBRATION]
+    parent, leaf = rfmc.ADC_CALIBRATION.rsplit('.', 1)
+    del root.by_path[parent].children[leaf]
+    for path in [p for p in root.by_path if p.startswith(rfmc.ADC_CALIBRATION)]:
+        del root.by_path[path]
+    assert root.getNode(rfmc.ADC_CALIBRATION) is None and device.path == rfmc.ADC_CALIBRATION
+    setup = procedure(_setup, 'rfmc', layers=('d.yml',))
+    with StoodInLoad(_setup):
+        run_on(setup, root)
+    assert not [e for e in root.log if 'TrainAdcCal' in e or 'CalibrationFreeze' in e[1]], root.log
+    assert root.log[-1] == ('set', 'AMCc.PollEn', True) and setup.progress.count('step') == 11, setup.progress
 
 
 def check_the_rfmc_dsp_reset_covers_only_built_and_enabled_bands():
