@@ -486,8 +486,8 @@ def check_the_rfmc_calibration_freeze_needs_the_firmwares_device():
 
     The freeze arrived with firmware v1.6.0 (v2.1.0 on the direct-RF line); a board
     on an earlier release has nothing to freeze, and the step says so rather than
-    reaching for a device the tree lacks. The sweep that would suffer checks the
-    same register, through the map, and warns there.
+    reaching for a device the tree lacks; a client reading the freeze state through
+    the map finds the register absent and says so itself.
     """
     fpga_version = f'{rfmc.CARRIER.CARRIER}.AxiVersion.FpgaVersion'
     values = {'AMCc.PollEn': True, fpga_version: 0x01050000, rfmc.FIRMWARE_BAND_MASK: 0x01,

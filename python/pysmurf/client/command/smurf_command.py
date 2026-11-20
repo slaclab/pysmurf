@@ -3747,7 +3747,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name(f'band[{band}].dsp.noise_select', **kwargs)
 
-    def get_adc_cal_frozen(self, **kwargs):
+    def get_adc_cal_frozen(self, **kwargs) -> 'int | None':
         r"""Gets which bands' RF-ADC background calibration is held.
 
         On a carrier whose converter calibrates itself in the background,
@@ -3772,10 +3772,11 @@ class SmurfCommandMixin(SmurfBase):
         if not self.platform_has('adc_calibration.frozen'):
             return None
         try:
-            return self._get_by_name('adc_calibration.frozen', **kwargs)
+            self._node('adc_calibration.frozen')
         except ValueError:
             # The map names it; this firmware lacks it.
             return None
+        return self._get_by_name('adc_calibration.frozen', **kwargs)
 
     def set_lms_delay(self, band, val, **kwargs):
         r"""Sets the LMS loop delay compensation.

@@ -1066,6 +1066,30 @@ def check_the_rfmc_composition_carries_its_converter_and_clock_file():
         raise AssertionError('an RFMC server was composed with no path to its converter')
 
 
+def check_the_rfmc_freeze_step_runs_the_packages_own_procedure():
+    """The firmware package's train-and-freeze runs on this tree and leaves the freeze asserted.
+
+    The procedure's last step hands the package's own ``TrainAdcCal`` function
+    the tree's top level, rather than copying it; what that function needs of
+    the object it is given is the package's to change, so it is run here on the
+    emulated tree built from the release -- the one gate short of a board that
+    sees a rename or a wider dependency. Emulated memory holds what is written,
+    so the manual freeze reads back asserted on every band afterwards; the
+    emulated calibration has nothing to train (the band mask reads 0, so no
+    noise generator is switched), which the function reports and the step logs.
+    """
+    from cryodaq.platform import rfmc
+    root = ROOT
+    if PLATFORM != 'rfmc':
+        assert not hasattr(root.setup, 'freeze_adc_calibration')
+        return
+    assert root.getNode(rfmc.ADC_CALIBRATION) is not None, 'this release has no CalibrationFreeze device'
+    manual = root.getNode(f'{rfmc.ADC_CALIBRATION}.ManualFreeze')
+    manual.set(0)
+    root.setup.freeze_adc_calibration(root)
+    assert manual.get() == 0xFF, f'ManualFreeze reads {manual.get():#x} after the procedure, expected 0xff'
+
+
 def check_the_defaults_a_platforms_package_ships_come_first_under_any_layer_given():
     """The RFMC loads its package's ``defaults.yml`` first and every given layer after it; the AMC, whose defaults are the population's, loads only what it is given.
 

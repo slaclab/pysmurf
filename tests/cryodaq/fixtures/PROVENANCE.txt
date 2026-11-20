@@ -15,7 +15,7 @@ Do not edit them by hand. Regenerate them with that script (its header says
 how); a hand edit is a fixture that answers a question the firmware would
 answer differently.
 
-Built at pysmurf 15d06e30-dirty.
+Built at pysmurf e0367589-dirty (amc, rfsoc) and 15d06e30-dirty (rfmc, rebuilt alone from the v1.6.0 package).
 
 amc.varlist.txt
   built from      cryo-det MicrowaveMuxBpEthGen2_v2.5.1-6-gfe6a0f50

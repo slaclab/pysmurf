@@ -10,7 +10,8 @@
 #    top level in the processor system's register window, the RF data converter
 #    as a device beside it over its own register path, and the configuration
 #    procedure that brings the board's clocks and converter up before loading
-#    the register layers. The register map beside this module is data a client
+#    the register layers and, last, trains and freezes the converter's
+#    background calibration. The register map beside this module is data a client
 #    reads without rogue; this is the server's half of the platform.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
@@ -223,8 +224,8 @@ class RfmcSetup(Setup):
         That procedure is run here, on this tree, rather than copied, so there is
         one of it; what it reports goes to the server's output, and the freeze
         state it leaves is read back and logged here. A firmware without the
-        device has no freeze to apply, and the step says so and goes on: the
-        sweep that would suffer checks the same register and warns.
+        device has no freeze to apply, and the step says so and goes on; a
+        client reading the freeze state through the map finds it absent.
         """
         if root.getNode(rfmc.ADC_CALIBRATION) is None:
             _log.info("this firmware has no %s device, so its ADC calibration cannot be frozen",
@@ -232,7 +233,7 @@ class RfmcSetup(Setup):
             return
         procedure = self.firmware_train_adc_cal()
         procedure(types.SimpleNamespace(FpgaTopLevel=root.getNode(rfmc.FPGA)))
-        frozen = int(root.getNode(f'{rfmc.ADC_CALIBRATION}.CalFrozen').get())
+        frozen = int(root.getNode(rfmc.ADC_CALIBRATION_FROZEN).get())
         if frozen != 0xFF:
             _log.warning("ADC calibration freeze: CalFrozen reads 0x%02X, expected 0xFF; the bands "
                          "whose bit is clear will show calibration steps in a frequency sweep", frozen)

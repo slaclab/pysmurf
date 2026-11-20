@@ -32,7 +32,7 @@ from cryodaq.platform import _umux
 __all__ = ['NAME', 'TAGS', 'PACKAGE_CONFIG_DIR', 'PACKAGE_DEFAULTS', 'BRING_UP', 'CARRIER', 'REGISTERS',
            'LEGACY', 'WITNESS', 'SCOPES', 'QUAD', 'RFDC', 'LMK_CONFIG', 'STARTUP_TIMING_SOURCE',
            'TIMING_RECEIVER_CROSSBAR_OUTPUT', 'BAND', 'DSP_RESET', 'FIRMWARE_BAND_MASK',
-           'ADC_CALIBRATION', 'FPGA']
+           'ADC_CALIBRATION', 'ADC_CALIBRATION_FROZEN', 'FPGA']
 
 NAME = 'umux-rfmc'
 
@@ -126,14 +126,14 @@ _V = 'value'
 # band in every register; CalFrozen reads back which ADCs are held. A firmware without
 # the device has no freeze, and the procedure says so and goes on.
 ADC_CALIBRATION = f'{_umux.APP_CORE}.CalibrationFreeze'
-_ADC_CALIBRATION_FROZEN = f'{ADC_CALIBRATION}.CalFrozen'
+ADC_CALIBRATION_FROZEN = f'{ADC_CALIBRATION}.CalFrozen'
 
 REGISTERS = {**_umux.REGISTERS, **CARRIER.registers()}
 REGISTERS.update({
     'bay[*].attenuator[*].uc': (_ATTENUATOR_UC, _V),
     'bay[*].attenuator[*].dc': (_ATTENUATOR_DC, _V),
     # Which bands' ADC calibration is held, for a sweep to check before it runs.
-    'adc_calibration.frozen': (_ADC_CALIBRATION_FROZEN, _V),
+    'adc_calibration.frozen': (ADC_CALIBRATION_FROZEN, _V),
 })
 
 LEGACY = {**_umux.LEGACY, **CARRIER.legacy()}
