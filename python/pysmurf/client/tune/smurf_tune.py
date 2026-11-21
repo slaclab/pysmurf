@@ -3556,6 +3556,20 @@ class SmurfTuneMixin(SmurfBase):
             self.log('No tone_power given. Using value in config ' +
                      f'file: {tone_power}')
 
+        # A background ADC calibration left running re-converges on the first
+        # tones of the scan and steps the response by whole channels.
+        if self.platform_has('adc_calibration.frozen'):
+            frozen = self.get_adc_cal_frozen()
+            if frozen is None:
+                self.log(f'WARNING: band {band}: this firmware has no RF-ADC calibration '
+                         'freeze, so the first channels of this sweep may step.',
+                         self.LOG_ERROR)
+            elif not (int(frozen) >> band) & 1:
+                self.log(f'WARNING: band {band}: the RF-ADC background calibration is not '
+                         f'frozen (CalFrozen=0x{int(frozen):02X}); the first channels of '
+                         'this sweep may step. setup(force_configure=True) trains and '
+                         'freezes it.', self.LOG_ERROR)
+
         self.log(f'Sweeping across frequencies {start_freq + band_center}MHz to {stop_freq + band_center}MHz')
         f, resp = self.full_band_ampl_sweep(band, subband, tone_power, n_read)
 

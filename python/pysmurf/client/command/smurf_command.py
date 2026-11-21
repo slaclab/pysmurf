@@ -3747,6 +3747,37 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._get_by_name(f'band[{band}].dsp.noise_select', **kwargs)
 
+    def get_adc_cal_frozen(self, **kwargs) -> 'int | None':
+        r"""Gets which bands' RF-ADC background calibration is held.
+
+        On a carrier whose converter calibrates itself in the background,
+        the server's setup trains that calibration on noise and freezes it,
+        since a loop left running wanders while a band carries no tone and
+        steps the response of the first channels of a sweep. This reads the
+        freeze state back, one bit per band.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed on to the register
+            read; see :func:`_caget` for the ones it accepts.
+
+        Returns
+        -------
+        val : int or None
+            A bit mask over the eight bands, 1 where the calibration is
+            frozen; None where this platform has no such calibration, or
+            its firmware predates the freeze.
+        """
+        if not self.platform_has('adc_calibration.frozen'):
+            return None
+        try:
+            self._node('adc_calibration.frozen')
+        except ValueError:
+            # The map names it; this firmware lacks it.
+            return None
+        return self._get_by_name('adc_calibration.frozen', **kwargs)
+
     def set_lms_delay(self, band, val, **kwargs):
         r"""Sets the LMS loop delay compensation.
 
