@@ -32,7 +32,7 @@ from cryodaq.platform import _umux
 __all__ = ['NAME', 'TAGS', 'PACKAGE_CONFIG_DIR', 'PACKAGE_DEFAULTS', 'BRING_UP', 'CARRIER', 'REGISTERS',
            'LEGACY', 'WITNESS', 'SCOPES', 'QUAD', 'RFDC', 'LMK_CONFIG', 'STARTUP_TIMING_SOURCE',
            'TIMING_RECEIVER_CROSSBAR_OUTPUT', 'BAND', 'DSP_RESET', 'FIRMWARE_BAND_MASK',
-           'ADC_CALIBRATION', 'ADC_CALIBRATION_FROZEN', 'FPGA']
+           'ADC_CALIBRATION', 'ADC_CALIBRATION_FROZEN', 'ADC_CALIBRATION_THRESHOLD', 'FPGA']
 
 NAME = 'umux-rfmc'
 
@@ -127,6 +127,7 @@ _V = 'value'
 # the device has no freeze, and the procedure says so and goes on.
 ADC_CALIBRATION = f'{_umux.APP_CORE}.CalibrationFreeze'
 ADC_CALIBRATION_FROZEN = f'{ADC_CALIBRATION}.CalFrozen'
+ADC_CALIBRATION_THRESHOLD = f'{ADC_CALIBRATION}.Threshold'
 
 REGISTERS = {**_umux.REGISTERS, **CARRIER.registers()}
 REGISTERS.update({

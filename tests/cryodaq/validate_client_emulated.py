@@ -1069,7 +1069,8 @@ def check_the_rfmc_composition_carries_its_converter_and_clock_file():
 def check_the_rfmc_freeze_step_runs_the_packages_own_procedure():
     """The firmware package's train-and-freeze runs on this tree and leaves the freeze asserted.
 
-    The procedure's last step hands the package's own ``TrainAdcCal`` function
+    The procedure's last step hands the package's own train-and-freeze function
+    (``train_adc_cal`` since v2.1.1, the root's ``TrainAdcCal`` method before it)
     the tree's top level, rather than copying it; what that function needs of
     the object it is given is the package's to change, so it is run here on the
     emulated tree built from the release -- the one gate short of a board that

@@ -289,10 +289,17 @@ class Status:
         self.JesdStatus = Flag()
 
 
-def firmware_train_adc_cal(firmware_root):
-    """The firmware's `TrainAdcCal` stood in for: records its call against the top level it was given."""
-    top = firmware_root.FpgaTopLevel
+STOOD_IN_TRAINING_LEVEL = {0: 500, 3: 20}
+
+
+def firmware_train_adc_cal(top):
+    """The package's `train_adc_cal` stood in for: records its call against the top level it was given.
+
+    Returns a training level per band as the public function does (one band above
+    the firmware's default Threshold of 416, one below), so the step's logging of
+    it runs."""
     top.tree.log.append(('call', 'TrainAdcCal', top.path))
+    return dict(STOOD_IN_TRAINING_LEVEL)
 
 
 def procedure(_setup, stem, layers=('a.yml',)):
@@ -418,7 +425,8 @@ def check_the_rfmc_sequence_is_the_firmwares_own():
     bands.update({f'{rfmc.BAND.format(band=b)}.enable': True for b in range(8)})
     dsp_resets = [('set', rfmc.DSP_RESET.format(band=b), v) for b in range(8) for v in (1, 0)]
     cal_frozen = f'{rfmc.ADC_CALIBRATION}.CalFrozen'
-    bands[cal_frozen] = 0xFF
+    threshold = f'{rfmc.ADC_CALIBRATION}.Threshold'
+    bands.update({cal_frozen: 0xFF, threshold: 416})
     for version, adc_tiles in ((0x01020000, 0xF), (0x02000000, 0x5)):
         _setup, root = tree('rfmc', dict(bands, **{'AMCc.PollEn': True, fpga_version: version}))
         setup = procedure(_setup, 'rfmc', layers=('d.yml',))
@@ -444,8 +452,9 @@ def check_the_rfmc_sequence_is_the_firmwares_own():
             ('call', 'AMCc.CountReset'),
             ('get', rfmc.FIRMWARE_BAND_MASK),                        # which bands the build carries
         ] + dsp_resets + [                                           # one dspReset pulse per band
-            ('call', 'TrainAdcCal', rfmc.FPGA),                      # the firmware's own, on this tree's top level
+            ('call', 'TrainAdcCal', rfmc.FPGA),                      # the package's own, on this tree's top level
             ('get', cal_frozen),                                     # what it left frozen, for the log
+            ('get', threshold),                                      # what the training level it returned is judged against
             ('set', 'AMCc.PollEn', True),
         ]
         assert root.log == expected, f'version 0x{version:08x}:\n' + '\n'.join(f'  {e}' for e in root.log)
@@ -504,6 +513,40 @@ def check_the_rfmc_calibration_freeze_needs_the_firmwares_device():
         run_on(setup, root)
     assert not [e for e in root.log if 'TrainAdcCal' in e or 'CalibrationFreeze' in e[1]], root.log
     assert root.log[-1] == ('set', 'AMCc.PollEn', True) and setup.progress.count('step') == 11, setup.progress
+
+
+def check_the_rfmc_freeze_step_takes_the_packages_public_function_and_falls_back_to_its_root():
+    """The step runs `rfmc_cryo_det.train_adc_cal` where the package has it, else the root's method on a stand-in.
+
+    The public function arrived with release v2.1.1 and returns the training
+    level; the version-1 line (through v1.6.0) has only the root's `TrainAdcCal`,
+    which addresses everything from `self.FpgaTopLevel` and returns nothing. Both
+    shapes are stood in for here, as modules, and the procedure resolved under
+    each is called on a top level: the public one receives it as is, the root's
+    receives an object carrying it as `FpgaTopLevel`.
+    """
+    _setup, _ = tree('rfmc', {})
+    resolve = _setup.rfmc.RfmcSetup.firmware_train_adc_cal
+    top = object()
+    calls = []
+    public = types.ModuleType('rfmc_cryo_det')
+    public.train_adc_cal = lambda top_level: calls.append(('public', top_level)) or {0: 500}
+    public.Root = type('Root', (), {'_trainAdcCal': lambda self: calls.append(('root', self))})
+    old_line = types.ModuleType('rfmc_cryo_det')
+    old_line.Root = type('Root', (), {'_trainAdcCal': lambda self: calls.append(('root', self))})
+    saved = sys.modules.get('rfmc_cryo_det')
+    try:
+        sys.modules['rfmc_cryo_det'] = public
+        assert resolve()(top) == {0: 500}
+        sys.modules['rfmc_cryo_det'] = old_line
+        assert resolve()(top) is None
+    finally:
+        if saved is None:
+            sys.modules.pop('rfmc_cryo_det', None)
+        else:
+            sys.modules['rfmc_cryo_det'] = saved
+    assert len(calls) == 2 and calls[0] == ('public', top), calls
+    assert calls[1][0] == 'root' and calls[1][1].FpgaTopLevel is top and vars(calls[1][1]) == {'FpgaTopLevel': top}, calls
 
 
 def check_the_rfmc_dsp_reset_covers_only_built_and_enabled_bands():

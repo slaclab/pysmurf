@@ -28,7 +28,7 @@ import importlib.resources
 import logging
 import time
 import types
-from typing import Any, Callable, List, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from cryodaq._errors import ConnectError
 from cryodaq.platform import rfmc
@@ -202,15 +202,24 @@ class RfmcSetup(Setup):
             reset.set(0)
 
     @staticmethod
-    def firmware_train_adc_cal() -> Callable[[Any], None]:
-        """The firmware package's own train-and-freeze procedure, as a function of a tree.
+    def firmware_train_adc_cal() -> Callable[[Any], 'Optional[Dict[int, int]]']:
+        """The firmware package's own train-and-freeze procedure, as a function of its top level.
 
-        Its root's ``TrainAdcCal`` command, taken off the class: it addresses
-        everything from ``FpgaTopLevel`` on the object it is given, so it runs on
-        any tree that offers the firmware's top level under that name.
+        ``rfmc_cryo_det.train_adc_cal`` since release v2.1.1: it takes the
+        firmware's ``FpgaTopLevel`` device of any tree and returns the training
+        ``Magnitude`` it read per band. Releases before it (the version-1 line
+        through v1.6.0) carry the same procedure only as their root's
+        ``TrainAdcCal`` command, addressing everything from ``self.FpgaTopLevel``;
+        that one is run on a one-attribute stand-in and returns nothing.
         """
-        from rfmc_cryo_det import Root
-        return Root._trainAdcCal
+        import rfmc_cryo_det
+        public = getattr(rfmc_cryo_det, 'train_adc_cal', None)
+        if public is not None:
+            return public
+
+        def on_a_stand_in(top_level: Any) -> None:
+            rfmc_cryo_det.Root._trainAdcCal(types.SimpleNamespace(FpgaTopLevel=top_level))
+        return on_a_stand_in
 
     def freeze_adc_calibration(self, root: Any) -> None:
         """Train the RF-ADC background calibration on noise, then hold its coefficients.
@@ -218,27 +227,34 @@ class RfmcSetup(Setup):
         The converter's gain and time-skew calibration loops track the input and
         wander while a band carries no tone, then re-converge over the first
         channels of a frequency sweep, stepping the response by whole channels.
-        The firmware's root carries the remedy as its ``TrainAdcCal`` command:
+        The firmware package carries the remedy as its train-and-freeze procedure:
         release the freeze, play the DSP noise generator on every built band
         while the loops converge, then assert ``ManualFreeze`` on all eight ADCs.
-        That procedure is run here, on this tree, rather than copied, so there is
-        one of it; what it reports goes to the server's output, and the freeze
-        state it leaves is read back and logged here. A firmware without the
-        device has no freeze to apply, and the step says so and goes on; a
-        client reading the freeze state through the map finds it absent.
+        That procedure is run here, on this tree's top level, rather than copied,
+        so there is one of it; it logs its own checks (a band trained below
+        ``Threshold``, a freeze that did not take), and the freeze state it leaves
+        is read back and logged here with the training level it returns, so the
+        record says what the frozen coefficients were trained on. A firmware
+        without the device has no freeze to apply, and the step says so and goes
+        on; a client reading the freeze state through the map finds it absent.
         """
         if root.getNode(rfmc.ADC_CALIBRATION) is None:
             _log.info("this firmware has no %s device, so its ADC calibration cannot be frozen",
                       rfmc.ADC_CALIBRATION.rsplit('.', 1)[1])
             return
-        procedure = self.firmware_train_adc_cal()
-        procedure(types.SimpleNamespace(FpgaTopLevel=root.getNode(rfmc.FPGA)))
+        magnitude = self.firmware_train_adc_cal()(root.getNode(rfmc.FPGA))
         frozen = int(root.getNode(rfmc.ADC_CALIBRATION_FROZEN).get())
+        if magnitude is None:
+            level = "training level not reported by this firmware package"
+        else:
+            threshold = int(root.getNode(rfmc.ADC_CALIBRATION_THRESHOLD).get())
+            per_band = ', '.join(f'{b}: {int(m)}' for b, m in sorted(magnitude.items()))
+            level = f"training Magnitude per band {{{per_band}}} against Threshold {threshold}"
         if frozen != 0xFF:
             _log.warning("ADC calibration freeze: CalFrozen reads 0x%02X, expected 0xFF; the bands "
-                         "whose bit is clear will show calibration steps in a frequency sweep", frozen)
+                         "whose bit is clear will show calibration steps in a frequency sweep (%s)", frozen, level)
         else:
-            _log.info("ADC calibration trained and frozen on every band (CalFrozen 0x%02X)", frozen)
+            _log.info("ADC calibration trained and frozen on every band (CalFrozen 0x%02X; %s)", frozen, level)
 
 
 class RfmcSupport(PlatformSupport):
