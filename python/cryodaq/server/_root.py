@@ -281,7 +281,7 @@ class ReadoutRoot(pyrogue.Root):
         # Variable updates must not interleave with configuration.
         self.setup.UpdatePeriod.set(0.0)
         if self._configure:
-            self.setup._process()
+            self.setup._configure()
         if self._on_start is not None:
             self._on_start(self)
         self.Ready.set(True)

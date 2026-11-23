@@ -1103,19 +1103,22 @@ def check_the_rfmc_freeze_step_runs_the_packages_own_procedure():
     memory[mask.address] = (1 << on) | (1 << off)
     try:
         # The firmware enables a band's device from its bit of the mask once the mask has
-        # been read back as part of a read of the whole tree -- the read the configuration
-        # procedure makes, after which it too waits for the enables. A device still
-        # disabled takes a write into rogue's shadow and never into the memory, where the
-        # function would then find the old value and faithfully restore it; so the two
-        # bands are waited for, and the prepared value is required to be in the memory
-        # before the function runs.
+        # been read back -- by the root's initial read at start, or by a read of the whole
+        # tree -- and rogue's update thread has recomputed the enable from it. A device
+        # still disabled takes a write into rogue's shadow and never into the memory,
+        # where the function would then find the old value and faithfully restore it; so
+        # the two bands are waited for, and the prepared value is required to be in the
+        # memory before the function runs.
         root.ReadAll()
         assert mask.value() == 0x60, f'the planted band mask reads {mask.value():#x}'
-        # The firmware allows 30 s for the band devices to enable after that read; the
-        # update of every variable the read touched runs first, and emulation is slow at it.
-        deadline = time.monotonic() + 30.0
-        while any(noise[b].parent.enable.value() is not True for b in (on, off)) and time.monotonic() < deadline:
-            time.sleep(0.1)
+        # The enables follow the mask through the update of every variable the read
+        # touched, which rogue's update thread runs after the read returns (tens of
+        # seconds in emulation); the barrier is waited on, as the configuration procedure
+        # waits before reporting its end -- here from a thread, so the wait is bounded.
+        barrier = threading.Thread(target=root.waitOnUpdate, daemon=True)
+        barrier.start()
+        barrier.join(120.0)
+        assert not barrier.is_alive(), 'the update pass after the read did not end in 120 s'
         if not all(noise[b].parent.enable.value() is True for b in (on, off)):
             link = root.getNode(f'{rfmc.ADC_CALIBRATION.rsplit(".", 1)[0]}.BUILD_DSP_G_{on}')
             probe = dict(link_value=link.value(), link_get=link.get(), enable_after=noise[on].parent.enable.value(),
@@ -1123,7 +1126,7 @@ def check_the_rfmc_freeze_step_runs_the_packages_own_procedure():
                          queue=root._updateQueue.qsize(),
                          track={tid: (t._count, len(t._list)) for tid, t in root._updateTrack.items()},
                          me=threading.get_ident(), threads=sorted(t.name for t in threading.enumerate()))
-            raise AssertionError(f'the planted mask did not enable bands {on} and {off} within 30 s: {probe}')
+            raise AssertionError(f'the planted mask did not enable bands {on} and {off} once the update pass ended: {probe}')
         noise[on].set(1)                         # one generator on, one off, one untouched
         noise[off].set(0)
         noise[idle].set(1)
