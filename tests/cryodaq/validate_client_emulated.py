@@ -1075,9 +1075,15 @@ def check_the_rfmc_freeze_step_runs_the_packages_own_procedure():
     the object it is given is the package's to change, so it is run here on the
     emulated tree built from the release -- the one gate short of a board that
     sees a rename or a wider dependency. Emulated memory holds what is written,
-    so the manual freeze reads back asserted on every band afterwards; the
-    emulated calibration has nothing to train (the band mask reads 0, so no
-    noise generator is switched), which the function reports and the step logs.
+    so the manual freeze reads back asserted on every band afterwards.
+
+    An emulated band mask reads 0, which would let the function train nothing
+    and the check see only the final freeze write, so a mask of two bands is
+    planted in the emulated memory underneath the read-only register, as the
+    build stamp is: the function must then switch and restore those bands'
+    noise generators, and report a training level for those two bands and no
+    other. The mask is cleared again after, so the checks that follow see the
+    tree they expect.
     """
     from cryodaq.platform import rfmc
     root = ROOT
@@ -1086,9 +1092,61 @@ def check_the_rfmc_freeze_step_runs_the_packages_own_procedure():
         return
     assert root.getNode(rfmc.ADC_CALIBRATION) is not None, 'this release has no CalibrationFreeze device'
     manual = root.getNode(f'{rfmc.ADC_CALIBRATION}.ManualFreeze')
-    manual.set(0)
-    root.setup.freeze_adc_calibration(root)
-    assert manual.get() == 0xFF, f'ManualFreeze reads {manual.get():#x} after the procedure, expected 0xff'
+    auto_enable = root.getNode(f'{rfmc.ADC_CALIBRATION}.AutoEnable')
+    # Two bands no other check drives (the client checks work band 0), one left out of
+    # the mask: 0x60.
+    on, off, idle = 5, 6, 3
+    mask = root.getNode(rfmc.FIRMWARE_BAND_MASK)
+    noise = {b: root.getNode(f'{rfmc.BAND.format(band=b)}.noiseSelect') for b in (on, off, idle)}
+    memory = root._transport.srp._data
+    was = memory.get(mask.address, 0)
+    memory[mask.address] = (1 << on) | (1 << off)
+    try:
+        # The firmware enables a band's device from its bit of the mask once the mask has
+        # been read back as part of a read of the whole tree -- the read the configuration
+        # procedure makes, after which it too waits for the enables. A device still
+        # disabled takes a write into rogue's shadow and never into the memory, where the
+        # function would then find the old value and faithfully restore it; so the two
+        # bands are waited for, and the prepared value is required to be in the memory
+        # before the function runs.
+        root.ReadAll()
+        assert mask.value() == 0x60, f'the planted band mask reads {mask.value():#x}'
+        # The firmware allows 30 s for the band devices to enable after that read; the
+        # update of every variable the read touched runs first, and emulation is slow at it.
+        deadline = time.monotonic() + 30.0
+        while any(noise[b].parent.enable.value() is not True for b in (on, off)) and time.monotonic() < deadline:
+            time.sleep(0.1)
+        if not all(noise[b].parent.enable.value() is True for b in (on, off)):
+            link = root.getNode(f'{rfmc.ADC_CALIBRATION.rsplit(".", 1)[0]}.BUILD_DSP_G_{on}')
+            probe = dict(link_value=link.value(), link_get=link.get(), enable_after=noise[on].parent.enable.value(),
+                         enable_deps=[d.path for d in getattr(noise[on].parent.enable, '_deps', [])],
+                         queue=root._updateQueue.qsize(),
+                         track={tid: (t._count, len(t._list)) for tid, t in root._updateTrack.items()},
+                         me=threading.get_ident(), threads=sorted(t.name for t in threading.enumerate()))
+            raise AssertionError(f'the planted mask did not enable bands {on} and {off} within 30 s: {probe}')
+        noise[on].set(1)                         # one generator on, one off, one untouched
+        noise[off].set(0)
+        noise[idle].set(1)
+        auto_enable.set(0)
+        manual.set(0)
+        assert memory.get(noise[on].address) == 1 << noise[on].bitOffset[0], \
+            f'the noise select of band {on} was not written to the emulated memory (device enabled: ' \
+            f'{noise[on].parent.enable.value()}); the function would restore the old value'
+
+        def generators():
+            return (noise[on].get(), noise[off].get(), noise[idle].get())
+        root.setup.freeze_adc_calibration(root)
+        assert manual.get() == 0xFF, f'ManualFreeze reads {manual.get():#x} after the procedure, expected 0xff'
+        levels = root.setup.firmware_train_adc_cal()(root.getNode(rfmc.FPGA))
+        assert sorted(levels) == [on, off], f'the function trained bands {sorted(levels)}, the mask names [5, 6]'
+        assert generators() == (1, 0, 1), ('the band noise generators were not restored to what they were before the '
+                                           f'training: bands (5, 6, 3) read {generators()}, were (1, 0, 1)')
+        assert auto_enable.get() == 0, f'AutoEnable reads {auto_enable.get():#x} after the procedure, was 0'
+    finally:
+        for node in noise.values():
+            node.set(0)
+        memory[mask.address] = was
+        root.ReadAll()
 
 
 def check_the_defaults_a_platforms_package_ships_come_first_under_any_layer_given():
