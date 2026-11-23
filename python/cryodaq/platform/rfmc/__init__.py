@@ -119,12 +119,14 @@ _ATTENUATOR_UC = f'{_ATTENUATORS}.UC[{{attenuator}}]'
 _ATTENUATOR_DC = f'{_ATTENUATORS}.DC[{{attenuator}}]'
 _V = 'value'
 
-# The RF-ADC background calibration freeze (firmware v1.6.0 / v2.1.0 and later): the
-# converter's gain and time-skew calibration loops track the input and wander while a
-# band carries no tone, then re-converge over the first channels of a sweep, so the
-# configuration procedure trains them on noise and holds their coefficients. One bit per
-# band in every register; CalFrozen reads back which ADCs are held. A firmware without
-# the device has no freeze, and the procedure says so and goes on.
+# The RF-ADC background calibration freeze: the converter's gain and time-skew
+# calibration loops track the input and wander while a band carries no tone, then
+# re-converge over the first channels of a sweep, so the configuration procedure trains
+# them on noise and holds their coefficients. The device and the package function that
+# runs the training are required of the firmware (releases v1.6.1 / v2.1.1 on; earlier
+# releases were never deployed): without them the procedure fails at that step.
+# CalFrozen reads back which ADCs are held, one bit per band; Threshold is the scalar
+# the training level is judged against.
 ADC_CALIBRATION = f'{_umux.APP_CORE}.CalibrationFreeze'
 ADC_CALIBRATION_FROZEN = f'{ADC_CALIBRATION}.CalFrozen'
 ADC_CALIBRATION_THRESHOLD = f'{ADC_CALIBRATION}.Threshold'
