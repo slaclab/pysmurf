@@ -213,18 +213,63 @@ class Setup(pyrogue.Process):
                 raise StepError(f"{name}: {e}") from e
             self.incrementSteps()
 
+    def _run(self) -> None:
+        """What a client's ``Start`` runs: rogue's runner, with `_configure` as its body.
+
+        rogue's own runner would run ``_process`` inside the update group and
+        drop ``Running`` as soon as it returned; a client that waits on
+        ``Running`` (the session's `call` does) would then find the server
+        still in the update pass `_configure` waits for. So ``Running`` spans
+        the whole of `_configure`, and the rest is as rogue does it.
+        """
+        self.Running.set(True)
+        try:
+            self._configure()
+        except Exception as e:                                       # noqa: BLE001
+            pyrogue.logException(self._log, e)
+            self.Message.setDisp("Stopped after error!")
+        self.Running.set(False)
+
+    def _configure(self) -> None:
+        """Configure, and report the system configuring until the server is quiet again.
+
+        The steps run inside one update group, as rogue runs any process --
+        ``UpdatePeriod`` is 0, so no variable update interleaves with the
+        configuration -- and every variable the steps touched, with every
+        link variable depending on one, is queued as that one group when the
+        steps end; rogue's update thread then works through the group, and
+        every request the server receives meanwhile waits behind it. The
+        system is not ready to be driven until that pass is over, so the
+        in-progress flag a client waits on drops only after the pass: rogue's
+        barrier (`Root.waitOnUpdate`), called outside the group as rogue says
+        to, returns when the update thread reaches the updates queued so far.
+        """
+        status = self.status
+        try:
+            status.ConfiguringInProgress.set(True)
+            with self.root.updateGroup(period=self.UpdatePeriod.value()):
+                self._process()
+            try:
+                self.root.waitOnUpdate()
+            except Exception as e:                                   # noqa: BLE001
+                # The steps are done; the quiet server the flag promises is not.
+                _log.error("configuration procedure: the wait for the update pass failed: %s", e)
+                self.Message.setDisp(f"Error: the wait for the update pass failed: {e}")
+                status.SystemConfigured.set(False)
+        finally:
+            status.ConfiguringInProgress.set(False)
+
     def _process(self) -> None:
         status = self.status
         # Every write here is inside the try, so a failure anywhere -- a step,
         # or the bookkeeping around one -- still ends with the system reported
-        # unconfigured and no longer configuring. The cause goes to the log and
-        # to Message; rogue's own runner overwrites Message with its generic
-        # text when an exception escapes, so none is allowed to. Message is
-        # published before the in-progress flag drops: a client waits on the
-        # flag and then reads the message, so the order is what it sees.
+        # unconfigured. The cause goes to the log and to Message; rogue's
+        # runner overwrites Message with its generic text when an exception
+        # escapes, so none is allowed to. Message is published before the
+        # in-progress flag drops (`_configure`): a client waits on the flag and
+        # then reads the message, so the order is what it sees.
         failed: Optional[str] = 'did not run to the end'
         try:
-            status.ConfiguringInProgress.set(True)
             status.SystemConfigured.set(False)
             self.Message.setDisp('Running')
             self.run()
@@ -237,7 +282,6 @@ class Setup(pyrogue.Process):
             self.Message.setDisp('Done' if success else f"Error: {failed}")
             status.SystemConfigured.set(success)
             self.setProgress(1.0)
-            status.ConfiguringInProgress.set(False)
 
 
 

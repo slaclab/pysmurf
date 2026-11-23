@@ -28,6 +28,7 @@
 #-----------------------------------------------------------------------------
 
 import argparse
+import contextlib
 import logging
 import os
 import pathlib
@@ -188,6 +189,17 @@ class StandInRoot(Node):
     def getNode(self, path):
         return self.by_path.get(path)
 
+    @contextlib.contextmanager
+    def updateGroup(self, period=0):
+        self.log.append(('update_group', 'enter', period))
+        try:
+            yield
+        finally:
+            self.log.append(('update_group', 'exit'))
+
+    def waitOnUpdate(self):
+        self.log.append(('wait_on_update',))
+
 
 class RfmcCarrierCore(Node):
     """The RFMC's carrier core stood in for: the three bring-up helpers its class adds.
@@ -319,7 +331,10 @@ def procedure(_setup, stem, layers=('a.yml',)):
         # The stand-in records the one call, on the tree of the top level it is
         # handed, as the procedure's own nodes would.
         setup.firmware_train_adc_cal = lambda: firmware_train_adc_cal
-    # rogue's step counters, stood in for.
+    # rogue's process variables, stood in for: the update-group period the runner
+    # reads, the running flag it writes, the step counters.
+    setup.UpdatePeriod = Flag(0.0)
+    setup.Running = Flag(False)
     setup.progress = []
     setup.setTotalSteps = lambda n: setup.progress.append(('total', n))
     setup.incrementSteps = lambda: setup.progress.append('step')
@@ -750,6 +765,62 @@ def check_a_load_that_keeps_failing_reports_the_loaders_last_message():
         assert root.LoadConfigProcess.started == [d, d], 'a Done on the second try did not end the load'
 
 
+def check_the_procedure_stays_in_progress_until_the_update_pass_is_over():
+    """The steps run in one update group; the in-progress flag drops only after the group's updates are processed.
+
+    The read-all and the layers' load queue every variable they touched, and
+    every link variable depending on one, as a single group when the steps
+    end; rogue's update thread then holds the server for as long as that
+    takes, every request waiting behind it. So the wait for that pass (rogue's
+    barrier, outside the group as rogue requires) comes before the flag a
+    client waits on, on every platform.
+    """
+    rfmc_version = {f'{rfmc.CARRIER.CARRIER}.AxiVersion.FpgaVersion': 0x02010000}
+    for stem, values in (('amc', aligned_lanes({})), ('rfmc', rfmc_version)):
+        _setup, root = tree(stem, values)
+        setup = attach(procedure(_setup, stem), root)
+        status = setup.status
+        status.ConfiguringInProgress.set = lambda v, root=root: root.log.append(('in_progress', v))
+        setup.Running.set = lambda v, root=root: root.log.append(('running', v))
+        setup.Message = types.SimpleNamespace(setDisp=lambda v, root=root: root.log.append(('message', v)))
+        setup.setProgress = lambda p: None
+        with StoodInLoad(_setup):
+            setup._run()
+        log = root.log
+        kinds = [e[0] for e in log]
+        assert kinds.count('wait_on_update') == 1, f"{stem}: waits {kinds.count('wait_on_update')}"
+        enter, wait = kinds.index('update_group'), kinds.index('wait_on_update')
+        exit_ = len(kinds) - 1 - kinds[::-1].index('update_group')
+        assert log[enter] == ('update_group', 'enter', 0.0) and log[exit_] == ('update_group', 'exit'), (log[enter], log[exit_])
+        # Every step's register traffic, and the verdict, inside the group; the wait outside it.
+        assert enter < kinds.index('call') and exit_ > len(kinds) - 1 - kinds[::-1].index('call'), stem
+        assert exit_ < wait, f"{stem}: the wait is inside the update group"
+        assert log.index(('message', 'Done')) < wait < log.index(('in_progress', False)), f"{stem}: {kinds}"
+        assert kinds.index('in_progress') < enter, f"{stem}: configuring reported only after the group opened"
+        # Both flags a client may wait on -- rogue's Running (the session's call) and the
+        # procedure's own -- rise before the group and fall only after the wait.
+        assert log.index(('running', True)) < kinds.index('in_progress') and wait < log.index(('running', False)), \
+            f"{stem}: {[e for e in log if e[0] in ('running', 'in_progress', 'wait_on_update')]}"
+        assert status.SystemConfigured.values[-1] is True
+
+    # A barrier that raises: the steps succeeded, but the quiet server the flag promises
+    # did not come -- reported unconfigured, the cause in Message, the flag still dropping.
+    _setup, root = tree('amc', aligned_lanes({}))
+    setup = attach(procedure(_setup, 'amc'), root)
+    setup.Message = types.SimpleNamespace(setDisp=lambda v, root=root: root.log.append(('message', v)))
+    setup.setProgress = lambda p: None
+
+    def failing_barrier():
+        raise RuntimeError('stood-in barrier failed')
+    root.waitOnUpdate = failing_barrier
+    with StoodInLoad(_setup):
+        setup._run()
+    messages = [e[1] for e in root.log if e[0] == 'message']
+    assert messages[-1] == 'Error: the wait for the update pass failed: stood-in barrier failed', messages
+    assert setup.status.SystemConfigured.values == [False, True, False], setup.status.SystemConfigured.values
+    assert setup.status.ConfiguringInProgress.values == [True, False], setup.status.ConfiguringInProgress.values
+
+
 def check_a_failing_step_ends_the_procedure_unconfigured():
     """A step that raises leaves SystemConfigured false and its message in Message; the links' verdict follows."""
     _setup, root = tree('amc', aligned_lanes({}))
@@ -771,7 +842,7 @@ def check_a_failing_step_ends_the_procedure_unconfigured():
     setup.Message = Message()
     setup.setProgress = lambda p: None
     with StoodInLoad(_setup, fail=True):
-        setup._process()
+        setup._configure()
     assert status.SystemConfigured.values == [False, False], status.SystemConfigured.values
     assert status.ConfiguringInProgress.values == [True, False]
     # The carrier reports its links unlocked when a step fails, locked when the run ends well.
@@ -782,7 +853,7 @@ def check_a_failing_step_ends_the_procedure_unconfigured():
     # a client waiting on the flag then reads.
     assert order.index('message') < order.index('in_progress_false'), order
     with StoodInLoad(_setup):
-        setup._process()
+        setup._configure()
     assert status.SystemConfigured.values[-1] is True
     assert status.JesdStatus.values == [_setup.amc.AmcSetup.JESD_UNLOCKED, _setup.amc.AmcSetup.JESD_LOCKED], status.JesdStatus.values
     assert Message.text == 'Done', Message.text
