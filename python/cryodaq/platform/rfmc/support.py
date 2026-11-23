@@ -10,7 +10,8 @@
 #    top level in the processor system's register window, the RF data converter
 #    as a device beside it over its own register path, and the configuration
 #    procedure that brings the board's clocks and converter up before loading
-#    the register layers. The register map beside this module is data a client
+#    the register layers and, last, trains and freezes the converter's
+#    background calibration. The register map beside this module is data a client
 #    reads without rogue; this is the server's half of the platform.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
@@ -24,12 +25,15 @@
 import atexit
 import contextlib
 import importlib.resources
+import logging
 import time
-from typing import Any, Callable, List, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Sequence, Tuple
 
 from cryodaq._errors import ConnectError
 from cryodaq.platform import rfmc
 from cryodaq.server._setup import PlatformSupport, Setup, StepError, load_layers
+
+_log = logging.getLogger(__name__)
 
 __all__ = ['RfmcSupport', 'RfmcSetup']
 
@@ -51,7 +55,9 @@ class RfmcSetup(Setup):
     uses at start: reset the user logic, route a timing source to the receiver,
     program the clock chips from the vendor's register file, wait for the DSP
     clock, initialise the RF data converter, read the tree, synchronise the
-    converter tiles, load the layers, reset the counters, reset the DSP cores.
+    converter tiles, load the layers, reset the counters, reset the DSP cores --
+    and then train and freeze the converter's background calibration, as the
+    firmware's root does on request.
     The converter is a device of its own on the root, reached over a second
     register path to the processor system, not a child of the FPGA's tree.
 
@@ -94,7 +100,8 @@ class RfmcSetup(Setup):
                 ('sync converter tiles', lambda: self.sync_converter_tiles(carrier, rfdc)),
                 ('load layers', lambda: load_layers(root, self.layers)),
                 ('reset counters', root.CountReset),
-                ('reset DSP cores', lambda: self.reset_dsp_cores(root)))
+                ('reset DSP cores', lambda: self.reset_dsp_cores(root)),
+                ('freeze ADC calibration', lambda: self.freeze_adc_calibration(root)))
 
     def run_steps(self) -> None:
         # Polling held off: a poll mid-reset or mid-sync reads registers whose
@@ -192,6 +199,43 @@ class RfmcSetup(Setup):
             reset = root.getNode(rfmc.DSP_RESET.format(band=b))
             reset.set(1)
             reset.set(0)
+
+    @staticmethod
+    def firmware_train_adc_cal() -> Callable[[Any], Dict[int, int]]:
+        """The firmware package's own train-and-freeze procedure, as a function of its top level.
+
+        ``rfmc_cryo_det.train_adc_cal`` (releases v1.6.1 and v2.1.1 on): it takes
+        the firmware's ``FpgaTopLevel`` device of any tree and returns the training
+        ``Magnitude`` it read per band.
+        """
+        from rfmc_cryo_det import train_adc_cal
+        return train_adc_cal
+
+    def freeze_adc_calibration(self, root: Any) -> None:
+        """Train the RF-ADC background calibration on noise, then hold its coefficients.
+
+        The converter's gain and time-skew calibration loops track the input and
+        wander while a band carries no tone, then re-converge over the first
+        channels of a frequency sweep, stepping the response by whole channels.
+        The firmware package carries the remedy as its train-and-freeze procedure:
+        release the freeze, play the DSP noise generator on every built band
+        while the loops converge, then assert ``ManualFreeze`` on all eight ADCs.
+        That procedure is run here, on this tree's top level, rather than copied,
+        so there is one of it; it logs its own checks (a band trained below
+        ``Threshold``, a freeze that did not take), and the freeze state it leaves
+        is read back and logged here with the training level it returns, so the
+        record says what the frozen coefficients were trained on.
+        """
+        magnitude = self.firmware_train_adc_cal()(root.getNode(rfmc.FPGA))
+        frozen = int(root.getNode(rfmc.ADC_CALIBRATION_FROZEN).get())
+        threshold = int(root.getNode(rfmc.ADC_CALIBRATION_THRESHOLD).get())
+        per_band = ', '.join(f'{b}: {int(m)}' for b, m in sorted(magnitude.items()))
+        level = f"training Magnitude per band {{{per_band}}} against Threshold {threshold}"
+        if frozen != 0xFF:
+            _log.warning("ADC calibration freeze: CalFrozen reads 0x%02X, expected 0xFF; the bands "
+                         "whose bit is clear will show calibration steps in a frequency sweep (%s)", frozen, level)
+        else:
+            _log.info("ADC calibration trained and frozen on every band (CalFrozen 0x%02X; %s)", frozen, level)
 
 
 class RfmcSupport(PlatformSupport):

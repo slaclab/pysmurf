@@ -66,18 +66,21 @@ FW_SYSTEMS=(
     # the release zip follows rogue_<tag>.zip naming. Its register defaults are in the package itself.
     # Two firmware lines are released in parallel: version 1 (baseband, with the mixer daughter
     # cards) and version 2 (direct RF sampling). One archive per image name is all the launcher
-    # accepts, so one line ships: v1.6.0, a new image (0x01060000) built on cryo-det v2.8.0.
+    # accepts, so one line ships: v1.6.1, the v1.6.0 image (0x01060000, built on cryo-det v2.8.0)
+    # with the package of release v1.6.1.
     # v1.2.1 was the first RFMC release whose package leaves the tuning operations to pysmurf;
-    # v1.6.0 keeps the host fixes made since: the DSP cores reset at start-up, the high-speed
+    # v1.6.x keeps the host fixes made since: the DSP cores reset at start-up, the high-speed
     # ADC NCO restore, the LMK04828 lock detect layout, the low-side LO PLLs driving the mixers
     # inside their LO range, the RF frame set in the data converter's lane mapping instead of by
     # per-band IQ swaps in the DSP (v1.5.0: every band runs with the swaps at 0 and the raw
     # ADC/DAC captures full_band_resp cross-correlates are no longer mirrored), and -- new in
     # v1.6.0 -- the RF-ADC background calibration freeze (the CalibrationFreeze block), so a
-    # frequency sweep no longer sees the calibration retrain under it. The linux.tar.gz is the
-    # boot image the launcher copies to the carrier's processor system when the FPGA runs
-    # something else. The version 2 line (v2.0.0) still carries the tuning operations.
-    "rfmc|https://github.com/slaclab/rfmc-cryo-det|MicrowaveMuxRfmcCarrier_v1.6.0|MicrowaveMuxRfmcCarrier-0x01060000-20261117161954-ruckman-7de6ea8.linux.tar.gz|rogue_MicrowaveMuxRfmcCarrier_v1.6.0.zip"
+    # frequency sweep no longer sees the calibration retrain under it; v1.6.1 exports the
+    # train-and-freeze procedure as the function the configuration procedure calls
+    # (rfmc_cryo_det.train_adc_cal). The linux.tar.gz is the boot image the launcher copies
+    # to the carrier's processor system when the FPGA runs something else. The version 2 line
+    # (v2.1.1) has the same freeze and function.
+    "rfmc|https://github.com/slaclab/rfmc-cryo-det|MicrowaveMuxRfmcCarrier_v1.6.1|MicrowaveMuxRfmcCarrier-0x01060000-20261117161954-ruckman-7de6ea8.linux.tar.gz|rogue_MicrowaveMuxRfmcCarrier_v1.6.1.zip"
 
     # Add additional systems below, one per line:
     # "mysystem|https://github.com/slaclab/my-repo|v1.2.3|MyFirmware-0x01020000-date-hash.mcs"   (the image name carries major.minor only)
