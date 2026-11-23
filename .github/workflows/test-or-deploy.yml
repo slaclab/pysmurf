@@ -344,9 +344,14 @@ jobs:
       # Resolve every catalog name against committed dumps of both firmware
       # generations, so a name that no longer matches the firmware fails a build
       # rather than a night on a crate. Reads the dumps out of the repository, so
-      # this needs nothing installed and runs on a fork's pull request too.
+      # this needs nothing installed and runs on a fork's pull request too. The
+      # selftest drives each check with an input it must refuse, over fake maps
+      # of every platform the check reads, so a check that stopped matching is
+      # seen here rather than passing over nothing.
       - name: Resolve the cryodaq names against firmware tree dumps
-        run: python3 tests/cryodaq/check_catalog_resolves.py
+        run: |
+          python3 tests/cryodaq/check_catalog_resolves.py
+          python3 tests/cryodaq/check_catalog_resolves.py --selftest
 
       # sodetlib drives this client from another repository, so its use of it cannot
       # be found by reading this one: a refactor here can remove a method nothing

@@ -903,6 +903,17 @@ def selftest():
     fake_bayless = platform.PlatformMap(name='fake_rfsoc', tags=('FakeBayless',),
                                         registers=dict(shared), witness=(),
                                         scopes={'band': scopes['band']})
+    # The third fake stands in for the RFMC: the shared names, the one name under the
+    # device the client-reach check admits from this platform alone, and one other
+    # RFMC-only name that it must not admit.
+    rfmc_only = {
+        'adc_calibration.frozen': (base + 'CalibrationFreeze.CalFrozen', 'value'),
+        'rfmc.only': (base + 'Rfmc.Only', 'value'),
+    }
+    fake_rfmc = platform.PlatformMap(name='fake_rfmc', tags=('FakeRfmc',),
+                                     registers=dict(shared, **rfmc_only), witness=(),
+                                     scopes={'band': scopes['band']})
+    fakes = (fake, fake_bayless, fake_rfmc)
     # A stand-in client. The names are read out of accessor calls, so what this
     # selftest has to vary is source text rather than a table.
     def client_source(*calls):
@@ -922,9 +933,9 @@ def selftest():
         with tempfile.TemporaryDirectory() as tmp:
             tree = pathlib.Path(tmp)
             FIXTURES = tree
-            PLATFORM_OF = {'amc': 'fake', 'rfsoc': 'fake_rfsoc'}
+            PLATFORM_OF = {'amc': 'fake', 'rfsoc': 'fake_rfsoc', 'rfmc': 'fake_rfmc'}
             MIN_RESOLVED = 2                # the fake maps offer two names
-            platform.MAPS = (fake, fake_bayless)
+            platform.MAPS = fakes
 
             def write(stem, paths, ro=lambda path: False):
                 """A dump with the columns every check reads: path, type and mode.
@@ -960,6 +971,8 @@ def selftest():
             good_amc += [base + f'MicrowaveMuxCore[{y}].ATT.UC[{u}]'
                          for y in range(2) for u in (1, 2, 3, 4)]
             good_rfsoc = [base + f'SysgenCryo.Base[{b}].bandDelayUs' for b in range(8)]
+            good_rfmc = good_rfsoc + [base + 'CalibrationFreeze.CalFrozen', base + 'Rfmc.Only']
+            write('rfmc', good_rfmc)
 
             # A name the firmware does not have must fail, on either platform.
             write('amc', [p for p in good_amc if 'bandDelayUs' not in p])
@@ -995,7 +1008,7 @@ def selftest():
             expect_failure('two maps that offer the same names are caught',
                            check_the_platforms_differ_by_the_hardware_one_lacks,
                            'the two maps offer the same names')
-            platform.MAPS = (fake, fake_bayless)
+            platform.MAPS = fakes
 
             # A carrier-only name that is not front-end hardware means the maps disagree
             # about the generation rather than about the hardware.
@@ -1009,7 +1022,7 @@ def selftest():
             expect_failure('a carrier-only name that is not the front end is caught',
                            check_the_platforms_differ_by_the_hardware_one_lacks,
                            'not its front end or data links: unrelated')
-            platform.MAPS = (fake, fake_bayless)
+            platform.MAPS = fakes
             write('amc', good_amc)
 
             # The package-dump exclusion must be narrow: it may drop a name because the
@@ -1121,7 +1134,7 @@ def selftest():
             expect_failure('a command the firmware declares readable is caught',
                            check_the_map_declares_the_kind_the_firmware_declares,
                            'the map says command, but the firmware declares')
-            platform.MAPS = (fake, fake_bayless)
+            platform.MAPS = fakes
 
             # A client reaching a name the map cannot resolve must fail: that is a
             # method which raises the first time it is called.
@@ -1131,6 +1144,32 @@ def selftest():
             expect_failure('an accessor reaching an unresolvable name is caught',
                            check_the_client_reaches_only_names_the_map_resolves,
                            'the carrier does not have: band[*].ghost')
+
+            # The one RFMC-only name the client may reach is the calibration freeze,
+            # admitted from the RFMC dump; any other RFMC-only name is still a name the
+            # carrier does not have. Both directions, so the admission is shown to be
+            # exactly as wide as the device it names.
+            write_client(client_source(
+                ('_get_by_name', "'adc_calibration.frozen'", ''),
+            ))
+            # The check's closing floor on distinct names is the real client's, not this
+            # stand-in's; reaching it means every name before it resolved.
+            try:
+                check_the_client_reaches_only_names_the_map_resolves()
+            except AssertionError as e:
+                if 'too few distinct names' in str(e):
+                    print('  ok    the calibration freeze name, RFMC-only, is admitted')
+                else:
+                    failures += 1
+                    print(f'  FAIL  the calibration freeze name was refused: {str(e)[:96]}')
+            else:
+                print('  ok    the calibration freeze name, RFMC-only, is admitted')
+            write_client(client_source(
+                ('_get_by_name', "'rfmc.only'", ''),
+            ))
+            expect_failure('an RFMC-only name outside the calibration device is caught',
+                           check_the_client_reaches_only_names_the_map_resolves,
+                           'the carrier does not have: rfmc.only')
 
             # A client writing a register the firmware declares read-only must fail.
             # The mode comes from the dump, so the dump is what states it here.
