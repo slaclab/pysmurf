@@ -111,6 +111,9 @@ CARRIER_ONLY_DEVICES = ('MicrowaveMuxCore', 'AppTopJesd', 'SmurfApplication.Jesd
 # the server attaches on the AMC carrier. The two share the uMux application
 # wholesale, which is what the difference is checked against.
 AMC_CARRIER_ONLY_DEVICES = CARRIER_ONLY_DEVICES + ('AmcCarrierCore',)
+# What only the RFMC carrier has a name for: the freeze of its RF-ADC's background
+# calibration, a loop the AMC's converters do not run (firmware v1.6.0 / v2.1.0 on).
+RFMC_CARRIER_ONLY_DEVICES = ('CalibrationFreeze',)
 
 # Names whose nodes the server attaches to the tree at start-up, rather than the
 # firmware package declaring them: the four resonator-tuning processes and the
@@ -621,12 +624,15 @@ def check_the_two_carriers_differ_by_their_boards_alone():
     Both carry the whole uMux application, so every name that is not the board's
     must be in both maps and reach the same register. What is only the AMC carrier's is its
     converter cards' devices, the JESD verdict and health, the AMC carrier core and the
-    regulator the server attaches to it. The RFMC offers no name the AMC lacks: since
-    release v2.0.0 its synthesisers are driven by the firmware and expose no registers,
-    so the RFMC's whole difference is *where* shared names go -- the carrier-core names
-    and the attenuators are in both maps and reach different devices, named for the
-    board, and that is asserted here as well. (Through v1.1.0 the quads' PLL lock bits
-    were RFMC-only names; a name reappearing on one side only would show up here.)
+    regulator the server attaches to it. What is only the RFMC's is its RF-ADC's
+    background calibration freeze, a loop the AMC's converters do not have (firmware
+    v1.6.0 / v2.1.0 on; the committed dump is v1.6.1's). On either line of the RFMC
+    firmware the synthesisers, where there are any, are driven by the firmware and expose
+    no registers, so the rest of the RFMC's difference is *where* shared names go -- the
+    carrier-core names and the attenuators are in both maps and reach different devices,
+    named for the board, and that is asserted here as well. (Through v1.1.0 the quads'
+    PLL lock bits were RFMC-only names; a name reappearing on one side only would show
+    up here.)
     """
     amc = platform.by_name(PLATFORM_OF['amc'])
     rfmc = platform.by_name(PLATFORM_OF['rfmc'])
@@ -636,8 +642,9 @@ def check_the_two_carriers_differ_by_their_boards_alone():
     stray = [n for n in amc_only
              if not any(d in template_of(amc, n) for d in AMC_CARRIER_ONLY_DEVICES)]
     assert not stray, 'AMC-only name(s) that are not its board\'s: ' + ', '.join(stray[:6])
-    assert not rfmc_only, \
-        'RFMC-only name(s), which v2.0.0 has none of: ' + ', '.join(rfmc_only[:6])
+    stray = [n for n in rfmc_only
+             if not any(d in template_of(rfmc, n) for d in RFMC_CARRIER_ONLY_DEVICES)]
+    assert not stray, 'RFMC-only name(s) that are not its converter\'s: ' + ', '.join(stray[:6])
     # A shared name that reaches a different device on the two is the carrier core's
     # (AmcCarrierCore / RfmcCarrierCore) or the front end's (MicrowaveMuxCore / RfmcQuad
     # carry the same attenuator block); any other difference is two tables drifting.
@@ -706,8 +713,16 @@ def check_the_client_reaches_only_names_the_map_resolves():
 
     The map deliberately carries names no accessor reaches -- the operations use those
     directly -- so only this direction is a failure.
+
+    The AMC carrier is the reference. The one thing the RFMC has a name for and the
+    AMC does not, its converter's calibration freeze, is reached behind `platform_has`,
+    so names under that device are admitted from the RFMC's dump as well -- and only
+    those: any other RFMC-only name a client reaches still fails here.
     """
-    resolved, _absent = resolution('amc')
+    resolved = dict(resolution('amc')[0])
+    rfmc_map = platform.by_name(PLATFORM_OF['rfmc'])
+    resolved.update({name: hit for name, hit in resolution('rfmc')[0].items()
+                     if any(d in template_of(rfmc_map, name) for d in RFMC_CARRIER_ONLY_DEVICES)})
     reached = load_client_names()
     # A name the server attaches rather than the firmware declaring it cannot be
     # verified against a package dump, so it is excluded here for the same reason it is
@@ -888,6 +903,17 @@ def selftest():
     fake_bayless = platform.PlatformMap(name='fake_rfsoc', tags=('FakeBayless',),
                                         registers=dict(shared), witness=(),
                                         scopes={'band': scopes['band']})
+    # The third fake stands in for the RFMC: the shared names, the one name under the
+    # device the client-reach check admits from this platform alone, and one other
+    # RFMC-only name that it must not admit.
+    rfmc_only = {
+        'adc_calibration.frozen': (base + 'CalibrationFreeze.CalFrozen', 'value'),
+        'rfmc.only': (base + 'Rfmc.Only', 'value'),
+    }
+    fake_rfmc = platform.PlatformMap(name='fake_rfmc', tags=('FakeRfmc',),
+                                     registers=dict(shared, **rfmc_only), witness=(),
+                                     scopes={'band': scopes['band']})
+    fakes = (fake, fake_bayless, fake_rfmc)
     # A stand-in client. The names are read out of accessor calls, so what this
     # selftest has to vary is source text rather than a table.
     def client_source(*calls):
@@ -907,9 +933,9 @@ def selftest():
         with tempfile.TemporaryDirectory() as tmp:
             tree = pathlib.Path(tmp)
             FIXTURES = tree
-            PLATFORM_OF = {'amc': 'fake', 'rfsoc': 'fake_rfsoc'}
+            PLATFORM_OF = {'amc': 'fake', 'rfsoc': 'fake_rfsoc', 'rfmc': 'fake_rfmc'}
             MIN_RESOLVED = 2                # the fake maps offer two names
-            platform.MAPS = (fake, fake_bayless)
+            platform.MAPS = fakes
 
             def write(stem, paths, ro=lambda path: False):
                 """A dump with the columns every check reads: path, type and mode.
@@ -945,6 +971,8 @@ def selftest():
             good_amc += [base + f'MicrowaveMuxCore[{y}].ATT.UC[{u}]'
                          for y in range(2) for u in (1, 2, 3, 4)]
             good_rfsoc = [base + f'SysgenCryo.Base[{b}].bandDelayUs' for b in range(8)]
+            good_rfmc = good_rfsoc + [base + 'CalibrationFreeze.CalFrozen', base + 'Rfmc.Only']
+            write('rfmc', good_rfmc)
 
             # A name the firmware does not have must fail, on either platform.
             write('amc', [p for p in good_amc if 'bandDelayUs' not in p])
@@ -980,7 +1008,7 @@ def selftest():
             expect_failure('two maps that offer the same names are caught',
                            check_the_platforms_differ_by_the_hardware_one_lacks,
                            'the two maps offer the same names')
-            platform.MAPS = (fake, fake_bayless)
+            platform.MAPS = fakes
 
             # A carrier-only name that is not front-end hardware means the maps disagree
             # about the generation rather than about the hardware.
@@ -994,7 +1022,7 @@ def selftest():
             expect_failure('a carrier-only name that is not the front end is caught',
                            check_the_platforms_differ_by_the_hardware_one_lacks,
                            'not its front end or data links: unrelated')
-            platform.MAPS = (fake, fake_bayless)
+            platform.MAPS = fakes
             write('amc', good_amc)
 
             # The package-dump exclusion must be narrow: it may drop a name because the
@@ -1106,7 +1134,7 @@ def selftest():
             expect_failure('a command the firmware declares readable is caught',
                            check_the_map_declares_the_kind_the_firmware_declares,
                            'the map says command, but the firmware declares')
-            platform.MAPS = (fake, fake_bayless)
+            platform.MAPS = fakes
 
             # A client reaching a name the map cannot resolve must fail: that is a
             # method which raises the first time it is called.
@@ -1116,6 +1144,32 @@ def selftest():
             expect_failure('an accessor reaching an unresolvable name is caught',
                            check_the_client_reaches_only_names_the_map_resolves,
                            'the carrier does not have: band[*].ghost')
+
+            # The one RFMC-only name the client may reach is the calibration freeze,
+            # admitted from the RFMC dump; any other RFMC-only name is still a name the
+            # carrier does not have. Both directions, so the admission is shown to be
+            # exactly as wide as the device it names.
+            write_client(client_source(
+                ('_get_by_name', "'adc_calibration.frozen'", ''),
+            ))
+            # The check's closing floor on distinct names is the real client's, not this
+            # stand-in's; reaching it means every name before it resolved.
+            try:
+                check_the_client_reaches_only_names_the_map_resolves()
+            except AssertionError as e:
+                if 'too few distinct names' in str(e):
+                    print('  ok    the calibration freeze name, RFMC-only, is admitted')
+                else:
+                    failures += 1
+                    print(f'  FAIL  the calibration freeze name was refused: {str(e)[:96]}')
+            else:
+                print('  ok    the calibration freeze name, RFMC-only, is admitted')
+            write_client(client_source(
+                ('_get_by_name', "'rfmc.only'", ''),
+            ))
+            expect_failure('an RFMC-only name outside the calibration device is caught',
+                           check_the_client_reaches_only_names_the_map_resolves,
+                           'the carrier does not have: rfmc.only')
 
             # A client writing a register the firmware declares read-only must fail.
             # The mode comes from the dump, so the dump is what states it here.

@@ -92,7 +92,7 @@ AMCc.FpgaTopLevel.RfmcCarrierCore.AxiVersion.AppReset	Bool	RO	{False: 'False', T
 AMCc.FpgaTopLevel.RfmcCarrierCore.AxiVersion.AppClkFreq	UInt32	RO	None	1	[]	Application Clock Frequency
 AMCc.FpgaTopLevel.RfmcCarrierCore.AxiVersion.DspClkFreq	UInt32	RO	None	1	[]	DSP Clock Frequency
 AMCc.FpgaTopLevel.RfmcCarrierCore.AxiVersion.DspReset	Bool	RO	{False: 'False', True: 'True'}	1	[]	DSP Reset Status
-AMCc.FpgaTopLevel.RfmcCarrierCore.AxiVersion.HW_TYPE_C	UInt32	RO	{0: 'Undefined', 1: 'XilinxZcu208', 2: 'XilinxZcu216', 3: 'XilinxKriaKv260', 4: 'TrenzTe0835', 5: 'SlacSpaceRfSocGen2', 6: 'RealDigitalRfSoC4x2', 7: 'XilinxZcu111', 8: 'XilinxZcu670', 9: 'XilinxZcu102', 10: 'SlacRfmcCarrier'}	0	[]	
+AMCc.FpgaTopLevel.RfmcCarrierCore.AxiVersion.HW_TYPE_C	UInt32	RO	{0: 'Undefined', 1: 'XilinxZcu208', 2: 'XilinxZcu216', 3: 'XilinxKriaKv260', 4: 'TrenzTe0835', 5: 'SlacSpaceRfSocGen2', 6: 'RealDigitalRfSoC4x2', 7: 'XilinxZcu111', 8: 'XilinxZcu670', 9: 'XilinxZcu102', 10: 'SlacRfmcCarrier', 11: 'XilinxKriaKr260'}	0	[]	
 AMCc.FpgaTopLevel.RfmcCarrierCore.AxiVersion.IS_RFSOC_C	Bool	RO	{False: 'False', True: 'True'}	0	[]	Is this a RFSoC VHDL flag
 AMCc.FpgaTopLevel.RfmcCarrierCore.AxiSysMonUltraScale.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
 AMCc.FpgaTopLevel.RfmcCarrierCore.AxiSysMonUltraScale.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
@@ -2098,6 +2098,26 @@ AMCc.FpgaTopLevel.AppTop.AppCore.TimingHeader.TesBiasAddr[28]	UInt11	RW	None	0	[
 AMCc.FpgaTopLevel.AppTop.AppCore.TimingHeader.TesBiasAddr[29]	UInt11	RW	None	0	[]	TesBiasAddr (word address, not byte address)
 AMCc.FpgaTopLevel.AppTop.AppCore.TimingHeader.TesBiasAddr[30]	UInt11	RW	None	0	[]	TesBiasAddr (word address, not byte address)
 AMCc.FpgaTopLevel.AppTop.AppCore.TimingHeader.TesBiasAddr[31]	UInt11	RW	None	0	[]	TesBiasAddr (word address, not byte address)
+AMCc.FpgaTopLevel.AppTop.AppCore.CalibrationFreeze.enable	bool	RW	{False: 'False', True: 'True', 'parent': 'ParentFalse', 'deps': 'ExtDepFalse'}	0	['Enable']	Determines if device is enabled for hardware access
+AMCc.FpgaTopLevel.AppTop.AppCore.CalibrationFreeze.ReadDevice	bool	WO	{False: 'False', True: 'True'}	0	['Hidden']	Force read of device without recursion
+AMCc.FpgaTopLevel.AppTop.AppCore.CalibrationFreeze.WriteDevice	str	WO	None	0	['Hidden']	Force write of device without recursion
+AMCc.FpgaTopLevel.AppTop.AppCore.CalibrationFreeze.ManualFreeze	UInt8	RW	None	0	[]	Freeze the GCB and TSCB background calibration of the band (one bit per band)
+AMCc.FpgaTopLevel.AppTop.AppCore.CalibrationFreeze.AutoEnable	UInt8	RW	None	0	[]	Let the signal detector freeze the band while its ADC magnitude stays below Threshold (one bit per band)
+AMCc.FpgaTopLevel.AppTop.AppCore.CalibrationFreeze.Threshold	UInt16	RW	None	0	[]	Signal detector threshold on the mean of |I|+|Q| per complex ADC sample (16-bit full scale). 416 is a -40 dBFS tone, the level below which the product guide asks for the freeze
+AMCc.FpgaTopLevel.AppTop.AppCore.CalibrationFreeze.Window	UInt5	RW	None	0	[]	Signal detector window of 2^Window clocks of the 307.2 MHz DSP clock, 24 at most. 15 is 106.7 us
+AMCc.FpgaTopLevel.AppTop.AppCore.CalibrationFreeze.HoldOff	UInt8	RW	None	0	[]	Consecutive windows below Threshold before the signal detector asserts the freeze. One window above Threshold releases it
+AMCc.FpgaTopLevel.AppTop.AppCore.CalibrationFreeze.CalFrozen	UInt8	RO	None	1	[]	cal_frozen status of the RF-ADC of the band (one bit per band)
+AMCc.FpgaTopLevel.AppTop.AppCore.CalibrationFreeze.AutoFreeze	UInt8	RO	None	1	[]	Signal detector state of the band, 1 while it asks for the freeze (one bit per band)
+AMCc.FpgaTopLevel.AppTop.AppCore.CalibrationFreeze.SigDetect	UInt8	RO	None	1	[]	sig_detect output of the RF-ADC of the band, the IP core signal magnitude detector (one bit per band)
+AMCc.FpgaTopLevel.AppTop.AppCore.CalibrationFreeze.CalFreeze	UInt8	RO	None	1	[]	int_cal_freeze pin driven to the RF-ADC of the band: ManualFreeze or (AutoEnable and AutoFreeze) (one bit per band)
+AMCc.FpgaTopLevel.AppTop.AppCore.CalibrationFreeze.Magnitude[0]	UInt16	RO	None	1	[]	Mean of |I|+|Q| per complex ADC sample over the last signal detector window of the band
+AMCc.FpgaTopLevel.AppTop.AppCore.CalibrationFreeze.Magnitude[1]	UInt16	RO	None	1	[]	Mean of |I|+|Q| per complex ADC sample over the last signal detector window of the band
+AMCc.FpgaTopLevel.AppTop.AppCore.CalibrationFreeze.Magnitude[2]	UInt16	RO	None	1	[]	Mean of |I|+|Q| per complex ADC sample over the last signal detector window of the band
+AMCc.FpgaTopLevel.AppTop.AppCore.CalibrationFreeze.Magnitude[3]	UInt16	RO	None	1	[]	Mean of |I|+|Q| per complex ADC sample over the last signal detector window of the band
+AMCc.FpgaTopLevel.AppTop.AppCore.CalibrationFreeze.Magnitude[4]	UInt16	RO	None	1	[]	Mean of |I|+|Q| per complex ADC sample over the last signal detector window of the band
+AMCc.FpgaTopLevel.AppTop.AppCore.CalibrationFreeze.Magnitude[5]	UInt16	RO	None	1	[]	Mean of |I|+|Q| per complex ADC sample over the last signal detector window of the band
+AMCc.FpgaTopLevel.AppTop.AppCore.CalibrationFreeze.Magnitude[6]	UInt16	RO	None	1	[]	Mean of |I|+|Q| per complex ADC sample over the last signal detector window of the band
+AMCc.FpgaTopLevel.AppTop.AppCore.CalibrationFreeze.Magnitude[7]	UInt16	RO	None	1	[]	Mean of |I|+|Q| per complex ADC sample over the last signal detector window of the band
 AMCc.FpgaTopLevel.AppTop.AppCore.enableStreaming	UInt1	RW	None	0	[]	Enable streaming
 AMCc.FpgaTopLevel.AppTop.AppCore.DebugSelect[0]	UInt2	RW	None	0	[]	Select which Band goes to DaqMuxV2[0] debug
 AMCc.FpgaTopLevel.AppTop.AppCore.DebugSelect[1]	UInt2	RW	None	0	[]	Select which Band goes to DaqMuxV2[1] debug
