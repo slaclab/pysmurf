@@ -692,29 +692,46 @@ def check_setup_is_gated_on_its_own_record_not_the_servers_flag():
 
     # The server's half: its register layers are the server's, not the
     # client's. A server that reports its procedure has run is not made to
-    # load them again unless forced; one that has not is.
+    # load them again unless forced; one that has not is. The verdict is read
+    # only once the server says it is not configuring: a server started with
+    # --configure raises SystemConfigured when its steps end and stays
+    # configuring through the update pass that follows, and a client arriving
+    # in between must wait for it rather than drive a busy server.
     def server(configured):
         S = SmurfControl.__new__(SmurfControl)
         S.log = lambda *a, **k: None
-        S.get_system_configured = lambda: configured
-        S._session = type('_S', (), {'get': lambda self, path: 'stood-in'})()
         calls = []
-        S.set_defaults_pv = lambda write_log: calls.append('defaults') or True
+        S.wait_configuring_in_progress = lambda timeout: calls.append(('wait', timeout))
+        S.get_system_configured = lambda: calls.append('verdict') or configured
+        S._session = type('_S', (), {'get': lambda self, path: 'stood-in'})()
+        S.set_defaults_pv = lambda max_timeout_sec, write_log: calls.append('defaults') or True
         return S, calls
 
     S, calls = server(True)
-    assert S._configure_server(write_log=False, force_configure=False) is True and calls == [], \
-        'a configured server must not be made to load its layers again'
+    assert S._configure_server(write_log=False, force_configure=False) is True \
+        and calls == [('wait', 300.0), 'verdict'], \
+        f'a configured server must be waited for, then not made to load its layers again: {calls}'
     S, calls = server(True)
-    assert S._configure_server(write_log=False, force_configure=True) is True and calls == ['defaults'], \
-        'unless forced'
+    assert S._configure_server(write_log=False, force_configure=True) is True \
+        and calls == [('wait', 300.0), 'verdict', 'defaults'], f'unless forced: {calls}'
     S, calls = server(False)
-    assert S._configure_server(write_log=False, force_configure=False) is True and calls == ['defaults'], \
-        'an unconfigured server runs its procedure'
+    assert S._configure_server(write_log=False, force_configure=False, max_timeout_sec=7.5) is True \
+        and calls == [('wait', 7.5), 'verdict', 'defaults'], \
+        f'an unconfigured server runs its procedure, after the same wait with the bound given: {calls}'
     S, calls = server(False)
-    S.set_defaults_pv = lambda write_log: False
+    S.set_defaults_pv = lambda max_timeout_sec, write_log: False
     assert S._configure_server(write_log=False, force_configure=False) is False, \
         'and its failure is the verdict'
+
+    # A server still configuring when the bound runs out is not driven, and
+    # its verdict is not read.
+    def still_configuring(timeout):
+        calls.append(('wait', timeout))
+        raise TimeoutError('stood-in')
+    S, calls = server(True)
+    S.wait_configuring_in_progress = still_configuring
+    assert S._configure_server(write_log=False, force_configure=False) is False \
+        and calls == [('wait', 300.0)], f'a server that never stops configuring fails the setup: {calls}'
 
 
 def check_a_write_into_a_per_band_property_persists():

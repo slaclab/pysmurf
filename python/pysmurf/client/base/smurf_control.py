@@ -415,8 +415,23 @@ class SmurfControl(SmurfCommandMixin,
                 self.log('Resuming hardware logging.', self.LOG_USER)
                 self.resume_hardware_logging()
 
-    def _configure_server(self, write_log, force_configure):
-        """The server's half of ``setup()``: its configuration procedure, unless it has already run. True when the server is configured."""
+    def _configure_server(self, write_log, force_configure, max_timeout_sec=300.0):
+        """The server's half of ``setup()``: its configuration procedure, unless it has already run. True when the server is configured.
+
+        ``max_timeout_sec`` bounds each wait on the server: for a procedure
+        already under way when this is called, and for the one started here.
+        """
+        # A server that is configuring right now -- started with --configure
+        # moments ago, or driven by another client -- is waited for before its
+        # verdict is read: SystemConfigured says how the procedure ended, and
+        # means nothing while ConfiguringInProgress says it has not.
+        try:
+            self.wait_configuring_in_progress(max_timeout_sec)
+        except TimeoutError:
+            self.log(f'The server was still configuring after {max_timeout_sec} seconds.',
+                     self.LOG_ERROR)
+            return False
+
         # The register layers are the server's, not this client's: a server
         # that has run its procedure -- started with --configure, or set up
         # before -- reports SystemConfigured and is not made to load them
@@ -429,7 +444,7 @@ class SmurfControl(SmurfCommandMixin,
 
         # The register layers loaded, the converter links checked. The
         # procedure's message names the step that failed.
-        if not self.set_defaults_pv(write_log=write_log):
+        if not self.set_defaults_pv(max_timeout_sec=max_timeout_sec, write_log=write_log):
             message = self._session.get('ops.setup.message')
             self.log(
                 f'ERROR : System configuration/setDefaults failed ({message})!  Do'
