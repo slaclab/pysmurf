@@ -48,6 +48,7 @@
 #-----------------------------------------------------------------------------
 
 import argparse
+import importlib
 import ast
 import os
 import pathlib
@@ -461,10 +462,29 @@ def attached_by_a_provider(pmap, template):
                for node in _umux.OPERATION_NODES)
 
 
-def operations_the_package_defines(stem, platform_name):
-    """The provider-attached names whose nodes a package dump has: what the firmware still defines.
+def anchored_by_the_platform(pmap, template):
+    """Whether a register path template names a node the platform's own support code adds under the firmware's tree.
 
-    The other half of `attached_by_a_provider`: a name excused from resolving
+    A platform map declares the names it anchors such nodes to
+    (``SERVER_ADDED_ANCHORS``, beside the shared map's other server-added
+    declarations); everything at or below an anchor is the server's
+    (`PlatformSupport.extend`), so a dump of a released package cannot be
+    expected to carry it. Read from the map module, which needs no rogue.
+    """
+    module = importlib.import_module(pmap.module) if pmap.module else None
+    for anchor in getattr(module, 'SERVER_ADDED_ANCHORS', ()):
+        if anchor not in pmap:
+            raise ValueError(f"{pmap.name}: SERVER_ADDED_ANCHORS names {anchor!r}, which is not in the map")
+        root = template_of(pmap, anchor)
+        if template == root or template.startswith(f'{root}.'):
+            return True
+    return False
+
+
+def operations_the_package_defines(stem, platform_name):
+    """The server-added names whose nodes a package dump has: what the firmware still defines.
+
+    The other half of `attached_by_a_provider` and `anchored_by_the_platform`: a name excused from resolving
     against a released package because the server attaches it must then be
     *absent* from the package -- a present one means the firmware still
     defines the operation, the composition's pre-attach check would refuse
@@ -479,7 +499,7 @@ def operations_the_package_defines(stem, platform_name):
     defined = {}
     for name in sorted(pmap.registers):
         template = template_of(pmap, name)
-        if not attached_by_a_provider(pmap, template):
+        if not (attached_by_a_provider(pmap, template) or anchored_by_the_platform(pmap, template)):
             continue
         # A device or a process is in a dump only through its children, so both
         # are matched against the parents of the rows listed.
@@ -538,7 +558,8 @@ def resolution(stem, names=None, package_only=False, platform_name=None):
             continue
         if package_only and name in pmap:
             template = template_of(pmap, name)
-            if reaches_a_server_added_subtree(template) or attached_by_a_provider(pmap, template):
+            if (reaches_a_server_added_subtree(template) or attached_by_a_provider(pmap, template) or
+                    anchored_by_the_platform(pmap, template)):
                 continue
         if name not in pmap:
             absent[name] = 'not in this platform map'
@@ -1062,9 +1083,20 @@ def selftest():
                     failures += 1
                     print(f'  FAIL  {tmpl} {"not recognised as" if expected else "wrongly classed as"} '
                           f'provider-attached')
+            # The platform-anchored exclusion likewise: the eye scan the AMC support adds
+            # under a bay's JESD block is excluded, the firmware's link registers beside it are not.
+            eye_scan = template_of(real_amc, 'bay[*].jesd.rx_eye_scan')
+            for tmpl, expected in ((eye_scan, True), (f'{eye_scan}.Mode', True),
+                                   (template_of(real_amc, 'bay[*].jesd.rx_enable'), False),
+                                   (f'{eye_scan}Other', False)):
+                if anchored_by_the_platform(real_amc, tmpl) != expected:
+                    failures += 1
+                    print(f'  FAIL  {tmpl} {"not recognised as" if expected else "wrongly classed as"} '
+                          f'platform-anchored')
             if failures == before_classifier:
                 print('  ok    the package-dump exclusion covers the server subtrees, the '
-                      'operations the providers attach, and nothing else under FpgaTopLevel')
+                      'operations the providers attach, the nodes the platform anchors, and '
+                      'nothing else under FpgaTopLevel')
 
             # The exclusion's other direction: a package dump that still carries an
             # operation node is caught, with the real AMC map, on a dump that is
@@ -1073,9 +1105,13 @@ def selftest():
             fixture_paths = sorted(load_dump(FIXTURES / 'amc.varlist.txt'))
             # Two planted nodes: a command (a row of its own) and a process (seen only
             # through a child variable's row), since a dump lists no row for a process.
+            # And a child of the platform-anchored process, which a package must not define either.
             planted = [f'{ops_device}.runEtaScan'.replace('[{band}]', '[0]'),
-                       f'{ops_device}.SerialEtaScan.Running'.replace('[{band}]', '[0]')]
-            with_one = [p for p in fixture_paths if not attached_by_a_provider(real_amc, p.replace('[0]', '[{band}]'))] + planted
+                       f'{ops_device}.SerialEtaScan.Running'.replace('[{band}]', '[0]'),
+                       f'{eye_scan}.Mode'.replace('[{bay}]', '[0]')]
+            with_one = [p for p in fixture_paths
+                        if not (attached_by_a_provider(real_amc, p.replace('[0]', '[{band}]')) or
+                                anchored_by_the_platform(real_amc, p.replace('[0]', '[{bay}]')))] + planted
             write('planted', with_one)
             saved_maps = platform.MAPS
             platform.MAPS = saved[-1]
@@ -1083,10 +1119,11 @@ def selftest():
                 defined = operations_the_package_defines(tree / 'planted.varlist.txt', 'umux-amc')
             finally:
                 platform.MAPS = saved_maps
-            if sorted(defined) != ['band[*].ops.eta_scan', 'band[*].ops.run_eta_scan']:
+            if sorted(defined) != ['band[*].ops.eta_scan', 'band[*].ops.run_eta_scan',
+                                   'bay[*].jesd.rx_eye_scan', 'bay[*].jesd.rx_eye_scan.mode']:
                 failures += 1
-                print(f'  FAIL  a package dump with a command and a process planted reported {defined}')
-            write('planted', with_one[:-2])
+                print(f'  FAIL  a package dump with a command, a process and an anchored node planted reported {defined}')
+            write('planted', with_one[:-3])
             platform.MAPS = saved[-1]
             try:
                 defined = operations_the_package_defines(tree / 'planted.varlist.txt', 'umux-amc')
@@ -1347,13 +1384,15 @@ def main():
         if absent or defined:
             if absent:
                 print(f'\nFAILED: {len(absent)} name(s) the map offers are not in this '
-                      f'released package.')
+                      f'released package. A node the server adds under the firmware tree '
+                      f'(PlatformSupport.extend) is excused only once its anchor is in the '
+                      f"map's SERVER_ADDED_ANCHORS.")
             if defined:
-                print(f'\nFAILED: {len(defined)} operation(s) the server attaches are still '
+                print(f'\nFAILED: {len(defined)} node(s) the server adds are already '
                       f'defined by this released package; the composition would refuse it.')
             return 1
         print(f'\nAll {len(resolved)} firmware-tree name(s) resolve against this '
-              f'released package, which defines none of the operations the server attaches.')
+              f'released package, which defines none of the nodes the server adds.')
         return 0
 
     checks = sorted((name[len('check_'):], fn)

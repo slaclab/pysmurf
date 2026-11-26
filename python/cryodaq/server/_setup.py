@@ -314,6 +314,16 @@ class PlatformSupport:
         """Devices the server adds beside the FPGA's tree; none by default."""
         return []
 
+    def extend(self, fpga: Any) -> None:
+        """Add what the server puts *under* the firmware's own devices; nothing by default.
+
+        The composition calls it once `top_level` has built the tree and before
+        the root starts. A dump of a released package does not, so a check that
+        resolves names against such a dump sees the firmware alone; the names of
+        anything added here are excused from that check by the platform map's
+        ``SERVER_ADDED_ANCHORS``, which is where a node added here is declared.
+        """
+
     @classmethod
     def for_map(cls, pmap: platform.PlatformMap) -> 'PlatformSupport':
         """The tree contribution of the platform ``pmap`` describes.

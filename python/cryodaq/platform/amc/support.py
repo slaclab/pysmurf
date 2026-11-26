@@ -32,6 +32,7 @@ import pyrogue as pr
 
 from cryodaq._errors import ConnectError
 from cryodaq.platform import amc
+from cryodaq.server._firmware import read_version
 from cryodaq.server._setup import PlatformSupport, Setup, StepError, load_layers
 
 __all__ = ['AmcSupport', 'AmcSetup', 'RxEyeScan']
@@ -186,13 +187,27 @@ class AmcSupport(PlatformSupport):
             raise ConnectError(f"platform {amc.NAME}'s top level takes the FPGA's registers at 0, and cannot "
                                f"be placed at the {transport.name} transport's window {transport.register_offset:#x}")
         from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
-        # With the GT DRP devices (images 0x02070000 and later): the eye scan's
-        # sampler is armed through them, and each bay with them gets its eye scan.
-        fpga = FpgaTopLevel(memBase=transport.srp, enJesdDrp=True, **options)
+        # The GT DRP devices are in the tree when the image maps them: the eye
+        # scan's sampler is armed through them. The firmware says which image it
+        # is before any tree exists (the same read that identified the platform),
+        # so an older image is built without them rather than met with bus errors
+        # at the first read of all; a transport with no firmware behind it (the
+        # emulation) is taken to run the image the server ships.
+        drp = True
+        if transport.probes_firmware:
+            version = read_version(transport.srp, transport.register_nodes, transport.register_offset,
+                                   where=transport.name).fpga_version
+            drp = version >= amc.GT_DRP_FROM
+            if not drp:
+                _log.warning("firmware 0x%08x predates the GT DRP windows (0x%08x): the tree is built "
+                             "without them and this server offers no eye scan", version, amc.GT_DRP_FROM)
+        return FpgaTopLevel(memBase=transport.srp, enJesdDrp=drp, **options)
+
+    def extend(self, fpga: Any) -> None:
+        """Give each bay that has its GT channels a passive eye scan (`RxEyeScan`)."""
         for bay, jesd in getattr(fpga.AppTop, 'AppTopJesd', {}).items():
             if jesd.eyeScanLanes():
                 jesd.add(RxEyeScan(bay=bay))
-        return fpga
 
 
 class _Refused(Exception):

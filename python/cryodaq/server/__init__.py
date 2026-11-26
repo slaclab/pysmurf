@@ -185,6 +185,7 @@ def compose(*, transport: Transport, firmware: Optional[os.PathLike] = None,
         if support is None:
             support = PlatformSupport.for_map(pmap)
         fpga = support.top_level(transport, **(top_level_options or {}))
+        support.extend(fpga)
 
         root = ReadoutRoot(fpga=fpga, transport=transport, pmap=pmap, providers=providers,
                            sinks=sinks, layers=layers, server_port=server_port, polling=polling,

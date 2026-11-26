@@ -35,8 +35,9 @@ from typing import Any, Dict, Mapping
 from cryodaq.platform import _atca, _umux
 
 __all__ = ['NAME', 'TAGS', 'PACKAGE_CONFIG_DIR', 'PACKAGE_DEFAULTS', 'BRING_UP', 'CARRIER', 'REGISTERS', 'LEGACY',
-           'WITNESS', 'SCOPES', 'MUX_CORE', 'JESD_BAY', 'JESD_RX_GT', 'RX_EYE_SCAN', 'RX_EYE_SCAN_PARAMETERS',
-           'AMC_CARRIER_REGISTERS', 'AMC_CARRIER_LEGACY', 'AMC_CARRIER_SCOPES']
+           'WITNESS', 'SCOPES', 'MUX_CORE', 'JESD_BAY', 'JESD_RX_GT', 'GT_DRP_FROM', 'RX_EYE_SCAN',
+           'RX_EYE_SCAN_PARAMETERS', 'SERVER_ADDED_ANCHORS', 'AMC_CARRIER_REGISTERS', 'AMC_CARRIER_LEGACY',
+           'AMC_CARRIER_SCOPES']
 
 NAME = 'umux-amc'
 
@@ -241,15 +242,20 @@ _JESD_TX_STATUS_VALID_COUNT = (f'{JESD_BAY}.JesdTx.StatusValidCnt'
                                f'[{{link}}]')
 
 # The GT channel of each lane, reached over its DRP port: present when the top level is
-# built with the DRP devices (``enJesdDrp``), which the server's support code does. The
-# support code arms each lane's eye-scan sampler here before the links come up, so a
-# later eye scan needs no RX reset. Public for that code; no client name reaches it.
+# built with the DRP devices (``enJesdDrp``), which the server's support code does on an
+# image that has the windows -- the firmware maps them from `GT_DRP_FROM` on; before it
+# the addresses are unmapped and a read of them is a bus error. The support code arms
+# each lane's eye-scan sampler here before the links come up, so a later eye scan needs
+# no RX reset. Public for that code; no client name reaches it.
 JESD_RX_GT = f'{JESD_BAY}.Gthe4Channel[{{rx_lane}}]'
+GT_DRP_FROM = 0x02070000
 
-# The statistical eye scan of a bay's receive lanes, a process the server adds beside
-# the bay's links (`AmcSupport.top_level`). Passive: it never resets the GTs and never
-# re-runs the link bring-up, so the links stay up through a scan. Its parameters are
-# set first, then it is started; what it found is left on the same device.
+# The statistical eye scan of a bay's receive lanes, a process the *server* adds under
+# the bay's JESD block (`AmcSupport.extend`); the firmware does not declare it, so a tree
+# built from a released package alone has none, and `SERVER_ADDED_ANCHORS` below says so.
+# Passive: it never resets the GTs and never re-runs the link bring-up, so the links stay
+# up through a scan. Its parameters are set first, then it is started; what it found is
+# left on the same device.
 RX_EYE_SCAN = f'{JESD_BAY}.RxEyeScan'
 RX_EYE_SCAN_PARAMETERS = {
     'mode': 'Mode',
@@ -292,6 +298,14 @@ REGISTERS.update({
 })
 REGISTERS.update({f'bay[*].jesd.rx_eye_scan.{name}': (f'{RX_EYE_SCAN}.{node}', _V)
                   for name, node in RX_EYE_SCAN_PARAMETERS.items()})
+
+# The names under which this platform's support code adds nodes *inside* the firmware's
+# tree (`PlatformSupport.extend`): everything at or below each is the server's, not the
+# firmware's. The shared map declares the server's root-level additions and the
+# operations provider's the same way (`_umux.SERVER_ADDED_ROOT_NODES`,
+# `_umux.OPERATIONS_ANCHOR`); a check that resolves names against a released package
+# reads all three to know what such a package cannot be expected to carry.
+SERVER_ADDED_ANCHORS = ('bay[*].jesd.rx_eye_scan',)
 
 # The carrier's names only deprecated accessors reach; see the shared map's LEGACY.
 LEGACY = {**_umux.LEGACY, **AMC_CARRIER_LEGACY}
