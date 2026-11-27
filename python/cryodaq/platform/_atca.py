@@ -44,7 +44,8 @@ from cryodaq._errors import CryodaqError
 
 __all__ = ['ShelfManager', 'ShelfManagerError', 'ToolTimeout', 'FruRecord', 'run_tool',
            'ipmb_address', 'fpga_address', 'SLOTS', 'AMC_BAYS', 'CARRIER_FRU_ID', 'RTM_FRU_ID', 'BOOTED',
-           'BOOT_RETRIES', 'BOOT_RETRY_DELAY_S', 'IMAGE_SUFFIX', 'IMAGE_HASH_RE']
+           'BOOT_RETRIES', 'BOOT_RETRY_DELAY_S', 'IMAGE_SUFFIX', 'IMAGE_HASH_RE', 'TOOL_TIMEOUT_S',
+           'PROGRAM_TIMEOUT_S']
 
 # The slots a front board can sit in: the two hub slots are 1 and 2 on a
 # 7-slot shelf, but SLAC's convention numbers payload carriers 2 through 7.
@@ -59,6 +60,12 @@ AMC_BAYS = (0, 2)
 # second, and a controller that does not answer is reported by the tool itself
 # ('No Response') within a few seconds.
 TOOL_TIMEOUT_S = 60
+# How long an FPGA image load may take: `ProgramFPGA.bash` writes a 100 MB image
+# over the FPGA's Ethernet, reboots the FPGA and reads the new version back,
+# five minutes measured in all; its reboot waits are bounded by the tool itself
+# (ten polls of the boot state and ten of the network, ten seconds apart). The
+# shelf manager's bound would kill the write half way.
+PROGRAM_TIMEOUT_S = 1200
 # The boot state the carrier reports once its FPGA is up.
 BOOTED = 3
 # The image the shelf manager programs into a carrier's flash: an MCS file,
@@ -103,7 +110,7 @@ def run_tool(argv: Sequence[str], timeout: float = TOOL_TIMEOUT_S) -> Tuple[int,
     Standard error is folded into the output: `ipmitool` reports an absent or
     silent controller there, and the message is what a reader needs. The
     timeout is the shelf manager's unless a caller's tool takes longer by
-    nature (a copy of boot files to a board).
+    nature (an image load, a copy of boot files to a board).
     """
     if shutil.which(argv[0]) is None:
         raise ShelfManagerError('finding the tool', argv, f"{argv[0]} is not installed")
@@ -345,7 +352,7 @@ class ShelfManager:
     def program(self, image: 'os.PathLike[str] | str') -> None:
         """Load an FPGA image through the shelf manager; the FPGA reboots into it."""
         argv = ['ProgramFPGA.bash', '-s', self.host, '-n', str(self.slot), '-m', str(image)]
-        status, out = run_tool(argv)
+        status, out = run_tool(argv, PROGRAM_TIMEOUT_S)
         if status != 0:
             raise ShelfManagerError('loading the FPGA image', argv, out)
 

@@ -96,8 +96,12 @@ def firmware_dir(tmp, archive=ARCHIVE):
 @contextlib.contextmanager
 def crate(replay):
     """The shelf-manager tools answered by ``replay`` instead of run, and the boot waits skipped."""
+    def run(argv, timeout=_atca.TOOL_TIMEOUT_S):
+        if os.path.basename(str(argv[0])) == 'ProgramFPGA.bash':
+            assert timeout == _atca.PROGRAM_TIMEOUT_S, f"an image load must be given its own timeout, not {timeout}"
+        return replay(argv, timeout)
     real_run, real_sleep = _atca.run_tool, _atca.time.sleep
-    _atca.run_tool, _atca.time.sleep = replay, lambda s: None
+    _atca.run_tool, _atca.time.sleep = run, lambda s: None
     try:
         yield replay
     finally:
